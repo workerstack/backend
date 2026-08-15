@@ -1,11 +1,78 @@
 {
-  "_generated": "honey checksum:af2e986698da",
+  "_generated": "honey checksum:ef77245af328",
   "info": {
     "title": "Honey Gateway",
     "version": "0.0.1"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/articles": {
+      "get": {
+        "summary": "List articles",
+        "x-permissions": [
+          "articles.read"
+        ],
+        "x-tenant": {
+          "param": "project_id"
+        },
+        "x-entity": "article",
+        "x-generated": [
+          "id"
+        ],
+        "x-immutable": [
+          "id"
+        ],
+        "x-soft-delete": {
+          "field": "deletedAt"
+        },
+        "x-query": {
+          "filter": [
+            "title"
+          ],
+          "pagination": {
+            "defaultLimit": 20,
+            "maxLimit": 100
+          },
+          "sort": [
+            "title"
+          ]
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListArticlesResponse200"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/articles/meta": {
+      "get": {
+        "x-tenant": {
+          "param": "project_id"
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/ping": {
       "get": {
         "responses": {
@@ -13,6 +80,63 @@
             "description": "Success"
           }
         }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ListArticlesResponse200": {
+        "type": "object",
+        "properties": {
+          "articles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title"
+              ],
+              "additionalProperties": false,
+              "entity": {
+                "generated": [
+                  "id"
+                ],
+                "immutable": [
+                  "id"
+                ],
+                "softDelete": "deletedAt",
+                "table": "article"
+              }
+            }
+          },
+          "count": {
+            "type": "number"
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "articles",
+          "count",
+          "nextCursor"
+        ],
+        "additionalProperties": false
       }
     }
   }
