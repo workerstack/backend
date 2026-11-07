@@ -23,10 +23,6 @@ import { createReferenceServer } from "./reference-server.ts"
 import { realtimeRoutes } from "./app-realtime.ts"
 import { secureRoutes } from "./app-secure.ts"
 import { ws } from "../../../src/ws/route.ts"
-import type { HoneyRes } from "../../../src/response/response.ts"
-
-/** A Response the route does not declare: a fault injected on purpose, past the handler's typed return. */
-const undeclared = (ctx: { readonly res: object }, response: Response) => (ctx.res as HoneyRes).raw(response) as never
 
 /** The app's origins, known once every listener is up: the drop origin cuts each answer at its end (drop-front.ts). */
 export type Origins = { readonly alt: string; readonly drop: string; readonly url: string }
@@ -281,14 +277,17 @@ function streamRoutes(app: ConformanceApp): void {
 		})
 }
 
-/** `faults.undecodable`: a 200 declared as an item whose body is no JSON at all (bit 21 i0). */
+/**
+ * `faults.undecodable`: a 200 declared as an item whose body is no JSON at all (bit 21 i0), forwarded as an upstream
+ * that broke its contract: forward() checks its status and media type and never reads the body.
+ */
 function faultRoutes(app: ConformanceApp): void {
 	app
 		.get("/faults/undecodable")
 		.meta({ operationId: "faults.undecodable" })
 		.output({ "application/json": { ok: Item } })
 		.handler((ctx) =>
-			undeclared(ctx, new Response("not json", { headers: { "content-type": "application/json" }, status: 200 })),
+			ctx.res.forward(new Response("not json", { headers: { "content-type": "application/json" }, status: 200 })),
 		)
 }
 
