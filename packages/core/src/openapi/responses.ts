@@ -38,6 +38,8 @@ const NOT_MEDIA: readonly string[] = ["headers", "redirect"]
 const LOCATION: HeaderObject = { description: "Redirect target URL", schema: { format: "uri", type: "string" } }
 /* the statuses `redirect()` answers carry a target; a 304 is bodiless without one */
 const carriesTarget = (code: number) => code >= 300 && code < 400 && code !== 304
+/* a 204 or 205 never carries a body: declared under a media type (or the shorthand), it is documented with none */
+const bodiless = (code: number) => code === 204 || code === 205
 const STRING = { type: "string" }
 
 const describe = (statusKey: string) => statusKey.replaceAll("_", " ")
@@ -74,6 +76,7 @@ export function successResponses(
 		for (const [statusKey, schema] of Object.entries(statuses as StatusSchemas)) {
 			const code = statusKeyToCode[statusKey as StatusKey]
 			const response = at(out, code, describe(statusKey))
+			if (bodiless(code)) continue
 			response.content ??= {}
 			response.content[media] = schema === true ? {} : { schema: convert(schema, "output", hint(code)) }
 		}

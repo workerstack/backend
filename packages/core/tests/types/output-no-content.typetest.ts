@@ -66,3 +66,43 @@ describe("ctx.res.noContent(): only on a route that declares its 204", () => {
 			})
 	})
 })
+
+describe("a declared 204 or 205 is no body helper's status", () => {
+	it("refuses no_content and reset_content to json, the text helpers and binary, which throw on a null-body status", () => {
+		const row = z.object({ id: z.string() })
+		const app = honey<{}>()
+		app
+			.delete("/a")
+			.output({ no_content: true, ok: row, reset_content: true })
+			.handler((c) => {
+				// @ts-expect-error a 204 carries no body: noContent() answers it
+				c.res.json("no_content", { id: "1" })
+				// @ts-expect-error a 205 carries no body
+				c.res.json("reset_content", { id: "1" })
+				expectTypeOf<Parameters<typeof c.res.json>[0]>().toEqualTypeOf<"ok">()
+				return c.res.json("ok", { id: "1" })
+			})
+		app
+			.delete("/b")
+			.output({ "text/csv": { no_content: true, ok: true } })
+			.handler((c) => {
+				// @ts-expect-error a 204 carries no body
+				c.res.csv("no_content", "")
+				expectTypeOf<Parameters<typeof c.res.csv>[0]>().toEqualTypeOf<"ok">()
+				return c.res.csv("ok", "")
+			})
+		app
+			.delete("/c")
+			.output({
+				"application/octet-stream": { no_content: true, ok: true },
+				"image/png": { no_content: true, ok: true },
+			})
+			.handler((c) => {
+				// @ts-expect-error a 204 carries no body
+				c.res.binary("no_content", new Uint8Array(0))
+				// @ts-expect-error a 204 carries no body, under an open type too
+				c.res.binary("no_content", new Uint8Array(0), { contentType: "image/png" })
+				return c.res.binary("ok", new Uint8Array(0))
+			})
+	})
+})

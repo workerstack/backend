@@ -212,6 +212,12 @@ export type DeclaredAnswer<TOutput> = [TOutput] extends [never]
 /** A declared body's type: its schema's input, what output validation accepts; `unknown` without a schema. */
 type BodyOf<S> = S extends StandardSchemaLike ? InferInput<S> : unknown
 
+/** The 2xx keys of a null-body status: `noContent()` (or `forward()`) answers them, never a body helper. */
+type NullBodyKey = "no_content" | "reset_content"
+
+/** The status keys a body helper takes under `CT`: the declared ones, less the null-body ones. */
+type BodyKeyOf<TOutput, CT extends keyof TOutput> = Exclude<keyof TOutput[CT] & StatusKey, NullBodyKey>
+
 /** Whether `T` is exactly one member: not `never`, not a union. */
 type IsOne<T, TAll = T> = [T] extends [never] ? false : T extends unknown ? ([TAll] extends [T] ? true : false) : never
 
@@ -228,9 +234,7 @@ type SoleBodyAt<TOutput, CT extends keyof TOutput> =
 		: never
 
 /** `SoleBody` at status `K` of media type `CT`. */
-type SoleBodyOf<TOutput, CT extends keyof TOutput, K extends keyof TOutput[CT]> = K extends
-	| "no_content"
-	| "reset_content"
+type SoleBodyOf<TOutput, CT extends keyof TOutput, K extends keyof TOutput[CT]> = K extends NullBodyKey
 	? never
 	: [HeadersOf<TOutput, K>] extends [never]
 		? CT extends "application/json"
@@ -267,7 +271,7 @@ type OptsFor<TOutput, K, TExtra = {}> = [HeadersOf<TOutput, K>] extends [never]
 /** `method` narrowed to `CT`'s declared status keys, the body typed (`json`) or text (the others). */
 type Narrowed<TOutput, CT extends keyof HelperOf, TText extends boolean> = CT extends keyof TOutput
 	? {
-			[M in HelperOf[CT]]: <K extends keyof TOutput[CT] & StatusKey>(
+			[M in HelperOf[CT]]: <K extends BodyKeyOf<TOutput, CT>>(
 				statusKey: K,
 				body: TText extends true ? string | StreamBody : BodyOf<TOutput[CT][K]> | StreamBody,
 				...opts: OptsFor<TOutput, K>
@@ -276,7 +280,7 @@ type Narrowed<TOutput, CT extends keyof HelperOf, TText extends boolean> = CT ex
 	: {}
 
 /** `binary` for a declared open type, its content type named; octet-stream may leave it out. */
-type BinaryCall<TOutput> = (<CT extends BinaryTypes<TOutput>, K extends keyof TOutput[CT] & StatusKey>(
+type BinaryCall<TOutput> = (<CT extends BinaryTypes<TOutput>, K extends BodyKeyOf<TOutput, CT>>(
 	statusKey: K,
 	body: BinaryBody | StreamBody,
 	opts: ResponseOptions &
@@ -285,7 +289,7 @@ type BinaryCall<TOutput> = (<CT extends BinaryTypes<TOutput>, K extends keyof TO
 		},
 ) => TypedResponse<CT, K>) &
 	("application/octet-stream" extends keyof TOutput
-		? <K extends keyof TOutput["application/octet-stream"] & StatusKey>(
+		? <K extends BodyKeyOf<TOutput, "application/octet-stream">>(
 				statusKey: K,
 				body: BinaryBody | StreamBody,
 				...opts: OptsFor<

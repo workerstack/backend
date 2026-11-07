@@ -161,6 +161,36 @@ describe("a bodiless answer that is no redirect", () => {
 	})
 })
 
+describe("a declared 204 or 205: no body in the document", () => {
+	it("writes no content for it, in the shorthand or under a media type, and keeps the headers it declares", () => {
+		const row = z.object({ id: z.string() })
+		const app = honey<{}>()
+		app
+			.delete("/a")
+			.output({ headers: { no_content: z.object({ etag: z.string() }) }, no_content: true, ok: row })
+			.handler((c) => c.res.noContent({ headers: { etag: '"v1"' } }))
+		app
+			.post("/b")
+			.output({ "text/csv": { no_content: true, ok: true, reset_content: true } })
+			.handler((c) => c.res.noContent())
+		const doc = generateOpenApi(app, { info: INFO })
+		const [a, b] = [responses(doc, "/a", "delete"), responses(doc, "/b", "post")]
+		expect([
+			a["204"],
+			Object.keys(a["200"]?.content ?? {}),
+			b["204"],
+			b["205"],
+			Object.keys(b["200"]?.content ?? {}),
+		]).toEqual([
+			{ description: "no content", headers: { etag: { required: true, schema: { type: "string" } } } },
+			["application/json"],
+			{ description: "no content" },
+			{ description: "reset content" },
+			["text/csv"],
+		])
+	})
+})
+
 describe("errors in honey's envelope (the default format)", () => {
 	// v0: 57edf5ff79
 	// v0: 2b63ae7db8
