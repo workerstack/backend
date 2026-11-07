@@ -1094,14 +1094,15 @@
             "x-honey-error": true
           },
           "409": {
-            "description": "conflict",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateOutMultiStatuResponse409"
                 }
               }
-            }
+            },
+            "description": "conflict",
+            "x-honey-error": true
           }
         },
         "x-honey-errors": {
@@ -2141,20 +2142,72 @@
         "additionalProperties": false
       },
       "CreateOutMultiStatuResponse409": {
-        "type": "object",
         "properties": {
-          "existing": {
+          "error_key": {
+            "enum": [
+              "conflict"
+            ],
             "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "items": {
+                "properties": {
+                  "error_key": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error_key",
+                  "message",
+                  "path"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "type": "object"
           },
           "message": {
             "type": "string"
+          },
+          "status": {
+            "enum": [
+              409
+            ],
+            "type": "integer"
+          },
+          "status_key": {
+            "type": "string"
+          },
+          "success": {
+            "const": false
+          },
+          "vars": {
+            "additionalProperties": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "object"
           }
         },
         "required": [
-          "existing",
-          "message"
+          "error_key",
+          "fields",
+          "message",
+          "status",
+          "status_key",
+          "success"
         ],
-        "additionalProperties": false
+        "type": "object"
       },
       "DeleteOutNoContentResponse404": {
         "properties": {

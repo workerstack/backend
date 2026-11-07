@@ -6,8 +6,9 @@
  */
 import type { HeaderSchemas } from "../routing/output-types.ts"
 import { dict } from "../routing/tree.ts"
+import type { StandardSchemaLike } from "../validation/standard-schema.ts"
 import { validateOutput } from "../validation/validate-output.ts"
-import { codeToStatusKey } from "./status.ts"
+import { codeToStatusKey, type StatusKey } from "./status.ts"
 
 /** A route's compiled header check: nothing back when it passes, a promise only for an async validator. */
 export type HeadersCheck = (response: Response) => Promise<void> | undefined
@@ -26,7 +27,8 @@ export function compileResponseHeaders(schemas: HeaderSchemas | undefined): Head
 	if (schemas === undefined || Object.keys(schemas).length === 0) return null
 	return (response) => {
 		const statusKey = codeToStatusKey[response.status]
-		const schema = statusKey === undefined ? undefined : schemas[statusKey]
+		const schema =
+			statusKey === undefined ? undefined : (schemas as Partial<Record<StatusKey, StandardSchemaLike>>)[statusKey]
 		return schema === undefined ? undefined : validateOutput(schema, statusKey as string, recordOf(response.headers))
 	}
 }

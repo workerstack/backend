@@ -89,13 +89,13 @@ const app = honey<{}>()
 	.output({ "application/json": { ok: user } })
 	.handler((ctx) => ctx.res.json("ok", { email: "a@b.c", id: "1", name: "a" }))
 	.post("/output/json-multi")
-	.output({ "application/json": { conflict: z.object({ detail: z.string() }), created: row } })
+	.output({ "application/json": { accepted: z.object({ detail: z.string() }), created: row } })
 	.handler((ctx) => ctx.res.json("created", { id: "1", name: "a" }))
 	.post("/jobs")
 	.output({
 		"application/json": {
 			accepted: z.object({ eta: z.number(), jobId: z.string() }),
-			bad_request: z.object({ reason: z.string() }),
+			created: z.object({ reason: z.string() }),
 			ok: z.object({ result: z.string() }),
 		},
 	})
