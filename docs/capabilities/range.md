@@ -18,8 +18,9 @@ const app = honey()
 app.get("/video").handler((ctx) => ctx.res.raw(rangeResponse(ctx.req, video)))
 ```
 
-A route that declares its output forwards the answer instead, declaring each status `rangeResponse` may answer; a 206
-on a route that declares no `partial_content` is refused.
+A route that declares its output forwards the answer instead. Its 200 and 206 are declared in `.output()` as `ok` and
+`partial_content`, and its 416 with `.errors()`, under a key the factory maps to `range_not_satisfiable`; the 416 then
+goes out as `rangeResponse` built it. A 206 on a route that declares no `partial_content` is refused.
 
 ```ts
 import { defineErrors, honey } from "@lovrozagar/honey"
