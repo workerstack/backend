@@ -286,6 +286,19 @@ export function chainErrorKeys(chain: readonly RuntimeMiddleware[]): string[] {
 	return chain.flatMap((mw) => errorsOf(mw) ?? [])
 }
 
+/** Each key's status key from the first factory whose ERROR_META knows it; `null` when none does. */
+export function statusKeysOf(
+	keys: readonly string[],
+	factories: readonly (ErrorFactoryRecord | null)[],
+): Record<string, string> | null {
+	const out: Record<string, string> = {}
+	for (const key of keys) {
+		const meta = factories.map((f) => f?.[ERROR_META]).find((m) => m !== undefined && Object.hasOwn(m, key))
+		if (meta !== undefined) out[key] = (meta[key] as ErrorMetaEntry).statusKey
+	}
+	return Object.keys(out).length === 0 ? null : out
+}
+
 /**
  * What a middleware chain's factories say of the keys each middleware declares, the first in run order winning. A
  * key it does not declare is never read off its factory, which carries honey's own keys at honey's statuses.
