@@ -83,7 +83,9 @@ export function compileOutput(schemas: OutputSchemas, headers: HeadersCheck | nu
 		const mt = key.includes("/") ? parseMediaType(key) : null
 		if (mt !== null) declared.add(mt.essence)
 	}
-	const json = (schemas as Record<string, StatusSchemas | undefined>)["application/json"]
+	const json = (schemas as Record<string, Partial<Record<StatusKey, StandardSchemaLike | true>> | undefined>)[
+		"application/json"
+	]
 	const body = (response: Response): MaybePromise<Response> => {
 		if (bodyKind(response) === "empty") return response
 		const type = response.headers.get("content-type")

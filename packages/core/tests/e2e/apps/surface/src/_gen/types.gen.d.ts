@@ -28,7 +28,7 @@ type CreateOutMultiStatuRequest = { slug: string }
 
 type CreateOutMultiStatuResponse201 = { id: string; slug: string }
 
-type CreateOutMultiStatuResponse409 = { existing: string; message: string }
+type CreateOutMultiStatuResponse409 = { error_key: "conflict"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 409; status_key: string; success: false; vars?: Record<string, number | string> }
 
 type CreateRsRequest = { chunks: number; fileName: string }
 
@@ -256,13 +256,13 @@ export type Routes = {
 	}
 	"/out/multi-status": {
 		post: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { slug: string } }; readonly errors: { conflict: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<Partial<Omit<HoneyMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/out/multi-status" }, { "application/json": { created: CreateOutMultiStatuResponse201; conflict: CreateOutMultiStatuResponse409 } }>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { slug: string } }; readonly errors: { conflict: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<Partial<Omit<HoneyMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/out/multi-status" }, { "application/json": { created: CreateOutMultiStatuResponse201 } }>
 			errors: "conflict" | "unauthorized" | "validation_error"
 			errorShapes: { conflict: null; unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null; 409: null }
 			input: { json: { slug: string } }
 			meta: {}
-			output: { "application/json": { created: CreateOutMultiStatuResponse201; conflict: CreateOutMultiStatuResponse409 } }
+			output: { "application/json": { created: CreateOutMultiStatuResponse201 } }
 		}
 	}
 	"/out/no-content/:id": {

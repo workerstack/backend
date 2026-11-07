@@ -14,6 +14,7 @@ import { describe, expect, it, vi } from "vitest"
 import * as z from "zod"
 import { guardNamed } from "../../structure/mutation-harness.ts"
 import type { HoneyRes } from "../../../src/response/response.ts"
+import type { StandardSchemaLike } from "../../../src/validation/standard-schema.ts"
 
 /** A Response the route does not declare: a fault injected on purpose, past the handler's typed return. */
 const undeclared = (ctx: { readonly res: object }, response: Response) => (ctx.res as HoneyRes).raw(response) as never
@@ -288,8 +289,10 @@ describe("v1 adversarial: a schema's conversion", () => {
 					},
 				}),
 			})
-			.output({ "application/json": { ok: hostile({ output: () => [{ $ref: "file:///etc/passwd" }] }) } } as never)
-			.handler((ctx) => ctx.res.text("ok", "ok"))
+			.output({
+				"application/json": { ok: hostile({ output: () => [{ $ref: "file:///etc/passwd" }] }) as StandardSchemaLike },
+			})
+			.handler((ctx) => ctx.res.json("ok", []))
 		const issues: string[] = []
 		const schemas = extractSchemas(app, { report: (issue) => issues.push(issue.kind) })["POST /a"]
 		expect([schemas, issues.sort()]).toEqual([

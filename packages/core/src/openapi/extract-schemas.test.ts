@@ -71,14 +71,14 @@ describe("extractSchemas: answers and options", () => {
 		app
 			.get("/items")
 			.output({
-				"application/json": { not_found: z.object({ message: z.string() }), ok: z.object({ at: z.date() }) },
+				"application/json": { created: z.object({ message: z.string() }), ok: z.object({ at: z.date() }) },
 				"text/plain": { ok: z.string() },
 			})
 			.handler((ctx) => ctx.res.text("ok", "ok"))
 		expect(extractSchemas(app)["GET /items"]).toEqual({
 			output: {
 				"application/json": {
-					not_found: closed("message", STRING),
+					created: closed("message", STRING),
 					ok: closed("at", { format: "date-time", type: "string" }),
 				},
 				"text/plain": { ok: STRING },

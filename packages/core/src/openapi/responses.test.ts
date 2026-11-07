@@ -501,16 +501,17 @@ describe("errors a route does not get documented", () => {
 		const root = createNode()
 		const id = insertRoute(root, "GET", "/odd")
 		const loose = honey<{}>().routeTree({ meta: {}, root, routes: { [id]: { ek: ["mystery"] } }, v: 2 })
-		const app = honey<{}>().errorFactory(defineErrors({ email_taken: "conflict" }))
+		/* an error key may carry any status; at one the route's output declares, the output's answer is documented */
+		const app = honey<{}>().errorFactory(defineErrors({ still_queued: "accepted" }))
 		app
 			.post("/users")
-			.errors("email_taken")
-			.output({ "application/json": { conflict: z.object({ existing: z.string() }) } })
-			.handler((c) => c.res.json("conflict", { existing: "1" }))
+			.errors("still_queued")
+			.output({ "application/json": { accepted: z.object({ existing: z.string() }) } })
+			.handler((c) => c.res.json("accepted", { existing: "1" }))
 		expect([
 			responses(generateOpenApi(loose, { info: INFO }), "/odd"),
-			responses(generateOpenApi(app, { info: INFO }), "/users", "post")["409"]?.description,
-		]).toEqual([{ "200": { description: "Success" } }, "conflict"])
+			responses(generateOpenApi(app, { info: INFO }), "/users", "post")["202"]?.description,
+		]).toEqual([{ "200": { description: "Success" } }, "accepted"])
 	})
 })
 

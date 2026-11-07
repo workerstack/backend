@@ -27,7 +27,7 @@ describe("ctx.res.forward(): a Response whose status is decided elsewhere, check
 	const bytes = new TextEncoder().encode("0123456789")
 	app
 		.get("/file")
-		.output({ "application/octet-stream": { not_modified: true, ok: true, partial_content: true } })
+		.output({ "application/octet-stream": { ok: true, partial_content: true }, redirect: { not_modified: true } })
 		.handler((ctx) => ctx.res.forward(rangeResponse(ctx.req, bytes)))
 	app
 		.get("/whole-only")
@@ -39,7 +39,7 @@ describe("ctx.res.forward(): a Response whose status is decided elsewhere, check
 		.handler((ctx) => ctx.res.forward(new Response("<p>", { headers: { "content-type": "text/html" } })))
 	app
 		.get("/cached")
-		.output({ "application/octet-stream": { not_modified: true, ok: true } })
+		.output({ "application/octet-stream": { ok: true }, redirect: { not_modified: true } })
 		.handler((ctx) => ctx.res.forward(new Response(null, { headers: { etag: '"v1"' }, status: 304 })))
 
 	it("a 206 at a declared partial_content answers 206; one the route does not declare is refused", async () => {

@@ -138,12 +138,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 
 		.post("/out/multi-status")
 		.input({ json: z.object({ slug: z.string() }) })
-		.output({
-			"application/json": {
-				conflict: z.object({ existing: z.string(), message: z.string() }),
-				created: z.object({ id: z.string(), slug: z.string() }),
-			},
-		})
+		.output({ "application/json": { created: z.object({ id: z.string(), slug: z.string() }) } })
 		.errors("conflict")
 		.handler((ctx) => ctx.res.json("created", { id: "1", slug: ctx.input.json.slug }))
 

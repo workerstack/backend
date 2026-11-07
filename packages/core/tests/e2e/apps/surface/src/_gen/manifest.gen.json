@@ -657,22 +657,6 @@
       ],
       "output": {
         "application/json": {
-          "conflict": {
-            "type": "object",
-            "properties": {
-              "existing": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "existing",
-              "message"
-            ],
-            "additionalProperties": false
-          },
           "created": {
             "type": "object",
             "properties": {

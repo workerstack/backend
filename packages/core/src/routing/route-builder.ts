@@ -5,7 +5,14 @@
  */
 import type { ERROR_META } from "../errors/errors.ts"
 import { compileInput, type InputSchemas, type InputStep, type InputTypes, type KnownParams } from "../input/input.ts"
-import type { DeclaredAnswer, JsonShorthand, KnownStatusKeys, NormalizeOutput, OutputSchemas } from "./output-types.ts"
+import type {
+	DeclaredAnswer,
+	JsonShorthand,
+	KnownStatusKeys,
+	LooseOutput,
+	NormalizeOutput,
+	OutputSchemas,
+} from "./output-types.ts"
 import type { ErrorFactories } from "./settings.ts"
 import type { MaybePromise, MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts"
 import { answeringBody, normalizeOutput } from "../validation/validate-output.ts"
@@ -341,11 +348,13 @@ export class RouteBuilder<B extends BuilderTypes> {
 	}
 
 	/**
-	 * Declare what the route answers: ctx.res narrows to it, and `outputValidation` checks it. Status keys alone
+	 * Declare what the route answers: ctx.res narrows to it, and `outputValidation` checks it. A media type takes its
+	 * 2xx bodies, `redirect` the 3xx statuses and `headers` those of a 2xx or 3xx; an error answer is declared with
+	 * `.errors()`, and a key the route cannot answer is refused with a message naming it. Status keys alone
 	 * (`{ ok: schema }`) declare JSON. With one 2xx status under one media type the handler may return the body.
 	 */
-	output<const TOutput extends OutputSchemas | JsonShorthand>(
-		schemas: TOutput & KnownStatusKeys<TOutput>,
+	output<const TOutput extends LooseOutput = {}>(
+		schemas: (OutputSchemas | JsonShorthand) & KnownStatusKeys<TOutput>,
 	): BuilderChain<
 		Next<
 			B,

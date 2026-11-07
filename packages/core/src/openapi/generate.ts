@@ -19,6 +19,7 @@ import {
 	invalidateLevel,
 	missingInvalidateReport,
 } from "../routing/invalidate-check.ts"
+import type { StatusSchemas } from "../routing/output-types.ts"
 import type { HoneyGraph } from "../routing/register.ts"
 import { deduplicateSchemas, type SchemaSpec } from "../schema/slots.ts"
 import {
@@ -120,7 +121,7 @@ function rootsOf(route: CollectedRoute | CollectedWsRoute, options: JsonSchemaOp
 		.map((key) => [statusKeyToCode[key as StatusKey], key] as const)
 		.filter(([code]) => code >= 200 && code < 300)
 		.sort(([a], [b]) => a - b)
-	const primary = codes[0] === undefined ? undefined : json?.[codes[0][1] as StatusKey]
+	const primary = codes[0] === undefined ? undefined : json?.[codes[0][1] as keyof StatusSchemas]
 	if (primary !== undefined && primary !== true) roots.output = jsonSchemaOf(primary, "output", options)
 	for (const [source, entry] of Object.entries(route.input ?? {})) {
 		if (source === "binary") continue

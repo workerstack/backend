@@ -111,7 +111,7 @@ describe("RouteBuilder: the .output() shorthand and a returned body", () => {
 		const app = honey<{}>().logger(false).outputValidation("always")
 		app
 			.get("/json")
-			.output({ created: z.object({ id: z.string() }), not_found: true })
+			.output({ created: z.object({ id: z.string() }), redirect: { see_other: true } })
 			.handler(async () => ({ id: "1" }))
 		app
 			.get("/csv")

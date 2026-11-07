@@ -43,14 +43,14 @@ describe("ctx.res under .output(): a declared helper is narrowed", () => {
 			.output({
 				"application/json": {
 					created: z.object({ id: z.string() }),
-					not_found: z.object({ error: z.string() }),
+					accepted: z.object({ error: z.string() }),
 					ok: z.object({ items: z.array(z.string()) }),
 				},
 			})
 			.handler((ctx) => {
 				expectTypeOf(ctx.res.json("created", { id: "1" })).toEqualTypeOf<TypedResponse<"application/json", "created">>()
-				expectTypeOf(ctx.res.json("not_found", { error: "gone" })).toEqualTypeOf<
-					TypedResponse<"application/json", "not_found">
+				expectTypeOf(ctx.res.json("accepted", { error: "gone" })).toEqualTypeOf<
+					TypedResponse<"application/json", "accepted">
 				>()
 				// @ts-expect-error a status key the output does not declare
 				ctx.res.json("conflict", {})
@@ -218,7 +218,7 @@ describe("the handler's return under .output(): the body itself", () => {
 		const app = honey<{}>()
 		app
 			.get("/json")
-			.output({ not_found: true, ok: tables })
+			.output({ ok: tables, redirect: { see_other: true } })
 			.handler(async () => [{ id: "1" }])
 		app
 			.get("/csv")

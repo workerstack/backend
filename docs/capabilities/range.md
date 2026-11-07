@@ -22,16 +22,18 @@ A route that declares its output forwards the answer instead, declaring each sta
 on a route that declares no `partial_content` is refused.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { defineErrors, honey } from "@lovrozagar/honey"
 import { rangeResponse } from "@lovrozagar/honey/range"
 
 const video = new Blob([new Uint8Array(1024)], { type: "video/mp4" })
+const errors = defineErrors({ range_unsatisfiable: "range_not_satisfiable" })
 
 const app = honey()
 
 app
 	.get("/video")
-	.output({ "video/mp4": { ok: true, partial_content: true, range_not_satisfiable: true } })
+	.output({ "video/mp4": { ok: true, partial_content: true } })
+	.errors(errors, "range_unsatisfiable")
 	.handler((ctx) => ctx.res.forward(rangeResponse(ctx.req, video)))
 ```
 
