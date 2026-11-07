@@ -434,10 +434,13 @@ describe("generateOpenApi: schema-derived meta over every shape a route takes", 
 			.post("/stream")
 			.input({ json: streamed(named("stream")) })
 			.handler((c) => c.res.text("ok", "ok"))
+		const missing = defineErrors({ missing: { schema: named("missing"), status: "not_found" } })
 		app
 			.get("/missing")
-			.output({ "application/json": { not_found: named("missing") } })
-			.handler((c) => c.res.json("not_found", { id: "1" }))
+			.errors(missing, "missing")
+			.handler(() => {
+				throw missing.missing({ id: "1" })
+			})
 		app
 			.get("/bare")
 			.output({ "application/json": { ok: true } })
@@ -461,7 +464,7 @@ describe("generateOpenApi: the declared errors for codegen (x-honey-errors, x-ho
 		app
 			.post("/items")
 			.errors("taken", "too_big")
-			.output({ "application/json": { conflict: z.object({ existing: z.string() }), created: z.object({}) } })
+			.output({ "application/json": { created: z.object({}) } })
 			.handler((c) => c.res.json("created", {}))
 		const doc = generateOpenApi(app, { info: INFO })
 		const operation = op(doc, "/items", "post")
@@ -475,7 +478,7 @@ describe("generateOpenApi: the declared errors for codegen (x-honey-errors, x-ho
 			422,
 			[
 				["201", false],
-				["409", false],
+				["409", true],
 				["422", true],
 			],
 		])

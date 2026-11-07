@@ -7,6 +7,10 @@ import { generateOpenApi } from "./generate.ts"
 import { assertTreeOutputKeys } from "./output-keys.ts"
 
 const STATUSES = Object.keys(statusKeyToCode).join(", ")
+/* the slots by status class, from the codes: a body takes a 2xx, redirect a 3xx */
+const KEYS = Object.keys(statusKeyToCode) as StatusKey[]
+const SUCCESS = KEYS.filter((key) => Math.floor(statusKeyToCode[key] / 100) === 2)
+const REDIRECTS = KEYS.filter((key) => Math.floor(statusKeyToCode[key] / 100) === 3)
 const INFO = { title: "T", version: "1" }
 
 /** A tree of one `GET /o` route holding `entry`. */
@@ -39,16 +43,43 @@ describe("generateOpenApi: every output key a media type or a status", () => {
 			expect(documenting(declaring(output))).toThrow(`GET /o: .output() key ${named} is none of ${STATUSES}`)
 	})
 
+	it("refuses a status no slot answers: a non-2xx body, a non-3xx redirect, headers for neither", () => {
+		const row = z.object({ x: z.string() })
+		const refusals = [
+			[
+				{ not_found: row },
+				'"not_found" under application/json is no 2xx status; an error answer is declared with .errors()',
+			],
+			[
+				{ "text/csv": { internal_server_error: true } },
+				'"internal_server_error" under text/csv is no 2xx status; an error answer is declared with .errors()',
+			],
+			[
+				{ "text/csv": { found: true } },
+				'"found" under text/csv is no 2xx status; a redirect is declared under redirect',
+			],
+			[{ ok: row, redirect: { not_found: true } }, '"not_found" under redirect is no 3xx status'],
+			[{ ok: row, redirect: { ok: true } }, '"ok" under redirect is no 3xx status'],
+			[{ ok: row, headers: { not_found: z.object({}) } }, '"not_found" under headers is no 2xx or 3xx status'],
+		] as const
+		for (const [output, refusal] of refusals)
+			expect(documenting(declaring(output))).toThrow(`GET /o: .output() key ${refusal}`)
+	})
+
 	it("refuses an outer key that is no media type, headers or redirect", () => {
 		expect(documenting(declaring({ orders: { ok: z.string() } }, "post"))).toThrow(
 			'POST /o: .output() key "orders" is no type/subtype, headers or redirect',
 		)
 	})
 
-	it("takes every status under any media type, headers and redirect, and a headers or redirect left undefined", () => {
-		const statuses = Object.fromEntries(Object.keys(statusKeyToCode).map((key) => [key, true]))
+	it("takes every 2xx under a media type, every 2xx and 3xx under headers, every 3xx under redirect, and none left", () => {
+		const of = (keys: readonly string[], value: unknown) => Object.fromEntries(keys.map((key) => [key, value]))
 		const declared = [
-			{ "image/gif": statuses, headers: { ok: z.object({}) }, redirect: { found: true } },
+			{
+				"image/gif": of(SUCCESS, true),
+				headers: of([...SUCCESS, ...REDIRECTS], z.object({})),
+				redirect: of(REDIRECTS, true),
+			},
 			{ "application/json": { ok: z.string() }, headers: undefined, redirect: undefined },
 		]
 		for (const output of declared) expect(documenting(declaring(output))).not.toThrow()
@@ -56,16 +87,15 @@ describe("generateOpenApi: every output key a media type or a status", () => {
 })
 
 describe("generateOpenApi: a response is keyed by its status code, never by a name", () => {
-	it("documents every status key .output() takes, as a body, its headers and a redirect, under its code alone", () => {
-		const keys = Object.keys(statusKeyToCode) as StatusKey[]
+	it("documents every status key .output() takes, a 2xx body, a 3xx redirect and their headers, under its code alone", () => {
+		const keys = [...SUCCESS, ...REDIRECTS]
 		const app = honey<{}>()
 		for (const key of keys)
 			app
 				.get(`/${key}`)
 				.output({
-					"application/json": { [key]: z.string() },
+					...(SUCCESS.includes(key) ? { "application/json": { [key]: z.string() } } : { redirect: { [key]: true } }),
 					headers: { [key]: z.object({ "x-a": z.string() }) },
-					redirect: { [key]: true },
 				} as never)
 				.handler((c) => c.res.noContent())
 		const doc = generateOpenApi(app, { info: INFO })
