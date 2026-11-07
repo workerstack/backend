@@ -164,7 +164,7 @@ describe("v1 adversarial: what a request body may not smuggle in", () => {
 
 describe("v1 adversarial: what a route answers", () => {
 	it("a declared Location header stops an open redirect; a header value carrying CRLF never splits", async () => {
-		const app = honey<{}>().logger(false).outputValidation("always")
+		const app = honey<{}>().logger(false)
 		const out = {
 			"application/json": { created: z.object({ id: z.string() }) },
 			headers: { created: z.object({ location: z.string().startsWith("/") }) },
@@ -196,7 +196,7 @@ describe("v1 adversarial: what a route answers", () => {
 
 describe("v1 adversarial: an answer's contract", () => {
 	it("an answer that breaks its declared contract is a 500 that names no issue", async () => {
-		const app = honey<{}>().logger(false).outputValidation("always")
+		const app = honey<{}>().logger(false)
 		const out = { "application/json": { ok: z.object({ id: z.string().describe("SECRET_SCHEMA") }) } }
 		app
 			.get("/wrong-type")

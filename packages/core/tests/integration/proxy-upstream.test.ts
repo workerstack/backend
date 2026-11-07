@@ -14,10 +14,11 @@ import { afterAll, describe, expect, it } from "vitest"
 
 const SERVER = fileURLToPath(new URL("./proxy-upstream/server.ts", import.meta.url))
 
+/* each server runs core's source, resolved as every checkout process resolves it (honey-source) */
 const RUNTIMES: Record<string, string[]> = {
-	bun: ["bun", SERVER, "bun"],
+	bun: ["bun", "--conditions=honey-source", SERVER, "bun"],
 	/* strict: an unhandled rejection in the server is a crash the test sees, never a warning */
-	node: ["node", "--unhandled-rejections=strict", SERVER, "node"],
+	node: ["node", "--conditions=honey-source", "--unhandled-rejections=strict", SERVER, "node"],
 }
 
 function available(cmd: string): boolean {

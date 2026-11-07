@@ -307,6 +307,12 @@ describe("honey-clients, an optional peer (bit 19 h2, Q2)", () => {
 		mkdirSync(honeyDir, { recursive: true })
 		mkdirSync(join(dir, "src"))
 		cpSync(resolve(import.meta.dirname, ".."), join(dir, "core/src"), { recursive: true })
+		/* the copy's subpath imports (`#output-check`), each at its source file */
+		const { imports } = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../package.json"), "utf8")) as {
+			imports: Record<string, { "honey-source": string }>
+		}
+		const flat = Object.fromEntries(Object.entries(imports).map(([name, target]) => [name, target["honey-source"]]))
+		writeFileSync(join(dir, "core/package.json"), JSON.stringify({ imports: flat, type: "module" }))
 		for (const name of ["jiti", "zod"]) symlinkSync(join(modules, name), join(dir, "node_modules", name), "dir")
 		symlinkSync(join(dir, "core/src"), join(honeyDir, "src"), "dir")
 		const pkg = { exports: { ".": "./src/routing/app.ts" }, name: "@lovrozagar/honey", type: "module" }

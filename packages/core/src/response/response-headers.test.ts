@@ -56,7 +56,7 @@ describe("compileResponseHeaders: the check a declaration compiles to", () => {
 
 /** An app checking its answers, with routes declaring the headers each status carries. */
 function declaring() {
-	const app = honey<{}>().logger(false).outputValidation("always")
+	const app = honey<{}>().logger(false)
 	const out = {
 		"application/json": { created: z.object({ id: z.string() }), no_content: true, ok: z.object({ id: z.string() }) },
 		headers: {
@@ -114,15 +114,5 @@ describe("declared response headers through the app", () => {
 			),
 		)
 		expect(statuses).toEqual([200, 302, 204, 500])
-	})
-
-	it("adds nothing with outputValidation off: the answer is not checked and stays synchronous", () => {
-		const app = honey<{}>()
-		app
-			.get("/t")
-			.output({ "application/json": { ok: z.object({}) }, headers: { ok: z.object({ etag: z.string() }) } })
-			.handler((ctx) => ctx.res.json("ok", {}, { headers: {} as never }))
-		const answer = app.fetch(get("/t"), {})
-		expect([answer instanceof Response, (answer as Response).status]).toEqual([true, 200])
 	})
 })

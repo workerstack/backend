@@ -9,7 +9,15 @@ import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { appSource, type Project, project } from "./__fixtures__/project.ts"
 import type { HoneyVitePluginConfig } from "./config.ts"
-import { honeyPlugin, oncePerKey, SAVES_REMEMBERED, toJavaScript } from "./plugin.ts"
+import { defaultClientConditions, defaultServerConditions } from "vite"
+import {
+	honeyPlugin,
+	NO_OUTPUT_CHECK,
+	oncePerKey,
+	SAVES_REMEMBERED,
+	toJavaScript,
+	withoutOutputCheck,
+} from "./plugin.ts"
 
 const SLOW = 60_000
 const ROUTES = "\0virtual:honey/routes"
@@ -440,4 +448,54 @@ describe("honeyPlugin() under load, failing (bit 19 h2)", () => {
 		},
 		SLOW,
 	)
+})
+
+describe("honeyPlugin() and the output check (plan 40)", () => {
+	afterEach(() => {
+		vi.unstubAllEnvs()
+	})
+
+	it("adds the no-op's condition alone to a set list, and before Vite's own defaults to an unset one", async () => {
+		const build = { command: "build" } as const
+		expect(
+			await Promise.all([
+				withoutOutputCheck("ssr", { resolve: { conditions: ["honey-source", "workerd"] } }, build),
+				withoutOutputCheck("client", {}, build),
+				withoutOutputCheck("ssr", {}, build),
+				withoutOutputCheck("worker", { consumer: "client" }, build),
+				withoutOutputCheck("ssr", { resolve: {} }, { command: "build", isSsrTargetWebworker: true }),
+			]),
+		).toEqual([
+			{ resolve: { conditions: [NO_OUTPUT_CHECK] } },
+			{ resolve: { conditions: [NO_OUTPUT_CHECK, ...defaultClientConditions] } },
+			{ resolve: { conditions: [NO_OUTPUT_CHECK, ...defaultServerConditions] } },
+			{ resolve: { conditions: [NO_OUTPUT_CHECK, ...defaultClientConditions] } },
+			{ resolve: { conditions: [NO_OUTPUT_CHECK, ...defaultClientConditions] } },
+		])
+	})
+
+	it("drops the check in a production build only: never under serve, a development build, or outputValidation: true", async () => {
+		const [plugin] = honeyPlugin({ app: "src/app.ts" })
+		const [kept] = honeyPlugin({ app: "src/app.ts", outputValidation: true })
+		const env = { resolve: { conditions: ["workerd"] } }
+		vi.stubEnv("NODE_ENV", "development")
+		const development = await plugin.configEnvironment("ssr", env, { command: "build" })
+		vi.stubEnv("NODE_ENV", "production")
+		expect([
+			development,
+			await plugin.configEnvironment("ssr", env, { command: "serve" }),
+			await kept.configEnvironment("ssr", env, { command: "build" }),
+			await plugin.configEnvironment("ssr", env, { command: "build" }),
+		]).toEqual([undefined, undefined, undefined, { resolve: { conditions: [NO_OUTPUT_CHECK] } }])
+	})
+
+	it("refuses a build that dropped the check once Vite resolves it as development (a .env file's NODE_ENV)", async () => {
+		const [plugin] = honeyPlugin({ app: "src/app.ts" })
+		vi.stubEnv("NODE_ENV", "production")
+		await plugin.configEnvironment("client", {}, { command: "build" })
+		expect(() => plugin.configResolved({ isProduction: false, root: process.cwd() })).toThrow(
+			/dropped the output check under NODE_ENV=production, and Vite then read NODE_ENV=development/,
+		)
+		expect(() => plugin.configResolved({ isProduction: true, root: process.cwd() })).not.toThrow()
+	})
 })

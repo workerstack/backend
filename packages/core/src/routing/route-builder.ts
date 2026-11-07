@@ -348,9 +348,10 @@ export class RouteBuilder<B extends BuilderTypes> {
 	}
 
 	/**
-	 * Declare what the route answers: ctx.res narrows to it, and `outputValidation` checks it. A media type takes its
-	 * 2xx bodies, `redirect` the 3xx statuses and `headers` those of a 2xx or 3xx; an error answer is declared with
-	 * `.errors()`, and a key the route cannot answer is refused with a message naming it. Status keys alone
+	 * Declare what the route answers: ctx.res narrows to it, and each answer is checked against it unless a Vite
+	 * production build through `honeyPlugin()` dropped the check. A media type takes its 2xx bodies, `redirect` the 3xx
+	 * statuses and `headers` those of a 2xx or 3xx; an error answer is declared with `.errors()`, and a key the route
+	 * cannot answer is refused with a message naming it. Status keys alone
 	 * (`{ ok: schema }`) declare JSON. With one 2xx status under one media type the handler may return the body.
 	 */
 	output<const TOutput extends LooseOutput = {}>(

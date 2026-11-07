@@ -396,7 +396,6 @@ function productionApp() {
 		.logger(false)
 		.errorFactory(errors)
 		.defaultErrors("rate_limited")
-		.outputValidation("always")
 		.telemetry(telemetry)
 		.errorI18n(
 			createErrorTranslator({ errors: { en: { item_not_found: "Item not found" } }, resolveLocale: () => "en" }),

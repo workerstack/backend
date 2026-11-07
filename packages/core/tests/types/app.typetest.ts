@@ -10,6 +10,7 @@ import type { HoneyContext } from "../../src/context/context.ts"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware, type MiddlewareFn } from "../../src/middleware/middleware.ts"
 import { honey } from "../../src/routing/app.ts"
+import { definePreset } from "../../src/routing/preset.ts"
 import type { HoneyCtx, HoneyMeta } from "../../src/routing/app-types.ts"
 import type {
 	InferBasePath,
@@ -448,5 +449,22 @@ describe("the route builder's phantoms: what codegen's extractor reads", () => {
 		/* the ctx before the handler re-declares params, meta, errors and input */
 		expectTypeOf(builder.$ctx).not.toHaveProperty("input")
 		expectTypeOf(app.get("/plain").$method).toEqualTypeOf<"GET">()
+	})
+})
+
+describe("output validation is the build's, never the app's (plan 40)", () => {
+	it("no app, preset or scoped chain has an outputValidation setter", () => {
+		const app = honey<{}>()
+		const scoped = app.use(
+			"/admin",
+			createMiddleware((_ctx, next) => next()),
+		)
+		// @ts-expect-error: answers are checked unless a Vite production build drops the check (honeyPlugin's option)
+		app.outputValidation("always")
+		// @ts-expect-error: a preset carries no such setting either
+		definePreset<{}>().outputValidation("always")
+		// @ts-expect-error: nor does a scoped chain
+		scoped.outputValidation("dev")
+		expectTypeOf<"outputValidation" extends keyof typeof app ? true : false>().toEqualTypeOf<false>()
 	})
 })

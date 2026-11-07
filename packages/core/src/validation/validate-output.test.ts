@@ -8,7 +8,8 @@ import { HoneyRes } from "../response/response.ts"
 import { honey } from "../routing/app.ts"
 import { recorder } from "../telemetry/__fixtures__/recording-tracer.ts"
 import type { StandardSchemaLike } from "./standard-schema.ts"
-import { compileOutput, outputValidationOn, validateOutput, withOutput } from "./validate-output.ts"
+import { compileOutput } from "./output-check.ts"
+import { validateOutput, withOutput } from "./validate-output.ts"
 
 /** A Response the route does not declare: a fault injected on purpose, past the handler's typed return. */
 const undeclared = (ctx: { readonly res: object }, response: Response) => (ctx.res as HoneyRes).raw(response) as never
@@ -71,26 +72,9 @@ describe("validateOutput: one body against its status's schema", () => {
 	})
 })
 
-describe("outputValidationOn: off, always, or dev", () => {
-	// v0: ac3e0f763d
-	// v0: f911fe03b0
-	it.each([
-		["off", { env: { NODE_ENV: "development" } }, false],
-		["always", undefined, true],
-		["dev", { env: { NODE_ENV: "development" } }, true],
-		["dev", { env: {} }, true],
-		["dev", { env: { NODE_ENV: "production" } }, false],
-		["dev", undefined, false],
-		["dev", {}, true],
-	] as const)("%s with process %o is %s", (mode, process, on) => {
-		expect(outputValidationOn(mode, process)).toBe(on)
-	})
-})
-
-/** An app validating output in `mode` with one route per case under /. */
-function validating(mode: "always" | "dev" | "off" | null = "always") {
-	const app = honey<{}>().logger(false)
-	return mode === null ? app : app.outputValidation(mode)
+/** An app with one route per case under /: every app checks the answers of its `.output()` routes. */
+function validating() {
+	return honey<{}>().logger(false)
 }
 
 describe("output validation through the app: the body", () => {
@@ -100,9 +84,7 @@ describe("output validation through the app: the body", () => {
 	// v0: 832a2bb161
 	// v0: e23ffca92e
 	// v0: acf4e3056f
-	// v0: 07ded1e522
 	// v0: 6465cdf2f2
-	// v0: ceb527377f
 	// v0: d54726d0bf
 	// v0: b1944585ce
 	it("a valid body passes as sent; an invalid one is a 500 that names no issue", async () => {
@@ -359,24 +341,7 @@ describe("output validation through the app: a stream honey produced", () => {
 	})
 })
 
-describe("compileOutput: answers it lets through unread", () => {
-	const failing = { "application/json": { ok: schemaOf([{ message: "always fails" }]) } }
-
-	it("a body with no content type, and a status no status key names, pass unread", () => {
-		const check = compileOutput(failing, null)
-		const untyped = new Response(new Blob(["{}"]).stream())
-		const unnamed = new Response("{}", { headers: { "content-type": "application/json" }, status: 299 })
-		expect([check(untyped), check(unnamed)]).toEqual([untyped, unnamed])
-	})
-
-	it("checks the declared headers first: an async header check makes the answer a promise", async () => {
-		const later = vi.fn(async () => undefined)
-		const check = compileOutput({ "application/json": { ok: schemaOf() } }, later)
-		const response = new HoneyRes().json("ok", {})
-		const answered = check(response)
-		expect([answered instanceof Promise, await answered, later.mock.calls]).toEqual([true, response, [[response]]])
-	})
-
+describe("withOutput: the wrap that runs a check on what a handler answers", () => {
 	it("a handler that answered nothing is not checked, sync or async", async () => {
 		const check = vi.fn((response: Response) => response)
 		const sync = withOutput(check, () => undefined as unknown as Response)({})
@@ -385,59 +350,38 @@ describe("compileOutput: answers it lets through unread", () => {
 	})
 })
 
-describe("output validation through the app: the mode", () => {
-	// v0: 4c624708cb
-	// v0: 9c832a61be
-	// v0: e79f1ac117
-	// v0: 5ca558cfea
+describe("output validation through the app: on with nothing set", () => {
+	// v0: 07ded1e522
+	// v0: ceb527377f
 	// v0: 22076a3067
-	it("off, by default or set, lets any answer through; a route without .output() is never checked", async () => {
-		const bad = { "application/json": { ok: schemaOf([{ message: "bad" }]) } }
-		const statuses = await Promise.all(
-			[validating(null), validating("off")].map(async (app) => {
-				app
-					.get("/t")
-					.output(bad)
-					.handler((ctx) => ctx.res.json("ok", {}))
-				return (await app.fetch(get("/t"), {})).status
-			}),
-		)
-		const plain = validating()
-		plain.get("/t").handler((ctx) => ctx.res.raw(new Response("text", { headers: { "content-type": "text/plain" } })))
-		expect([...statuses, (await plain.fetch(get("/t"), {})).status]).toEqual([200, 200, 200])
-	})
-
-	it("off adds nothing: a sync handler with .output() still answers app.fetch with the Response itself", () => {
-		const app = validating("off")
-		app
-			.get("/t")
-			.output({ "application/json": { ok: schemaOf() } })
-			.handler((ctx) => ctx.res.json("ok", {}))
-		const on = validating("always")
-		on.get("/t")
-			.output({ "application/json": { ok: schemaOf() } })
-			.handler((ctx) => ctx.res.json("ok", {}))
-		const async = validating("always")
-		async
-			.get("/t")
-			.output({ "application/json": { ok: schemaOf([], true) } })
-			.handler((ctx) => ctx.res.json("ok", {}))
-		expect([
-			app.fetch(get("/t"), {}) instanceof Response,
-			on.fetch(get("/t"), {}) instanceof Response,
-			async.fetch(get("/t"), {}) instanceof Promise,
-		]).toEqual([true, true, true])
-	})
-
-	it("a mode set after a route registers still applies to it", async () => {
+	it("a mismatched .output() answer is the 500 with no setting and no plugin; a route without .output() is not checked", async () => {
 		const app = honey<{}>().logger(false)
 		app
 			.get("/t")
-			.output({ "application/json": { ok: schemaOf([{ message: "bad" }]) } })
+			.output({ "application/json": { ok: z.object({ id: z.string() }) } })
+			.handler((ctx) => ctx.res.json("ok", { id: 1 } as never))
+		app.get("/plain").handler((ctx) => ctx.res.raw(new Response("text", { headers: { "content-type": "text/plain" } })))
+		expect([await answer(app.fetch(get("/t"), {})), (await app.fetch(get("/plain"), {})).status]).toEqual([
+			[500, expect.objectContaining({ error_key: "output_validation_failed" })],
+			200,
+		])
+	})
+
+	it("a sync handler and a sync check still answer app.fetch with the Response itself; an async validator, a promise", () => {
+		const sync = validating()
+		sync
+			.get("/t")
+			.output({ "application/json": { ok: schemaOf() } })
 			.handler((ctx) => ctx.res.json("ok", {}))
-		const before = (await app.fetch(get("/t"), {})).status
-		app.outputValidation("always")
-		expect([before, (await app.fetch(get("/t"), {})).status]).toEqual([200, 500])
+		const later = validating()
+		later
+			.get("/t")
+			.output({ "application/json": { ok: schemaOf([], true) } })
+			.handler((ctx) => ctx.res.json("ok", {}))
+		expect([sync.fetch(get("/t"), {}) instanceof Response, later.fetch(get("/t"), {}) instanceof Promise]).toEqual([
+			true,
+			true,
+		])
 	})
 })
 

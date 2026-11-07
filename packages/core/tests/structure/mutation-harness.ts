@@ -415,9 +415,9 @@ export const GUARDS: readonly Guard[] = [
 	},
 	{
 		catches: "v1: an answer of an undeclared media type or a body breaking its schema sent as it is",
-		disable: () => ({ compileOutput: () => (response: Response) => response }),
+		disable: () => ({ outputCheck: () => (response: Response) => response }),
 		id: "v1-output-check",
-		module: "packages/core/src/validation/validate-output.ts",
+		module: "packages/core/src/validation/output-check.ts",
 	},
 	{
 		catches: "v1: a declared response header's schema skipped (an open redirect through Location)",

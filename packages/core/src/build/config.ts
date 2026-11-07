@@ -105,6 +105,13 @@ export type HoneyVitePluginConfig = {
 	readonly app?: string
 	/** Which artifacts a generation writes; only the route tree when unset. */
 	readonly codegen?: HoneyCodegenConfig
+	/**
+	 * `true` keeps the answer check in a production build. Every `.output()` route checks what it answers under the dev
+	 * server, in tests and in a development build; a production `vite build` drops the check from each bundle it makes
+	 * unless this is `true`. A node or bun bundle keeps honey external, so its check is dropped where it runs, by
+	 * starting the runtime with `--conditions=honey-no-output-check`.
+	 */
+	readonly outputValidation?: boolean
 	/** globs, from the project root, whose edits regenerate in dev */
 	readonly watch?: readonly string[]
 }
@@ -159,7 +166,12 @@ export const MCP_COMPANIONS = [
 type TypesOptions = Extract<HoneyCodegenConfig["types"], object>
 
 /* every key each config object takes, exhaustive by its type: a JS config is not type-checked, and none passes unread */
-const PLUGIN_KEYS = { app: true, codegen: true, watch: true } satisfies Record<keyof HoneyVitePluginConfig, true>
+const PLUGIN_KEYS = {
+	app: true,
+	codegen: true,
+	outputValidation: true,
+	watch: true,
+} satisfies Record<keyof HoneyVitePluginConfig, true>
 const CODEGEN_KEYS = {
 	assetsDir: true,
 	invalidate: true,

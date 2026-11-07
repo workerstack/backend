@@ -6,8 +6,8 @@
  */
 import { type HoneyContext, REQUEST, type RouteInfo } from "../context/context.ts"
 import { withInput } from "../input/input.ts"
-import { compileResponseHeaders } from "../response/response-headers.ts"
-import { compileOutput, forwardCheck, outputValidationOn, withOutput } from "../validation/validate-output.ts"
+import { forwardCheck, withOutput } from "../validation/validate-output.ts"
+import { outputCheck } from "#output-check"
 import type { OutputSchemas } from "./output-types.ts"
 import { ERROR_META } from "../errors/errors.ts"
 import type { ErrorFactoryRecord, ErrorPolicy } from "../errors/projector.ts"
@@ -166,11 +166,6 @@ export function scopesFor(g: HoneyGraph, variants: readonly (readonly Segment[])
 	return out
 }
 
-/** The runtime's `process`, where there is one (Node, Bun); Workers have none. */
-function globalProcess() {
-	return (globalThis as { process?: { readonly env?: { readonly NODE_ENV?: string } } }).process
-}
-
 /** The request's trace: an app with telemetry traces every request it serves, and only its chains are wrapped. */
 function traceOf(ctx: object): RequestTrace {
 	return (ctx as HoneyContext<unknown>)[REQUEST].trace as RequestTrace
@@ -207,17 +202,12 @@ function planRoute(
 	const run = traced ? chain.map(tracedMiddleware) : chain
 	/* only a route with .input() pays for it: the step runs between the middleware and the handler */
 	const input = r.in === null ? r.fn : withInput(r.in, r.fn)
-	/* only a route with .output() in an app checking answers pays for the check */
-	const checked = r.out !== null && outputValidationOn(g.settings.outputValidation, globalProcess())
-	/* a route with .output() checks what forward() answered, in every mode */
+	/* only a route with .output() pays for the check, and none where the build resolved #output-check to its no-op */
+	const check = r.out === null ? null : outputCheck(r.out as OutputSchemas)
+	/* a route with .output() checks what forward() answered, whatever the build */
 	const forwarded =
 		r.out === null ? input : withOutput(forwardCheck(r.out as OutputSchemas, thrownStatuses(r, chain, policy)), input)
-	const fn = checked
-		? withOutput(
-				compileOutput(r.out as OutputSchemas, compileResponseHeaders((r.out as OutputSchemas).headers)),
-				forwarded,
-			)
-		: forwarded
+	const fn = check === null ? forwarded : withOutput(check, forwarded)
 	const handler = traced ? tracedHandler(taps === null ? fn : answering(fn)) : taps === null ? fn : answering(fn)
 	const compiled = compileChain(run, handler, hooks.convert)
 	return {

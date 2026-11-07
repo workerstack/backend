@@ -1,40 +1,17 @@
 /**
- * Checking what a route answers against its `.output()` (off by default). An answer of a media
- * type the route does not declare is a 500 `output_content_type_mismatch`, compared by exact
- * essence (H18.2). A JSON body is checked against its status's schema, read from the raw body the
- * answer was built from, never by cloning it (H18.1); a stream honey produced is never buffered.
- * Any other declared type is a type contract only (F8). Failures are a 500 that names the status
- * key and nothing of the issues. Also the declaration's runtime shape: the shorthand recorded as
- * its `application/json` form, and a returned body answered at the sole 2xx status.
+ * What every `.output()` route runs whatever the build: one value against its status's schema (the body and header
+ * checks of output-check.ts call it), the check on a `forward()`ed answer, and the wrap that runs a check on what a
+ * handler answers. Also the declaration's runtime shape: the shorthand recorded as its `application/json` form, and a
+ * returned body answered at the sole 2xx status. The answer check itself is `#output-check` (output-check.ts).
  */
 import { EK, HoneyError } from "../errors/error.ts"
 import { isAnswer, type MaybePromise } from "../middleware/middleware.ts"
-import { bodyKind } from "../input/body-kind.ts"
-import { isForwarded, isProducedStream, rawBodyOf } from "../response/builder.ts"
+import { isForwarded } from "../response/builder.ts"
 import { parseMediaType } from "../response/media-type.ts"
 import type { HoneyRes } from "../response/response.ts"
 import { codeToStatusKey, type StatusKey, statusKeyToCode } from "../response/status.ts"
-import type { HeadersCheck } from "../response/response-headers.ts"
 import type { JsonShorthand, OutputSchemas, StatusSchemas } from "../routing/output-types.ts"
 import type { StandardSchemaLike, StandardSchemaResult } from "./standard-schema.ts"
-
-/**
- * Whether `.output()` routes check their answers: `"off"` (the default) never, `"always"` always, and `"dev"` unless
- * NODE_ENV is `production` and never where there is no `process` to read it from, as on Workers.
- */
-export type OutputValidationMode = "always" | "dev" | "off"
-
-type ProcessLike = { readonly env?: { readonly NODE_ENV?: string | undefined } } | undefined
-
-/**
- * Whether `mode` checks answers here. `"dev"` checks unless NODE_ENV is `production`, and checks
- * nothing where there is no `process` to read it from (Workers): never a cost where it cannot be
- * turned off.
- */
-export function outputValidationOn(mode: OutputValidationMode, runtime: ProcessLike): boolean {
-	if (mode !== "dev") return mode === "always"
-	return runtime !== undefined && runtime.env?.NODE_ENV !== "production"
-}
 
 function failed(statusKey: string): HoneyError {
 	return new HoneyError({ errorKey: EK.output_validation_failed, status: "internal_server_error", vars: { statusKey } })
@@ -62,64 +39,8 @@ export function validateOutput(
 
 /** A route's compiled check: the answer back as it was, or the failure. */
 export type OutputCheck = (response: Response) => MaybePromise<Response>
-
-// per-process-constant: text-codec
-const decoder = /* @__PURE__ */ new TextDecoder()
-
-/** The retained body as data: an empty one, as `json(undefined)` writes, is `null`. */
-function parse(raw: string | Uint8Array): unknown {
-	const text = typeof raw === "string" ? raw : decoder.decode(raw)
-	return text.length === 0 ? null : (JSON.parse(text) as unknown)
-}
-
 /**
- * The check for a route declaring `schemas`, for an app whose mode is on: `headers`, its declared
- * headers' check, first, whatever the answer carries. The declared media types are fixed here,
- * once; `redirect` and `headers` name no body type.
- */
-export function compileOutput(schemas: OutputSchemas, headers: HeadersCheck | null): OutputCheck {
-	const declared = new Set<string>()
-	for (const key of Object.keys(schemas)) {
-		const mt = key.includes("/") ? parseMediaType(key) : null
-		if (mt !== null) declared.add(mt.essence)
-	}
-	const json = (schemas as Record<string, Partial<Record<StatusKey, StandardSchemaLike | true>> | undefined>)[
-		"application/json"
-	]
-	const body = (response: Response): MaybePromise<Response> => {
-		if (bodyKind(response) === "empty") return response
-		const type = response.headers.get("content-type")
-		if (type === null) return response
-		const essence = parseMediaType(type)?.essence
-		if (essence === undefined || !declared.has(essence)) {
-			throw new HoneyError({ errorKey: EK.output_content_type_mismatch, status: "internal_server_error" })
-		}
-		if (essence !== "application/json" || json === undefined || isProducedStream(response) || isForwarded(response))
-			return response
-		const statusKey = codeToStatusKey[response.status]
-		const schema = statusKey === undefined ? undefined : json[statusKey]
-		if (schema === undefined || schema === true) return response
-		const raw = rawBodyOf(response)
-		if (raw !== null) {
-			const pending = validateOutput(schema, statusKey as string, parse(raw))
-			return pending === undefined ? response : pending.then(() => response)
-		}
-		/* a body honey did not build: read a copy, hand the client the original */
-		return response
-			.clone()
-			.json()
-			.then((data: unknown) => validateOutput(schema, statusKey as string, data))
-			.then(() => response)
-	}
-	if (headers === null) return body
-	return (response) => {
-		const pending = headers(response)
-		return pending === undefined ? body(response) : pending.then(() => body(response))
-	}
-}
-
-/**
- * The check every route declaring `schemas` runs on what `forward()` answered, whatever the validation mode: its
+ * The check every route declaring `schemas` runs on what `forward()` answered, whatever the build: its
  * status must be a declared key, with its media type declared at that key unless it has no body, or one of
  * `errorStatuses`, the statuses of the error keys the route may throw, which passes as the upstream gave it. Its body
  * is never read. A refusal is the 500 an undeclared answer is: `output_validation_failed` naming the status, or

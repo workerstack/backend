@@ -65,11 +65,32 @@ export default {
 }
 ```
 
+## Output validation
+
+Every `.output()` route checks what it answers: under `vite dev`, in tests, in a development build, and wherever honey
+runs without the plugin. A production `vite build` (NODE_ENV `production`, the default) drops the check from each
+bundle it makes, a Worker's included: the build resolves core's `#output-check` import to a no-op under the
+`honey-no-output-check` condition, so the check's code is not in the bundle at all.
+`honeyPlugin({ outputValidation: true })` keeps it. The check that a `forward()`ed answer's status and media type are
+declared stays in every build.
+
+A node or bun bundle keeps honey external, so its check is decided where it starts. Drop it in production with the same
+condition:
+
+```sh
+node --conditions=honey-no-output-check dist/index.js
+bun --conditions=honey-no-output-check dist/index.js
+```
+
+A build outside Vite (wrangler's own bundler, esbuild, `bun build`) keeps the check unless it resolves the
+`honey-no-output-check` condition itself: esbuild's `conditions` option, or `--conditions` on node and bun.
+
 ## Reference
 
 | Value                                       | Default       | What it does                                                                                                                                                                                                                                                                                                                                                                        | Watch for                                                                                                                                                                                                                                    |
 | ------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `honeyPlugin(pluginOptions)` (vite/bundler) | —             | wires type extraction + codegen into the build                                                                                                                                                                                                                                                                                                                                      | runs in Node at build time; `ts-morph` is an optional peer loaded only here                                                                                                                                                                  |
+| `outputValidation`                          | `false`       | `true` keeps the answer check in a production build; otherwise a production `vite build` drops it from every bundle it makes                                                                                                                                                                                                                                                        | a node or bun bundle keeps honey external: start it with `--conditions=honey-no-output-check` to drop the check                                                                                                                              |
 | `generate` targets                          | all declared  | which of the app's own artifacts to write: the route tree, the manifest, each OpenAPI document as JSON, YAML or both, the types; SDKs, the CLI and MCP come from `honey-clients generate`                                                                                                                                                                                           | the bundle targets are node, bun and cf                                                                                                                                                                                                      |
 | type generation                             | on            | extract middleware ctx/chain types (calls `honey-clients` `extract/`)                                                                                                                                                                                                                                                                                                               | needs a TS honey app + `ts-morph`                                                                                                                                                                                                            |
 | route-tree emission                         | on            | emits the typed route tree (`honey-clients` `emit/ts/route-tree.ts`)                                                                                                                                                                                                                                                                                                                | consumed by the generated TS client                                                                                                                                                                                                          |

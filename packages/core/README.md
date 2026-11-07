@@ -141,7 +141,6 @@ import { honey } from "@lovrozagar/honey"
 const app = honey()
 	.trailingSlash("strip")
 	.encodedSlashes("reject")
-	.outputValidation("always")
 	.errorFormat("problem+json")
 	.onNotFound((ctx) => new Response(`no route for ${new URL(ctx.req.url).pathname}`, { status: 404 }))
 	.onMethodNotAllowed((ctx) => new Response(null, { headers: { allow: ctx.allowed.join(", ") }, status: 405 }))
@@ -164,7 +163,6 @@ app.get("/").handler((ctx) => ctx.res.text("ok", "up"))
 | `telemetry(value)`                               | the tracing adapter (`otelAdapter`)                                    |
 | `errorFormat(format)`                            | `"honey"` (the default) or `"problem+json"` (RFC 9457)                 |
 | `defaultErrorFormatter`, `payloadErrorFormatter` | your own error body, schema-checked                                    |
-| `outputValidation(mode)`                         | what a response that does not match its `.output()` does               |
 | `trailingSlash`, `encodedSlashes`, `stripPrefix` | path normalization, and the prefix a gateway already consumed          |
 | `wsAdapter(adapter)`                             | the WebSocket adapter, when `serve()` does not pick one                |
 | `fetch(request, env, ctx)`                       | the Fetch handler an adapter calls                                     |
