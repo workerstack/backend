@@ -1,9 +1,9 @@
 ---
 name: run-the-gates-that-read-your-source
 paths: ["packages/gen/src/**","packages/core/src/**","packages/core/lint/**","packages/gen/tests/structure/**","blueprint/files.tsv"]
-hits: 4
-last-hit: 2026-11-02
-evidence: ["plan 21","roadmap 2","plan 32","plan 33"]
+hits: 5
+last-hit: 2026-11-07
+evidence: ["plan 21","roadmap 2","plan 32","plan 33","plan 40 rc.22: init.test.ts spawned bun -e on core source without --conditions=honey-source, so the new #output-check package import resolved to an unbuilt dist; lane gates passed, the first tip verify caught it"]
 ---
 
 # Changed source reds the gates that read it, not only its own tests
