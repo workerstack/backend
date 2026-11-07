@@ -28,7 +28,7 @@ describe("servers: the default, and the list a caller gives", () => {
 		expect(generateOpenApi(app, { info: INFO }).servers).toBeUndefined()
 	})
 
-	it("replaces the default with the list given, the stripped prefix appended to each URL and basePath left in the paths", () => {
+	it("replaces the default with the list given, each URL as written and basePath left in the paths", () => {
 		const app = honey<{}>().stripPrefix("/api")
 		app
 			.basePath("/v1")
@@ -50,15 +50,15 @@ describe("servers: the default, and the list a caller gives", () => {
 		})
 		expect([doc.servers, Object.keys(doc.paths)]).toEqual([
 			[
-				{ description: "Production", url: "https://api.example.com/api" },
+				{ description: "Production", url: "https://api.example.com/" },
 				{
-					url: "https://{region}.example.com:{port}/api",
+					url: "https://{region}.example.com:{port}",
 					variables: {
 						port: { default: "443" },
 						region: { default: "eu", description: "Data region", enum: ["eu", "us"] },
 					},
 				},
-				{ url: "http://localhost:3000/api" },
+				{ url: "http://localhost:3000" },
 			],
 			["/v1/users"],
 		])

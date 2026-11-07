@@ -1,7 +1,7 @@
 /**
  * The document's servers. With no list, the stripped prefix is the one server (a client sends it,
- * the app strips it). A caller's list replaces that default, the prefix appended to each URL;
- * basePath is in the paths already. A server that cannot be served is refused: each `{var}` is
+ * the app strips it). A caller's list replaces that default and is written as declared: the
+ * prefix is not appended, and basePath is in the paths already. A server that cannot be served is refused: each `{var}` is
  * declared and each declared variable used, a default is in its enum, a name is a plain word, and
  * no text holds a stray control character (a URL or description lands verbatim in docs pages and SDKs).
  */
@@ -32,9 +32,6 @@ const CONTROL = /\p{Cc}/u
 const STRAY = /(?![\t\n\r])\p{Cc}/u
 const NAME = /^[A-Za-z0-9_]+$/
 const VARIABLE = /\{([^{}]*)\}/g
-
-/** `url` with `prefix` after it, one slash between them. */
-const prefixed = (url: string, prefix: string | null) => (prefix === null ? url : `${url.replace(/\/+$/, "")}${prefix}`)
 
 /** Each reason `variable` cannot be served. */
 function variableErrors(name: string, variable: OpenApiServerVariable): string[] {
@@ -70,7 +67,7 @@ function serverErrors(server: OpenApiServer): string[] {
 	return errors
 }
 
-/** The servers the document lists, each refusal reported through `error`. */
+/** The servers the document lists: a declared list as written, else the stripped prefix; each refusal reported through `error`. */
 export function serversOf(
 	servers: readonly OpenApiServer[] | undefined,
 	stripPrefix: string | null,
@@ -80,7 +77,7 @@ export function serversOf(
 	return servers.map((server, i) => {
 		for (const reason of serverErrors(server)) error(`server ${i + 1} (${JSON.stringify(server.url)}): ${reason}`)
 		const out: { description?: string; url: string; variables?: Record<string, OpenApiServerVariable> } = {
-			url: prefixed(server.url, stripPrefix),
+			url: server.url,
 		}
 		if (server.description !== undefined) out.description = server.description
 		if (server.variables !== undefined)
