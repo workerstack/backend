@@ -68,7 +68,8 @@ function buildV1App() {
 		.handler((ctx) => ctx.res.json("ok", { ok: true }))
 	for (let i = 0; i < 300; i++) app.get(`/r${i}/:a/:b`).handler((ctx) => ctx.res.json("ok", { a: ctx.params.a }))
 	app.get("/deep/:a/:b/:c/:d/:e").handler((ctx) => ctx.res.json("ok", { e: ctx.params.e }))
-	/* body and large-response as v0 builds them; output validation at its default, off, on both sides */
+	/* body and large-response as v0 builds them, with no answer check on either side: honey runs under
+	 * honey-no-output-check (bench:hotpath), as a production build resolves #output-check */
 	app
 		.post("/echo")
 		.input({ json: passSchema })
