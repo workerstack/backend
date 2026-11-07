@@ -111,7 +111,13 @@ describe("the scaffolded app", () => {
 		"scaffolded app can serve /health and /openapi.json",
 		async () => {
 			init()
-			const { stdout } = await promisify(execFile)("bun", ["-e", served(join(dir, "src/app.ts"))], { cwd: SRC })
+			const { stdout } = await promisify(execFile)(
+				"bun",
+				["--conditions=honey-source", "-e", served(join(dir, "src/app.ts"))],
+				{
+					cwd: SRC,
+				},
+			)
 			expect(JSON.parse(stdout)).toEqual([200, "ok", "3.1.0", "Honey", 200, true])
 		},
 		SPAWN,
