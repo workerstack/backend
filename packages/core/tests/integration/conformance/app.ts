@@ -236,7 +236,7 @@ function itemRoutes(app: ConformanceApp): void {
 	app
 		.delete("/items/:id")
 		.meta({ operationId: "items.delete", mcp: true })
-		.output({ headers: { no_content: z.object({}) } })
+		.output({ no_content: true })
 		.handler((ctx) => ctx.res.noContent())
 }
 

@@ -1,7 +1,8 @@
 /**
  * `.output()` as typed: ctx.res narrowed to the declared media types (a helper's status keys and
- * body typed by the status's schema, an undeclared helper removed, noContent/raw/redirect/stream
- * always there, sse only for a declared event stream), AllowedResMethods, `.output()` one-shot, and
+ * body typed by the status's schema, an undeclared helper removed, raw gone, stream always there,
+ * noContent and redirect only where declared, sse only for a declared event stream),
+ * AllowedResMethods, `.output()` one-shot, and
  * InferRouteOutput carrying the declaration, the status-key shorthand as JSON, and the body a handler may return
  * in place of an answer. No `.output()` leaves ctx.res whole. Checked by typecheck.
  */
@@ -88,7 +89,7 @@ describe("ctx.res under .output(): what stays and what goes", () => {
 	// v0: 0da51d81f1
 	// v0: 864b2b279f
 	// v0: 51f229a974
-	it("an undeclared helper is gone, raw and an undeclared redirect too; noContent and stream stay", () => {
+	it("an undeclared helper is gone, raw, an undeclared redirect and an undeclared noContent too; stream stays", () => {
 		honey<{}>()
 			.get("/report")
 			.output({ "application/json": { ok: z.object({ data: z.array(z.string()) }) }, "text/html": { ok: z.string() } })
@@ -100,7 +101,7 @@ describe("ctx.res under .output(): what stays and what goes", () => {
 				expectTypeOf(ctx.res).not.toHaveProperty("xml")
 				expectTypeOf(ctx.res).not.toHaveProperty("sse")
 				expectTypeOf(ctx.res).not.toHaveProperty("generate")
-				expectTypeOf(ctx.res.noContent).toBeFunction()
+				expectTypeOf(ctx.res).not.toHaveProperty("noContent")
 				expectTypeOf(ctx.res).not.toHaveProperty("raw")
 				expectTypeOf(ctx.res).not.toHaveProperty("redirect")
 				expectTypeOf(ctx.res.stream).toBeFunction()
@@ -159,9 +160,7 @@ describe("the handler's return under .output(): only what the route declares", (
 			// @ts-expect-error a created answer: the route declares only ok
 			.handler((c) => (c.res as unknown as HoneyRes).json("created", { id: "1" }))
 		app.get("/d").handler((c) => c.res.raw(new Response("x")))
-		expectTypeOf<DeclaredAnswer<typeof out>>().toEqualTypeOf<
-			TypedResponse<"application/json", "ok"> | TypedResponse<"none", "no_content"> | { id: string }
-		>()
+		expectTypeOf<DeclaredAnswer<typeof out>>().toEqualTypeOf<TypedResponse<"application/json", "ok"> | { id: string }>()
 	})
 
 	it("takes a streamed body through a declared type's helper", () => {
@@ -213,7 +212,7 @@ describe("the handler's return under .output(): the body itself", () => {
 
 	it("one 2xx status under one media type: the handler may return the body itself", () => {
 		expectTypeOf<DeclaredAnswer<{ readonly "text/csv": { readonly ok: true } }>>().toEqualTypeOf<
-			TypedResponse<"text/csv", "ok"> | TypedResponse<"none", "no_content"> | string | ReadableStream<Uint8Array>
+			TypedResponse<"text/csv", "ok"> | string | ReadableStream<Uint8Array>
 		>()
 		const app = honey<{}>()
 		app
@@ -246,7 +245,7 @@ describe("the handler's return under .output(): no body where honey cannot pick 
 	it("refuses the body for two statuses, two media types, declared headers or an event stream", () => {
 		expectTypeOf<
 			DeclaredAnswer<{ readonly "application/json": { readonly created: typeof tables; readonly ok: typeof tables } }>
-		>().toEqualTypeOf<TypedResponse<"application/json", "created" | "ok"> | TypedResponse<"none", "no_content">>()
+		>().toEqualTypeOf<TypedResponse<"application/json", "created" | "ok">>()
 		const app = honey<{}>()
 		app
 			.get("/a")
@@ -317,7 +316,7 @@ describe("ctx.res.binary under .output()", () => {
 				ctx.res.binary("created", new Uint8Array(0))
 				expectTypeOf(ctx.res).not.toHaveProperty("json")
 				expectTypeOf(ctx.res).not.toHaveProperty("text")
-				expectTypeOf(ctx.res.noContent).toBeFunction()
+				expectTypeOf(ctx.res).not.toHaveProperty("noContent")
 				return ctx.res.binary("ok", new ArrayBuffer(0))
 			})
 	})
@@ -557,9 +556,7 @@ describe("ctx.res.forward(): only under .output(), typed as the declared answers
 			.output({ "application/octet-stream": { ok: true, partial_content: true }, "text/csv": { ok: z.string() } })
 			.handler((ctx) => {
 				expectTypeOf(ctx.res.forward(new Response())).toEqualTypeOf<
-					| TypedResponse<"application/octet-stream", "ok" | "partial_content">
-					| TypedResponse<"text/csv", "ok">
-					| TypedResponse<"none", "no_content">
+					TypedResponse<"application/octet-stream", "ok" | "partial_content"> | TypedResponse<"text/csv", "ok">
 				>()
 				return ctx.res.forward(new Response())
 			})
@@ -574,9 +571,7 @@ describe("ctx.res.forward(): only under .output(), typed as the declared answers
 
 	it("keeps them on a ctx typed from plain body types, as a generated per-route ctx is", () => {
 		type Generated = ApplyOutput<{}, { "application/json": { ok: { results: string[] } } }>
-		expectTypeOf<ReturnType<Generated["res"]["forward"]>>().toEqualTypeOf<
-			TypedResponse<"application/json", "ok"> | TypedResponse<"none", "no_content">
-		>()
+		expectTypeOf<ReturnType<Generated["res"]["forward"]>>().toEqualTypeOf<TypedResponse<"application/json", "ok">>()
 	})
 
 	it("counts a 304 its redirect entry declares among the bodiless answers, which a handler may return", () => {
@@ -586,7 +581,7 @@ describe("ctx.res.forward(): only under .output(), typed as the declared answers
 			.handler((ctx) => ctx.res.forward(new Response(null, { status: 304 })))
 		type Revalidated = ApplyOutput<{}, { "text/csv": { ok: string }; redirect: { not_modified: true } }>
 		expectTypeOf<ReturnType<Revalidated["res"]["forward"]>>().toEqualTypeOf<
-			TypedResponse<"text/csv", "ok"> | TypedResponse<"none", "no_content" | "not_modified">
+			TypedResponse<"text/csv", "ok"> | TypedResponse<"none", "not_modified">
 		>()
 	})
 })

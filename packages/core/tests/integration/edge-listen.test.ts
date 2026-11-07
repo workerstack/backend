@@ -123,12 +123,15 @@ function itemsApp() {
 		if (at === -1) throw missing()
 		return ctx.res.json("ok", items[at])
 	})
-	edged.delete("/items/:id").handler((ctx) => {
-		const at = find(ctx.params.id)
-		if (at === -1) throw missing()
-		items.splice(at, 1)
-		return ctx.res.noContent()
-	})
+	edged
+		.delete("/items/:id")
+		.output({ no_content: true })
+		.handler((ctx) => {
+			const at = find(ctx.params.id)
+			if (at === -1) throw missing()
+			items.splice(at, 1)
+			return ctx.res.noContent()
+		})
 	return app
 }
 

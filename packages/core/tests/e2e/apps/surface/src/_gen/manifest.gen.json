@@ -706,6 +706,11 @@
         "anonymous",
         "anonymous"
       ],
+      "output": {
+        "application/json": {
+          "no_content": {}
+        }
+      },
       "params": [
         "id"
       ],
@@ -938,6 +943,11 @@
         "anonymous",
         "anonymous"
       ],
+      "output": {
+        "application/json": {
+          "no_content": {}
+        }
+      },
       "params": [
         "id"
       ],
@@ -1070,6 +1080,11 @@
         "anonymous",
         "anonymous"
       ],
+      "output": {
+        "application/json": {
+          "no_content": {}
+        }
+      },
       "params": [],
       "path": "/status/no-content"
     },

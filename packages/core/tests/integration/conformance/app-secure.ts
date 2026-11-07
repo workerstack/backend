@@ -88,7 +88,7 @@ function userRoutes(app: Secure, factory: typeof errors): void {
 	app
 		.delete("/users/:id")
 		.meta({ invalidate: [LIST, ONE], operationId: "users.delete", mcp: true })
-		.output({ headers: { no_content: z.object({}) } })
+		.output({ no_content: true })
 		.handler((ctx) => {
 			users.delete(ctx.params.id)
 			return ctx.res.noContent()

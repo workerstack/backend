@@ -302,8 +302,14 @@ describe("every response helper in process", () => {
 		app.get("/text").handler((ctx) => ctx.res.text("ok", ""))
 		app.get("/array").handler((ctx) => ctx.res.json("ok", []))
 		app.get("/object").handler((ctx) => ctx.res.json("ok", {}))
-		app.delete("/resource/:id").handler((ctx) => ctx.res.noContent({ headers: { "x-id": ctx.params.id } }))
-		app.options("/data").handler((ctx) => ctx.res.noContent({ headers: { allow: "GET, POST, OPTIONS" } }))
+		app
+			.delete("/resource/:id")
+			.output({ no_content: true })
+			.handler((ctx) => ctx.res.noContent({ headers: { "x-id": ctx.params.id } }))
+		app
+			.options("/data")
+			.output({ no_content: true })
+			.handler((ctx) => ctx.res.noContent({ headers: { allow: "GET, POST, OPTIONS" } }))
 		app
 			.get("/custom")
 			.handler((ctx) => ctx.res.json("ok", { data: 1 }, { headers: { "cache-control": "max-age=3600", "x-api": "2" } }))
@@ -391,7 +397,10 @@ function helpersApp() {
 	app
 		.get("/teapot")
 		.handler((ctx) => ctx.res.raw(new Response("raw body", { headers: { "x-custom": "yes" }, status: 418 })))
-	app.delete("/item").handler((ctx) => ctx.res.noContent())
+	app
+		.delete("/item")
+		.output({ no_content: true })
+		.handler((ctx) => ctx.res.noContent())
 	app.get("/old").handler((ctx) => ctx.res.redirect("temporary_redirect", "/new?foo=bar&baz=qux"))
 	app.get("/big-json").handler((ctx) => ctx.res.json("ok", BIG_OBJECT))
 	app.get("/big-text").handler((ctx) => ctx.res.text("ok", BIG_TEXT))

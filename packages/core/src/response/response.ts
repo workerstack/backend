@@ -252,7 +252,10 @@ export class HoneyRes {
 		return this.#known(statusKeyToCode[statusKey], JSON_HEADERS, body, opts)
 	}
 
-	/** A 204 answer with no body; headers and cookies apply. */
+	/**
+	 * A 204 answer with no body; headers and cookies apply. On a route with `.output()` it exists only where the route
+	 * declares `no_content` (`{ no_content: true }`, or under a media type), so every 204 is in the document.
+	 */
 	noContent(opts?: ResponseOptions): TypedResponse<"none", "no_content"> {
 		return typed(this.#empty(204, {}, opts))
 	}
