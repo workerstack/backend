@@ -98,7 +98,7 @@ describe("RouteBuilder: the .output() shorthand and a returned body", () => {
 		app
 			.get("/t")
 			.output({ created: true, headers: { created: z.object({ location: z.string() }) }, redirect: { found: true } })
-			.handler((c) => c.res.noContent())
+			.handler((c) => c.res.redirect("found", "/elsewhere"))
 		expect(finalTable(app[GRAPH]).plans.size).toBe(1)
 		expect(app[GRAPH].records.get("GET /t")?.out).toEqual({
 			"application/json": { created: true },
@@ -141,7 +141,7 @@ describe("RouteBuilder: the .output() shorthand and a returned body", () => {
 		const app = honey<{}>().logger(false)
 		app
 			.get("/answer")
-			.output({ ok: true })
+			.output({ no_content: true })
 			.handler((c) => c.res.noContent())
 		app
 			.get("/nothing")

@@ -58,7 +58,7 @@ describe("compileResponseHeaders: the check a declaration compiles to", () => {
 function declaring() {
 	const app = honey<{}>().logger(false).outputValidation("always")
 	const out = {
-		"application/json": { created: z.object({ id: z.string() }), ok: z.object({ id: z.string() }) },
+		"application/json": { created: z.object({ id: z.string() }), no_content: true, ok: z.object({ id: z.string() }) },
 		headers: {
 			created: z.object({ location: z.string().startsWith("/").describe("SECRET_SCHEMA") }),
 			found: z.object({ location: z.string() }),

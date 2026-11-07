@@ -751,6 +751,12 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "no content",
+            "content": {
+              "application/json": {}
+            }
+          },
           "401": {
             "content": {
               "application/json": {

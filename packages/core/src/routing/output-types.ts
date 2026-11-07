@@ -3,9 +3,9 @@
  * key, its 3xx statuses, the headers of each 2xx or 3xx), each key it cannot answer refused with a message, and
  * ctx.res narrowed to it. A declared helper
  * takes only the declared status keys, each body typed by its status's schema and its options
- * carrying the status's declared headers; an undeclared one is gone, and so is raw; noContent and
- * stream stay; redirect takes only the declared redirect keys; sse only for an event stream; binary
- * for octet-stream or an open type.
+ * carrying the status's declared headers; an undeclared one is gone, and so is raw; stream stays;
+ * noContent only where a media type (or the shorthand) declares `no_content`; redirect takes only the
+ * declared redirect keys; sse only for an event stream; binary for octet-stream or an open type.
  * The handler's return is narrowed the same way: a declared media type at one of its status keys, or the body
  * itself when the route declares one 2xx status under one media type. Status keys alone (`{ ok: schema }`) are the
  * shorthand for `{ "application/json": { ok: schema } }`.
@@ -170,8 +170,17 @@ export type AllowedResMethods<TOutput> =
 	| { [CT in keyof HelperOf]: CT extends keyof TOutput ? HelperOf[CT] : never }[keyof HelperOf]
 	| ([BinaryTypes<TOutput>] extends [never] ? never : "binary")
 
-/** The helpers a route that declares an output keeps; `raw` is gone, since a raw Response declares nothing. */
-type UniversalRes = Pick<HoneyRes, "noContent" | "stream">
+/**
+ * The helpers a route that declares an output keeps; `raw` is gone, since a raw Response declares nothing, and
+ * `noContent` comes back only with a declared 204.
+ */
+type UniversalRes = Pick<HoneyRes, "stream">
+
+/** `"no_content"` when some media type the output names declares it (the shorthand is under `application/json`), else `never`. */
+type NoContentOf<TOutput> = Extract<
+	{ [CT in MediaTypes<TOutput>]: keyof TOutput[CT] }[MediaTypes<TOutput>],
+	"no_content"
+>
 
 /** The status keys the output's `redirect` entry declares (its redirects and a 304), or `never`. */
 type BodilessOf<TOutput> = TOutput extends { readonly redirect?: infer R }
@@ -181,10 +190,16 @@ type BodilessOf<TOutput> = TOutput extends { readonly redirect?: infer R }
 /** The redirect keys the output's `redirect` entry declares, or `never`. */
 type RedirectsOf<TOutput> = Extract<BodilessOf<TOutput>, RedirectKey>
 
-/** The answers `.output()` declares as a `Response`: each media type at its status keys, and `bodiless` with none. */
+/**
+ * The answers `.output()` declares as a `Response`: each media type at its status keys, and with no body the
+ * declared 204 and `bodiless`; none of those, no bodiless answer.
+ */
 type DeclaredResponse<TOutput, TBodiless extends StatusKey> =
 	| { [CT in MediaTypes<TOutput>]: TypedResponse<CT, Extract<keyof TOutput[CT], StatusKey>> }[MediaTypes<TOutput>]
-	| TypedResponse<"none", "no_content" | TBodiless>
+	| BodilessResponse<NoContentOf<TOutput> | TBodiless>
+
+/** The bodiless answer at `TKeys`, or `never` for none: a `TypedResponse` at no status still stands in a union. */
+type BodilessResponse<TKeys extends StatusKey> = [TKeys] extends [never] ? never : TypedResponse<"none", TKeys>
 
 /**
  * What a handler may return: any typed answer without `.output()`; with one, a declared media type at one of its
@@ -296,6 +311,7 @@ type OutputRes<TOutput> = UniversalRes & {
 	Narrowed<TOutput, "application/xml", true> &
 	Narrowed<TOutput, "text/csv", true> &
 	("text/event-stream" extends keyof TOutput ? Pick<HoneyRes, "sse"> : {}) &
+	([NoContentOf<TOutput>] extends [never] ? {} : Pick<HoneyRes, "noContent">) &
 	([RedirectsOf<TOutput>] extends [never]
 		? {}
 		: {

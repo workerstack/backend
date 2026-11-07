@@ -222,7 +222,7 @@ describe("serveOpenApi: an output key that names no status (bit 21 f2)", () => {
 		const app = honey<{}>().logger({ ...SILENT, error: (fields: unknown) => void logged.push(fields) })
 		app
 			.get("/bad")
-			.output({ "application/json": { orders: z.string() } } as never)
+			.output({ "application/json": { orders: z.string() } } as unknown as { no_content: true })
 			.handler((c) => c.res.noContent())
 		serveOpenApi(app, { title: "T", version: "1" })
 		const statuses = [(await get(app, "/openapi.json")).status, (await get(app, "/openapi.yaml")).status]
