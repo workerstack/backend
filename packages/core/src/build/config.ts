@@ -43,7 +43,7 @@ export type HoneyOpenApiOutputConfig = {
 	 * its definition. Unset: every scheme its routes name.
 	 */
 	readonly security?: readonly string[]
-	/** The servers it lists, in place of the stripped prefix. */
+	/** The servers it lists, each URL as written, in place of the stripped prefix; that prefix is not appended. */
 	readonly servers?: readonly OpenApiServer[]
 	/** Metadata for the tags its operations name, listed in this order; the tags no entry names follow. */
 	readonly tags?: readonly OpenApiTag[]

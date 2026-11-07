@@ -75,7 +75,7 @@ export type GenerateOpenApiOptions = {
 	readonly profile?: string
 	/** the document's `components.securitySchemes`; an operation naming a scheme missing here fails the document, and with this option unset it only warns */
 	readonly securitySchemes?: Readonly<Record<string, unknown>>
-	/** the servers it lists, in place of the stripped prefix; that prefix is appended to each */
+	/** the servers it lists, each URL as written, in place of the stripped prefix; that prefix is not appended */
 	readonly servers?: readonly OpenApiServer[]
 	/** metadata for the tags operations name; tags are never derived */
 	readonly tags?: readonly OpenApiTag[]
