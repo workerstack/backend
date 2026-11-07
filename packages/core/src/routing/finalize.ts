@@ -9,7 +9,8 @@ import { withInput } from "../input/input.ts"
 import { compileResponseHeaders } from "../response/response-headers.ts"
 import { compileOutput, forwardCheck, outputValidationOn, withOutput } from "../validation/validate-output.ts"
 import type { OutputSchemas } from "./output-types.ts"
-import type { ErrorPolicy } from "../errors/projector.ts"
+import { ERROR_META } from "../errors/errors.ts"
+import type { ErrorFactoryRecord, ErrorPolicy } from "../errors/projector.ts"
 import {
 	type ChainErrorConverter,
 	type CompiledChain,
@@ -29,7 +30,14 @@ import {
 	variantsCoverage,
 	splitRouteId,
 } from "./pattern.ts"
-import { assertNothingDiscarded, chainErrorKeys, type HoneyGraph, type RouteHandler } from "./register.ts"
+import {
+	assertNothingDiscarded,
+	chainErrorKeys,
+	chainErrorMeta,
+	type HoneyGraph,
+	type RouteHandler,
+	statusKeysOf,
+} from "./register.ts"
 import { type AppSettings, assertSettingsAgree, type ErrorFactories } from "./settings.ts"
 import type { RequestTrace } from "../telemetry/request-trace.ts"
 import { answering, firing, tapsFor } from "./tap.ts"
@@ -138,6 +146,15 @@ function resolveErrors(
 	return { errors, policy: { boundaryKey, declared, factory: src.errorFactory } }
 }
 
+/**
+ * The statuses of the error keys a route may throw, by status key: each declared key's from the first factory that
+ * knows it (the one the route named, its middleware's, the app's), and every key of the app's factory for an open route.
+ */
+function thrownStatuses(r: RouteHandler, chain: readonly RuntimeMiddleware[], policy: ErrorPolicy): Set<string> {
+	const keys = policy.declared ?? Object.keys((policy.factory as ErrorFactoryRecord | null)?.[ERROR_META] ?? {})
+	return new Set(Object.values(statusKeysOf([...keys], [r.ef, chainErrorMeta(chain), policy.factory]) ?? {}))
+}
+
 /** The scoped middleware a pattern runs: whole where the scope covers it, behind the path check where it covers part. */
 export function scopesFor(g: HoneyGraph, variants: readonly (readonly Segment[])[]): RuntimeMiddleware[] {
 	const out: RuntimeMiddleware[] = []
@@ -193,7 +210,8 @@ function planRoute(
 	/* only a route with .output() in an app checking answers pays for the check */
 	const checked = r.out !== null && outputValidationOn(g.settings.outputValidation, globalProcess())
 	/* a route with .output() checks what forward() answered, in every mode */
-	const forwarded = r.out === null ? input : withOutput(forwardCheck(r.out as OutputSchemas), input)
+	const forwarded =
+		r.out === null ? input : withOutput(forwardCheck(r.out as OutputSchemas, thrownStatuses(r, chain, policy)), input)
 	const fn = checked
 		? withOutput(
 				compileOutput(r.out as OutputSchemas, compileResponseHeaders((r.out as OutputSchemas).headers)),

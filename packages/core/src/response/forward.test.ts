@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
+import { defineErrors } from "../errors/errors.ts"
 import { honey } from "../routing/app.ts"
 import { rangeResponse } from "./range.ts"
 
@@ -94,6 +95,41 @@ describe("ctx.res.forward(): any declared status, its body unread", () => {
 			.output({ ok: z.object({ id: z.string() }) })
 			.handler((ctx) => ctx.res.forward(Response.json({ id: 1 })))
 		expect(await seen(routes.fetch(get("/upstream"), {}))).toEqual([200, "application/json", '{"id":1}'])
+	})
+})
+
+describe("ctx.res.forward(): an upstream error answer passes at a status the route's errors carry", () => {
+	const errors = defineErrors({ thing_gone: "gone", thing_missing: "not_found" })
+	const app = honey<{}>().logger(false).errorFactory(errors)
+	const row = z.object({ id: z.string() })
+	const upstream = (status: number) => Response.json({ upstream: status }, { status })
+	app
+		.get("/declared/:status")
+		.output({ ok: row })
+		.errors("thing_missing")
+		.handler((ctx) => ctx.res.forward(upstream(Number(ctx.params.status))))
+	app
+		.get("/open/:status")
+		.output({ ok: row })
+		.handler((ctx) => ctx.res.forward(upstream(Number(ctx.params.status))))
+
+	it("a 404 goes out as it is when .errors() declares a key at not_found; a 409 no key carries is refused", async () => {
+		expect([
+			await seen(app.fetch(get("/declared/404"), {})),
+			await seen(app.fetch(get("/declared/409"), {})),
+			await seen(app.fetch(get("/declared/410"), {})),
+		]).toEqual([
+			[404, "application/json", '{"upstream":404}'],
+			[500, "application/json", "output_validation_failed"],
+			[500, "application/json", "output_validation_failed"],
+		])
+	})
+
+	it("a route declaring no errors passes a status any key of the app's factory carries", async () => {
+		expect([await seen(app.fetch(get("/open/410"), {})), await seen(app.fetch(get("/open/409"), {}))]).toEqual([
+			[410, "application/json", '{"upstream":410}'],
+			[500, "application/json", "output_validation_failed"],
+		])
 	})
 })
 

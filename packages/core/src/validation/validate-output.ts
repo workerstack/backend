@@ -120,11 +120,12 @@ export function compileOutput(schemas: OutputSchemas, headers: HeadersCheck | nu
 
 /**
  * The check every route declaring `schemas` runs on what `forward()` answered, whatever the validation mode: its
- * status must be a declared key, and its media type declared at that key unless it has no body. Its body is never
- * read. A refusal is the 500 an undeclared answer is: `output_validation_failed` naming the status, or
+ * status must be a declared key, with its media type declared at that key unless it has no body, or one of
+ * `errorStatuses`, the statuses of the error keys the route may throw, which passes as the upstream gave it. Its body
+ * is never read. A refusal is the 500 an undeclared answer is: `output_validation_failed` naming the status, or
  * `output_content_type_mismatch`. Any other answer passes as it is.
  */
-export function forwardCheck(schemas: OutputSchemas): OutputCheck {
+export function forwardCheck(schemas: OutputSchemas, errorStatuses: ReadonlySet<string>): OutputCheck {
 	const types = new Map<string, Set<string>>()
 	for (const [key, statuses] of Object.entries(schemas)) {
 		if (key === "headers" || statuses === undefined) continue
@@ -140,7 +141,10 @@ export function forwardCheck(schemas: OutputSchemas): OutputCheck {
 		if (!isForwarded(response)) return response
 		const statusKey = codeToStatusKey[response.status] ?? String(response.status)
 		const declared = types.get(statusKey)
-		if (declared === undefined) throw failed(statusKey)
+		if (declared === undefined) {
+			if (errorStatuses.has(statusKey)) return response
+			throw failed(statusKey)
+		}
 		if (response.body === null) return response
 		const essence = parseMediaType(response.headers.get("content-type"))?.essence
 		if (essence === undefined || !declared.has(essence))
