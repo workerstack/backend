@@ -104,7 +104,7 @@ process.stdin.once("data", async () => {
 describe("serve(app) on Bun", () => {
 	// v0: 5e67afde03
 	it("serves through Bun.serve, with ctx.ip from the server, and closes on request", async () => {
-		const child = spawn("bun", ["-e", BUN_APP], { stdio: ["pipe", "pipe", "inherit"] })
+		const child = spawn("bun", ["--conditions=honey-source", "-e", BUN_APP], { stdio: ["pipe", "pipe", "inherit"] })
 		const lines = createInterface({ input: child.stdout })[Symbol.asyncIterator]()
 		try {
 			const handle = JSON.parse((await lines.next()).value as string) as { port: number; server: string; url: string }
@@ -145,7 +145,9 @@ function rawRequest(port: number, head: string): Promise<string> {
 
 describe("the Node adapter on Bun's node:http", () => {
 	it("reads a repeated header joined, a single one as sent and a missing one as null", async () => {
-		const child = spawn("bun", ["-e", BUN_NODE_ADAPTER], { stdio: ["pipe", "pipe", "inherit"] })
+		const child = spawn("bun", ["--conditions=honey-source", "-e", BUN_NODE_ADAPTER], {
+			stdio: ["pipe", "pipe", "inherit"],
+		})
 		const lines = createInterface({ input: child.stdout })[Symbol.asyncIterator]()
 		try {
 			const port = Number((await lines.next()).value)

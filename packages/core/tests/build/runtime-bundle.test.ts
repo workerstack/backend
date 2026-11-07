@@ -128,7 +128,11 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * app that defines none. Locked at 26,600. 5.7 added 180 (26,516 to 26,696) so ctx.res.forward() answers a
 			 * Response whose status is decided elsewhere: the method and its forwarded marker, the check every .output()
 			 * route runs on a forwarded answer (its status a declared key, its media type declared there), and json and
-			 * sse taking an encoded stream. Locked at 26,800.
+			 * sse taking an encoded stream. Locked at 26,800. Plan 40, measured on rc.21's 26,712: phase 8 added 57
+			 * (26,769) so a forwarded error answer passes at a status the route's error keys carry: the per-route status
+			 * set, read through statusKeysOf and the chain's error meta. Phase 10 took 72 off (26,697): the
+			 * outputValidation setter, its settings field and mode and the NODE_ENV read are gone, the check reached
+			 * through #output-check instead. Still locked at 26,800.
 			 */
 			const gzipped = gzipSync(js, { level: 9 }).length
 			const builtBy = run(BUN as string, ["--version"], full).out.trim()

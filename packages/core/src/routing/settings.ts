@@ -6,7 +6,6 @@
  */
 import type { ErrorFormat } from "../errors/problem-json.ts"
 import type { MetaSpecSource } from "../meta/meta-spec-merge.ts"
-import type { OutputValidationMode } from "../validation/validate-output.ts"
 import type { HoneyError } from "../errors/error.ts"
 import type { PayloadErrorFormatter, ErrorFormatter } from "../errors/projector.ts"
 import type { MaybePromise } from "../middleware/middleware.ts"
@@ -105,8 +104,6 @@ export type AppSettings<TEnv = unknown> = {
 	logger: Logger
 	/** the metaSpec policy this app declared, and each mounted sub-app's: merged when a document is built */
 	readonly metaSpec: MetaSpecSource
-	/** whether `.output()` routes check what they answer: resolved per route at finalize */
-	outputValidation: OutputValidationMode
 	/** Hook that maps a thrown value before it is answered; `null` for none. */
 	onError: OnErrorFn<TEnv> | null
 	/** Hook that answers a 405; `null` keeps the default answer. */
@@ -149,7 +146,6 @@ export function copySettings<TEnv>(s: AppSettings<TEnv>): AppSettings<TEnv> {
 
 export function createSettings<TEnv>(): AppSettings<TEnv> {
 	return {
-		outputValidation: "off",
 		payloadErrorFormatter: null,
 		payloadErrorSchema: null,
 		defaultBoundaryKey: null,

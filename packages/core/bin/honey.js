@@ -59,6 +59,14 @@ function sourceAliases(name) {
 	)
 }
 
+// A checkout's own subpath imports (`#output-check`) mapped to their `honey-source` file: jiti resolves a `#` import
+// with Node's conditions, which send it to the dist/ a checkout does not build.
+function importAliases() {
+	const root = fileURLToPath(new URL("..", import.meta.url))
+	const { imports = {} } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
+	return Object.fromEntries(Object.entries(imports).map(([name, target]) => [name, join(root, target["honey-source"])]))
+}
+
 // A checkout on Bun runs its source natively, under the honey-source condition: honey-clients, and an app's honey,
 // resolve to source then, not to the unbuilt dist/. Set through BUN_OPTIONS when the caller did not, so every
 // generation child inherits it.
@@ -74,7 +82,7 @@ async function entry() {
 		 * throws "First argument must be an Error object" at a captureStackTrace on a non-Error (bit 20 k-fix) */
 		if (isBun) return import("../src/build/cli.ts")
 		const { createJiti } = await import("jiti")
-		const alias = sourceAliases("@lovrozagar/honey-clients")
+		const alias = { ...sourceAliases("@lovrozagar/honey-clients"), ...importAliases() }
 		return createJiti(import.meta.url, { alias, tryNative: false }).import("../src/build/cli.ts")
 	}
 	try {

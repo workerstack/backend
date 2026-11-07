@@ -1,6 +1,6 @@
 /**
  * A project whose `@lovrozagar/honey` is this checkout's source (bit 19 h2): the package carries every subpath of the
- * exports map (bit 19 i), each at its `honey-source` file, and `zod` links to the repo's, so an app, a Vite config and
+ * exports map (bit 19 i) and every subpath import (`#output-check`), each at its `honey-source` file, and `zod` links to the repo's, so an app, a Vite config and
  * a merge entry import honey as a user's do. Its `src` is a copy of packages/core/src made for this project and
  * removed with it: a generation evaluates the app's core through jiti in this process, and jiti evaluating the very
  * files coverage measures would merge phantom statements into their report. A native leg, which imports the app
@@ -24,13 +24,20 @@ export function project(files: Readonly<Record<string, string>> = {}, options: {
 	symlinkSync(resolve(CORE, "../../node_modules/zod"), join(dir, "node_modules/zod"), "dir")
 	const manifest = JSON.parse(readFileSync(join(CORE, "package.json"), "utf8")) as {
 		exports: Record<string, { "honey-source"?: string } | string>
+		imports: Record<string, { "honey-source": string }>
 	}
 	const exports = Object.fromEntries(
 		Object.entries(manifest.exports).flatMap(([subpath, target]) =>
 			typeof target === "object" && target["honey-source"] ? [[subpath, target["honey-source"]]] : [],
 		),
 	)
-	writeFileSync(join(honey, "package.json"), JSON.stringify({ exports, name: "@lovrozagar/honey", type: "module" }))
+	const imports = Object.fromEntries(
+		Object.entries(manifest.imports).map(([name, target]) => [name, target["honey-source"]]),
+	)
+	writeFileSync(
+		join(honey, "package.json"),
+		JSON.stringify({ exports, imports, name: "@lovrozagar/honey", type: "module" }),
+	)
 	const write = (path: string, text: string) => {
 		mkdirSync(dirname(join(dir, path)), { recursive: true })
 		writeFileSync(join(dir, path), text)

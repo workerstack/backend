@@ -108,7 +108,7 @@ describe("RouteBuilder: the .output() shorthand and a returned body", () => {
 	})
 
 	it("a returned body answers at the sole 2xx status, through its media type's helper, sync or async", async () => {
-		const app = honey<{}>().logger(false).outputValidation("always")
+		const app = honey<{}>().logger(false)
 		app
 			.get("/json")
 			.output({ created: z.object({ id: z.string() }), redirect: { see_other: true } })

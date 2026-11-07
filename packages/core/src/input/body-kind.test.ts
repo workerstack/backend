@@ -144,7 +144,7 @@ describe("HEAD through the app: what it never does", () => {
 
 	// v0: 4adfce3684
 	it("output validation checks the body GET would send before HEAD leaves it out", async () => {
-		const app = honey<{}>().logger(false).outputValidation("always")
+		const app = honey<{}>().logger(false)
 		const out = { "application/json": { ok: z.object({ id: z.number() }) } }
 		app
 			.get("/good")

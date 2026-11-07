@@ -242,7 +242,7 @@ describe("ws(app, path) through every adapter: one app, one outcome table", () =
 	})
 
 	it("Bun spawned, over real sockets: every scenario", async () => {
-		const child = spawn("bun", ["-e", BUN_APP], { stdio: ["pipe", "pipe", "inherit"] })
+		const child = spawn("bun", ["--conditions=honey-source", "-e", BUN_APP], { stdio: ["pipe", "pipe", "inherit"] })
 		try {
 			const line = String((await createInterface({ input: child.stdout })[Symbol.asyncIterator]().next()).value)
 			const [port, version] = line.split(" ") as [string, string]
@@ -303,7 +303,14 @@ describe("the 'upgrade' fallback on a Node without shouldUpgradeCallback (CI's N
 			const node = LEGACY_NODE as string
 			const child = spawn(
 				node,
-				["--experimental-strip-types", "--no-warnings", "--input-type=module", "-e", LEGACY_APP],
+				[
+					"--conditions=honey-source",
+					"--experimental-strip-types",
+					"--no-warnings",
+					"--input-type=module",
+					"-e",
+					LEGACY_APP,
+				],
 				{
 					stdio: ["pipe", "pipe", "inherit"],
 				},

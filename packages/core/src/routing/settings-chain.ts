@@ -8,7 +8,6 @@ import type { HoneyMetaSpec, MetaSpecConfig } from "../meta/meta-spec-merge.ts"
 import { type Logger, SILENT } from "../telemetry/logger.ts"
 import type { Telemetry } from "../telemetry/request-trace.ts"
 import type { InferOutput, StandardSchemaLike } from "../validation/standard-schema.ts"
-import type { OutputValidationMode } from "../validation/validate-output.ts"
 import type { WSAdapter } from "../ws/contract.ts"
 import type { AddDefaults, FactoryKeys, Retyped, SetFactory, WithMetaType, WithTaps } from "./retype.ts"
 import {
@@ -111,13 +110,6 @@ export abstract class SettingsChain<TEnv> {
 	/** Type only: each tap key's payload, for `ctx.tap()`, tap handlers and route meta. */
 	taps<TNewTaps extends Record<string, unknown>>(): WithTaps<this, TNewTaps> {
 		return this as never
-	}
-
-	/** Check `.output()` answers: `"off"` (default), `"always"`, or `"dev"` (not production; never without a process). */
-	outputValidation(mode: OutputValidationMode): this {
-		this.settings.outputValidation = mode
-		this.invalidate()
-		return this
 	}
 
 	/** `"strip"` redirects `/a/` to `/a`, `"enforce"` redirects `/a` to `/a/` (308); `"ignore"` serves both. */
