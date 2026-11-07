@@ -341,7 +341,8 @@ export class RouteBuilder<B extends BuilderTypes> {
 	}
 
 	/**
-	 * Declare what the route answers: ctx.res narrows to it, and `outputValidation` checks it. Status keys alone
+	 * Declare what the route answers: ctx.res narrows to it, and each answer is checked against it unless a Vite
+	 * production build through `honeyPlugin()` dropped the check. Status keys alone
 	 * (`{ ok: schema }`) declare JSON. With one 2xx status under one media type the handler may return the body.
 	 */
 	output<const TOutput extends OutputSchemas | JsonShorthand>(

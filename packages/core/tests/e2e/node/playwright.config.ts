@@ -22,9 +22,12 @@ export default defineConfig({
 		trace: "on-first-retry",
 	},
 	webServer: {
-		/* prod serves the bundle run.ts built, with no honey-source condition: what a deploy runs (Q14); dev
-		   resolves @lovrozagar/honey to its source, not a dist/ that may be stale or missing */
-		command: isDev ? "bunx tsx src/server.ts" : `node --unhandled-rejections=strict ../apps/${app}/dist/node/index.js`,
+		/* prod serves the bundle run.ts built, with no honey-source condition and the answer check dropped
+		   (honey-no-output-check): what a deploy runs (Q14); dev resolves @lovrozagar/honey to its source, not a
+		   dist/ that may be stale or missing */
+		command: isDev
+			? "bunx tsx src/server.ts"
+			: `node --conditions=honey-no-output-check --unhandled-rejections=strict ../apps/${app}/dist/node/index.js`,
 		env: isDev
 			? { HONEY_E2E_APP: app, NODE_OPTIONS: "--conditions=honey-source --unhandled-rejections=strict", PORT }
 			: { PORT },

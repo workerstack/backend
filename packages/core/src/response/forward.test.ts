@@ -6,6 +6,9 @@ import { rangeResponse } from "./range.ts"
 
 const get = (path: string, headers: Record<string, string> = {}) => new Request(`http://localhost${path}`, { headers })
 
+/** An upstream's JSON answer at `status`. */
+const upstream = (status: number) => Response.json({ upstream: status }, { status })
+
 /** `text` as an encoded stream. */
 const stream = (text: string) =>
 	new ReadableStream<Uint8Array>({
@@ -57,7 +60,7 @@ describe("ctx.res.forward(): a Response whose status is decided elsewhere, check
 		])
 	})
 
-	it("a media type the status does not declare is refused, though output validation is off", async () => {
+	it("a media type the status does not declare is refused by forward()'s own check", async () => {
 		expect(await seen(app.fetch(get("/html"), {}))).toEqual([500, "application/json", "output_content_type_mismatch"])
 	})
 
@@ -88,8 +91,8 @@ describe("ctx.res.forward(): any declared status, its body unread", () => {
 		])
 	})
 
-	it("its body is not validated, though output validation is on: only its status and media type are", async () => {
-		const routes = honey<{}>().logger(false).outputValidation("always")
+	it("its body is not validated, though answers are checked: only its status and media type are", async () => {
+		const routes = honey<{}>().logger(false)
 		routes
 			.get("/upstream")
 			.output({ ok: z.object({ id: z.string() }) })
@@ -102,7 +105,6 @@ describe("ctx.res.forward(): an upstream error answer passes at a status the rou
 	const errors = defineErrors({ thing_gone: "gone", thing_missing: "not_found" })
 	const app = honey<{}>().logger(false).errorFactory(errors)
 	const row = z.object({ id: z.string() })
-	const upstream = (status: number) => Response.json({ upstream: status }, { status })
 	app
 		.get("/declared/:status")
 		.output({ ok: row })
@@ -129,6 +131,37 @@ describe("ctx.res.forward(): an upstream error answer passes at a status the rou
 		expect([await seen(app.fetch(get("/open/410"), {})), await seen(app.fetch(get("/open/409"), {}))]).toEqual([
 			[410, "application/json", '{"upstream":410}'],
 			[500, "application/json", "output_validation_failed"],
+		])
+	})
+})
+
+describe("ctx.res.forward(): an error answer goes out as the upstream gave it", () => {
+	const errors = defineErrors({ thing_missing: "not_found" })
+
+	it("passes an error answer as the upstream gave it: its media type need be declared nowhere, its body is unread", async () => {
+		const csv = honey<{}>().logger(false).errorFactory(errors)
+		csv
+			.get("/export")
+			.output({ "text/csv": { ok: true } })
+			.errors("thing_missing")
+			.handler((ctx) => ctx.res.forward(upstream(404)))
+		expect(await seen(csv.fetch(get("/export"), {}))).toEqual([404, "application/json", '{"upstream":404}'])
+	})
+
+	it("passes a range response's 416 at the key a route-named factory declares (docs/capabilities/range.md)", async () => {
+		const rangeErrors = defineErrors({ range_unsatisfiable: "range_not_satisfiable" })
+		const media = honey<{}>().logger(false)
+		media
+			.get("/video")
+			.output({ "video/mp4": { ok: true, partial_content: true } })
+			.errors(rangeErrors, "range_unsatisfiable")
+			.handler((ctx) => ctx.res.forward(rangeResponse(ctx.req, new Blob([new Uint8Array(16)], { type: "video/mp4" }))))
+		const unsatisfiable = await media.fetch(get("/video", { range: "bytes=100-" }), {})
+		const partial = await media.fetch(get("/video", { range: "bytes=0-3" }), {})
+		expect([unsatisfiable.status, unsatisfiable.headers.get("content-range"), partial.status]).toEqual([
+			416,
+			"bytes */16",
+			206,
 		])
 	})
 })

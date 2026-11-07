@@ -4,7 +4,8 @@
  * one per save across Vite's environments. With a config file, each generation runs in a `honey generate` child, so
  * it sees edits to every module the app imports and nothing the app starts outlives it. `virtual:honey/routes`,
  * `/manifest` and `/openapi` serve the same artifacts in memory. Its config rides on the plugin object
- * (`api.honeyConfig`), where `honey generate` reads it.
+ * (`api.honeyConfig`), where `honey generate` reads it. A production build resolves core's `#output-check` to its
+ * no-op in every environment it bundles, so the answer check is in no bundle, unless `outputValidation` is `true`.
  */
 import { spawn } from "node:child_process"
 import { fileURLToPath } from "node:url"
@@ -33,12 +34,64 @@ type ModuleGraph = {
 	/** The module registered under `id`, or nothing when the graph has none. */
 	getModuleById(id: string): unknown
 }
+/** The condition core's package.json `imports` resolves `#output-check`'s no-op under. */
+export const NO_OUTPUT_CHECK = "honey-no-output-check"
+
+/** The part of one Vite environment's config the plugin reads, and what it adds to it. */
+export type EnvironmentConfig = {
+	/** `"client"` or `"server"`; unset, Vite's `client` environment is a client and every other one a server. */
+	consumer?: "client" | "server"
+	/** The environment's resolve options. */
+	resolve?: {
+		/** The conditions its imports resolve under; unset, Vite's defaults for its consumer. */
+		conditions?: readonly string[]
+	}
+}
+
+/** What Vite tells `configEnvironment` about the run. */
+export type EnvironmentRun = {
+	/** `"build"` for `vite build`, `"serve"` for the dev server and preview. */
+	command: "build" | "serve"
+	/** Whether this is the `ssr` environment of a build whose `ssr.target` is `webworker`. */
+	isSsrTargetWebworker?: boolean
+}
+
+/** Vite's default conditions, as `vite` exports them. */
+type ViteConditions = {
+	/** A client environment's: `module`, `browser` and `development|production`. */
+	defaultClientConditions: readonly string[]
+	/** A server environment's: `module`, `node` and `development|production`. */
+	defaultServerConditions: readonly string[]
+}
+
+/**
+ * The conditions environment `name` takes so `#output-check` resolves its no-op: the condition alone where its list is
+ * set, since Vite appends a plugin's list to it, else the condition before Vite's own defaults for its consumer, since
+ * a list set at all replaces them.
+ */
+export async function withoutOutputCheck(
+	name: string,
+	env: EnvironmentConfig,
+	run: EnvironmentRun,
+	vite: () => Promise<unknown> = () => import("vite"),
+): Promise<EnvironmentConfig> {
+	if (env.resolve?.conditions !== undefined) return { resolve: { conditions: [NO_OUTPUT_CHECK] } }
+	const conditions = (await vite()) as ViteConditions
+	/* Vite's rule: a client consumer, or a webworker ssr target, resolves as a client */
+	const client =
+		(env.consumer ?? (name === "client" ? "client" : "server")) === "client" || run.isSsrTargetWebworker === true
+	const defaults = client ? conditions.defaultClientConditions : conditions.defaultServerConditions
+	return { resolve: { conditions: [NO_OUTPUT_CHECK, ...defaults] } }
+}
+
 /** The part of Vite's resolved config the plugin reads. */
 type ResolvedViteConfig = {
 	/** `"build"` for a production build, `"serve"` for the dev server; `"build"` when unset. */
 	command?: "build" | "serve"
 	/** The Vite config file's path, when the project has one; without it, generation runs in this process. */
 	configFile?: string
+	/** Whether Vite resolves this run as production (NODE_ENV is `production`); read only when it is set. */
+	isProduction?: boolean
 	/** Vite's mode; when unset, `"development"` under `serve` and `"production"` otherwise. */
 	mode?: string
 	/** Every plugin in the config, used to find this plugin's position among the `honeyPlugin()` ones. */
@@ -73,7 +126,15 @@ export type HoneyVitePlugin = {
 	 * back, one per environment, share one generation. Rejects when the generation fails.
 	 */
 	buildStart(): Promise<void>
-	/** Records the command, config file, mode and root that generations run with. */
+	/**
+	 * In a build whose NODE_ENV is `production`, unless `outputValidation` is `true`, the conditions under which the
+	 * environment's imports resolve `#output-check` to its no-op; nothing otherwise.
+	 */
+	configEnvironment(name: string, env: EnvironmentConfig, run: EnvironmentRun): Promise<EnvironmentConfig | undefined>
+	/**
+	 * Records the command, config file, mode and root that generations run with. Throws when the check was dropped and
+	 * Vite then resolved the run as development (a `.env` file's NODE_ENV, read after the environments were configured).
+	 */
 	configResolved(cfg: ResolvedViteConfig): void
 	/**
 	 * Regenerates once on a save a `watch` glob matches, generated files never counting, and returns Vite's modules
@@ -188,6 +249,28 @@ async function virtualModule(id: string, config: ResolvedHoneyConfig, root: stri
 	return kind === "routes" ? toJavaScript(code) : { code, moduleType: "js" }
 }
 
+/**
+ * The plugin's half of where the answer check lives: in a build whose NODE_ENV is `production`, unless `keep`, every
+ * environment resolves `#output-check` to its no-op. Vite configures each environment once NODE_ENV holds the run's
+ * value and before any resolver exists; `resolved` refuses a run Vite then resolved as development, from a `.env`
+ * file's NODE_ENV, which it reads only after.
+ */
+function outputCheckHooks(keep: boolean) {
+	let drops = false
+	return {
+		async configEnvironment(name: string, env: EnvironmentConfig, run: EnvironmentRun) {
+			drops = run.command === "build" && !keep && process.env.NODE_ENV === "production"
+			return drops ? withoutOutputCheck(name, env, run) : undefined
+		},
+		resolved(cfg: ResolvedViteConfig): void {
+			if (!drops || cfg.isProduction !== false) return
+			throw new Error(
+				"honey: the build dropped the output check under NODE_ENV=production, and Vite then read NODE_ENV=development from a .env file; set NODE_ENV=development where the build runs, or honeyPlugin({ outputValidation: true })",
+			)
+		},
+	}
+}
+
 /** Whether `plugin` is one `honeyPlugin()` returned, as `honey generate` finds one. */
 const isHoneyPlugin = (plugin: unknown) =>
 	(plugin as { name?: unknown } | null)?.name === "honey" &&
@@ -205,6 +288,7 @@ export function honeyPlugin(config: HoneyVitePluginConfig): [HoneyVitePlugin] {
 	const at = { command: "build" as "build" | "serve", configFile: undefined as string | undefined, index: -1 }
 	let [root, mode, outputs] = [process.cwd(), "production", generatedOutputs(resolved, process.cwd())]
 	let starting: Promise<unknown> | undefined
+	const check = outputCheckHooks(config.outputValidation === true)
 	const regenerate = serialized(async () => {
 		if (at.configFile === undefined || at.index < 0) return generateAndWrite(resolved, root)
 		/* a child: a fresh module graph, and whatever the app starts dies with it */
@@ -226,7 +310,9 @@ export function honeyPlugin(config: HoneyVitePluginConfig): [HoneyVitePlugin] {
 			starting ??= regenerate().finally(() => (starting = undefined))
 			await starting
 		},
+		configEnvironment: check.configEnvironment,
 		configResolved(cfg: ResolvedViteConfig) {
+			check.resolved(cfg)
 			Object.assign(at, { command: cfg.command ?? "build", configFile: cfg.configFile })
 			at.index = (cfg.plugins ?? []).filter(isHoneyPlugin).indexOf(plugin)
 			root = cfg.root

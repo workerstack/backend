@@ -70,7 +70,9 @@ async function viteBuild(
 	dir: string = target,
 ): Promise<string> {
 	const outDir = resolve(OUT_ROOT, dir)
-	const { build } = await import("vite")
+	const { build, defaultClientConditions, defaultServerConditions } = await import("vite")
+	/* core is read as source, as every checkout build reads it (honey-source); a Worker resolves as a client */
+	const defaults = target === "workers" ? defaultClientConditions : defaultServerConditions
 	await build({
 		configFile: false,
 		logLevel: "error",
@@ -80,8 +82,10 @@ async function viteBuild(
 				"@lovrozagar/honey/bun": resolve(CORE, "src/adapters/bun/serve.ts"),
 				"@lovrozagar/honey/node": resolve(CORE, "src/adapters/node/serve.ts"),
 			},
+			conditions: ["honey-source", ...defaultClientConditions],
 		},
 		root: CORE,
+		ssr: { resolve: { conditions: ["honey-source", ...defaults] } },
 	})
 	expect(existsSync(resolve(outDir, "index.js"))).toBe(true)
 	return outDir

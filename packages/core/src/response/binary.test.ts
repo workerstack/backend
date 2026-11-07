@@ -140,11 +140,11 @@ describe("ctx.res.binary on the wire", () => {
 	})
 })
 
-describe("ctx.res.binary under .output() with outputValidation on", () => {
+describe("ctx.res.binary under .output(), its answer checked", () => {
 	// v0: 2f87e31195
 	it("bytes are a type contract: a declared schema never runs, and the declared type is what is answered", async () => {
 		const validate = vi.fn(() => ({ issues: [{ message: "never" }] }))
-		const app = honey<{}>().logger(false).outputValidation("always")
+		const app = honey<{}>().logger(false)
 		app
 			.get("/bin")
 			.output({ "application/octet-stream": { ok: { "~standard": { validate, vendor: "test", version: 1 } } } })

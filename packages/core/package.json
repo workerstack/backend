@@ -18,6 +18,18 @@
 	],
 	"type": "module",
 	"sideEffects": false,
+	"imports": {
+		"#output-check": {
+			"honey-no-output-check": {
+				"honey-source": "./src/validation/output-check-off.ts",
+				"types": "./dist/validation/output-check-off.d.ts",
+				"default": "./dist/validation/output-check-off.js"
+			},
+			"honey-source": "./src/validation/output-check.ts",
+			"types": "./dist/validation/output-check.d.ts",
+			"default": "./dist/validation/output-check.js"
+		}
+	},
 	"exports": {
 		".": {
 			"honey-source": "./src/index.ts",
