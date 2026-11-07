@@ -241,8 +241,12 @@ Full reference: [routing](https://github.com/lovrozagar/honey/blob/main/docs/rou
 ## Input and output
 
 `.input()` validates the request: `params`, `search`, `headers`, `json`, `form` and `text`, each a Standard Schema.
-`.output()` declares what the route answers, by media type and status key, and the declared response headers. A
-media type other than JSON is just another key, so an image or a CSV is as typed as a JSON body:
+`.output()` declares what the route answers: its bodies by media type and 2xx status key, its 3xx statuses under
+`redirect`, a 204 as `no_content: true`, and the response headers of a 2xx or 3xx status. An error answer is declared
+with `.errors()`, and a key the route cannot answer is a type error naming the key and where it goes. Each answer is
+checked against the declaration, except in a production `vite build` through `honeyPlugin()`, which drops the check
+unless `honeyPlugin({ outputValidation: true })` keeps it. A media type other than JSON is just another key, so an
+image or a CSV is as typed as a JSON body:
 
 ```ts
 import { honey } from "@lovrozagar/honey"
@@ -302,7 +306,9 @@ Full reference: [input and output](https://github.com/lovrozagar/honey/blob/main
 
 `ctx.res` builds a typed response: `json`, `text`, `html`, `xml`, `csv`, `binary`, `noContent`, `redirect`, `raw` for
 a `Response` you made yourself, and `sse`, `stream` and `generate` for bodies that arrive over time. The first
-argument is the status key the route declared, which is what makes the payload's type the right one.
+argument is the status key the route declared, which is what makes the payload's type the right one. On a route with
+`.output()`, each helper takes only the status keys it declares: `noContent` needs a declared `no_content`, `redirect` a
+`redirect` entry, an undeclared media type's helper is gone, and so is `raw`.
 
 ```ts
 import { honey } from "@lovrozagar/honey"

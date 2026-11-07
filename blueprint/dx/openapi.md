@@ -4,7 +4,7 @@ How the author configures the emitted OpenAPI 3.1 document (B1/B2/B3). The docum
 
 | value | required | default | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- |
-| `servers` | no | `[{ url: stripPrefix }]` (v0) | **[B1]** list of server URLs + `variables`, composed with basePath/stripPrefix/trailingSlash | a single derived server loses multi-environment docs; set the list explicitly | `openapi/servers.test.ts` |
+| `servers` | no | `[{ url: stripPrefix }]` (v0) | **[B1]** list of server URLs + `variables`, written as declared: the stripped prefix is only the default, never appended to a declared URL, and basePath is already in the paths | a single derived server loses multi-environment docs; set the list explicitly | `openapi/servers.test.ts` |
 | server `variables` | no | — | **[B1]** templated server URLs (`{region}`, `{env}`) | variable defaults must be valid against their enum | `openapi/servers.test.ts` |
 | `tags` | no | the operation tags, first-seen order | **[B2]** the top-level `tags` are each operation's declared tags in first-seen order, merged by name with an explicit `tags` option (description, `externalDocs`, `x-displayName`). **Not** derived from the resource tree (that is gen — H2 forbids core reading it) and **not** auto-assigned from the dotted operationId (it would change every operation's output, and SDK grouping already comes from operationId). A declared tag no operation uses → warn | tags are for human doc tools; keep operationId stable for SDK grouping | `openapi/tags.test.ts` |
 | `externalDocs` | no | — | **[B2]** per-tag / top-level external doc links | — | `openapi/tags.test.ts` |

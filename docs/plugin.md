@@ -72,7 +72,9 @@ runs without the plugin. A production `vite build` (NODE_ENV `production`, the d
 bundle it makes, a Worker's included: the build resolves core's `#output-check` import to a no-op under the
 `honey-no-output-check` condition, so the check's code is not in the bundle at all.
 `honeyPlugin({ outputValidation: true })` keeps it. The check that a `forward()`ed answer's status and media type are
-declared stays in every build.
+declared stays in every build. A build whose `.env` file sets `NODE_ENV=development` throws: Vite reads that file only
+after the plugin dropped the check, so the bundle would be a development build without it. Set `NODE_ENV=development`
+where the build runs, or pass `outputValidation: true`.
 
 A node or bun bundle keeps honey external, so its check is decided where it starts. Drop it in production with the same
 condition:

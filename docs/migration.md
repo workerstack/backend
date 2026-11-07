@@ -7,9 +7,64 @@ generated from a small example API (`Kitchen`); yours is named after your docume
 The SDK sections cover the four SDKs 0.7.3 shipped: TypeScript, Python, Go and Rust. The C# and Java SDKs are new
 in 1.0, so they migrate nothing; their client is documented in [the generated clients page](client.md).
 
+## From 1.0.0-rc.21 to 1.0.0-rc.22
+
+An app on rc.21 starts here; one on rc.20 takes the next section first. Each row is one break, what rc.21 wrote and
+what rc.22 writes, and the section that shows it. A `ts rc.21` block is rc.21 code, shown as text.
+
+| rc.21                                                                                            | rc.22                                                                                                                                 | Shown in                                                        |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| a 4xx/5xx key in `.output()`, a 3xx key in a body slot, any status under `redirect` or `headers` | a body slot takes the 2xx keys, `redirect` the 3xx keys, `headers` the 2xx and 3xx keys; an error answer is declared with `.errors()` | below                                                           |
+| `ctx.res.noContent()` on any route                                                               | under `.output()`, only with `no_content: true` declared                                                                              | Under `.output()`, `noContent()` needs a declared 204           |
+| `app.outputValidation(mode)`, off by default, on an app, a preset or a scoped chain              | every `.output()` route checks its answers; `honeyPlugin({ outputValidation: true })` keeps the check in production                   | Output validation is the plugin's: `outputValidation()` is gone |
+| a declared `servers` URL with `stripPrefix` appended to it                                       | the URL as declared                                                                                                                   | below                                                           |
+
+### An error answer is declared with `.errors()`, and each `.output()` slot takes its own statuses
+
+A key the route cannot answer is a type error whose message names the key and where it goes, and `honey generate`
+refuses it as well, naming the route. A 3xx key in a body slot moves under `redirect`, and the headers of an error
+answer are the `HoneyError`'s own `headers`. A `forward()`ed upstream error now passes at a status one of the route's
+error keys answers with, so a route that listed a 404 in `.output()` to forward it declares the key with `.errors()`.
+
+```ts rc.21
+app
+	.get("/books/:id")
+	.output({ ok: book, not_found: z.object({ message: z.string() }) })
+	.handler((ctx) => (ctx.params.id === "0" ? ctx.res.json("not_found", { message: "no book" }) : findBook(ctx)))
+```
+
+```ts
+import { defineErrors, honey } from "@lovrozagar/honey"
+import * as z from "zod"
+
+const errors = defineErrors({ book_not_found: "not_found" })
+const book = z.object({ id: z.string(), title: z.string() })
+
+const app = honey()
+app
+	.get("/books/:id")
+	.output({ ok: book })
+	.errors(errors, "book_not_found")
+	.handler((ctx) => {
+		if (ctx.params.id === "0") throw errors.book_not_found()
+		return { id: ctx.params.id, title: "Dune" }
+	})
+```
+
+### Declared servers are written as declared
+
+rc.21 appended `stripPrefix` to every URL in a declared `servers` list. The list is now written as declared, and the
+stripped prefix is only the default when no list is given. A server that serves under the prefix names it in its URL.
+
+```text
+stripPrefix("/api"), servers: [{ url: "https://api.example.com" }]
+rc.21: "servers": [{ "url": "https://api.example.com/api" }]
+rc.22: "servers": [{ "url": "https://api.example.com" }]
+```
+
 ## From 1.0.0-rc.20 to 1.0.0-rc.21
 
-An app already on a 1.0 release candidate starts here. Each row is one break, what rc.20 wrote and what rc.21
+An app on rc.20 starts here, then takes the section above. Each row is one break, what rc.20 wrote and what rc.21
 writes. Where a section of this guide already shows it, the row names that section, whose "before" block is the
 same code an rc.20 app has; the breaks no section shows follow the table, each with its example. A `ts rc.20` or
 `sh rc.20` block is rc.20 code, shown as text.
@@ -1186,11 +1241,12 @@ app
 ## A handler returns only what `.output()` declares
 
 On a route with `.output()` the handler's return is narrowed to a declared media type at one of its status keys, or a
-bodiless answer (`noContent`, `redirect`). `ctx.res.raw` is gone there, since a raw `Response` declares nothing; it
-stays on a route without `.output()`. To stream a declared type, pass a `ReadableStream` to its helper (`text`,
-`html`, `csv`, `xml`, `binary`, `json`, `sse`). To pass on a `Response` whose status is decided elsewhere, such as a
-stored file's 206 or 304, use `ctx.res.forward(response)`: its status and media type must be declared. To refuse a
-request, throw a `HoneyError`, `headers` included.
+bodiless answer the route declares: a 204 through `noContent`, a redirect through `redirect`. `ctx.res.raw` is gone
+there, since a raw `Response` declares nothing; it stays on a route without `.output()`. To stream a declared type,
+pass a `ReadableStream` to its helper (`text`, `html`, `csv`, `xml`, `binary`, `json`, `sse`). To pass on a `Response`
+whose status is decided elsewhere, such as a stored file's 206 or 304 or an upstream service's error, use
+`ctx.res.forward(response)`: its status and media type must be declared in `.output()`, or its status must be one the
+route's error keys answer with. To refuse a request, throw a `HoneyError`, `headers` included.
 
 ```ts v0
 app
@@ -1256,6 +1312,58 @@ app
 	.get("/old")
 	.output({ redirect: { moved_permanently: true } })
 	.handler((ctx) => ctx.res.redirect("moved_permanently", "/new"))
+```
+
+## Under `.output()`, `noContent()` needs a declared 204
+
+0.7 kept `noContent` on every route, so a route could answer a 204 its document never listed. On a route with
+`.output()` it exists only when the route declares `no_content: true`, in the shorthand or under a media type, and the
+204 is then documented with no body. A route without `.output()` keeps it.
+
+```ts v0
+app
+	.put("/books/:id")
+	.output({ "application/json": { created: book } })
+	.handler(async (ctx) => ((await exists(ctx)) ? ctx.res.noContent() : ctx.res.json("created", await create(ctx))))
+```
+
+```ts
+import { honey } from "@lovrozagar/honey"
+import * as z from "zod"
+
+const book = z.object({ id: z.string() })
+const stored = new Set(["b-1"])
+
+const app = honey()
+app
+	.put("/books/:id")
+	.output({ created: book, no_content: true })
+	.handler((ctx) => {
+		if (stored.has(ctx.params.id)) return ctx.res.noContent()
+		stored.add(ctx.params.id)
+		return ctx.res.json("created", { id: ctx.params.id })
+	})
+```
+
+## Output validation is the plugin's: `outputValidation()` is gone
+
+0.7's `app.outputValidation("always" | "dev" | "off")` was off by default, and `"dev"` read `NODE_ENV` at runtime, so
+a Worker never checked. Every `.output()` route now checks what it answers: under `vite dev`, in tests, and wherever
+honey runs without the plugin. A production `vite build` through `honeyPlugin()` drops the check from the bundle, and
+`honeyPlugin({ outputValidation: true })` keeps it there; a node or bun process started with
+`--conditions=honey-no-output-check` drops it. Delete the setter, and pass the plugin option where 0.7 set
+`"always"`. [The plugin page](plugin.md#output-validation) covers builds outside Vite.
+
+```ts v0
+const app = honey().outputValidation("always")
+```
+
+```ts
+import { honeyPlugin } from "@lovrozagar/honey/plugin"
+
+export default {
+	plugins: [honeyPlugin({ app: "src/app.ts", outputValidation: true })],
+}
 ```
 
 ## `params` is a schema per path param, onto `ctx.params`
