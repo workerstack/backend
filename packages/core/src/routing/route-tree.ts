@@ -5,8 +5,6 @@
  * `app.toRouteTree()` is the snapshot: a copy of the topology and, per route, its resolved data
  * and a live record carrying the scopes that cover it here.
  */
-import { ERROR_META, type ErrorMetaEntry } from "../errors/errors.ts"
-import type { ErrorFactoryRecord } from "../errors/projector.ts"
 import { compareCodeUnits } from "../schema/canonicalize.ts"
 import { finalTable } from "./dispatch.ts"
 import { type Plan, scopesFor } from "./finalize.ts"
@@ -19,6 +17,7 @@ import {
 	type HoneyGraph,
 	isServed,
 	type RouteHandler,
+	statusKeysOf,
 } from "./register.ts"
 import { copySettings } from "./settings.ts"
 import { SettingsChain } from "./settings-chain.ts"
@@ -55,19 +54,6 @@ export function routeTreeGraph(g: HoneyGraph, tree: RouteTree): HoneyGraph {
 		addRoute(next, splitRouteId(r.id).method, r.sg, r.own === g.settings ? { ...r, own: next.settings } : r)
 	}
 	return next
-}
-
-/** Each key's status key from the first factory whose ERROR_META knows it; `null` when none does. */
-function statusKeysOf(
-	keys: readonly string[],
-	factories: readonly (ErrorFactoryRecord | null)[],
-): Record<string, string> | null {
-	const out: Record<string, string> = {}
-	for (const key of keys) {
-		const meta = factories.map((f) => f?.[ERROR_META]).find((m) => m !== undefined && Object.hasOwn(m, key))
-		if (meta !== undefined) out[key] = (meta[key] as ErrorMetaEntry).statusKey
-	}
-	return Object.keys(out).length === 0 ? null : out
 }
 
 /** `g`'s routes as a tree another app serves; nothing in it is shared with `g`. */
