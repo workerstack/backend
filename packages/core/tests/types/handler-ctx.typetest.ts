@@ -327,7 +327,7 @@ describe("the whole ctx at once", () => {
 				expectTypeOf(ctx.input.json.name).toEqualTypeOf<string>()
 				expectTypeOf(ctx.input.search.q).toEqualTypeOf<string>()
 				expectTypeOf(ctx.routePattern).toEqualTypeOf<"/orgs/:orgId/members/:memberId">()
-				expectTypeOf(ctx.res.noContent).toBeFunction()
+				expectTypeOf(ctx.res).not.toHaveProperty("noContent")
 				expectTypeOf(ctx.res).not.toHaveProperty("text")
 				return ctx.res.json("created", { id: "1" })
 			})
@@ -382,15 +382,15 @@ describe("the whole ctx with taps, meta and empty declarations", () => {
 	})
 
 	// v0: b677cfaf2a
-	it("routePattern stays the literal through empty .input() and .output(); an empty output leaves the universal helpers", () => {
+	it("routePattern stays the literal through an empty .input() and a 204-only .output(), which leaves noContent", () => {
 		honey<{}>()
 			.use(withUser)
 			.get("/")
 			.input({})
-			.output({})
+			.output({ no_content: true })
 			.handler((ctx) => {
 				expectTypeOf(ctx.routePattern).toEqualTypeOf<"/">()
-				expectTypeOf(ctx.res).not.toHaveProperty("json")
+				expectTypeOf(ctx.res.noContent).toBeFunction()
 				return ctx.res.noContent()
 			})
 	})

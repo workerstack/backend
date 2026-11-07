@@ -143,6 +143,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.handler((ctx) => ctx.res.json("created", { id: "1", slug: ctx.input.json.slug }))
 
 		.delete("/out/no-content/:id")
+		.output({ no_content: true })
 		.errors("not_found")
 		.handler((ctx) => ctx.res.noContent())
 
@@ -173,6 +174,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
 
 		.delete("/methods/resource/:id")
+		.output({ no_content: true })
 		.meta({ operationId: "resources.delete", tags: ["methods"] })
 		.handler((ctx) => ctx.res.noContent())
 
@@ -191,6 +193,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.handler((ctx) => ctx.res.json("accepted", { jobId: "j-1" }))
 
 		.delete("/status/no-content")
+		.output({ no_content: true })
 		.handler((ctx) => ctx.res.noContent())
 
 		.get("/stream/filtered")

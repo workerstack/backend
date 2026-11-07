@@ -135,13 +135,13 @@ export type Routes = {
 	}
 	"/api/v1/organizations/:orgId": {
 		delete: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly params: { orgId: string }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/api/v1/organizations/:orgId" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly params: { orgId: string }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/api/v1/organizations/:orgId" }, { "application/json": { no_content: unknown } }>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
 			input: {}
 			meta: {}
-			output: {}
+			output: { "application/json": { no_content: unknown } }
 		}
 		get: {
 			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly params: { orgId: string }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/api/v1/organizations/:orgId" }, never>

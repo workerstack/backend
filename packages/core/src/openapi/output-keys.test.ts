@@ -23,7 +23,7 @@ function treeOf(entry: RouteEntry): RouteTree {
 function declaring(output: object, method: "get" | "post" = "get") {
 	const app = honey<{}>()
 	app[method]("/o")
-		.output(output as never)
+		.output(output as { no_content: true })
 		.handler((c) => c.res.noContent())
 	return app
 }
@@ -96,7 +96,7 @@ describe("generateOpenApi: a response is keyed by its status code, never by a na
 				.output({
 					...(SUCCESS.includes(key) ? { "application/json": { [key]: z.string() } } : { redirect: { [key]: true } }),
 					headers: { [key]: z.object({ "x-a": z.string() }) },
-				} as never)
+				} as unknown as { no_content: true })
 				.handler((c) => c.res.noContent())
 		const doc = generateOpenApi(app, { info: INFO })
 		const named = keys.map((key) => [key, Object.keys(doc.paths[`/${key}`]?.get?.responses ?? {})])

@@ -212,6 +212,11 @@
         "withDb",
         "withAuth"
       ],
+      "output": {
+        "application/json": {
+          "no_content": {}
+        }
+      },
       "params": [
         "orgId"
       ],

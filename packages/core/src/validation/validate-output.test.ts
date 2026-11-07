@@ -178,7 +178,8 @@ describe("output validation through the app: the status key", () => {
 		app
 			.delete("/gone")
 			.output(strict)
-			.handler((ctx) => ctx.res.noContent())
+			/* the types refuse a 204 the route does not declare; this is the answer that reaches the check anyway */
+			.handler((ctx) => (ctx.res as unknown as HoneyRes).noContent() as never)
 		app
 			.get("/partial")
 			.output(strict)

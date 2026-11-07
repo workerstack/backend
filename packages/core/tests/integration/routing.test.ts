@@ -65,7 +65,10 @@ describe("method resolution", () => {
 		const app = honey<{}>()
 		app.get("/page").handler((ctx) => ctx.res.text("ok", "get"))
 		app.get("/both").handler((ctx) => ctx.res.text("ok", "get"))
-		app.head("/both").handler((ctx) => ctx.res.noContent({ headers: { "x-route": "head" } }))
+		app
+			.head("/both")
+			.output({ no_content: true })
+			.handler((ctx) => ctx.res.noContent({ headers: { "x-route": "head" } }))
 		const page = await app.fetch(new Request("http://localhost/page", { method: "HEAD" }), {})
 		expect([page.status, page.headers.get("content-length"), await page.text()]).toEqual([200, "3", ""])
 		const own = await app.fetch(new Request("http://localhost/both", { method: "HEAD" }), {})
@@ -411,7 +414,10 @@ describe("a resource behind an auth chain, beside a public route", () => {
 		authed.get("/orgs").handler((ctx) => ctx.res.json("ok", { items: [{ id: "org1" }], total: 1 }))
 		authed.get("/orgs/:orgId").handler((ctx) => ctx.res.json("ok", { id: ctx.params.orgId }))
 		authed.post("/orgs").handler(async (ctx) => ctx.res.json("created", (await ctx.req.json()) as object))
-		authed.delete("/orgs/:orgId").handler((ctx) => ctx.res.noContent())
+		authed
+			.delete("/orgs/:orgId")
+			.output({ no_content: true })
+			.handler((ctx) => ctx.res.noContent())
 		const auth = { authorization: "Bearer tok" }
 		const answers = []
 		for (const [method, path, headers, body] of [

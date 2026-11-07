@@ -198,12 +198,15 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		return ctx.res.json("ok", org)
 	})
 
-	authed.delete("/v1/organizations/:orgId").handler((ctx) => {
-		const idx = ctx.db.orgs.findIndex((o) => o.id === ctx.params.orgId)
-		if (idx === -1) throw errors.not_found()
-		ctx.db.orgs.splice(idx, 1)
-		return ctx.res.noContent()
-	})
+	authed
+		.delete("/v1/organizations/:orgId")
+		.output({ no_content: true })
+		.handler((ctx) => {
+			const idx = ctx.db.orgs.findIndex((o) => o.id === ctx.params.orgId)
+			if (idx === -1) throw errors.not_found()
+			ctx.db.orgs.splice(idx, 1)
+			return ctx.res.noContent()
+		})
 
 	/* ---- WebSocket routes ---- */
 

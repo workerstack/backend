@@ -58,6 +58,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 			return ctx.res.json("ok", { id: ctx.params.resourceId })
 		})
 		.delete("/resources/:resourceId")
+		.output({ no_content: true })
 		.errors("not_found", "forbidden")
 		.handler((ctx) => {
 			if (!ctx.session.permissions.includes("write")) throw ctx.errors.forbidden()

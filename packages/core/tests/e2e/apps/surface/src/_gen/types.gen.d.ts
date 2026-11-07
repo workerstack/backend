@@ -194,13 +194,13 @@ export type Routes = {
 	}
 	"/methods/resource/:id": {
 		delete: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { id: string }; readonly errors: { unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<Partial<Omit<HoneyMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/methods/resource/:id" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { id: string }; readonly errors: { unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<Partial<Omit<HoneyMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/methods/resource/:id" }, { "application/json": { no_content: unknown } }>
 			errors: "unauthorized" | "validation_error"
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
 			meta: { operationId: "resources.delete"; tags: ["methods"] }
-			output: {}
+			output: { "application/json": { no_content: unknown } }
 		}
 		patch: {
 			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { name?: string } }; readonly params: { id: string }; readonly errors: { unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<Partial<Omit<HoneyMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/methods/resource/:id" }, { "application/json": { ok: CreateInJsonResponse201 } }>
@@ -267,13 +267,13 @@ export type Routes = {
 	}
 	"/out/no-content/:id": {
 		delete: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { id: string }; readonly errors: { not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<Partial<Omit<HoneyMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/out/no-content/:id" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { id: string }; readonly errors: { not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<Partial<Omit<HoneyMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/out/no-content/:id" }, { "application/json": { no_content: unknown } }>
 			errors: "not_found" | "unauthorized" | "validation_error"
 			errorShapes: { not_found: null; unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null; 404: null }
 			input: {}
 			meta: {}
-			output: {}
+			output: { "application/json": { no_content: unknown } }
 		}
 	}
 	"/out/sse": {
@@ -344,13 +344,13 @@ export type Routes = {
 	}
 	"/status/no-content": {
 		delete: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<Partial<Omit<HoneyMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/status/no-content" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<Partial<Omit<HoneyMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/status/no-content" }, { "application/json": { no_content: unknown } }>
 			errors: "unauthorized" | "validation_error"
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
 			meta: {}
-			output: {}
+			output: { "application/json": { no_content: unknown } }
 		}
 	}
 	"/status/ok": {

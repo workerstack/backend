@@ -162,6 +162,11 @@
         "anonymous",
         "anonymous"
       ],
+      "output": {
+        "application/json": {
+          "no_content": {}
+        }
+      },
       "params": [
         "resourceId"
       ],

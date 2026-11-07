@@ -873,6 +873,12 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "no content",
+            "content": {
+              "application/json": {}
+            }
+          },
           "400": {
             "content": {
               "application/json": {
@@ -1132,6 +1138,12 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "no content",
+            "content": {
+              "application/json": {}
+            }
+          },
           "400": {
             "content": {
               "application/json": {
@@ -1495,6 +1507,12 @@
       "delete": {
         "x-honey-route": "DELETE /status/no-content",
         "responses": {
+          "204": {
+            "description": "no content",
+            "content": {
+              "application/json": {}
+            }
+          },
           "400": {
             "content": {
               "application/json": {
