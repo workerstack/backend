@@ -325,10 +325,7 @@
         ],
         "responses": {
           "204": {
-            "description": "no content",
-            "content": {
-              "application/json": {}
-            }
+            "description": "no content"
           },
           "401": {
             "content": {
