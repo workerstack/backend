@@ -135,7 +135,8 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * through #output-check instead. Still locked at 26,800. Plan 48 added 325 (27,022) so a route whose answer
 			 * is a sparse fieldset is checked against the fields its request selects: .output()'s projection option, the
 			 * ctx the check now reads, and validation/projection's walk of an issue's path, behind #output-check, so a
-			 * build that drops the check drops it too. Locked at 27,100.
+			 * build that drops the check drops it too. Locked at 27,100, then 27,200: CI's Node 26.13.0 (its zlib
+			 * 1.3.2.1-motley) gzips the same 27,023 bytes of 26.12.0's measure to 27,094, so a lock is read off CI's Node.
 			 */
 			const gzipped = gzipSync(js, { level: 9 }).length
 			const builtBy = run(BUN as string, ["--version"], full).out.trim()
@@ -144,7 +145,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					leaked,
 					features,
 					routeModules("minimal", entry, [...WS_ROUTE, ...MCP_ROUTE, ...GENERATION_ONLY]),
-					gzipped < 27_100,
+					gzipped < 27_200,
 					builtBy,
 				],
 				`${gzipped} bytes gzipped`,
@@ -272,7 +273,8 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * added 18 (27,823 to 27,841): honey(preset)'s call through the SEED slot. 5.7 added 199 (27,836 to
 			 * 28,035): ctx.res.forward() and its check, and json and sse taking a stream, as in the minimal bundle.
 			 * Locked at 28,100. Plan 48 added 341 (28,035 to 28,376): .output()'s projection and its check, as in the
-			 * minimal bundle. Locked at 28,400.
+			 * minimal bundle. Locked at 28,500: CI's Node
+			 * 26.13.0 gzips it to 28,441.
 			 */
 			const gzipped = gzipSync(bunBundle("static-doc", served), { level: 9 }).length
 			expect(
@@ -280,7 +282,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					routeModules("static-doc", served, [...GENERATOR, ...PAGES]),
 					routeModules("static-page", withPage, [...GENERATOR, ...PAGES]),
 					routeModules("generated-doc", generated, PAGES),
-					gzipped < 28_400,
+					gzipped < 28_500,
 				],
 				`${gzipped} bytes gzipped`,
 			).toEqual([[], ["openapi/scalar"], [], true])
