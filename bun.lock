@@ -63,7 +63,7 @@
     },
     "packages/core": {
       "name": "@workerstack/backend",
-      "version": "1.0.0-rc.22",
+      "version": "1.0.0-rc.23",
       "bin": {
         "honey": "bin/honey.js",
       },
@@ -238,7 +238,7 @@
     },
     "packages/gen": {
       "name": "@workerstack/clients",
-      "version": "1.0.0-rc.22",
+      "version": "1.0.0-rc.23",
       "bin": {
         "honey-clients": "bin/honey-clients.js",
       },

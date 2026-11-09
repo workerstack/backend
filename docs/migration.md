@@ -10,6 +10,12 @@ generated from a small example API (`Kitchen`); yours is named after your docume
 The SDK sections cover the four SDKs 0.7.3 shipped: TypeScript, Python, Go and Rust. The C# and Java SDKs are new
 in 1.0, so they migrate nothing; their client is documented in [the generated clients page](client.md).
 
+## From 1.0.0-rc.22 to 1.0.0-rc.23
+
+Only the names moved: the packages are `@workerstack/backend` and `@workerstack/clients`, and the repository is
+github.com/workerstack/backend. The API, the commands and the generated code are rc.22's.
+[Migrating to the workerstack names](migrating-to-workerstack.md) has the steps.
+
 ## From 1.0.0-rc.21 to 1.0.0-rc.22
 
 An app on rc.21 starts here; one on rc.20 takes the next section first. Each row is one break, what rc.21 wrote and
