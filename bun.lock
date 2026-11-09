@@ -77,7 +77,7 @@
         "@total-typescript/ts-reset": "catalog:",
         "@types/node": "catalog:",
         "@vitest/coverage-v8": "4.1.10",
-        "@workerstack/clients": "1.0.0-rc.23",
+        "@workerstack/clients": "1.0.0-rc.24",
         "ajv": "8.20.0",
         "ajv-formats": "3.0.1",
         "arktype": "catalog:",
@@ -148,7 +148,7 @@
       },
       "devDependencies": {
         "@playwright/test": "catalog:",
-        "@workerstack/clients": "1.0.0-rc.23",
+        "@workerstack/clients": "1.0.0-rc.24",
         "typescript": "catalog:",
       },
     },
@@ -870,7 +870,7 @@
 
     "@workerstack/backend": ["@workerstack/backend@workspace:packages/core"],
 
-    "@workerstack/clients": ["@workerstack/clients@1.0.0-rc.23", "", { "dependencies": { "@lovrozagar/installgen": "0.3.0", "jiti": "2.7.0", "oxc-transform": "0.155.0" }, "peerDependencies": { "oxfmt": ">=0.63.0", "ts-morph": ">=28.0.0" }, "optionalPeers": ["oxfmt", "ts-morph"], "bin": { "honey-clients": "bin/honey-clients.js" } }, "sha512-3Z/ImGwU4khKqAyVI94+cYbMo1WDeeuxvWilEgWpqpOJmKuE+SpPtPomP+lzf568JAYpLzE0bQ281DNsNz9+tg=="],
+    "@workerstack/clients": ["@workerstack/clients@1.0.0-rc.24", "", { "dependencies": { "@lovrozagar/installgen": "0.3.0", "jiti": "2.7.0", "oxc-transform": "0.155.0" }, "peerDependencies": { "oxfmt": ">=0.63.0", "ts-morph": ">=28.0.0" }, "optionalPeers": ["oxfmt", "ts-morph"], "bin": { "honey-clients": "bin/honey-clients.js" } }, "sha512-QYBM51N5iv9Zf52Ikr2Rx+iI8TbEp0oulsS7tgitrzuUqGc9lU25Ke6l2qDR1GOLihtjH0npGTZjSuI7wa3URw=="],
 
     "accepts": ["accepts@2.0.0", "", { "dependencies": { "mime-types": "^3.0.0", "negotiator": "^1.0.0" } }, "sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng=="],
 
