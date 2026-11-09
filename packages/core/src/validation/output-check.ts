@@ -16,13 +16,30 @@ import { isForwarded, isProducedStream, rawBodyOf } from "../response/builder.ts
 import { parseMediaType } from "../response/media-type.ts"
 import { compileResponseHeaders, type HeadersCheck } from "../response/response-headers.ts"
 import { codeToStatusKey, type StatusKey } from "../response/status.ts"
-import type { OutputSchemas } from "../routing/output-types.ts"
 import type { StandardSchemaLike } from "./standard-schema.ts"
-import { type OutputCheck, validateOutput } from "./validate-output.ts"
+import type { OutputSchemas, Projection } from "../routing/output-types.ts"
+import { projected } from "./projection.ts"
+import { type AcceptIssue, type OutputCheck, validateOutput } from "./validate-output.ts"
 
-/** The check for a route declaring `schemas`: its declared headers, then its body. Only the no-op answers `null`. */
-export function outputCheck(schemas: OutputSchemas): OutputCheck | null {
-	return compileOutput(schemas, compileResponseHeaders(schemas.headers))
+/**
+ * The check for a route declaring `schemas`: its declared headers, then its body, cut to what `projection` selects for
+ * the request when it names a selection. Only the no-op answers `null`.
+ */
+export function outputCheck(
+	schemas: OutputSchemas,
+	projection: ((ctx: object) => Projection | null) | null = null,
+): OutputCheck | null {
+	return compileOutput(schemas, compileResponseHeaders(schemas.headers), projection)
+}
+
+/** The issues `projection`'s selection for `ctx` explains on `data`, if it names one. */
+function cutBy(
+	projection: ((ctx: object) => Projection | null) | null,
+	ctx: object,
+	data: unknown,
+): AcceptIssue | undefined {
+	const selected = projection?.(ctx) ?? null
+	return selected === null ? undefined : (issue) => projected(issue, data, selected)
 }
 
 // per-process-constant: text-codec
@@ -39,7 +56,11 @@ function parse(raw: string | Uint8Array): unknown {
  * carries. The declared media types are fixed here, once; `redirect` and `headers` name no body type. A `forward()`ed
  * answer passes the body step unread: forwardCheck owns its status and media type.
  */
-export function compileOutput(schemas: OutputSchemas, headers: HeadersCheck | null): OutputCheck {
+export function compileOutput(
+	schemas: OutputSchemas,
+	headers: HeadersCheck | null,
+	projection: ((ctx: object) => Projection | null) | null = null,
+): OutputCheck {
 	const declared = new Set<string>()
 	for (const key of Object.keys(schemas)) {
 		const mt = key.includes("/") ? parseMediaType(key) : null
@@ -49,7 +70,7 @@ export function compileOutput(schemas: OutputSchemas, headers: HeadersCheck | nu
 	const json = (schemas as Record<string, Partial<Record<StatusKey, StandardSchemaLike | true>> | undefined>)[
 		"application/json"
 	]
-	const body = (response: Response): MaybePromise<Response> => {
+	const body = (response: Response, ctx: object): MaybePromise<Response> => {
 		/* a forwarded answer is forwardCheck's: its status and media type checked there, its body never read */
 		if (bodyKind(response) === "empty" || isForwarded(response)) return response
 		const type = response.headers.get("content-type")
@@ -64,19 +85,20 @@ export function compileOutput(schemas: OutputSchemas, headers: HeadersCheck | nu
 		if (schema === undefined || schema === true) return response
 		const raw = rawBodyOf(response)
 		if (raw !== null) {
-			const pending = validateOutput(schema, statusKey as string, parse(raw))
+			const data = parse(raw)
+			const pending = validateOutput(schema, statusKey as string, data, cutBy(projection, ctx, data))
 			return pending === undefined ? response : pending.then(() => response)
 		}
 		/* a body honey did not build: read a copy, hand the client the original */
 		return response
 			.clone()
 			.json()
-			.then((data: unknown) => validateOutput(schema, statusKey as string, data))
+			.then((data: unknown) => validateOutput(schema, statusKey as string, data, cutBy(projection, ctx, data)))
 			.then(() => response)
 	}
 	if (headers === null) return body
-	return (response) => {
+	return (response, ctx) => {
 		const pending = headers(response)
-		return pending === undefined ? body(response) : pending.then(() => body(response))
+		return pending === undefined ? body(response, ctx) : pending.then(() => body(response, ctx))
 	}
 }

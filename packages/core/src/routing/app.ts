@@ -21,7 +21,8 @@ import {
 	SEED,
 	VIEW,
 } from "./register.ts"
-import { type StartOf, startRoute } from "./route-builder.ts"
+import { startRoute } from "./route-builder.ts"
+import type { StartOf } from "./start-types.ts"
 import type { Preset } from "./preset.ts"
 import type { AppSettings } from "./settings.ts"
 import { RouteTreeChain } from "./route-tree.ts"

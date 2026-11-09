@@ -87,6 +87,37 @@ app
 	.handler((ctx) => ctx.res.json("created", { id: "b-1", title: ctx.input.json.title }))
 ```
 
+### Sparse fieldsets
+
+A list that answers only the fields a request selects (`?select=id,title`, as comb's `createListQuerySchema({ fields })`
+reads it) still declares the whole row, so clients keep its full type. Pass `projection` to say what this request's
+rows were cut to; the check then accepts a row without a field the selection left out, and still refuses a wrong type,
+a selected field that is missing, or a missing envelope field.
+
+```ts
+import { honey, type Selection } from "@workerstack/backend"
+import * as z from "zod"
+
+const app = honey()
+const book = z.object({ author: z.string(), id: z.string(), title: z.string() })
+/* comb's `createListQuerySchema({ fields: ["id", "title", "author"] })`: `?select=` read into `parsedFields` */
+declare const bookList: z.ZodType<{ parsedFields: { root: Selection } | null }>
+/* your query: rows cut with comb's `filterBySelect`, still typed as whole rows */
+declare function listBooks(select: Selection | null): { books: z.infer<typeof book>[]; next_cursor: string | null }
+
+app
+	.get("/books")
+	.input({ search: bookList })
+	.output(
+		{ ok: z.object({ books: z.array(book), next_cursor: z.string().nullable() }) },
+		{
+			projection: (ctx) =>
+				ctx.input.search.parsedFields === null ? null : { at: "books", select: ctx.input.search.parsedFields.root },
+		},
+	)
+	.handler((ctx) => ctx.res.json("ok", listBooks(ctx.input.search.parsedFields?.root ?? null)))
+```
+
 ## Reference
 
 | Value                                                                                                                                         | Default                                                                                                                             | What it does                                                                                                                                                                                                                                                                                                                                   | Watch for                                                                                                                                                                              |
@@ -104,6 +135,7 @@ app
 | returning the body from `.handler()`                                                                                                          | —                                                                                                                                   | with one 2xx status under one media type, the handler may return the body; honey answers it at that status through the type's helper (`json`, `text`, `csv`, `binary`)                                                                                                                                                                         | not for an event stream, a status that declares headers, or two success statuses; returning nothing is still the "handler must return a Response" error                                |
 | `.output` known media types (application/json, application/octet-stream, application/xml, text/csv, text/event-stream, text/html, text/plain) | —                                                                                                                                   | an editor completes them inside `.output({ })`, beside the 2xx keys, `headers` and `redirect`; each answers through its helper (`json`, `binary`, `xml`, `csv`, `sse`, `html`, `text`)                                                                                                                                                         | a custom `type/subtype` compiles with no completion, and so does a misspelled one; it is a bytes body                                                                                  |
 | `.output` open media type `` `${string}/${string}` ``                                                                                         | —                                                                                                                                   | any media type (image/gif, font/woff2, video/\*, application/zip) as a typed bytes body `{ format: binary }` carrying its content-type to OpenAPI/SDKs/CLI/MCP                                                                                                                                                                                 | multiple types per status negotiate via `Accept`                                                                                                                                       |
+| `.output(schemas, { projection })`                                                                                                            | —                                                                                                                                   | `projection: (ctx) => ({ at?, select }) \| null` names what this request's answer was cut to (a sparse fieldset): the rows at `at`, or the body; a row may leave out a field `select` did not name                                                                                                                                             | the declared output stays the whole row; any other mismatch is still a 500                                                                                                             |
 | `.output` per-status `headers` schema                                                                                                         | —                                                                                                                                   | declared, typed response headers of a 2xx or 3xx status → OpenAPI response `headers` → SDK `response.headers` accessors (ETag, Location, Retry-After, X-RateLimit-\*, Link)                                                                                                                                                                    | an undeclared header is not in the contract; a 4xx/5xx key is a type error                                                                                                             |
 | `ctx.res.json/text/html/redirect`                                                                                                             | —                                                                                                                                   | build the response with helper affinity                                                                                                                                                                                                                                                                                                        | —                                                                                                                                                                                      |
 | `ctx.res.redirect(redirectKey, url, opts?)`                                                                                                   | —                                                                                                                                   | a bodiless answer with `Location: url` at the key's 3xx status (`found` is 302)                                                                                                                                                                                                                                                                | under `.output()`, only a key its `redirect` entry declares; no other options carry a status                                                                                           |

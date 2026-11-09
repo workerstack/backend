@@ -41,6 +41,7 @@ function delegated(id: RouteId, entry: RouteEntry, catchAll: RouteHandler): Rout
 		id,
 		iv: entry.iv ?? null,
 		mt: null,
+		op: null,
 		out: entry.out ?? null,
 		rb: entry.bek ?? null,
 		rp: pattern,

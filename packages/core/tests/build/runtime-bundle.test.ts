@@ -132,7 +132,10 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * (26,769) so a forwarded error answer passes at a status the route's error keys carry: the per-route status
 			 * set, read through statusKeysOf and the chain's error meta. Phase 10 took 72 off (26,697): the
 			 * outputValidation setter, its settings field and mode and the NODE_ENV read are gone, the check reached
-			 * through #output-check instead. Still locked at 26,800.
+			 * through #output-check instead. Still locked at 26,800. Plan 48 added 325 (27,022) so a route whose answer
+			 * is a sparse fieldset is checked against the fields its request selects: .output()'s projection option, the
+			 * ctx the check now reads, and validation/projection's walk of an issue's path, behind #output-check, so a
+			 * build that drops the check drops it too. Locked at 27,100.
 			 */
 			const gzipped = gzipSync(js, { level: 9 }).length
 			const builtBy = run(BUN as string, ["--version"], full).out.trim()
@@ -141,7 +144,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					leaked,
 					features,
 					routeModules("minimal", entry, [...WS_ROUTE, ...MCP_ROUTE, ...GENERATION_ONLY]),
-					gzipped < 26_800,
+					gzipped < 27_100,
 					builtBy,
 				],
 				`${gzipped} bytes gzipped`,
@@ -268,7 +271,8 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * 27,826): routeTree()'s settings copy and route replay, as in the minimal bundle. Locked at 27,900. 7.1
 			 * added 18 (27,823 to 27,841): honey(preset)'s call through the SEED slot. 5.7 added 199 (27,836 to
 			 * 28,035): ctx.res.forward() and its check, and json and sse taking a stream, as in the minimal bundle.
-			 * Locked at 28,100.
+			 * Locked at 28,100. Plan 48 added 341 (28,035 to 28,376): .output()'s projection and its check, as in the
+			 * minimal bundle. Locked at 28,400.
 			 */
 			const gzipped = gzipSync(bunBundle("static-doc", served), { level: 9 }).length
 			expect(
@@ -276,7 +280,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					routeModules("static-doc", served, [...GENERATOR, ...PAGES]),
 					routeModules("static-page", withPage, [...GENERATOR, ...PAGES]),
 					routeModules("generated-doc", generated, PAGES),
-					gzipped < 28_100,
+					gzipped < 28_400,
 				],
 				`${gzipped} bytes gzipped`,
 			).toEqual([[], ["openapi/scalar"], [], true])

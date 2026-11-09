@@ -6,7 +6,7 @@
 import { ERROR_META, type ErrorMetaEntry } from "../errors/errors.ts"
 import type { ErrorFactoryRecord } from "../errors/projector.ts"
 import type { InputSchemas, InputStep } from "../input/input.ts"
-import type { OutputSchemas } from "./output-types.ts"
+import type { OutputSchemas, Projection } from "./output-types.ts"
 import type { MaybePromise, RuntimeMiddleware } from "../middleware/middleware.ts"
 import type { FinalizeHooks, FinalTable } from "./finalize.ts"
 import { describeMw, errorFactoryOf, errorsOf, scopeGuard } from "./middleware-chain.ts"
@@ -61,6 +61,8 @@ export type RouteHandler = RouteRecord & {
 	readonly iv: InputSchemas | null
 	/** what `.output()` declares, checked at finalize when the app's mode is on; `null` without it */
 	readonly out: OutputSchemas | null
+	/** `.output()`'s projection: the selection a request's answer is cut to; `null` without it */
+	readonly op: ((ctx: object) => Projection | null) | null
 	/** the settings of the app the route was registered on */
 	readonly own: AppSettings<unknown>
 	/** route-level boundary key (`.boundary()`) */

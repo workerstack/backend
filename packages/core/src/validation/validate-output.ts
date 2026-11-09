@@ -11,34 +11,39 @@ import { parseMediaType } from "../response/media-type.ts"
 import type { HoneyRes } from "../response/response.ts"
 import { codeToStatusKey, type StatusKey, statusKeyToCode } from "../response/status.ts"
 import type { JsonShorthand, OutputSchemas, StatusSchemas } from "../routing/output-types.ts"
-import type { StandardSchemaLike, StandardSchemaResult } from "./standard-schema.ts"
+import type { StandardSchemaIssue, StandardSchemaLike, StandardSchemaResult } from "./standard-schema.ts"
 
 function failed(statusKey: string): HoneyError {
 	return new HoneyError({ errorKey: EK.output_validation_failed, status: "internal_server_error", vars: { statusKey } })
 }
 
-function checked(result: StandardSchemaResult, statusKey: string): void {
-	if (result.issues !== undefined) throw failed(statusKey)
+/** An issue the route expects, which leaves the answer passing: a field its projection cut. */
+export type AcceptIssue = (issue: StandardSchemaIssue) => boolean
+
+function checked(result: StandardSchemaResult, statusKey: string, accept: AcceptIssue | undefined): void {
+	if (result.issues === undefined) return
+	if (accept === undefined || !result.issues.every(accept)) throw failed(statusKey)
 }
 
 /**
  * Check `data` against the schema for `statusKey`: nothing back when it passes, a promise only for
  * an async validator. A failure is a 500 `output_validation_failed` naming the status key; the
- * issues stay server-side.
+ * issues stay server-side. With `accept`, `data` passes when it accepts every issue.
  */
 export function validateOutput(
 	schema: StandardSchemaLike,
 	statusKey: string,
 	data: unknown,
+	accept?: AcceptIssue,
 ): Promise<void> | undefined {
 	const result = schema["~standard"].validate(data)
-	if (result instanceof Promise) return result.then((r) => checked(r, statusKey))
-	checked(result, statusKey)
+	if (result instanceof Promise) return result.then((r) => checked(r, statusKey, accept))
+	checked(result, statusKey, accept)
 	return undefined
 }
 
-/** A route's compiled check: the answer back as it was, or the failure. */
-export type OutputCheck = (response: Response) => MaybePromise<Response>
+/** A route's compiled check of what it answered to `ctx`: the answer back as it was, or the failure. */
+export type OutputCheck = (response: Response, ctx: object) => MaybePromise<Response>
 /**
  * The check every route declaring `schemas` runs on what `forward()` answered, whatever the build: its
  * status must be a declared key, with its media type declared at that key unless it has no body, or one of
@@ -82,8 +87,9 @@ export function withOutput(
 	/* a handler that answered nothing is the chain's to report: no check on what is not there */
 	return (ctx) => {
 		const answer = handler(ctx)
-		if (answer instanceof Promise) return answer.then((response) => (response == null ? response : check(response)))
-		return answer == null ? answer : check(answer)
+		if (answer instanceof Promise)
+			return answer.then((response) => (response == null ? response : check(response, ctx)))
+		return answer == null ? answer : check(answer, ctx)
 	}
 }
 
