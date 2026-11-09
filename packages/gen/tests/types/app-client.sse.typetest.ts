@@ -5,12 +5,12 @@
  */
 import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
-import type { createClient } from "../../../gen/src/runtime/ts/app.ts"
-import type { IsSSE, ReturnFor, SafeReturnFor } from "../../../gen/src/runtime/ts/app-types.ts"
-import type { Result } from "../../../gen/src/runtime/ts/response.ts"
-import type { SSEEvent } from "../../../gen/src/runtime/ts/sse.ts"
-import { honey } from "../../src/routing/app.ts"
-import type { InferRoutes } from "../../src/routing/app-types.ts"
+import type { createClient } from "../../src/runtime/ts/app.ts"
+import type { IsSSE, ReturnFor, SafeReturnFor } from "../../src/runtime/ts/app-types.ts"
+import type { Result } from "../../src/runtime/ts/response.ts"
+import type { SSEEvent } from "../../src/runtime/ts/sse.ts"
+import { honey } from "@workerstack/backend"
+import type { InferRoutes } from "@workerstack/backend"
 
 /** An event stream, a JSON route, and a route answering JSON or text but no stream. */
 const app = honey<{}>()

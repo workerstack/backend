@@ -27,8 +27,8 @@ const { honey } = (await import(
 )) as typeof import("../../../src/routing/app.ts")
 
 const { emittedRouteTree } = (await import(
-	resolvePath(REPO, "packages/gen/src/emit/ts/__fixtures__/emitted.ts")
-)) as typeof import("../../../../gen/src/emit/ts/__fixtures__/emitted.ts")
+	resolvePath(REPO, "packages/core/tests/fixture/emitted.ts")
+)) as typeof import("../../fixture/emitted.ts")
 
 const { parseUserAgent } = (await import(
 	resolvePath(REPO, "packages/core/src/context/user-agent.ts")

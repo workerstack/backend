@@ -10,8 +10,8 @@
  */
 import { createHash, randomBytes } from "node:crypto"
 import { join } from "node:path"
-import { written } from "../../../../gen/src/emit/mcp/__fixtures__/written.ts"
-import { generateMcpHandler } from "../../../../gen/src/emit/mcp/mounted.ts"
+import { written } from "../../fixture/emitted.ts"
+import { generateMcpHandler } from "@workerstack/clients"
 import { HoneyError } from "../../../src/errors/error.ts"
 import { type McpHandler, mcp } from "../../../src/mcp/mount.ts"
 import { oauth } from "../../../src/mcp/oauth.ts"

@@ -11,7 +11,7 @@
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { main as codegen } from "../../../gen/src/cli.ts"
+import { main as codegen } from "@workerstack/clients/cli"
 import { project, type Project } from "../../src/build/__fixtures__/project.ts"
 import { main } from "../../src/build/cli.ts"
 

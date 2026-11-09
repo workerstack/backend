@@ -3,9 +3,9 @@
  * routes every transport dials, and `realtime.capped`, a send's answer past a small response cap.
  */
 import * as z from "zod"
-import type { SSEStream } from "../../../src/response/sse.ts"
+import type { SSEStream } from "@workerstack/backend"
 import type { ConformanceApp, errors } from "./app.ts"
-import type { HoneyRes } from "../../../src/response/response.ts"
+import type { HoneyRes } from "@workerstack/backend"
 
 /** A Response the route does not declare: a fault injected on purpose, past the handler's typed return. */
 const undeclared = (ctx: { readonly res: object }, response: Response) => (ctx.res as HoneyRes).raw(response) as never

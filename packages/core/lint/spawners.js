@@ -48,6 +48,7 @@ export const SPAWNING_HELPERS = new Map([
 	["packages/gen/src/emit/java/__fixtures__/realtime-program.ts", ["runner"]],
 	["packages/gen/src/emit/java/__fixtures__/realtime.ts", ["consumed", "drivenRealtime"]],
 	["packages/gen/src/emit/mcp/__fixtures__/clients.ts", ["clientCheck", "clientSession", "hasNpm", "httpSession"]],
+	["packages/core/tests/fixture/mcp-clients/clients.ts", ["clientCheck", "clientSession", "hasNpm", "httpSession"]],
 	["packages/gen/src/emit/mcp/__fixtures__/http-server.ts", ["serving"]],
 	[
 		"packages/gen/src/emit/mcp/__fixtures__/python-client.ts",
@@ -73,6 +74,7 @@ export const SPAWNING_HELPERS = new Map([
 	["packages/gen/src/emit/shared/ruff.ts", ["ruffFormatter"]],
 	["packages/gen/src/emit/shared/rustfmt.ts", ["rustfmtFormatter"]],
 	["packages/gen/src/gen/__fixtures__/pinned-bun.ts", ["findPinnedBun", "withPinnedBun"]],
+	["packages/core/tests/fixture/pinned-bun.ts", ["findPinnedBun", "withPinnedBun"]],
 	["packages/gen/src/gen/process.ts", ["runCli"]],
 	["packages/gen/tests/integration/conformance/harness.ts", ["startReferenceApp", "targetSuite"]],
 	["packages/gen/tests/structure/mutation-harness.ts", ["runSuite"]],

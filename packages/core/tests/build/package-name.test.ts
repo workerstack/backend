@@ -10,7 +10,8 @@
  * the same way).
  */
 import { existsSync, readFileSync } from "node:fs"
-import { join } from "node:path"
+import { createRequire } from "node:module"
+import { dirname, join } from "node:path"
 import { describe, expect, it } from "vitest"
 import { ROOT } from "./fixture/workflows.ts"
 
@@ -24,7 +25,9 @@ type Manifest = {
 }
 
 const read = (path: string) => JSON.parse(readFileSync(join(ROOT, path), "utf8")) as Manifest
-const gen = read("packages/gen/package.json")
+/* the generator as core resolves it: by its package name, wherever it is installed */
+const GEN = dirname(createRequire(import.meta.url).resolve("@workerstack/clients/package.json"))
+const gen = JSON.parse(readFileSync(join(GEN, "package.json"), "utf8")) as Manifest
 const core = read("packages/core/package.json")
 
 /** The package `generate.ts` imports, from its `CLIENTS` constant; it throws when the constant is not there to read. */
@@ -83,7 +86,7 @@ describe("the generator package is named the same everywhere (bit 22)", () => {
 		const bins = Object.entries(gen.bin ?? {})
 		expect(bins).toEqual([["honey-clients", "bin/honey-clients.js"]])
 		const [[, path]] = bins as [[string, string]]
-		expect(existsSync(join(ROOT, "packages/gen", path))).toBe(true)
+		expect(existsSync(join(GEN, path))).toBe(true)
 		expect(gen.files).toContain(path.split("/")[0])
 	})
 

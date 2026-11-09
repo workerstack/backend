@@ -5,7 +5,7 @@
  */
 import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import * as codegen from "../../../gen/src/index.ts"
+import * as codegen from "@workerstack/clients"
 import { honey } from "../routing/app.ts"
 import { appSource, type Project, project } from "./__fixtures__/project.ts"
 import { artifactsOf, documentOf, prepare, virtualCode } from "./artifacts.ts"

@@ -7,8 +7,8 @@
  */
 import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { written } from "../../../../gen/src/emit/mcp/__fixtures__/written.ts"
-import { generateMcpHandler } from "../../../../gen/src/emit/mcp/mounted.ts"
+import { written } from "../../fixture/emitted.ts"
+import { generateMcpHandler } from "@workerstack/clients"
 import { type McpHandler, type McpOptions, mcp } from "../../../src/mcp/mount.ts"
 import { oauth } from "../../../src/mcp/oauth.ts"
 import { generateOpenApi } from "../../../src/openapi/generate.ts"

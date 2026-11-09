@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs"
 import { createServer } from "node:net"
 import { join } from "node:path"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
-import { withPinnedBun } from "../../../gen/src/gen/__fixtures__/pinned-bun.ts"
+import { withPinnedBun } from "../fixture/pinned-bun.ts"
 import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 import { consumer, pack, run, scratch, write } from "./fixture/packed.ts"
 

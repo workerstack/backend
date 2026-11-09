@@ -6,8 +6,8 @@
  */
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { emittedRouteTree } from "../../../gen/src/emit/ts/__fixtures__/emitted.ts"
-import { generateRouteTree } from "../../../gen/src/emit/ts/route-tree.ts"
+import { emittedRouteTree } from "../fixture/emitted.ts"
+import { generateRouteTree } from "@workerstack/clients"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
 import { generateOpenApi } from "../../src/openapi/generate.ts"

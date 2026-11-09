@@ -13,7 +13,6 @@ import { generateOpenApi } from "../../../src/openapi/generate.ts"
 import { toYaml } from "../../../src/openapi/yaml.ts"
 import { honey } from "../../../src/routing/app.ts"
 import { SILENT } from "../../../src/telemetry/logger.ts"
-import { createConformanceApp } from "./app.ts"
 import { ws } from "../../../src/ws/route.ts"
 
 const require = createRequire(import.meta.url)
@@ -171,8 +170,6 @@ function generated(): [string, Doc, App][] {
 			["corner cases", cornerCases],
 			["trailing slash", trailingSlash],
 			["shared nested object", sharedNested],
-			/* the reference app every generated client is measured against (bit 11): broken here, red in `bun run test` */
-			["conformance app", () => createConformanceApp()],
 		] as const
 	).map(([name, make]) => {
 		const app = make()

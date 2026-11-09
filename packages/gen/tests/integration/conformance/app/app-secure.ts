@@ -5,7 +5,7 @@
  */
 import { createHash } from "node:crypto"
 import * as z from "zod"
-import { createMiddleware } from "../../../src/middleware/middleware.ts"
+import { createMiddleware } from "@workerstack/backend"
 import type { ConformanceApp, errors } from "./app.ts"
 
 type User = { readonly email: string; readonly id: string; readonly name: string }

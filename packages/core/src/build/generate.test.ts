@@ -20,7 +20,7 @@ import {
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { generateRouteTree } from "../../../gen/src/emit/ts/route-tree.ts"
+import { generateRouteTree } from "@workerstack/clients"
 import { honey } from "../routing/app.ts"
 import { appSource, type Project, project } from "./__fixtures__/project.ts"
 import { type HoneyVitePluginConfig, MCP_COMPANIONS, resolveHoneyConfig } from "./config.ts"

@@ -11,7 +11,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { MARK_KEY, marked, markOf, reap } from "../../../gen/src/gen/__fixtures__/survivors.ts"
+import { MARK_KEY, marked, markOf, reap } from "../../tests/fixture/survivors.ts"
 import { appSource, type Project, project } from "./__fixtures__/project.ts"
 import { USAGE } from "./cli-args.ts"
 import { main } from "./cli.ts"
@@ -27,7 +27,7 @@ const HIDDEN_ADDITION = [
 ]
 const BIN = resolve(import.meta.dirname, "../../bin/honey.js")
 /* the preload that signals the process as spawn returns: the window between the bin's spawn and its next statement */
-const SIGNAL_ON_SPAWN = resolve(import.meta.dirname, "../../../gen/tests/integration/signal-on-spawn.ts")
+const SIGNAL_ON_SPAWN = resolve(import.meta.dirname, "../../tests/fixture/signal-on-spawn.ts")
 const projects: Project[] = []
 const watches: { controller: AbortController; ended: Promise<unknown> }[] = []
 /* a watch ends once its last child is done: only then is its project removed */
