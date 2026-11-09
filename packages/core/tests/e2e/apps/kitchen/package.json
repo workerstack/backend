@@ -17,7 +17,7 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "catalog:",
-		"@workerstack/clients": "1.0.0-rc.23",
+		"@workerstack/clients": "1.0.0-rc.24",
 		"typescript": "catalog:"
 	}
 }
