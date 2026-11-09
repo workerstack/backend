@@ -33,7 +33,7 @@ const OPTIONAL_FEATURES: Readonly<Record<string, string>> = {
  * package is inlined without one); under a Worker's conditions ws resolves to its browser stub, which throws
  */
 const BUILD_TIME: Readonly<Record<string, RegExp>> = {
-	"@lovrozagar/honey-clients": /honey-clients/,
+	"@workerstack/clients": /honey-clients/,
 	jiti: /\bjiti\b|createJiti/,
 	oxfmt: /oxfmt/,
 	"ts-morph": /ts-morph/,
@@ -44,7 +44,7 @@ beforeAll(() => {
 	tarballs = pack(files.out)
 	full = consumer(
 		join(files.out, "full"),
-		{ "@lovrozagar/honey": `file:${tarballs.core}`, "@lovrozagar/honey-clients": `file:${tarballs.gen}` },
+		{ "@workerstack/backend": `file:${tarballs.core}`, "@workerstack/clients": `file:${tarballs.gen}` },
 		["ws", "oxfmt", "ts-morph"],
 	)
 }, 180_000)
@@ -93,7 +93,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`bun ${pinnedBunVersion()} build of honey() leaves out tooling and every optional runtime feature`,
 		() => {
 			const entry = [
-				'import { honey } from "@lovrozagar/honey"',
+				'import { honey } from "@workerstack/backend"',
 				'const app = honey().get("/json").handler((ctx) => ctx.res.json("ok", { ok: true }))',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
@@ -155,11 +155,11 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`a feature is bundled once its entry is imported (bun ${pinnedBunVersion()})`,
 		() => {
 			const entry = [
-				'import { honey } from "@lovrozagar/honey"',
-				'import { createErrorTranslator } from "@lovrozagar/honey/i18n"',
-				'import { swagger } from "@lovrozagar/honey/openapi/swagger"',
-				'import { proxy } from "@lovrozagar/honey/proxy"',
-				'import { realtime } from "@lovrozagar/honey/realtime"',
+				'import { honey } from "@workerstack/backend"',
+				'import { createErrorTranslator } from "@workerstack/backend/i18n"',
+				'import { swagger } from "@workerstack/backend/openapi/swagger"',
+				'import { proxy } from "@workerstack/backend/proxy"',
+				'import { realtime } from "@workerstack/backend/realtime"',
 				"const app = honey()",
 				'\t.errorI18n(createErrorTranslator({ errors: {}, resolveLocale: () => "en" }))',
 				'\t.get("/docs").handler(swagger({ url: "/openapi.json" }))',
@@ -173,25 +173,25 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				.filter(([, marker]) => !js.includes(marker))
 				.map(([name]) => name)
 			const sockets = [
-				'import { honey } from "@lovrozagar/honey"',
-				'import { ws } from "@lovrozagar/honey/ws"',
+				'import { honey } from "@workerstack/backend"',
+				'import { ws } from "@workerstack/backend/ws"',
 				"const app = honey()",
 				'ws(app, "/live").handler({})',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const mounted = [
-				'import { honey } from "@lovrozagar/honey"',
-				'import { mcp } from "@lovrozagar/honey/mcp"',
+				'import { honey } from "@workerstack/backend"',
+				'import { mcp } from "@workerstack/backend/mcp"',
 				"const app = honey()",
 				'mcp(app, "/mcp", { challenge: "Bearer", fetch: async () => new Response(null), secured: false })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const protectedMount = [
-				'import { honey } from "@lovrozagar/honey"',
-				'import { mcp } from "@lovrozagar/honey/mcp"',
-				'import { oauth } from "@lovrozagar/honey/mcp/oauth"',
+				'import { honey } from "@workerstack/backend"',
+				'import { mcp } from "@workerstack/backend/mcp"',
+				'import { oauth } from "@workerstack/backend/mcp/oauth"',
 				"const app = honey()",
 				'const handler = { challenge: "Bearer", fetch: async () => new Response(null), secured: false }',
 				'mcp(app, "/mcp", handler, { authenticate: () => true, oauth: oauth({ authorizationServers: ["https://as.example"] }) })',
@@ -199,10 +199,10 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				"",
 			]
 			const filesMount = [
-				'import { honey } from "@lovrozagar/honey"',
-				'import { mcp } from "@lovrozagar/honey/mcp"',
-				'import { memoryUploadStore, uploads } from "@lovrozagar/honey/mcp/uploads"',
-				'import { urlFiles } from "@lovrozagar/honey/mcp/url-files"',
+				'import { honey } from "@workerstack/backend"',
+				'import { mcp } from "@workerstack/backend/mcp"',
+				'import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"',
+				'import { urlFiles } from "@workerstack/backend/mcp/url-files"',
 				"const app = honey()",
 				'const handler = { challenge: "Bearer", fetch: async () => new Response(null), secured: false }',
 				"const store = memoryUploadStore()",
@@ -235,23 +235,23 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`serveStaticOpenApi carries no generator and no page it was not given (bun ${pinnedBunVersion()})`,
 		() => {
 			const served = [
-				'import { honey } from "@lovrozagar/honey"',
-				'import { serveStaticOpenApi } from "@lovrozagar/honey/openapi/static"',
+				'import { honey } from "@workerstack/backend"',
+				'import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"',
 				'const app = serveStaticOpenApi(honey(), { json: { asset: "/openapi.json" } })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const withPage = [
-				'import { honey } from "@lovrozagar/honey"',
-				'import { scalar } from "@lovrozagar/honey/openapi/scalar"',
-				'import { serveStaticOpenApi } from "@lovrozagar/honey/openapi/static"',
+				'import { honey } from "@workerstack/backend"',
+				'import { scalar } from "@workerstack/backend/openapi/scalar"',
+				'import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"',
 				'const app = serveStaticOpenApi(honey(), { docs: { "/docs": scalar }, json: { asset: "/openapi.json" } })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const generated = [
-				'import { honey } from "@lovrozagar/honey"',
-				'import { serveOpenApi } from "@lovrozagar/honey/openapi"',
+				'import { honey } from "@workerstack/backend"',
+				'import { serveOpenApi } from "@workerstack/backend/openapi"',
 				'const app = serveOpenApi(honey(), { title: "Doc", version: "1.0.0" })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
@@ -288,7 +288,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`a sender of webhooks alone carries none of honey()'s router (bun ${pinnedBunVersion()})`,
 		() => {
 			const sender = [
-				'import { signWebhook, webhookContract } from "@lovrozagar/honey/webhook"',
+				'import { signWebhook, webhookContract } from "@workerstack/backend/webhook"',
 				'const schema = { "~standard": { validate: (value: unknown) => ({ value }), vendor: "app", version: 1 } } as const',
 				"const events = webhookContract({ ping: schema })",
 				"export const send = async (secret: string) => [",
@@ -298,7 +298,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				"",
 			]
 			const router = [
-				'import { honey } from "@lovrozagar/honey"',
+				'import { honey } from "@workerstack/backend"',
 				'const app = honey().get("/json").handler((ctx) => ctx.res.json("ok", { ok: true }))',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
@@ -321,7 +321,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`basic() and credentialsMatch alone carry none of honey()'s router or the generator (bun ${pinnedBunVersion()})`,
 		() => {
 			const guard = [
-				'import { basic, credentialsMatch } from "@lovrozagar/honey/openapi/auth"',
+				'import { basic, credentialsMatch } from "@workerstack/backend/openapi/auth"',
 				"export const auth = basic({",
 				'\trealm: "Internal",',
 				'\tverify: ({ password, username }) => credentialsMatch({ password, username }, { password: "pw", username: "docs" }),',
@@ -340,10 +340,10 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 	it("a Worker built by the build plugin carries none of ts-morph, ws, oxfmt, jiti or honey-clients", async () => {
 		write(full, {
 			"src/worker-app.ts": [
-				'import { honey } from "@lovrozagar/honey"',
-				'import { serveOpenApi } from "@lovrozagar/honey/openapi"',
-				'import { realtime } from "@lovrozagar/honey/realtime"',
-				'import { workersWebSocket } from "@lovrozagar/honey/ws/workers"',
+				'import { honey } from "@workerstack/backend"',
+				'import { serveOpenApi } from "@workerstack/backend/openapi"',
+				'import { realtime } from "@workerstack/backend/realtime"',
+				'import { workersWebSocket } from "@workerstack/backend/ws/workers"',
 				"",
 				"export const app = serveOpenApi(",
 				'\thoney().wsAdapter(workersWebSocket()).get("/health").handler((ctx) => ctx.res.text("ok", "ok")),',
@@ -355,7 +355,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		})
 		const outDir = join(full, "worker")
 		const { createBuildPlugin } = (await import(
-			join(full, "node_modules/@lovrozagar/honey/dist/build/index.js")
+			join(full, "node_modules/@workerstack/backend/dist/build/index.js")
 		)) as typeof import("../../src/build/index.ts")
 		const { build } = await import("vite")
 		await build({
@@ -378,20 +378,20 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 	}, 90_000)
 
 	it("a core-only install loads the plugin, and only a generation names the missing honey-clients", () => {
-		const dir = consumer(join(files.out, "core-only"), { "@lovrozagar/honey": `file:${tarballs.core}` })
+		const dir = consumer(join(files.out, "core-only"), { "@workerstack/backend": `file:${tarballs.core}` })
 		write(dir, {
 			"plugin.mjs": [
-				'import { honeyPlugin } from "@lovrozagar/honey/plugin"',
+				'import { honeyPlugin } from "@workerstack/backend/plugin"',
 				'console.log([honeyPlugin({ app: "src/app.ts" })].flat().map((plugin) => plugin.name).join())',
 				"",
 			].join("\n"),
 			"src/app.ts":
-				'import { honey } from "@lovrozagar/honey"\nexport const app = honey().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))\n',
+				'import { honey } from "@workerstack/backend"\nexport const app = honey().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))\n',
 		})
 		const loaded = run("node", ["plugin.mjs"], dir)
 		const generated = run("node", ["node_modules/.bin/honey", "generate", "--app", "src/app.ts", "--tree"], dir)
 		expect(
-			[loaded.out.trim(), generated.code, generated.out.includes("needs @lovrozagar/honey-clients")],
+			[loaded.out.trim(), generated.code, generated.out.includes("needs @workerstack/clients")],
 			generated.out,
 		).toEqual(["honey", 1, true])
 	}, 60_000)

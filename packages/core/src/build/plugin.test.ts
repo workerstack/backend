@@ -220,10 +220,10 @@ describe("honeyPlugin() at build start (bit 19 h2), continued (2)", () => {
 		async () => {
 			const made = fresh({
 				"src/app.ts":
-					'import { honey } from "@lovrozagar/honey"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
+					'import { honey } from "@workerstack/backend"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
 				"src/routes.ts": 'export const path = "/first"\n',
 				"vite.config.ts":
-					'import { honeyPlugin } from "@lovrozagar/honey/plugin"\nexport default { plugins: [honeyPlugin({ app: "src/app.ts", codegen: { tree: "src/_gen/routes.gen.ts" } })] }\n',
+					'import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin({ app: "src/app.ts", codegen: { tree: "src/_gen/routes.gen.ts" } })] }\n',
 			})
 			const [plugin] = honeyPlugin({ app: "src/app.ts" })
 			const configFile = join(made.dir, "vite.config.ts")
@@ -380,7 +380,7 @@ describe("honeyPlugin() under load (bit 19 h2)", () => {
 			const made = fresh({
 				"src/app.ts": appSource(),
 				"vite.config.ts":
-					'import { honeyPlugin } from "@lovrozagar/honey/plugin"\nexport default ({ mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: mode === "staging" } })] })\n',
+					'import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default ({ mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: mode === "staging" } })] })\n',
 			})
 			const [plugin] = honeyPlugin({ app: "src/app.ts" })
 			plugin.configResolved({
@@ -434,7 +434,7 @@ describe("honeyPlugin() under load, failing (bit 19 h2)", () => {
 			const made = fresh({
 				"src/app.ts": appSource(),
 				"vite.config.ts":
-					'import { honeyPlugin } from "@lovrozagar/honey/plugin"\nexport default ({ mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: mode === "development" } })] })\n',
+					'import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default ({ mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: mode === "development" } })] })\n',
 			})
 			const [plugin] = honeyPlugin({ app: "src/app.ts" })
 			plugin.configResolved({

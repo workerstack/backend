@@ -159,12 +159,12 @@ export abstract class SettingsChain<TEnv> {
 
 	/**
 	 * Trace every request (a root span, the middleware and the handler under it) and report thrown
-	 * errors in the background. Pass `otelAdapter(api, options)` from `@lovrozagar/honey/telemetry`.
+	 * errors in the background. Pass `otelAdapter(api, options)` from `@workerstack/backend/telemetry`.
 	 */
 	telemetry(value: Telemetry): this {
 		if (typeof (value as Partial<Telemetry> | null)?.tracer?.startSpan !== "function") {
 			throw new TypeError(
-				"app.telemetry(): pass otelAdapter(api) from @lovrozagar/honey/telemetry, or a value with a tracer",
+				"app.telemetry(): pass otelAdapter(api) from @workerstack/backend/telemetry, or a value with a tracer",
 			)
 		}
 		this.settings.telemetry = value
@@ -175,12 +175,12 @@ export abstract class SettingsChain<TEnv> {
 	/**
 	 * Translate error answers per request: the message from the locale's template, field paths to
 	 * display names. Pass `createErrorTranslator({ errors, fieldNames, resolveLocale })` from
-	 * `@lovrozagar/honey/i18n`; a raw config object is refused here, at startup.
+	 * `@workerstack/backend/i18n`; a raw config object is refused here, at startup.
 	 */
 	errorI18n(value: ErrorI18n<TEnv>): this {
 		const candidate = value as Partial<ErrorI18n<TEnv>> | null
 		if (typeof candidate?.translate !== "function" || typeof candidate.resolveLocale !== "function") {
-			throw new TypeError("app.errorI18n(): pass createErrorTranslator() from @lovrozagar/honey/i18n")
+			throw new TypeError("app.errorI18n(): pass createErrorTranslator() from @workerstack/backend/i18n")
 		}
 		this.settings.errorI18n = value
 		return this

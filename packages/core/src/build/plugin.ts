@@ -1,5 +1,5 @@
 /**
- * `honeyPlugin()`, the Vite plugin (`@lovrozagar/honey/plugin`, bit 19 h2): it writes the app's artifacts at build start
+ * `honeyPlugin()`, the Vite plugin (`@workerstack/backend/plugin`, bit 19 h2): it writes the app's artifacts at build start
  * and, in dev, again on each save a `watch` glob matches, one generation at a time with at most one more queued, and
  * one per save across Vite's environments. With a config file, each generation runs in a `honey generate` child, so
  * it sees edits to every module the app imports and nothing the app starts outlives it. `virtual:honey/routes`,

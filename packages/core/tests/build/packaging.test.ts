@@ -1,5 +1,5 @@
 /**
- * What ships (bit 19 i): the real tarballs of `@lovrozagar/honey` and `@lovrozagar/honey-clients`, packed by npm and
+ * What ships (bit 19 i): the real tarballs of `@workerstack/backend` and `@workerstack/clients`, packed by npm and
  * installed into a consumer outside the repo. The install carries every export's files, type-checks against every
  * core subpath under maximal strictness, runs both bins from dist/, and generates an app's artifacts through the
  * tarball's own `build/artifacts` (generate.ts `artifactsFor`). A bin picks dist/ in an install and the source in a
@@ -17,10 +17,10 @@ let tarballs: Tarballs
 let app = ""
 
 const APP = [
-	'import { createMiddleware, defineErrors, honey } from "@lovrozagar/honey"',
-	'import { cors } from "@lovrozagar/honey/cors"',
-	'import { serveOpenApi } from "@lovrozagar/honey/openapi"',
-	'import { requestId } from "@lovrozagar/honey/request-id"',
+	'import { createMiddleware, defineErrors, honey } from "@workerstack/backend"',
+	'import { cors } from "@workerstack/backend/cors"',
+	'import { serveOpenApi } from "@workerstack/backend/openapi"',
+	'import { requestId } from "@workerstack/backend/request-id"',
 	'import * as z from "zod"',
 	"",
 	'const errors = defineErrors({ item_not_found: "not_found" })',
@@ -44,7 +44,7 @@ const APP = [
 
 /* the generated selectors narrow `RouteSelectorOf` through the root entry's re-export, or the expect-error is unused */
 const SELECTORS = [
-	'import type { RouteSelectorOf } from "@lovrozagar/honey"',
+	'import type { RouteSelectorOf } from "@workerstack/backend"',
 	"",
 	'export const health: RouteSelectorOf = "GET /health"',
 	"// @ts-expect-error a route the app does not have",
@@ -80,8 +80,8 @@ const manifest = (pkg: string, dir = app): { exports: Exports } =>
 
 /* every core subpath re-exported from `dir`'s src, type-checked under STRICT: the subpath count, tsc's code and output */
 function strictCheck(dir: string, resolution: string, module: string): [number, number, string] {
-	const subpaths = Object.keys(manifest("@lovrozagar/honey", dir).exports).filter((s) => s !== "./package.json")
-	const lines = subpaths.map((s, i) => `export * as s${i} from "@lovrozagar/honey${s.slice(1)}"`)
+	const subpaths = Object.keys(manifest("@workerstack/backend", dir).exports).filter((s) => s !== "./package.json")
+	const lines = subpaths.map((s, i) => `export * as s${i} from "@workerstack/backend${s.slice(1)}"`)
 	const config = { compilerOptions: { ...STRICT, module, moduleResolution: resolution }, include: ["src/**/*.ts"] }
 	write(dir, { "src/subpaths.ts": `${lines.join("\n")}\n`, "tsconfig.json": `${JSON.stringify(config, null, 2)}\n` })
 	const checked = run("node", [TSC, "-p", "tsconfig.json"], dir)
@@ -92,7 +92,7 @@ beforeAll(() => {
 	tarballs = pack(files.out)
 	app = consumer(
 		join(files.out, "app"),
-		{ "@lovrozagar/honey": `file:${tarballs.core}`, "@lovrozagar/honey-clients": `file:${tarballs.gen}` },
+		{ "@workerstack/backend": `file:${tarballs.core}`, "@workerstack/clients": `file:${tarballs.gen}` },
 		["zod", "@types/node", "vite"],
 	)
 	write(app, { "src/app.ts": APP, "src/selectors.ts": SELECTORS })
@@ -123,17 +123,17 @@ describe.sequential("the tarballs, installed (bit 19 i)", () => {
 			 */
 			const sibling = (JSON.parse(readFileSync(join(REPO, "packages/gen/package.json"), "utf8")) as { version: string })
 				.version
-			expect([
-				unresolved,
-				core?.devDependencies["@lovrozagar/honey-clients"],
-				core?.devDependencies.typescript,
-			]).toEqual([[], sibling, "7.0.2"])
+			expect([unresolved, core?.devDependencies["@workerstack/clients"], core?.devDependencies.typescript]).toEqual([
+				[],
+				sibling,
+				"7.0.2",
+			])
 		},
 	)
 
 	it("carry bin/, dist/, the README and the license but no source, and every export's files", () => {
 		const missing: string[] = []
-		for (const pkg of ["@lovrozagar/honey", "@lovrozagar/honey-clients"]) {
+		for (const pkg of ["@workerstack/backend", "@workerstack/clients"]) {
 			const root = join(app, "node_modules", pkg)
 			for (const [subpath, target] of Object.entries(manifest(pkg).exports)) {
 				/* every condition an install resolves; honey-source is the checkout's */
@@ -142,11 +142,11 @@ describe.sequential("the tarballs, installed (bit 19 i)", () => {
 					if (condition !== "honey-source" && !existsSync(join(root, file))) missing.push(`${subpath} ${file}`)
 			}
 		}
-		expect([readdirSync(join(app, "node_modules/@lovrozagar/honey")).sort(), missing]).toEqual([
+		expect([readdirSync(join(app, "node_modules/@workerstack/backend")).sort(), missing]).toEqual([
 			["LICENSE", "README.md", "bin", "dist", "package.json"],
 			[],
 		])
-		expect(readdirSync(join(app, "node_modules/@lovrozagar/honey-clients")).sort()).toEqual([
+		expect(readdirSync(join(app, "node_modules/@workerstack/clients")).sort()).toEqual([
 			"LICENSE",
 			"README.md",
 			"bin",
@@ -179,7 +179,7 @@ describe.sequential("the tarballs, installed (bit 19 i)", () => {
 		try {
 			write(app, {
 				"vite.config.ts":
-					'import { defaultClientConditions } from "vite"\nimport { honeyPlugin } from "@lovrozagar/honey/plugin"\nexport default { resolve: { conditions: [...defaultClientConditions] }, plugins: [honeyPlugin({ app: "src/app.ts" })] }\n',
+					'import { defaultClientConditions } from "vite"\nimport { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { resolve: { conditions: [...defaultClientConditions] }, plugins: [honeyPlugin({ app: "src/app.ts" })] }\n',
 			})
 			const read = generate()
 			write(app, {
@@ -211,7 +211,7 @@ describe.sequential("the tarballs, installed (bit 19 i)", () => {
 	)
 
 	it("type-checks against every core subpath with honey-clients, an optional peer, not installed", () => {
-		const dir = consumer(join(files.out, "core-only"), { "@lovrozagar/honey": `file:${tarballs.core}` }, [
+		const dir = consumer(join(files.out, "core-only"), { "@workerstack/backend": `file:${tarballs.core}` }, [
 			"@types/node",
 		])
 		expect(strictCheck(dir, "Bundler", "ESNext")).toEqual([58, 0, ""])
@@ -273,7 +273,7 @@ function binLayout(bin: string, entry: string, checkout: boolean): string {
 	write(dir, {
 		[`bin/${bin}.js`]: readFileSync(join(pkg, `bin/${bin}.js`), "utf8"),
 		[`dist/${entry}.js`]: main("dist"),
-		"node_modules/@lovrozagar/honey-clients/package.json": '{ "exports": { "./package.json": "./package.json" } }\n',
+		"node_modules/@workerstack/clients/package.json": '{ "exports": { "./package.json": "./package.json" } }\n',
 		"package.json": '{ "type": "module" }\n',
 		[`src/${entry}.ts`]: main("source").replace("main()", "main(): number"),
 		...(checkout ? { "tsconfig.json": "{}\n" } : {}),
@@ -325,9 +325,9 @@ describe("ws, core's optional peer, in a real install (bit 19 i)", () => {
 	/* one process: the upgrade fails naming the package, `npm install ws` runs, and the next upgrade works */
 	const SERVER = [
 		'import { execFileSync } from "node:child_process"',
-		'import { honey } from "@lovrozagar/honey"',
-		'import { serve } from "@lovrozagar/honey/node"',
-		'import { ws } from "@lovrozagar/honey/ws"',
+		'import { honey } from "@workerstack/backend"',
+		'import { serve } from "@workerstack/backend/node"',
+		'import { ws } from "@workerstack/backend/ws"',
 		"const app = honey()",
 		'ws(app, "/live").handler({ onMessage: (_ctx, ws, data) => ws.send(data) })',
 		'const server = await serve(app, { hostname: "127.0.0.1", port: 0 })',
@@ -347,7 +347,7 @@ describe("ws, core's optional peer, in a real install (bit 19 i)", () => {
 
 	// v0: ddd820848a
 	it("fails the upgrade with an install hint without ws, and works once ws is installed (not cached)", () => {
-		const dir = consumer(join(files.out, "ws"), { "@lovrozagar/honey": `file:${tarballs.core}` })
+		const dir = consumer(join(files.out, "ws"), { "@workerstack/backend": `file:${tarballs.core}` })
 		writeFileSync(join(dir, "server.mjs"), SERVER)
 		/* a served app's environment: NODE_ENV=test, which this runner sets, silences the default logger */
 		const ran = run("node", ["server.mjs"], dir, { NODE_ENV: "production" })

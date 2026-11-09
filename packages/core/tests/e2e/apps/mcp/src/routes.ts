@@ -5,8 +5,8 @@
  * name, size and SHA-256, a text part as sent. The streams send a batch, one progress per file, then the completion.
  * No mount here: gen-app.ts documents these routes, so generation never imports the handler it writes.
  */
-import { createMiddleware, honey } from "@lovrozagar/honey"
-import type { RouteTree } from "@lovrozagar/honey/tree"
+import { createMiddleware, honey } from "@workerstack/backend"
+import type { RouteTree } from "@workerstack/backend/tree"
 import * as z from "zod"
 import { KEY } from "./key.ts"
 

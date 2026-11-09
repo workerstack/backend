@@ -18,36 +18,38 @@ This is the repository. **The guides are the two packages' own pages**, which is
 
 ## Packages
 
-| Package                                               | What it is                                                                                                                                                  |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@lovrozagar/honey`](packages/core/README.md)        | The framework: routing, typed input and output, middleware, streaming, WebSockets and realtime, OpenAPI, the MCP mount, the `honey` CLI and the Vite plugin |
-| [`@lovrozagar/honey-clients`](packages/gen/README.md) | `honey-clients generate`: SDKs (TypeScript, Go, Rust, Python, C#, Java), a Go CLI and an MCP server from a document or a honey app                          |
+| Package                                           | What it is                                                                                                                                                  |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@workerstack/backend`](packages/core/README.md) | The framework: routing, typed input and output, middleware, streaming, WebSockets and realtime, OpenAPI, the MCP mount, the `honey` CLI and the Vite plugin |
+| [`@workerstack/clients`](packages/gen/README.md)  | `honey-clients generate`: SDKs (TypeScript, Go, Rust, Python, C#, Java), a Go CLI and an MCP server from a document or a honey app                          |
 
 Each package's README is its complete guide: every export and every area, with examples the tests compile.
 
 ## Install
 
-1.0 is out as a release candidate, published under npm's `next` tag, so an install without a tag still gives 0.7.3.
+honey moved to the workerstack org in 1.0.0-rc.23, and [the migration note](https://github.com/workerstack/backend/blob/main/docs/migrating-to-workerstack.md)
+maps each old package name to its new one. 1.0 is out as a release candidate, published under npm's `next` tag, so
+an install without a tag gets a deprecated placeholder.
 Add `@next` until the final release.
 
 The framework, in the app:
 
 ```sh
-npm install @lovrozagar/honey@next
+npm install @workerstack/backend@next
 npx honey init
 ```
 
 The generator, as a dev dependency:
 
 ```sh
-npm install --save-dev @lovrozagar/honey-clients@next
+npm install --save-dev @workerstack/clients@next
 npx honey-clients generate --app src/app.ts --target ts --out generated
 ```
 
 ## Documentation
 
-- [`@lovrozagar/honey`](packages/core/README.md) — the framework, end to end
-- [`@lovrozagar/honey-clients`](packages/gen/README.md) — the generator, every target and flag
+- [`@workerstack/backend`](packages/core/README.md) — the framework, end to end
+- [`@workerstack/clients`](packages/gen/README.md) — the generator, every target and flag
 - [All the docs](docs/README.md) — a page per area, each example compiled by the tests
 - [Migrating from 0.7](docs/migration.md)
 - [Package exports](docs/packages.md) — every subpath either package exports
@@ -55,8 +57,8 @@ npx honey-clients generate --app src/app.ts --target ts --out generated
 
 ## Develop
 
-The repository is a Bun workspace: `packages/core` is `@lovrozagar/honey`, `packages/gen` is
-`@lovrozagar/honey-clients`, `packages/core/tests/e2e` holds the end-to-end apps and runtimes, `bench/` the
+The repository is a Bun workspace: `packages/core` is `@workerstack/backend`, `packages/gen` is
+`@workerstack/clients`, `packages/core/tests/e2e` holds the end-to-end apps and runtimes, `bench/` the
 benchmarks, `docs/` the documentation and `blueprint/` the design records.
 
 ```sh

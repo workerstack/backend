@@ -1,5 +1,5 @@
 /**
- * The Node adapter's server, behind `serve` from `@lovrozagar/honey/node` (serve.ts): it hands each
+ * The Node adapter's server, behind `serve` from `@workerstack/backend/node` (serve.ts): it hands each
  * request to the app through the request view, writes
  * the answer (`response.ts`), answers what it refuses itself, and drains on shutdown. A WebSocket
  * handshake takes Node's `'upgrade'` path: the raw socket rides on the request view under
@@ -18,7 +18,7 @@ import { ABORT_REQUEST, BODY_OVERFLOW, nodeRequest } from "./request.ts"
 import { writeResponse } from "./response.ts"
 import { nodeRequestUrl } from "./url.ts"
 
-/** Options for `serve` from `@lovrozagar/honey/node`: where to listen, and Node's own server settings. */
+/** Options for `serve` from `@workerstack/backend/node`: where to listen, and Node's own server settings. */
 export type NodeServeOptions<TEnv> = {
 	/** Handed to the app as `ctx.env`. Default `{}`. */
 	env?: TEnv

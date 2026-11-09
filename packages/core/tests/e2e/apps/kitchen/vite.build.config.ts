@@ -1,4 +1,4 @@
-import { createBuildPlugin } from "@lovrozagar/honey/build"
+import { createBuildPlugin } from "@workerstack/backend/build"
 import { defaultClientConditions, defaultServerConditions } from "vite"
 import base from "./vite.config.ts"
 

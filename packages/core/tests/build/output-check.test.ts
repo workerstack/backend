@@ -23,7 +23,7 @@ const MARKER = "function compileOutput("
 
 /* one route that answers what its .output() refuses, one with no .output(); a schema of its own, so no validator
  * library is installed */
-const APP = `import { honey } from "@lovrozagar/honey"
+const APP = `import { honey } from "@workerstack/backend"
 const row = {
 	"~standard": {
 		validate: (value) => (typeof value?.id === "string" ? { value } : { issues: [{ message: "id is no string" }] }),
@@ -38,8 +38,8 @@ app.get("/bad").output({ ok: row }).handler((ctx) => ctx.res.json("ok", { id: 1 
 
 /* vite build of src/app.mjs for argv's target into argv's directory, unminified; "keep" sets outputValidation */
 const BUILD = `import { build } from "vite"
-import { createBuildPlugin } from "@lovrozagar/honey/build"
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { createBuildPlugin } from "@workerstack/backend/build"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 const [target, outDir, keep] = process.argv.slice(2)
 await build({
 	configFile: false,
@@ -60,7 +60,7 @@ console.log(answer.status, await answer.text())
 
 beforeAll(() => {
 	const tarballs = pack(files.out)
-	dir = consumer(join(files.out, "app"), { "@lovrozagar/honey": `file:${tarballs.core}` }, ["vite"])
+	dir = consumer(join(files.out, "app"), { "@workerstack/backend": `file:${tarballs.core}` }, ["vite"])
 	write(dir, { "build.mjs": BUILD, "call-worker.mjs": CALL_WORKER, "src/app.mjs": APP })
 }, 180_000)
 afterAll(() => files.done())

@@ -53,7 +53,7 @@ export type HoneyOpenApiOutputConfig = {
 	readonly version: string
 }
 
-/** The MCP handler an app mounts with `mcp(app, path, mcpHandler)` from @lovrozagar/honey/mcp. */
+/** The MCP handler an app mounts with `mcp(app, path, mcpHandler)` from @workerstack/backend/mcp. */
 export type HoneyMcpOutputConfig = {
 	/** leave out every route this answers false for; a tool is a route whose meta has `mcp: true` */
 	readonly filterRoutes?: (route: OpenApiRouteInfo) => boolean

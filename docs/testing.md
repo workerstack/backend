@@ -1,17 +1,17 @@
 # Testing an app
 
-`testClient(app, { env })` from `@lovrozagar/honey/testing` calls your app the way a client would, without a
+`testClient(app, { env })` from `@workerstack/backend/testing` calls your app the way a client would, without a
 server: `get`, `post`, `put`, `patch`, `delete`, `head`, `options`, and `request(method, path)` for any other
 method. Each takes `json`, `form`, `headers` and `search`, and `ip` sets the peer address `ctx.ip` reads.
 
 - **Cookies:** `cookies: true` keeps each answer's `Set-Cookie` and sends the cookies on later requests, honoring
   `Max-Age` and `Expires`.
-- **Real HTTP:** `transport: serve`, with `serve` from `@lovrozagar/honey/node` or `@lovrozagar/honey/bun`, serves the
+- **Real HTTP:** `transport: serve`, with `serve` from `@workerstack/backend/node` or `@workerstack/backend/bun`, serves the
   app on a free local port through that runtime's adapter, for what only a real socket shows; `close()` stops it.
 
 ```ts run
-import { honey } from "@lovrozagar/honey"
-import { testClient } from "@lovrozagar/honey/testing"
+import { honey } from "@workerstack/backend"
+import { testClient } from "@workerstack/backend/testing"
 
 const app = honey()
 app.get("/hello").handler((ctx) => ctx.res.json("ok", { hello: ctx.search.name ?? "world", ip: ctx.ip }))

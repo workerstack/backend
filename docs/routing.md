@@ -4,16 +4,16 @@ A route is a method, a path and a handler. The route builder takes the route's i
 metadata before `.handler()`, and the handler's `ctx` is typed from all of them. Path parameters (`/users/:id`) are
 strings until an input schema validates them. A trailing slash is normalized, so `/users` and `/users/` are one route.
 
-WebSocket routes take `ws(app, path)` from `@lovrozagar/honey/ws`, and `serveOpenApi` and `serveManifest` from
-`@lovrozagar/honey/openapi` mount the generated document and the route manifest. A dotted `operationId`
+WebSocket routes take `ws(app, path)` from `@workerstack/backend/ws`, and `serveOpenApi` and `serveManifest` from
+`@workerstack/backend/openapi` mount the generated document and the route manifest. A dotted `operationId`
 (`users.list`) groups the generated SDK's methods into resources and names the CLI's and MCP's commands.
 
 ## Example
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { serveOpenApi } from "@lovrozagar/honey/openapi"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
+import { honey } from "@workerstack/backend"
+import { serveOpenApi } from "@workerstack/backend/openapi"
+import { scalar } from "@workerstack/backend/openapi/scalar"
 
 const app = honey()
 

@@ -36,7 +36,7 @@ export function importedName(source: string): string {
 
 /** Each place that names the generator package, by where it is declared. */
 export function declaredNames(manifest: Manifest, consumer: Manifest, source: string): Record<string, string[]> {
-	const scoped = (names: readonly string[]) => names.filter((name) => name.startsWith("@lovrozagar/honey-"))
+	const scoped = (names: readonly string[]) => names.filter((name) => name.startsWith("@workerstack/"))
 	return {
 		"core's dynamic import": [importedName(source)],
 		"core's optional peer": scoped(Object.keys(consumer.peerDependencies ?? {})),
@@ -54,14 +54,14 @@ export function disagreeing(declared: Record<string, string[]>, expected: string
 
 describe("the generator package is named the same everywhere (bit 22)", () => {
 	it("reads the name out of generate.ts, and refuses a source that declares none", () => {
-		expect(importedName('const CLIENTS = "@lovrozagar/honey-clients"\n')).toBe("@lovrozagar/honey-clients")
+		expect(importedName('const CLIENTS = "@workerstack/clients"\n')).toBe("@workerstack/clients")
 		expect(() => importedName("const CLIENTS = loadIt()\n")).toThrow("declares no `const CLIENTS")
 	})
 
 	it("holds the manifest, the import and both peer entries to one name", () => {
 		const source = readFileSync(join(ROOT, "packages/core/src/build/generate.ts"), "utf8")
 		const declared = declaredNames(gen, core, source)
-		expect(gen.name).toBe("@lovrozagar/honey-clients")
+		expect(gen.name).toBe("@workerstack/clients")
 		expect(disagreeing(declared, gen.name as string)).toEqual([])
 		/* and every place is actually declared: a missing one is not an agreement */
 		expect(Object.entries(declared).filter(([, names]) => names.length === 0)).toEqual([])
@@ -69,13 +69,13 @@ describe("the generator package is named the same everywhere (bit 22)", () => {
 
 	it("reports each place that drifts, naming it", () => {
 		const declared = declaredNames(
-			{ name: "@lovrozagar/honey-clients" },
-			{ peerDependencies: { "@lovrozagar/honey-codegen": ">=1.0.0" }, peerDependenciesMeta: {} },
-			'const CLIENTS = "@lovrozagar/honey-older"\n',
+			{ name: "@workerstack/clients" },
+			{ peerDependencies: { "@workerstack/clients-codegen": ">=1.0.0" }, peerDependenciesMeta: {} },
+			'const CLIENTS = "@workerstack/clients-older"\n',
 		)
-		expect(disagreeing(declared, "@lovrozagar/honey-clients")).toEqual([
-			"core's dynamic import: @lovrozagar/honey-older",
-			"core's optional peer: @lovrozagar/honey-codegen",
+		expect(disagreeing(declared, "@workerstack/clients")).toEqual([
+			"core's dynamic import: @workerstack/clients-older",
+			"core's optional peer: @workerstack/clients-codegen",
 		])
 	})
 
@@ -88,7 +88,7 @@ describe("the generator package is named the same everywhere (bit 22)", () => {
 	})
 
 	it("keeps the devDependency on the same package, so the workspace link is the shipped name", () => {
-		const dev = Object.keys(core.devDependencies ?? {}).filter((name) => name.startsWith("@lovrozagar/honey-"))
+		const dev = Object.keys(core.devDependencies ?? {}).filter((name) => name.startsWith("@workerstack/"))
 		expect(dev).toEqual([gen.name])
 	})
 })

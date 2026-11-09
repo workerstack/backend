@@ -145,7 +145,7 @@ describe("createErrorTranslator(): the value app.errorI18n carries", () => {
 	it("a raw config handed to app.errorI18n is refused at startup, pointing at createErrorTranslator()", () => {
 		const raw = { errors: {}, resolveLocale: () => "en" } as never
 		expect(() => honey<{}>().errorI18n(raw)).toThrow(
-			"app.errorI18n(): pass createErrorTranslator() from @lovrozagar/honey/i18n",
+			"app.errorI18n(): pass createErrorTranslator() from @workerstack/backend/i18n",
 		)
 	})
 })

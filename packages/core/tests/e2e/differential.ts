@@ -1,4 +1,4 @@
-import type { RouteTree } from "@lovrozagar/honey/tree"
+import type { RouteTree } from "@workerstack/backend/tree"
 
 /**
  * Differential check: an app built from its generated route tree must answer every request

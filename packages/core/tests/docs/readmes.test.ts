@@ -11,7 +11,7 @@ import { dirname, join, normalize } from "node:path"
 import { describe, expect, it } from "vitest"
 import { blocksOf, READMES, REPO } from "../../../gen/src/emit/shared/__fixtures__/docs-blocks.ts"
 
-const BLOB = "https://github.com/lovrozagar/honey/blob/main/"
+const BLOB = "https://github.com/workerstack/backend/blob/main/"
 /* the pages whose links this file holds to resolving */
 const LINKED = [
 	"README.md",
@@ -139,7 +139,7 @@ describe("the npm READMEs are each their package's guide", () => {
 		const readme = read("packages/core/README.md")
 		const has = (pattern: RegExp) => pattern.test(readme)
 		expect([
-			has(/npm install @lovrozagar\/honey@next/),
+			has(/npm install @workerstack\/backend@next/),
 			has(/release candidate/),
 			has(/honey init/),
 			has(/serve\(app/),
@@ -155,7 +155,7 @@ describe("the npm READMEs are each their package's guide", () => {
 		const readme = read("packages/gen/README.md")
 		const targets = ["ts", "go", "rust", "python", "csharp", "java", "cli", "mcp"]
 		expect([
-			/npm install --save-dev @lovrozagar\/honey-clients@next/.test(readme),
+			/npm install --save-dev @workerstack\/clients@next/.test(readme),
 			/honey-clients generate/.test(readme),
 			targets.filter((target) => !new RegExp(`\`${target}\``).test(readme)),
 			readme.includes(`${BLOB}docs/codegen.md`),
@@ -171,8 +171,8 @@ describe("the npm READMEs are each their package's guide", () => {
 		expect([
 			has(/\]\(packages\/core\/README\.md\)/),
 			has(/\]\(packages\/gen\/README\.md\)/),
-			has(/npm install @lovrozagar\/honey@next/),
-			has(/npm install --save-dev @lovrozagar\/honey-clients@next/),
+			has(/npm install @workerstack\/backend@next/),
+			has(/npm install --save-dev @workerstack\/clients@next/),
 			has(/^## Develop$/m),
 			has(/^## Releases$/m),
 			v0Only,
@@ -216,7 +216,7 @@ describe("the npm READMEs cover their package's surface", () => {
 	 */
 	it("core's README names every subpath it exports and every value its root export holds", () => {
 		const readme = read("packages/core/README.md")
-		const subpaths = specifiers(read("packages/core/package.json"), "@lovrozagar/honey")
+		const subpaths = specifiers(read("packages/core/package.json"), "@workerstack/backend")
 		const values = valueExports(read("packages/core/src/index.ts"))
 		expect([
 			subpaths.length > 40,
@@ -239,7 +239,7 @@ describe("the npm READMEs cover their package's surface", () => {
 				.map((path) => read(`packages/gen/${path}`))
 				.join("\n"),
 		)
-		const subpaths = specifiers(read("packages/gen/package.json"), "@lovrozagar/honey-clients")
+		const subpaths = specifiers(read("packages/gen/package.json"), "@workerstack/clients")
 		expect([
 			targets.length,
 			flags.length > 20,
@@ -313,8 +313,8 @@ describe("the exports page", () => {
 	it("lists every subpath either package exports", () => {
 		const page = read("docs/packages.md")
 		const all = [
-			...specifiers(read("packages/core/package.json"), "@lovrozagar/honey"),
-			...specifiers(read("packages/gen/package.json"), "@lovrozagar/honey-clients"),
+			...specifiers(read("packages/core/package.json"), "@workerstack/backend"),
+			...specifiers(read("packages/gen/package.json"), "@workerstack/clients"),
 		]
 		expect(all.filter((name) => !page.includes(`\`${name}\``))).toEqual([])
 	})

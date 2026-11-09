@@ -1,5 +1,5 @@
 /**
- * The build plugin (`@lovrozagar/honey/build`): bundles the app for node, bun or a Cloudflare Worker (H15)
+ * The build plugin (`@workerstack/backend/build`): bundles the app for node, bun or a Cloudflare Worker (H15)
  * from a virtual entry that imports it and starts it the way that target runs an app. Nothing is detected or
  * injected: v1 code-splits through plain dynamic import() (Q4, H23). Bit 21 h: a Worker's module also exports every
  * other named export of the app's entry (a Durable Object class, a WorkerEntrypoint, a Workflow), since a Worker's
@@ -55,7 +55,7 @@ function importApp(app: BuildApp): string {
 /** A server on every interface, as `serve(app)` from the runtime's entry starts one: the process's env, PORT before the configured port. */
 function serverEntry(runtime: "bun" | "node", app: BuildApp, port: number): string {
 	return [
-		`import { serve } from "@lovrozagar/honey/${runtime}"`,
+		`import { serve } from "@workerstack/backend/${runtime}"`,
 		importApp(app),
 		"",
 		`await serve(app, { env: process.env, hostname: "0.0.0.0", port: Number(process.env.PORT ?? ${port}) })`,

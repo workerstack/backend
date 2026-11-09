@@ -193,13 +193,13 @@ dispatched in process through the app, so its middleware, limits and every route
 | Value                               | What it is                                                                                                                                                                                          |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `codegen.mcp`                       | the `honeyPlugin()` output that writes the mounted handler: the entry `src/_gen/mcp.gen.ts` (exporting `mcpHandler`) plus its companion directory `src/_gen/mcp/`, the runtime and the API's TS SDK |
-| `mcp(app, path, handler, options?)` | from `@lovrozagar/honey/mcp`: mounts the generated handler at `path`, POST only (GET and DELETE answer 405), under the app's basePath and middleware, auth before any dispatch                      |
+| `mcp(app, path, handler, options?)` | from `@workerstack/backend/mcp`: mounts the generated handler at `path`, POST only (GET and DELETE answer 405), under the app's basePath and middleware, auth before any dispatch                   |
 | `authenticate(request, ctx)`        | required when any mounted tool's operation declares security, else `mcp()` throws at mount; it returns a boolean only, and `false` gets HTTP 401 with `WWW-Authenticate`                            |
 
 The plugin writes the handler from the app's own routes marked `mcp: true`:
 
 ```ts
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 
 export default { plugins: [honeyPlugin({ app: "src/app.ts", codegen: { mcp: true } })] }
 ```
@@ -207,8 +207,8 @@ export default { plugins: [honeyPlugin({ app: "src/app.ts", codegen: { mcp: true
 The app mounts it, checking the credential before any tool runs:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { type McpHandler, mcp } from "@lovrozagar/honey/mcp"
+import { honey } from "@workerstack/backend"
+import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
 declare const mcpHandler: McpHandler
@@ -237,18 +237,18 @@ The mounted endpoint can act as an OAuth 2.1 resource server, the role the MCP a
 server. honey serves the resource server's discovery half only: it never issues tokens and never checks them. You
 bring the authorization server, and your own code (`authenticate` and each route) validates the token.
 
-| Value                          | What it is                                                                                                                                                                         |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `oauth(options)`               | from `@lovrozagar/honey/mcp/oauth`: the resource server, handed to `mcp()` as its `oauth` option, which then needs `authenticate`; an app that never imports it bundles none of it |
-| `options.authorizationServers` | the issuer URLs of the authorization servers whose tokens the endpoint takes: at least one, each https (http only on a loopback host)                                              |
-| `options.scopesSupported`      | the scopes a client asks for when a 401 names none; `offline_access` is refused                                                                                                    |
-| `options.resource`             | the endpoint's public URL, for an app whose requests don't carry its public origin (behind a proxy); `mcp()` refuses one that isn't the endpoint's own path                        |
-| `options.resourceName`         | the endpoint's name as a user sees it                                                                                                                                              |
+| Value                          | What it is                                                                                                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oauth(options)`               | from `@workerstack/backend/mcp/oauth`: the resource server, handed to `mcp()` as its `oauth` option, which then needs `authenticate`; an app that never imports it bundles none of it |
+| `options.authorizationServers` | the issuer URLs of the authorization servers whose tokens the endpoint takes: at least one, each https (http only on a loopback host)                                                 |
+| `options.scopesSupported`      | the scopes a client asks for when a 401 names none; `offline_access` is refused                                                                                                       |
+| `options.resource`             | the endpoint's public URL, for an app whose requests don't carry its public origin (behind a proxy); `mcp()` refuses one that isn't the endpoint's own path                           |
+| `options.resourceName`         | the endpoint's name as a user sees it                                                                                                                                                 |
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { type McpHandler, mcp } from "@lovrozagar/honey/mcp"
-import { oauth } from "@lovrozagar/honey/mcp/oauth"
+import { honey } from "@workerstack/backend"
+import { type McpHandler, mcp } from "@workerstack/backend/mcp"
+import { oauth } from "@workerstack/backend/mcp/oauth"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
 declare const mcpHandler: McpHandler
@@ -348,7 +348,7 @@ tool error. No shipping client implements the extension yet.
 
 | Value                        | What it is                                                                                                                                                |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `uploads(options)`           | from `@lovrozagar/honey/mcp/uploads`: the uploads, handed to `mcp()` as its `uploads` option; an app that never imports it bundles none of it             |
+| `uploads(options)`           | from `@workerstack/backend/mcp/uploads`: the uploads, handed to `mcp()` as its `uploads` option; an app that never imports it bundles none of it          |
 | `options.secret`             | the HMAC key upload tokens are signed with: at least 32 characters, your app's own secret (an env binding, never in source)                               |
 | `options.store`              | an `UploadStore`, where uploads wait for the retry                                                                                                        |
 | `options.ttlMs`              | how long a token works: 600000 (10 minutes) by default                                                                                                    |
@@ -359,9 +359,9 @@ tool error. No shipping client implements the extension yet.
 | `PUT <path>/uploads/<token>` | the upload route `mcp()` registers: 204 when the bytes are taken                                                                                          |
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { type McpHandler, mcp } from "@lovrozagar/honey/mcp"
-import { memoryUploadStore, uploads } from "@lovrozagar/honey/mcp/uploads"
+import { honey } from "@workerstack/backend"
+import { type McpHandler, mcp } from "@workerstack/backend/mcp"
+import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
 declare const mcpHandler: McpHandler
@@ -416,16 +416,16 @@ plain argument.
 
 | Value               | What it is                                                                                                                                         |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `urlFiles(options)` | from `@lovrozagar/honey/mcp/url-files`: the fetch, handed to `mcp()` as its `urlFiles` option; an app that never imports it bundles none of it     |
+| `urlFiles(options)` | from `@workerstack/backend/mcp/url-files`: the fetch, handed to `mcp()` as its `urlFiles` option; an app that never imports it bundles none of it  |
 | `options.hosts`     | the hosts files come from: each exact (`files.example.com`, or with its port, `files.example.com:8443`), or `*.example.com` for the hosts under it |
 | `options.maxBytes`  | the most bytes a file may hold: 52428800 (50 MiB) by default                                                                                       |
 | `options.timeoutMs` | how long a fetch may take, headers and body: 30000 (30 s) by default                                                                               |
 | `options.fetch`     | the fetch it runs, the platform's by default                                                                                                       |
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { type McpHandler, mcp } from "@lovrozagar/honey/mcp"
-import { urlFiles } from "@lovrozagar/honey/mcp/url-files"
+import { honey } from "@workerstack/backend"
+import { type McpHandler, mcp } from "@workerstack/backend/mcp"
+import { urlFiles } from "@workerstack/backend/mcp/url-files"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
 declare const mcpHandler: McpHandler
@@ -461,7 +461,7 @@ host.
 The plugin writes the handler, the scheme naming the header:
 
 ```ts
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 
 const apiKey = { description: "Format: ApiKey {key}", in: "header", name: "Authorization", type: "apiKey" }
 
@@ -478,10 +478,10 @@ export default {
 The Worker:
 
 ```ts
-import { createMiddleware, honey } from "@lovrozagar/honey"
-import { type McpHandler, mcp } from "@lovrozagar/honey/mcp"
-import { type UploadStore, uploads } from "@lovrozagar/honey/mcp/uploads"
-import { urlFiles } from "@lovrozagar/honey/mcp/url-files"
+import { createMiddleware, honey } from "@workerstack/backend"
+import { type McpHandler, mcp } from "@workerstack/backend/mcp"
+import { type UploadStore, uploads } from "@workerstack/backend/mcp/uploads"
+import { urlFiles } from "@workerstack/backend/mcp/url-files"
 import * as z from "zod"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */

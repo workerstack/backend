@@ -1,12 +1,12 @@
 # User agent
 
-`@lovrozagar/honey/user-agent` reads a `User-Agent` header into a coarse browser, OS and device, for a session list or a
+`@workerstack/backend/user-agent` reads a `User-Agent` header into a coarse browser, OS and device, for a session list or a
 new-device check. It is a function, not a `ctx` field: only the routes that want it pay for it.
 
 ## Example
 
 ```ts run
-import { parseUserAgent } from "@lovrozagar/honey/user-agent"
+import { parseUserAgent } from "@workerstack/backend/user-agent"
 
 const header = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0.0.0 Safari/537.36"
 

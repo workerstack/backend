@@ -64,7 +64,7 @@ media types, build the answer with `ctx.res`.
 ## Example
 
 ```ts
-import { defineErrors, honey } from "@lovrozagar/honey"
+import { defineErrors, honey } from "@workerstack/backend"
 import * as z from "zod"
 
 const errors = defineErrors({})

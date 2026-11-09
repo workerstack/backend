@@ -29,7 +29,7 @@ function init(argv: string[] = []): string[] {
  */
 const served = (app: string) => `
 const { createJiti } = await import("jiti")
-const alias = { "@lovrozagar/honey/openapi/scalar": ${JSON.stringify(join(SRC, "openapi/scalar.ts"))}, "@lovrozagar/honey/openapi": ${JSON.stringify(join(SRC, "openapi/register.ts"))}, "@lovrozagar/honey": ${JSON.stringify(join(SRC, "routing/app.ts"))} }
+const alias = { "@workerstack/backend/openapi/scalar": ${JSON.stringify(join(SRC, "openapi/scalar.ts"))}, "@workerstack/backend/openapi": ${JSON.stringify(join(SRC, "openapi/register.ts"))}, "@workerstack/backend": ${JSON.stringify(join(SRC, "routing/app.ts"))} }
 const { app } = await createJiti(${JSON.stringify(import.meta.url)}, { alias, moduleCache: false }).import(${JSON.stringify(app)})
 const get = (path) => app.fetch(new Request("http://x" + path), {})
 const [health, spec, docs] = await Promise.all([get("/health"), get("/openapi.json"), get("/docs")])
@@ -55,12 +55,12 @@ describe("honey init", () => {
 			cf: [existsSync(join(dir, "wrangler.jsonc")), existsSync(join(dir, "src/worker.ts"))],
 			pkg: pkg(),
 			server: read("src/server.ts").includes("serve(app"),
-			vite: read("vite.config.ts").includes('from "@lovrozagar/honey/plugin"'),
+			vite: read("vite.config.ts").includes('from "@workerstack/backend/plugin"'),
 		}).toEqual({
 			app: true,
 			cf: [false, false],
 			pkg: {
-				dependencies: { "@lovrozagar/honey": expect.stringMatching(/^\^\d+\.\d+\.\d+/) },
+				dependencies: { "@workerstack/backend": expect.stringMatching(/^\^\d+\.\d+\.\d+/) },
 				name: expect.stringMatching(/^honey-init-/),
 				private: true,
 				scripts: { dev: "bun --watch src/server.ts", generate: "honey generate" },
@@ -84,7 +84,7 @@ describe("honey init", () => {
 		mkdirSync(join(dir, "src"))
 		writeFileSync(join(dir, "src/app.ts"), "export const app = null\n")
 		init(["--force"])
-		expect([read("src/app.ts").includes("null"), read("src/app.ts").includes('from "@lovrozagar/honey"')]).toEqual([
+		expect([read("src/app.ts").includes("null"), read("src/app.ts").includes('from "@workerstack/backend"')]).toEqual([
 			false,
 			true,
 		])
@@ -135,7 +135,7 @@ describe("honey init and an existing package.json", () => {
 		writeFileSync(join(dir, "package.json"), JSON.stringify(original))
 		const out = init()
 		expect(pkg()).toEqual({
-			dependencies: { "@lovrozagar/honey": expect.any(String), zod: "^4.0.0" },
+			dependencies: { "@workerstack/backend": expect.any(String), zod: "^4.0.0" },
 			name: "existing",
 			scripts: original.scripts,
 		})
@@ -167,13 +167,13 @@ describe("honey init and an existing package.json", () => {
 
 describe("honey init over a package.json it cannot use as is (bit 19 h1)", () => {
 	it("keeps an existing honey dependency without --force, and names a symbol-only directory honey-app", () => {
-		writeFileSync(join(dir, "package.json"), JSON.stringify({ dependencies: { "@lovrozagar/honey": "^0.9.0" } }))
+		writeFileSync(join(dir, "package.json"), JSON.stringify({ dependencies: { "@workerstack/backend": "^0.9.0" } }))
 		init()
 		const unnamed = join(dir, "-!-")
 		mkdirSync(unnamed)
 		runInit(unnamed, parseInitFlags([]), () => {})
 		const name = (JSON.parse(readFileSync(join(unnamed, "package.json"), "utf8")) as { name: string }).name
-		expect([pkg().dependencies, name]).toEqual([{ "@lovrozagar/honey": "^0.9.0" }, "honey-app"])
+		expect([pkg().dependencies, name]).toEqual([{ "@workerstack/backend": "^0.9.0" }, "honey-app"])
 	})
 
 	it("refuses a package.json that is no JSON, or no object, naming it", () => {

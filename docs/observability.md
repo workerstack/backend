@@ -12,9 +12,9 @@ operator line honey writes for it, so `onError` only maps.
 ## Example
 
 ```ts
-import { HoneyError, honey } from "@lovrozagar/honey"
-import { createLogger } from "@lovrozagar/honey/logger"
-import { requestId } from "@lovrozagar/honey/request-id"
+import { HoneyError, honey } from "@workerstack/backend"
+import { createLogger } from "@workerstack/backend/logger"
+import { requestId } from "@workerstack/backend/request-id"
 
 const app = honey()
 	.use(requestId())

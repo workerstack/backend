@@ -1,5 +1,5 @@
 /**
- * `serve(app, options)` from `@lovrozagar/honey/bun`: `Bun.serve` with the app's fetch, the server
+ * `serve(app, options)` from `@workerstack/backend/bun`: `Bun.serve` with the app's fetch, the server
  * passed in the env so `ctx.ip` and
  * the WebSocket upgrade read it. Bun takes the `websocket` handlers at creation, so a honey app's
  * ws adapter is fixed here: its own `bunWebSocket()`, or one set before `serve()`.
@@ -68,7 +68,7 @@ type BunGlobal = {
 	}): BunServer
 }
 
-/** Options for `serve` from `@lovrozagar/honey/bun`: where to listen, and what Bun's server is given. */
+/** Options for `serve` from `@workerstack/backend/bun`: where to listen, and what Bun's server is given. */
 export type BunServeOptions<TEnv> = {
 	/** Handed to the app as `ctx.env`, in a copy that also carries the server. Default `{}`. */
 	env?: TEnv

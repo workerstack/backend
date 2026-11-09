@@ -1,6 +1,6 @@
 # The build plugin
 
-`honeyPlugin()` from `@lovrozagar/honey/plugin` is a Vite plugin. On each build it writes the app's own
+`honeyPlugin()` from `@workerstack/backend/plugin` is a Vite plugin. On each build it writes the app's own
 artifacts: the typed route tree, the route manifest, each OpenAPI document as JSON, YAML or both, and the types the
 generated clients read. The SDKs, the CLI and the MCP server come from `honey-clients generate`, which reads that
 document; see the code generation page. The config loads through jiti, so it may be TypeScript. A key no option
@@ -10,7 +10,7 @@ and a key read by no one would leave its document unfiltered without a word.
 ## Example
 
 ```ts
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 import { defineConfig } from "vite"
 
 export default defineConfig({
@@ -30,7 +30,7 @@ ends `.yaml` or `.yml`), each other one beside it under the same stem. Naming a 
 (`codegen.assetsDir`, else wrangler's `assets.directory`); see the OpenAPI page.
 
 ```ts
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 
 export default {
 	plugins: [

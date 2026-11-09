@@ -1,4 +1,4 @@
-/** `@lovrozagar/honey/i18n`: the error translations `app.errorI18n(value)` carries, and ICU interpolation. */
+/** `@workerstack/backend/i18n`: the error translations `app.errorI18n(value)` carries, and ICU interpolation. */
 export {
 	type ErrorTranslatorConfig,
 	type ErrorTranslations,

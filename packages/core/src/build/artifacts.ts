@@ -29,7 +29,7 @@ import { type Documented, type Source, sourceOf } from "./source.ts"
 /** This module's path, which generate.ts loads into the app's graph. */
 export const ARTIFACTS = /* @__PURE__ */ fileURLToPath(import.meta.url)
 
-export type Clients = typeof import("@lovrozagar/honey-clients")
+export type Clients = typeof import("@workerstack/clients")
 
 /** Where a generation's diagnostics go, one line each. */
 export type Report = (message: string) => void

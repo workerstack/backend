@@ -1,5 +1,5 @@
 import type { Server } from "bun"
-import { type BunServer, serve } from "@lovrozagar/honey/bun"
+import { type BunServer, serve } from "@workerstack/backend/bun"
 import { loadE2eApp } from "../../load.ts"
 
 const app = loadE2eApp(process.env.HONEY_E2E_APP)

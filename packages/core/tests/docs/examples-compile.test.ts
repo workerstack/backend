@@ -1,5 +1,5 @@
 /**
- * Every TypeScript code block in docs/ compiles against `@lovrozagar/honey` (bit 20), and every `ts run` block runs to
+ * Every TypeScript code block in docs/ compiles against `@workerstack/backend` (bit 20), and every `ts run` block runs to
  * its `// prints:` lines. A block's info string says what it is: `ts` type-checks, `ts run` type-checks and runs,
  * `ts v0`, `sh v0` and `text v0` are v0 "before" blocks shown as text only, `ts rc.20`, `sh rc.20` and `ts rc.21` the
  * same for a 1.0 release candidate's code (the migration guide's rc.20 -> rc.21 and rc.21 -> rc.22 sections), and `sh`,
@@ -31,7 +31,7 @@ const SHOWN = new Set([
 	"http",
 ])
 
-/* inside core, so `@lovrozagar/honey` resolves through the workspace link with core's honey-source condition */
+/* inside core, so `@workerstack/backend` resolves through the workspace link with core's honey-source condition */
 mkdirSync(join(CORE, ".tmp"), { recursive: true })
 const scratch = mkdtempSync(join(CORE, ".tmp/docs-blocks-"))
 afterAll(() => rmSync(scratch, { force: true, recursive: true }))
@@ -91,7 +91,7 @@ describe("the docs' TypeScript blocks", () => {
 	})
 
 	// v0: 164118034d
-	it("type-checks every ts block against @lovrozagar/honey", () => {
+	it("type-checks every ts block against @workerstack/backend", () => {
 		const dir = mkdtempSync(join(scratch, "check-"))
 		expect(typeErrors(compiled, dir)).toEqual([])
 	}, 120_000)
@@ -130,7 +130,7 @@ describe("the docs' compile check itself", () => {
 			'const app = honey().get("/").handler((ctx) => ctx.res.text("ok", "hi"))',
 			"```",
 			"```ts",
-			'import { honey } from "@lovrozagar/honey"',
+			'import { honey } from "@workerstack/backend"',
 			'honey().get("/").handler((ctx) => ctx.res.text("ok", "hi"))',
 			"```",
 		].join("\n")

@@ -82,7 +82,7 @@ async function entry() {
 		 * throws "First argument must be an Error object" at a captureStackTrace on a non-Error (bit 20 k-fix) */
 		if (isBun) return import("../src/build/cli.ts")
 		const { createJiti } = await import("jiti")
-		const alias = { ...sourceAliases("@lovrozagar/honey-clients"), ...importAliases() }
+		const alias = { ...sourceAliases("@workerstack/clients"), ...importAliases() }
 		return createJiti(import.meta.url, { alias, tryNative: false }).import("../src/build/cli.ts")
 	}
 	try {

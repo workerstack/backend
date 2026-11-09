@@ -1,4 +1,4 @@
-import type { RouteTree, TreeNode } from "@lovrozagar/honey/tree"
+import type { RouteTree, TreeNode } from "@workerstack/backend/tree"
 
 function S<T>(o: Record<string, T>): Record<string, T> {
 	return Object.assign(Object.create(null) as Record<string, T>, o)

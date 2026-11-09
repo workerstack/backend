@@ -26,7 +26,7 @@ function fresh(files: Record<string, string> = {}): Project {
 }
 
 const CONFIG = (options: string) =>
-	`import { honeyPlugin } from "@lovrozagar/honey/plugin"\nexport default { plugins: [honeyPlugin(${options})] }\n`
+	`import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin(${options})] }\n`
 const read = (dir: string, path: string) => (existsSync(join(dir, path)) ? readFileSync(join(dir, path), "utf8") : "")
 
 /** `honey generate <args>` on Bun with `env` over the test's own, its TMPDIR an empty one: a cold jiti cache. */
@@ -98,7 +98,7 @@ describe("honey generate --watch on Bun (bit 20 k-fix)", () => {
 			const mark = markOf()
 			const made = fresh({
 				"src/app.ts":
-					'import { honey } from "@lovrozagar/honey"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
+					'import { honey } from "@workerstack/backend"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
 				"src/routes.ts": 'export const path = "/first"\n',
 			})
 			const watch = spawn("bun", [BIN, "generate", "--watch", "--app", "src/app.ts"], {

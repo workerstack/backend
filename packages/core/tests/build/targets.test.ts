@@ -1,8 +1,8 @@
 /**
  * The build plugin end to end (bit 19 h2, ported from v0's build-targets.test.ts): `vite build` of a v1 app for each
  * target, the bundle then served (node, bun) or run by wrangler/workerd (cloudflare), answering its health route and
- * its OpenAPI document. Until the cutover the package name resolves to v0, so `@lovrozagar/honey/node` and
- * `@lovrozagar/honey/bun` are aliased onto v1's source.
+ * its OpenAPI document. Until the cutover the package name resolves to v0, so `@workerstack/backend/node` and
+ * `@workerstack/backend/bun` are aliased onto v1's source.
  */
 import { type ChildProcess, spawn } from "node:child_process"
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
@@ -79,8 +79,8 @@ async function viteBuild(
 		plugins: [createBuildPlugin({ minify: false, outDir, port: PORTS[target], target }, { entry, export: "app" })],
 		resolve: {
 			alias: {
-				"@lovrozagar/honey/bun": resolve(CORE, "src/adapters/bun/serve.ts"),
-				"@lovrozagar/honey/node": resolve(CORE, "src/adapters/node/serve.ts"),
+				"@workerstack/backend/bun": resolve(CORE, "src/adapters/bun/serve.ts"),
+				"@workerstack/backend/node": resolve(CORE, "src/adapters/node/serve.ts"),
 			},
 			conditions: ["honey-source", ...defaultClientConditions],
 		},

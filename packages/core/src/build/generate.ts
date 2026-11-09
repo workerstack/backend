@@ -1,6 +1,6 @@
 /**
  * One generation (bit 19 h2): the app's artifacts made inside its module graph (artifacts.ts, loaded through the
- * loader that imports the app, from the app's own @lovrozagar/honey) and each written only when it changed, through
+ * loader that imports the app, from the app's own @workerstack/backend) and each written only when it changed, through
  * honey-clients's write.ts (Q1).
  * honey-clients is an optional peer, imported on demand (Q2), so a missing one is a named error only when a
  * generation runs. The OpenAPI sources module (plan 39 7.5) reads the config alone, so it is written first, before
@@ -16,11 +16,11 @@ import { openApiSourcesOf } from "./openapi-sources.ts"
 
 export type { Report } from "./artifacts.ts"
 
-const CLIENTS = "@lovrozagar/honey-clients"
-const CORE = "@lovrozagar/honey"
+const CLIENTS = "@workerstack/clients"
+const CORE = "@workerstack/backend"
 
 /** honey-clients, or a named error when it is not installed. */
-export async function loadClients(load = () => import("@lovrozagar/honey-clients")): Promise<Clients> {
+export async function loadClients(load = () => import("@workerstack/clients")): Promise<Clients> {
 	try {
 		return await load()
 	} catch (error) {
@@ -31,7 +31,7 @@ export async function loadClients(load = () => import("@lovrozagar/honey-clients
 	}
 }
 
-/** The root of the @lovrozagar/honey package holding `file`, found up its directories. */
+/** The root of the @workerstack/backend package holding `file`, found up its directories. */
 function packageOf(file: string): string | undefined {
 	for (let dir = dirname(file); dirname(dir) !== dir; dir = dirname(dir)) {
 		const manifest = join(dir, "package.json")
@@ -42,7 +42,7 @@ function packageOf(file: string): string | undefined {
 }
 
 /**
- * artifacts.ts as the app at `root` resolves @lovrozagar/honey (node_modules up from it), at the path it has in this
+ * artifacts.ts as the app at `root` resolves @workerstack/backend (node_modules up from it), at the path it has in this
  * package, so it shares the app's core even when the plugin was loaded from another copy; else this package's own.
  */
 export function artifactsFor(root: string, own = ARTIFACTS): string {

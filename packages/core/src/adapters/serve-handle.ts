@@ -1,5 +1,5 @@
 /**
- * What the two `serve` entries share: `@lovrozagar/honey/node` and `@lovrozagar/honey/bun` each start
+ * What the two `serve` entries share: `@workerstack/backend/node` and `@workerstack/backend/bun` each start
  * the app on their own runtime and answer the same `ServeHandle`, the runtime's own server on it.
  * There is no detection: a server process knows its runtime, so it imports that runtime's entry. On
  * Cloudflare Workers the exported app is the Worker, so there is nothing to start.

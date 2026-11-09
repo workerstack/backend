@@ -2,15 +2,15 @@
  * A consumer with every strictness flag we could plausibly meet in the wild.
  *
  * The point is not what this app does — it is that type-checking it must produce zero
- * diagnostics originating inside @lovrozagar/honey. A package that ships raw TypeScript
+ * diagnostics originating inside @workerstack/backend. A package that ships raw TypeScript
  * inherits the consumer's flags, and `skipLibCheck` does not cover `.ts`, so there is no
  * way for a consumer to opt out of our lint posture.
  */
-import { createMiddleware, defineErrors, honey } from "@lovrozagar/honey"
-import type { InferCtx } from "@lovrozagar/honey"
-import { cors } from "@lovrozagar/honey/cors"
-import { createLogger } from "@lovrozagar/honey/logger"
-import { requestId } from "@lovrozagar/honey/request-id"
+import { createMiddleware, defineErrors, honey } from "@workerstack/backend"
+import type { InferCtx } from "@workerstack/backend"
+import { cors } from "@workerstack/backend/cors"
+import { createLogger } from "@workerstack/backend/logger"
+import { requestId } from "@workerstack/backend/request-id"
 import * as z from "zod"
 
 const errors = defineErrors({ unauthorized: "unauthorized" })

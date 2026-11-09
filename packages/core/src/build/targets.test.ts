@@ -166,7 +166,7 @@ describe("the build entry per target (bit 19 h2)", () => {
 		const entry = entryOf(plugin(target))
 		/* the target's own entry: nothing is detected at run time */
 		expect([
-			entry.includes(`import { serve } from "@lovrozagar/honey/${target}"`),
+			entry.includes(`import { serve } from "@workerstack/backend/${target}"`),
 			entry.includes('await serve(app, { env: process.env, hostname: "0.0.0.0"'),
 			entry.includes("runtime"),
 		]).toEqual([true, true, false])

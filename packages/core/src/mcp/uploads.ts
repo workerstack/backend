@@ -1,5 +1,5 @@
 /**
- * `uploads(options)` (bit 21 g, H24.5), `@lovrozagar/honey/mcp/uploads`: out-of-band file uploads for the mounted MCP
+ * `uploads(options)` (bit 21 g, H24.5), `@workerstack/backend/mcp/uploads`: out-of-band file uploads for the mounted MCP
  * endpoint, handed to `mcp(app, path, handler, { uploads: uploads(options) })`. An ordinary import (H23), so an app
  * that mounts MCP without it bundles none of this. The generated handler asks for an upload when a 2026-07-28 call
  * declares the file-uploads extension and sends a file's metadata without its bytes; here are the rest:

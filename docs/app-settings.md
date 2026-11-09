@@ -3,7 +3,7 @@
 `honey()` builds an app: a Fetch handler with its routes, middleware and settings. Settings chain on the
 app (`.basePath()`, `.context()`, `.use()`, `.onError()`), and every route registered below a handle carries what
 the handle added. The app is a plain `fetch(request, env, ctx)` function, so any runtime that speaks Fetch runs it:
-`serve(app)` from `@lovrozagar/honey/node` on Node or `@lovrozagar/honey/bun` on Bun, or the app itself as a
+`serve(app)` from `@workerstack/backend/node` on Node or `@workerstack/backend/bun` on Bun, or the app itself as a
 Cloudflare Worker.
 
 `telemetry` and `otelAdapter` observe each request: `onRequest`, `onResponse` and `onError` fire once each, and with
@@ -12,7 +12,7 @@ OpenTelemetry the spans nest (`http.request`, then each middleware, then the han
 ## Example
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 
 type Env = { GREETING: string }
 
@@ -31,10 +31,10 @@ same types the chain on `honey()` would give: the meta type, the error factory a
 middleware adds to `ctx`. Each app copies the preset, so a setter on one app, or on the preset later, changes no other.
 
 ```ts
-import { defineErrors, definePreset, honey } from "@lovrozagar/honey"
-import { createErrorTranslator } from "@lovrozagar/honey/i18n"
-import { createLogger } from "@lovrozagar/honey/logger"
-import { requestId } from "@lovrozagar/honey/request-id"
+import { defineErrors, definePreset, honey } from "@workerstack/backend"
+import { createErrorTranslator } from "@workerstack/backend/i18n"
+import { createLogger } from "@workerstack/backend/logger"
+import { requestId } from "@workerstack/backend/request-id"
 
 type Env = { REGION: string }
 type RouteMeta = { team?: string; worker?: "billing" | "search" }

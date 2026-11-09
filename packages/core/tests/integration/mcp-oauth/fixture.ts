@@ -56,7 +56,7 @@ const SCHEMES = {
 /** A running server, as either runtime's `serve` answers it. */
 type Listener = { close(timeout?: number): Promise<void>; readonly url: string }
 
-/** `serve` from `@lovrozagar/honey/node` or `@lovrozagar/honey/bun`: the runtime the world runs on. */
+/** `serve` from `@workerstack/backend/node` or `@workerstack/backend/bun`: the runtime the world runs on. */
 export type Serve = (
 	app: { fetch(request: Request, env: {}): Promise<Response> },
 	options: { hostname: string; port: number },

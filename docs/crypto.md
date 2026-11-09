@@ -1,6 +1,6 @@
 # Crypto
 
-`timingSafeEqual(a, b)` from `@lovrozagar/honey/crypto` compares two secrets without leaking where they
+`timingSafeEqual(a, b)` from `@workerstack/backend/crypto` compares two secrets without leaking where they
 differ: it HMACs both sides under a fresh random key and compares the digests. It runs on WebCrypto, so the same
 code works on Node, Bun and Workers without `node:crypto`. It resolves a `Promise<boolean>`, so await it: an un-awaited
 Promise is always truthy, and `if (timingSafeEqual(a, b))` would let every secret through. TypeScript rejects that
@@ -9,7 +9,7 @@ condition (TS2801); plain JavaScript does not.
 ## Example
 
 ```ts run
-import { timingSafeEqual } from "@lovrozagar/honey/crypto"
+import { timingSafeEqual } from "@workerstack/backend/crypto"
 
 const expected = "s3cret-token"
 if (await timingSafeEqual("s3cret-token", expected)) console.log("token accepted")
@@ -20,13 +20,13 @@ if (!(await timingSafeEqual("guess", expected))) console.log("guess refused")
 
 ## Signing a webhook
 
-`signWebhook({ id, timestamp, body, secrets })` from `@lovrozagar/honey/webhook` answers the three
+`signWebhook({ id, timestamp, body, secrets })` from `@workerstack/backend/webhook` answers the three
 [Standard Webhooks](https://www.standardwebhooks.com) headers for one delivery, so a receiver verifies with any library
 for that scheme. For the events your API declares, `webhookContract` builds the body and signs each attempt through
 it: see [webhooks](capabilities/webhooks.md).
 
 ```ts
-import { signWebhook } from "@lovrozagar/honey/webhook"
+import { signWebhook } from "@workerstack/backend/webhook"
 
 const body = JSON.stringify({ type: "invoice.paid" })
 const headers = await signWebhook({

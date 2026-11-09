@@ -1,10 +1,10 @@
-import type { HoneyContext, WithOutput, HoneyMeta } from "@lovrozagar/honey"
+import type { HoneyContext, WithOutput, HoneyMeta } from "@workerstack/backend"
 
 export type BaseCtx = HoneyContext<unknown>
 
 export type RouteSelector = "GET /articles" | "GET /articles/meta" | "GET /nl/c/:delivery/:url" | "GET /ping" | "GET /users" | "GET /users/:id" | "GET /v1/openapi/spec" | "POST /users"
 
-declare module "@lovrozagar/honey" {
+declare module "@workerstack/backend" {
 	interface HoneyCodegen {
 		routeSelector: RouteSelector
 	}

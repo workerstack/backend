@@ -132,9 +132,9 @@ function isSpan(parent: RemoteContext | Span): parent is Span {
 	return typeof (parent as Partial<Span>).spanContext === "function"
 }
 
-/** The `Telemetry` for `app.telemetry()`, built over the OpenTelemetry API module `api`. Its tracer is named `@lovrozagar/honey`. */
+/** The `Telemetry` for `app.telemetry()`, built over the OpenTelemetry API module `api`. Its tracer is named `@workerstack/backend`. */
 export function otelAdapter(api: OtelApi, options: OtelAdapterOptions = {}): Telemetry {
-	const otel = api.trace.getTracer("@lovrozagar/honey")
+	const otel = api.trace.getTracer("@workerstack/backend")
 	const tracer: Tracer = {
 		run: (span, fn) => api.context.with(api.trace.setSpan(api.context.active(), span), fn),
 		startSpan(name, { attributes, kind, links, parent }) {

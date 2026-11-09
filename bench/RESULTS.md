@@ -14,13 +14,13 @@ Two environments, two matrices each:
 
 Listen path differs by env:
 
-| Framework | Bun                    | Node                                       |
-| --------- | ---------------------- | ------------------------------------------ |
-| Honey     | `Bun.serve({ fetch })` | `serve(app)` from `@lovrozagar/honey/node` |
-| Hono      | `Bun.serve({ fetch })` | `@hono/node-server`                        |
-| Elysia    | `app.listen()` (Bun)   | `@elysia/node` adapter                     |
-| Express   | `app.listen()`         | same                                       |
-| Nest      | `bun run` TS           | `tsx` TS (cannot bun-bundle)               |
+| Framework | Bun                    | Node                                          |
+| --------- | ---------------------- | --------------------------------------------- |
+| Honey     | `Bun.serve({ fetch })` | `serve(app)` from `@workerstack/backend/node` |
+| Hono      | `Bun.serve({ fetch })` | `@hono/node-server`                           |
+| Elysia    | `app.listen()` (Bun)   | `@elysia/node` adapter                        |
+| Express   | `app.listen()`         | same                                          |
+| Nest      | `bun run` TS           | `tsx` TS (cannot bun-bundle)                  |
 
 Bun ports `3100–3104`. Node ports `3300–3304`. Nest size is n/a.
 

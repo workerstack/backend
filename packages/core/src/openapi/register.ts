@@ -1,5 +1,5 @@
 /**
- * `@lovrozagar/honey/openapi`: the app's OpenAPI 3.1 document and route manifest, generated or
+ * `@workerstack/backend/openapi`: the app's OpenAPI 3.1 document and route manifest, generated or
  * served. Each docs page and the static document server is a subpath of its own. A plain subpath:
  * nothing registers itself, and an app that never imports it carries none of it.
  */

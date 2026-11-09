@@ -30,7 +30,7 @@ const MESSAGES = {
 	codegen: "core reaches honey-clients from build/ only",
 	codegenStatic: "core imports honey-clients through import() only: it is an optional peer",
 	escape: "an import stays inside its package's src (no repo path outside it, no sibling package)",
-	internal: "honey-clients reads @lovrozagar/honey through public subpaths only",
+	internal: "honey-clients reads @workerstack/backend through public subpaths only",
 	node: "node builtins are for the Node adapter and build-time code only",
 	tsMorph: "ts-morph is for honey-clients's extract/ only",
 	ws: "ws is for the Node WebSocket adapter only",
@@ -80,11 +80,11 @@ function relativeProblem(where, spec) {
 function packageProblem(where, spec, dynamic) {
 	if (spec === "ws" || spec.startsWith("ws/")) return where.bucket === "node" ? null : "ws"
 	if (spec === "ts-morph") return where.pkg === "gen" && where.rel.startsWith("extract/") ? null : "tsMorph"
-	if (spec.startsWith("@lovrozagar/honey-clients")) {
+	if (spec.startsWith("@workerstack/clients")) {
 		if (where.pkg === "gen") return null
 		return where.bucket !== "build" ? "codegen" : dynamic ? null : "codegenStatic"
 	}
-	if (where.pkg === "gen" && spec.startsWith("@lovrozagar/honey/") && /\/(?:src|dist)\//.test(`${spec}/`)) {
+	if (where.pkg === "gen" && spec.startsWith("@workerstack/backend/") && /\/(?:src|dist)\//.test(`${spec}/`)) {
 		return "internal"
 	}
 	return null

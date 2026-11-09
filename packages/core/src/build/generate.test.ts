@@ -252,7 +252,7 @@ describe("a stale route tree (bit 19 h2, V072-3 under Q3)", () => {
 		return generateRouteTree(old.toRouteTree() as never)
 	}
 	const SELF_LOADING = [
-		'import { honey } from "@lovrozagar/honey"',
+		'import { honey } from "@workerstack/backend"',
 		'import { routeTree } from "./_gen/routes.gen.ts"',
 		"export const app = honey().routeTree(routeTree as never)",
 		'app.get("/a").handler((c) => c.res.text("ok", "a"))',
@@ -303,7 +303,7 @@ describe("honey-clients, an optional peer (bit 19 h2, Q2)", () => {
 		const dir = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "honey-no-codegen-"))
 		projects.push({ dir, done: () => rmSync(dir, { force: true, recursive: true }), write: () => {} })
 		const modules = resolve(import.meta.dirname, "../../../../node_modules")
-		const honeyDir = join(dir, "node_modules/@lovrozagar/honey")
+		const honeyDir = join(dir, "node_modules/@workerstack/backend")
 		mkdirSync(honeyDir, { recursive: true })
 		mkdirSync(join(dir, "src"))
 		cpSync(resolve(import.meta.dirname, ".."), join(dir, "core/src"), { recursive: true })
@@ -315,7 +315,7 @@ describe("honey-clients, an optional peer (bit 19 h2, Q2)", () => {
 		writeFileSync(join(dir, "core/package.json"), JSON.stringify({ imports: flat, type: "module" }))
 		for (const name of ["jiti", "zod"]) symlinkSync(join(modules, name), join(dir, "node_modules", name), "dir")
 		symlinkSync(join(dir, "core/src"), join(honeyDir, "src"), "dir")
-		const pkg = { exports: { ".": "./src/routing/app.ts" }, name: "@lovrozagar/honey", type: "module" }
+		const pkg = { exports: { ".": "./src/routing/app.ts" }, name: "@workerstack/backend", type: "module" }
 		writeFileSync(join(honeyDir, "package.json"), JSON.stringify(pkg))
 		writeFileSync(join(dir, "src/app.ts"), appSource())
 		return dir
@@ -330,8 +330,7 @@ describe("honey-clients, an optional peer (bit 19 h2, Q2)", () => {
 			)
 			const expected = {
 				generation: {
-					error:
-						"honey: generating the app's artifacts needs @lovrozagar/honey-clients: add it to your devDependencies",
+					error: "honey: generating the app's artifacts needs @workerstack/clients: add it to your devDependencies",
 				},
 				off: { ok: null },
 				openApi: { ok: ["code", "moduleType"] },
@@ -344,11 +343,11 @@ describe("honey-clients, an optional peer (bit 19 h2, Q2)", () => {
 
 describe("artifactsFor: the app's own core (bit 19 h2)", () => {
 	it(
-		"loads the artifacts of the app's @lovrozagar/honey, a copy other than this plugin's, and generates the app's routes",
+		"loads the artifacts of the app's @workerstack/backend, a copy other than this plugin's, and generates the app's routes",
 		async () => {
 			const made = fresh({ "src/app.ts": appSource() })
 			expect(artifactsFor(made.dir)).toBe(
-				join(made.dir, "node_modules/@lovrozagar/honey/src", ["bui", "ld"].join(""), "artifacts.ts"),
+				join(made.dir, "node_modules/@workerstack/backend/src", ["bui", "ld"].join(""), "artifacts.ts"),
 			)
 			await generate({ app: "src/app.ts" }, made.dir)
 			expect(read(made.dir, "src/_gen/routes.gen.ts")).toMatch(/"GET \/health"[\s\S]*"POST \/items"/)
@@ -384,11 +383,11 @@ describe("a generation's reports (bit 19 h2)", () => {
 	)
 
 	it("names honey-clients when it is not installed", async () => {
-		const absent = Object.assign(new Error("Cannot find package '@lovrozagar/honey-clients'"), {
+		const absent = Object.assign(new Error("Cannot find package '@workerstack/clients'"), {
 			code: "ERR_MODULE_NOT_FOUND",
 		})
 		await expect(loadClients(() => Promise.reject(absent))).rejects.toThrow(
-			"honey: generating the app's artifacts needs @lovrozagar/honey-clients: add it to your devDependencies",
+			"honey: generating the app's artifacts needs @workerstack/clients: add it to your devDependencies",
 		)
 	})
 })

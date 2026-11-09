@@ -1,8 +1,8 @@
-# @lovrozagar/honey
+# @workerstack/backend
 
 A typed web framework for the Fetch API whose routes are the source of its clients. You write a route once, with its
 input and output schemas; honey serves it on Node, Bun or Cloudflare Workers, and
-[`@lovrozagar/honey-clients`](https://www.npmjs.com/package/@lovrozagar/honey-clients) turns the same routes into an
+[`@workerstack/clients`](https://www.npmjs.com/package/@workerstack/clients) turns the same routes into an
 OpenAPI 3.1 document, typed SDKs for six languages, a command-line client and an MCP server.
 
 Nothing is inferred at runtime: the schemas you declare are what the handler receives, what the document says, and
@@ -39,11 +39,13 @@ package, so nothing here is pseudocode.
 
 ## Install
 
-1.0 is out as a release candidate, published under npm's `next` tag, so an install without a tag still gives 0.7.3.
+honey moved to the workerstack org in 1.0.0-rc.23, and [the migration note](https://github.com/workerstack/backend/blob/main/docs/migrating-to-workerstack.md)
+maps each old package name to its new one. 1.0 is out as a release candidate, published under npm's `next` tag, so
+an install without a tag gets a deprecated placeholder.
 Add `@next` until the final release:
 
 ```sh
-npm install @lovrozagar/honey@next
+npm install @workerstack/backend@next
 npx honey init
 ```
 
@@ -60,7 +62,7 @@ Declare what a route takes and what it answers. `ctx.input` is typed by the sche
 payload for the status key you name:
 
 ```ts
-import { defineErrors, honey } from "@lovrozagar/honey"
+import { defineErrors, honey } from "@workerstack/backend"
 import * as z from "zod"
 
 const errors = defineErrors({ not_found: "not_found" })
@@ -88,10 +90,10 @@ export default app
 Serving is the same for any app, and the reference UI comes from the document the routes already describe:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { serveOpenApi } from "@lovrozagar/honey/openapi"
-import { serve } from "@lovrozagar/honey/node"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
+import { honey } from "@workerstack/backend"
+import { serveOpenApi } from "@workerstack/backend/openapi"
+import { serve } from "@workerstack/backend/node"
+import { scalar } from "@workerstack/backend/openapi/scalar"
 
 const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
@@ -119,7 +121,7 @@ it, `context()` adds static values the handler finds on `ctx`, and `use()` insta
 its descendants.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 
 type Env = { GREETING: string }
 
@@ -136,7 +138,7 @@ export default app
 Settings sit on the same chain and apply to the whole app:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 
 const app = honey()
 	.trailingSlash("strip")
@@ -171,8 +173,8 @@ Apps that share their settings write them once with `definePreset<TEnv>()`, whic
 `use(mw)`. `honey(preset)` starts an app with its own copy, typed as the same chain on `honey()` would be:
 
 ```ts
-import { defineErrors, definePreset, honey } from "@lovrozagar/honey"
-import { requestId } from "@lovrozagar/honey/request-id"
+import { defineErrors, definePreset, honey } from "@workerstack/backend"
+import { requestId } from "@workerstack/backend/request-id"
 
 const errors = defineErrors({ internal_server_error: "internal_server_error" })
 
@@ -187,7 +189,7 @@ const app = honey(platform)
 app.get("/id").handler((ctx) => ctx.res.json("ok", { id: ctx.requestId }))
 ```
 
-Full reference: [the app](https://github.com/lovrozagar/honey/blob/main/docs/app-settings.md).
+Full reference: [the app](https://github.com/workerstack/backend/blob/main/docs/app-settings.md).
 
 ## Routing
 
@@ -195,9 +197,9 @@ One method per call (`get`, `post`, `put`, `patch`, `delete`, `head`, `options`)
 set. Paths take `:params` and a trailing `*` wildcard; `meta()` carries what the document says about the route.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { serveOpenApi } from "@lovrozagar/honey/openapi"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
+import { honey } from "@workerstack/backend"
+import { serveOpenApi } from "@workerstack/backend/openapi"
+import { scalar } from "@workerstack/backend/openapi/scalar"
 
 const app = honey()
 
@@ -214,7 +216,7 @@ serveOpenApi(app, { title: "Users", version: "1.0.0", docs: { "/docs": scalar } 
 Sub-apps mount with `route()`, and `on()` registers one handler for several methods:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 
 const admin = honey()
 admin.get("/stats").handler((ctx) => ctx.res.json("ok", { users: 1 }))
@@ -227,8 +229,8 @@ app.on(["POST", "PUT"], "/webhooks/:source").handler((ctx) => ctx.res.json("acce
 A gateway merges the route trees its services publish, each tree tagged with meta of its own:
 
 ```ts
-import { mergeTree } from "@lovrozagar/honey"
-import type { RouteTree } from "@lovrozagar/honey/tree"
+import { mergeTree } from "@workerstack/backend"
+import type { RouteTree } from "@workerstack/backend/tree"
 
 declare const orders: RouteTree
 declare const billing: RouteTree
@@ -236,7 +238,7 @@ declare const billing: RouteTree
 const gateway = mergeTree([orders, { service: "orders" }], [billing, { service: "billing" }])
 ```
 
-Full reference: [routing](https://github.com/lovrozagar/honey/blob/main/docs/routing.md).
+Full reference: [routing](https://github.com/workerstack/backend/blob/main/docs/routing.md).
 
 ## Input and output
 
@@ -249,7 +251,7 @@ unless `honeyPlugin({ outputValidation: true })` keeps it. A media type other th
 image or a CSV is as typed as a JSON body:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 import * as z from "zod"
 
 const app = honey()
@@ -268,8 +270,8 @@ app
 A body you do not want in memory is input too: `streamed()` leaves a json or form body unread for the handler to stream.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { streamed } from "@lovrozagar/honey/input"
+import { honey } from "@workerstack/backend"
+import { streamed } from "@workerstack/backend/input"
 import * as z from "zod"
 
 const app = honey()
@@ -288,8 +290,8 @@ app
 Content negotiation, when a route answers in more than one shape, reads the request directly:
 
 ```ts
-import { accepts } from "@lovrozagar/honey/accepts"
-import { honey } from "@lovrozagar/honey"
+import { accepts } from "@workerstack/backend/accepts"
+import { honey } from "@workerstack/backend"
 
 const app = honey()
 
@@ -300,7 +302,7 @@ app.get("/report").handler((ctx) => {
 })
 ```
 
-Full reference: [input and output](https://github.com/lovrozagar/honey/blob/main/docs/input-output.md).
+Full reference: [input and output](https://github.com/workerstack/backend/blob/main/docs/input-output.md).
 
 ## Responses
 
@@ -311,7 +313,7 @@ argument is the status key the route declared, which is what makes the payload's
 `redirect` entry, an undeclared media type's helper is gone, and so is `raw`.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 
 const app = honey()
 
@@ -331,11 +333,11 @@ app.get("/bytes").handler((ctx) =>
 Caching, entity tags and byte ranges are middleware and helpers over any of those:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { cacheControl } from "@lovrozagar/honey/cache-control"
-import { etag } from "@lovrozagar/honey/etag"
-import { prettyJson } from "@lovrozagar/honey/pretty-json"
-import { rangeResponse } from "@lovrozagar/honey/range"
+import { honey } from "@workerstack/backend"
+import { cacheControl } from "@workerstack/backend/cache-control"
+import { etag } from "@workerstack/backend/etag"
+import { prettyJson } from "@workerstack/backend/pretty-json"
+import { rangeResponse } from "@workerstack/backend/range"
 
 const video = new Blob([new Uint8Array(1024)], { type: "video/mp4" })
 
@@ -350,13 +352,13 @@ app.get("/video").handler((ctx) => ctx.res.raw(rangeResponse(ctx.req, video)))
 
 `etag()` answers a conditional GET with 304, `rangeResponse` a `Range` request with 206, and `cacheControl` sets the
 header once for every route under it. `httpDate` from the same subpath formats an HTTP date, and `notModified` from
-`@lovrozagar/honey/etag` turns a response into its 304.
+`@workerstack/backend/etag` turns a response into its 304.
 
 Streaming bodies clean up when the client leaves — the generator's `finally` runs:
 
 ```ts run
-import { honey } from "@lovrozagar/honey"
-import { serve } from "@lovrozagar/honey/node"
+import { honey } from "@workerstack/backend"
+import { serve } from "@workerstack/backend/node"
 
 let ended = (_: string) => {}
 const cleanedUp = new Promise<string>((resolve) => (ended = resolve))
@@ -393,10 +395,10 @@ await server.close()
 // prints: cleaned up
 ```
 
-Full reference: [streaming](https://github.com/lovrozagar/honey/blob/main/docs/streaming.md),
-[media types](https://github.com/lovrozagar/honey/blob/main/docs/capabilities/media-types.md),
-[range requests](https://github.com/lovrozagar/honey/blob/main/docs/capabilities/range.md) and
-[Cache-Control](https://github.com/lovrozagar/honey/blob/main/docs/capabilities/cache-control.md).
+Full reference: [streaming](https://github.com/workerstack/backend/blob/main/docs/streaming.md),
+[media types](https://github.com/workerstack/backend/blob/main/docs/capabilities/media-types.md),
+[range requests](https://github.com/workerstack/backend/blob/main/docs/capabilities/range.md) and
+[Cache-Control](https://github.com/workerstack/backend/blob/main/docs/capabilities/cache-control.md).
 
 ## Errors
 
@@ -405,7 +407,7 @@ which keys it can throw with `.errors()`, and those keys are what the document a
 about.
 
 ```ts
-import { defineErrors, honey } from "@lovrozagar/honey"
+import { defineErrors, honey } from "@workerstack/backend"
 
 const errors = defineErrors({ out_of_stock: "conflict" })
 
@@ -426,7 +428,7 @@ Problem Details document under `problem+json`) and its answer keeps that content
 shapes the body of an error `defineErrors` gave a payload schema, which always answers `application/json`.
 
 ```ts
-import { defineErrors, ERROR_META, type ErrorFormatter, HoneyError, honey } from "@lovrozagar/honey"
+import { defineErrors, ERROR_META, type ErrorFormatter, HoneyError, honey } from "@workerstack/backend"
 
 const errors = defineErrors({ db_timeout: "service_unavailable" })
 
@@ -448,8 +450,8 @@ app.get("/").handler((ctx) => ctx.res.text("ok", "up"))
 const refusal = Object.assign(new Error("nope"), { [ERROR_META]: { errorKey: "forbidden", status: 403 } })
 ```
 
-Full reference: [problem+json](https://github.com/lovrozagar/honey/blob/main/docs/capabilities/problem-json.md) and
-[logging, errors and tracing](https://github.com/lovrozagar/honey/blob/main/docs/observability.md).
+Full reference: [problem+json](https://github.com/workerstack/backend/blob/main/docs/capabilities/problem-json.md) and
+[logging, errors and tracing](https://github.com/workerstack/backend/blob/main/docs/observability.md).
 
 ## Middleware
 
@@ -457,10 +459,10 @@ A middleware is a function of `(ctx, next)`. Calling `next({ … })` adds typed 
 it sees — that is how per-request data (a user, a tenant, a database handle) reaches a handler without a global.
 
 ```ts
-import { type MiddlewareFn, honey } from "@lovrozagar/honey"
-import { cors } from "@lovrozagar/honey/cors"
-import { rateLimit } from "@lovrozagar/honey/rate-limit"
-import { secureHeaders } from "@lovrozagar/honey/secure-headers"
+import { type MiddlewareFn, honey } from "@workerstack/backend"
+import { cors } from "@workerstack/backend/cors"
+import { rateLimit } from "@workerstack/backend/rate-limit"
+import { secureHeaders } from "@workerstack/backend/secure-headers"
 
 type UserCtx = { user: { id: string } | null }
 
@@ -482,7 +484,7 @@ app.get("/me").handler((ctx) => ctx.res.json("ok", { user: ctx.user }))
 answer with (each route that mounts it declares them, and its document lists them) and the meta it gives those routes:
 
 ```ts
-import { createMiddleware, defineErrors, honey } from "@lovrozagar/honey"
+import { createMiddleware, defineErrors, honey } from "@workerstack/backend"
 
 const errors = defineErrors({ api_key_missing: "unauthorized" })
 
@@ -501,15 +503,15 @@ app.get("/me").handler((ctx) => ctx.res.json("ok", { at: ctx.at }))
 The bundled set, each its own subpath so an app that does not import it bundles none of it:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { bodyLimit } from "@lovrozagar/honey/body-limit"
-import { compress } from "@lovrozagar/honey/compress"
-import { csrf } from "@lovrozagar/honey/csrf"
-import { ipRestrict } from "@lovrozagar/honey/ip-restrict"
-import { poweredBy } from "@lovrozagar/honey/powered-by"
-import { requestId } from "@lovrozagar/honey/request-id"
-import { serverTiming } from "@lovrozagar/honey/server-timing"
-import { timeout } from "@lovrozagar/honey/timeout"
+import { honey } from "@workerstack/backend"
+import { bodyLimit } from "@workerstack/backend/body-limit"
+import { compress } from "@workerstack/backend/compress"
+import { csrf } from "@workerstack/backend/csrf"
+import { ipRestrict } from "@workerstack/backend/ip-restrict"
+import { poweredBy } from "@workerstack/backend/powered-by"
+import { requestId } from "@workerstack/backend/request-id"
+import { serverTiming } from "@workerstack/backend/server-timing"
+import { timeout } from "@workerstack/backend/timeout"
 
 const app = honey()
 	.use(requestId())
@@ -524,30 +526,30 @@ const app = honey()
 app.get("/report").handler((ctx) => ctx.res.text("ok", "row\n".repeat(5000)))
 ```
 
-| Middleware                      | From                                | What it does                                                                              |
-| ------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------- |
-| `cors(options)`                 | `@lovrozagar/honey/cors`            | the CORS headers and the preflight answer                                                 |
-| `secureHeaders(options?)`       | `@lovrozagar/honey/secure-headers`  | CSP, HSTS and the rest of the hardening headers                                           |
-| `csrf(options?)`                | `@lovrozagar/honey/csrf`            | refuses a cross-origin unsafe method                                                      |
-| `rateLimit(options)`            | `@lovrozagar/honey/rate-limit`      | a window per key, with `memoryRateLimitStore()` or one of your own                        |
-| `compress(options?)`            | `@lovrozagar/honey/compress`        | gzip or brotli over a threshold                                                           |
-| `cacheControl(options)`         | `@lovrozagar/honey/cache-control`   | the `Cache-Control` header, and `httpDate`                                                |
-| `etag(options?)`                | `@lovrozagar/honey/etag`            | an entity tag, 304 on a conditional GET, and `notModified`                                |
-| `prettyJson(options?)`          | `@lovrozagar/honey/pretty-json`     | indents a JSON body when the query asks                                                   |
-| `requestId(options?)`           | `@lovrozagar/honey/request-id`      | one id per request, on the response and in the log                                        |
-| `timeout(options)`              | `@lovrozagar/honey/timeout`         | a deadline per request                                                                    |
-| `bodyLimit(options)`            | `@lovrozagar/honey/body-limit`      | refuses a body over a size, or of a media type it does not list                           |
-| `ipRestrict(options)`           | `@lovrozagar/honey/jwt`             | `signJwt`, `verifyJwt`, `remoteJwks`, `decodeJwtPayload`, `importPkcs8`, `isJwsAlgorithm` |
-| `@lovrozagar/honey/ip-restrict` | an allow or deny list over `ctx.ip` |
-| `ipAllowed(ip, lists)`          | `@lovrozagar/honey/ip-restrict`     | the same check for lists read per request                                                 |
-| `serverTiming()`                | `@lovrozagar/honey/server-timing`   | `Server-Timing`, and `ctx.timing` to add to it                                            |
-| `poweredBy(options?)`           | `@lovrozagar/honey/powered-by`      | the `X-Powered-By` header                                                                 |
-| `staticFiles(options)`          | `@lovrozagar/honey/static`          | serves files under a prefix                                                               |
-| `curlLogger(options?)`          | `@lovrozagar/honey/curl-logger`     | logs each request as the command that would repeat it                                     |
+| Middleware                         | From                                  | What it does                                                                              |
+| ---------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `cors(options)`                    | `@workerstack/backend/cors`           | the CORS headers and the preflight answer                                                 |
+| `secureHeaders(options?)`          | `@workerstack/backend/secure-headers` | CSP, HSTS and the rest of the hardening headers                                           |
+| `csrf(options?)`                   | `@workerstack/backend/csrf`           | refuses a cross-origin unsafe method                                                      |
+| `rateLimit(options)`               | `@workerstack/backend/rate-limit`     | a window per key, with `memoryRateLimitStore()` or one of your own                        |
+| `compress(options?)`               | `@workerstack/backend/compress`       | gzip or brotli over a threshold                                                           |
+| `cacheControl(options)`            | `@workerstack/backend/cache-control`  | the `Cache-Control` header, and `httpDate`                                                |
+| `etag(options?)`                   | `@workerstack/backend/etag`           | an entity tag, 304 on a conditional GET, and `notModified`                                |
+| `prettyJson(options?)`             | `@workerstack/backend/pretty-json`    | indents a JSON body when the query asks                                                   |
+| `requestId(options?)`              | `@workerstack/backend/request-id`     | one id per request, on the response and in the log                                        |
+| `timeout(options)`                 | `@workerstack/backend/timeout`        | a deadline per request                                                                    |
+| `bodyLimit(options)`               | `@workerstack/backend/body-limit`     | refuses a body over a size, or of a media type it does not list                           |
+| `ipRestrict(options)`              | `@workerstack/backend/jwt`            | `signJwt`, `verifyJwt`, `remoteJwks`, `decodeJwtPayload`, `importPkcs8`, `isJwsAlgorithm` |
+| `@workerstack/backend/ip-restrict` | an allow or deny list over `ctx.ip`   |
+| `ipAllowed(ip, lists)`             | `@workerstack/backend/ip-restrict`    | the same check for lists read per request                                                 |
+| `serverTiming()`                   | `@workerstack/backend/server-timing`  | `Server-Timing`, and `ctx.timing` to add to it                                            |
+| `poweredBy(options?)`              | `@workerstack/backend/powered-by`     | the `X-Powered-By` header                                                                 |
+| `staticFiles(options)`             | `@workerstack/backend/static`         | serves files under a prefix                                                               |
+| `curlLogger(options?)`             | `@workerstack/backend/curl-logger`    | logs each request as the command that would repeat it                                     |
 
-Full reference: [middleware](https://github.com/lovrozagar/honey/blob/main/docs/middleware.md),
-[rate limiting](https://github.com/lovrozagar/honey/blob/main/docs/capabilities/rate-limit.md) and
-[compression](https://github.com/lovrozagar/honey/blob/main/docs/capabilities/compress.md).
+Full reference: [middleware](https://github.com/workerstack/backend/blob/main/docs/middleware.md),
+[rate limiting](https://github.com/workerstack/backend/blob/main/docs/capabilities/rate-limit.md) and
+[compression](https://github.com/workerstack/backend/blob/main/docs/capabilities/compress.md).
 
 ## The request context
 
@@ -557,7 +559,7 @@ The handler's `ctx` is one object, and these keys are reserved on it: `req`, `en
 from a middleware's `next({ … })`.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 
 const app = honey()
 
@@ -588,8 +590,8 @@ secrets, newest first, so a rotation keeps the old ones verifying and a value si
 another:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { createCookieSigner } from "@lovrozagar/honey/cookie-sign"
+import { honey } from "@workerstack/backend"
+import { createCookieSigner } from "@workerstack/backend/cookie-sign"
 
 const signer = createCookieSigner({ name: "session", secrets: [process.env.COOKIE_SECRET ?? ""] })
 
@@ -608,10 +610,10 @@ app.get("/me").handler(async (ctx) => {
 })
 ```
 
-`@lovrozagar/honey/cookie` has the header functions on their own (`serializeCookie`, `parseCookieHeader`):
+`@workerstack/backend/cookie` has the header functions on their own (`serializeCookie`, `parseCookieHeader`):
 
 ```ts
-import { parseCookieHeader, serializeCookie } from "@lovrozagar/honey/cookie"
+import { parseCookieHeader, serializeCookie } from "@workerstack/backend/cookie"
 
 declare const req: Request
 
@@ -619,7 +621,7 @@ const jar = parseCookieHeader(req.headers.get("cookie") ?? "")
 const header = serializeCookie("theme", { value: "dark", httpOnly: true, path: "/", sameSite: "lax" })
 ```
 
-Full reference: [cookies](https://github.com/lovrozagar/honey/blob/main/docs/cookies.md).
+Full reference: [cookies](https://github.com/workerstack/backend/blob/main/docs/cookies.md).
 
 ## Streaming, WebSockets and realtime
 
@@ -628,9 +630,9 @@ long-poll, whichever the client can hold — is `realtime(app, path, options)`. 
 route can publish into them.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { realtime } from "@lovrozagar/honey/realtime"
-import { ws } from "@lovrozagar/honey/ws"
+import { honey } from "@workerstack/backend"
+import { realtime } from "@workerstack/backend/realtime"
+import { ws } from "@workerstack/backend/ws"
 
 const app = honey()
 
@@ -657,8 +659,8 @@ app.post("/announce").handler(async (ctx) => {
 A publisher outside a connection works the same way, which is what a ticker is:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { realtime } from "@lovrozagar/honey/realtime"
+import { honey } from "@workerstack/backend"
+import { realtime } from "@workerstack/backend/realtime"
 
 const app = honey()
 
@@ -673,14 +675,14 @@ setInterval(() => prices.publish("ticker", { eur: 1.08, at: Date.now() }), 1000)
 ```
 
 `serve()` picks the adapter for Node and Bun; a Worker sets one itself. `createWsSession` from
-`@lovrozagar/honey/ws/session` is the session runtime those adapters share, for an adapter of your own:
+`@workerstack/backend/ws/session` is the session runtime those adapters share, for an adapter of your own:
 
 ```ts
-import { createWsSession } from "@lovrozagar/honey/ws/session"
-import { bunWebSocket } from "@lovrozagar/honey/ws/bun"
-import { workersWebSocket } from "@lovrozagar/honey/ws/workers"
-import { nodeWebSocket } from "@lovrozagar/honey/ws/node"
-import { honey } from "@lovrozagar/honey"
+import { createWsSession } from "@workerstack/backend/ws/session"
+import { bunWebSocket } from "@workerstack/backend/ws/bun"
+import { workersWebSocket } from "@workerstack/backend/ws/workers"
+import { nodeWebSocket } from "@workerstack/backend/ws/node"
+import { honey } from "@workerstack/backend"
 
 /* each runtime's adapter; serve() sets the first two, a Worker entry the third */
 const adapters = [bunWebSocket(), nodeWebSocket(), workersWebSocket()]
@@ -699,8 +701,8 @@ const session = createWsSession({
 `nodeWebSocket()` needs the optional `ws` peer installed; the Bun and Workers adapters use their runtime's own
 sockets. A resumed connection replays from the client's `Last-Event-ID` or `reconnect_token`.
 
-Full reference: [WebSockets, realtime and SSE](https://github.com/lovrozagar/honey/blob/main/docs/realtime.md) and
-[realtime resume](https://github.com/lovrozagar/honey/blob/main/docs/capabilities/realtime-resume.md).
+Full reference: [WebSockets, realtime and SSE](https://github.com/workerstack/backend/blob/main/docs/realtime.md) and
+[realtime resume](https://github.com/workerstack/backend/blob/main/docs/capabilities/realtime-resume.md).
 
 ## Serving on Node, Bun and Cloudflare Workers
 
@@ -708,13 +710,13 @@ One app runs on each of them; only how it is served differs.
 
 | Runtime            | How it runs                                                                                                                      |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| Node               | `serve(app)` from `@lovrozagar/honey/node`                                                                                       |
-| Bun                | `serve(app)` from `@lovrozagar/honey/bun`, or `Bun.serve({ fetch: app.fetch })`                                                  |
+| Node               | `serve(app)` from `@workerstack/backend/node`                                                                                    |
+| Bun                | `serve(app)` from `@workerstack/backend/bun`, or `Bun.serve({ fetch: app.fetch })`                                               |
 | Cloudflare Workers | `export default app` — the Worker's `fetch` handler, with named exports beside it; `scheduled` and `queue` move onto the default |
 
 ```ts
-import { honey, toFetchRequest } from "@lovrozagar/honey"
-import { serve } from "@lovrozagar/honey/node"
+import { honey, toFetchRequest } from "@workerstack/backend"
+import { serve } from "@workerstack/backend/node"
 
 const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
@@ -734,8 +736,8 @@ listens, to a `ServeHandle`: the bound `port` and `url`, a `close()` that drains
 `server`, typed as that runtime types it (Node's `http.Server`, Bun's `Server`):
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { serve } from "@lovrozagar/honey/bun"
+import { honey } from "@workerstack/backend"
+import { serve } from "@workerstack/backend/bun"
 
 const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
@@ -748,7 +750,7 @@ await server.close()
 On Workers the app is the default export, and `app.fetch` the handler to wrap when you need to:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 
 type Env = { readonly SECRET: string }
 
@@ -764,9 +766,9 @@ export default { fetch: (...args: Parameters<typeof app.fetch>) => app.fetch(...
 read — honey never assumes a filesystem.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { cacheControl } from "@lovrozagar/honey/cache-control"
-import { staticFiles } from "@lovrozagar/honey/static"
+import { honey } from "@workerstack/backend"
+import { cacheControl } from "@workerstack/backend/cache-control"
+import { staticFiles } from "@workerstack/backend/static"
 
 const assets = new Map<string, Blob>([["/app.js", new Blob(["console.log(1)"])]])
 
@@ -779,8 +781,8 @@ const app = honey()
 upstream is explicit and nothing is reachable by accident.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { proxy } from "@lovrozagar/honey/proxy"
+import { honey } from "@workerstack/backend"
+import { proxy } from "@workerstack/backend/proxy"
 
 const app = honey()
 
@@ -793,8 +795,8 @@ app.all("/billing/*").handler(
 )
 ```
 
-Full reference: [static files](https://github.com/lovrozagar/honey/blob/main/docs/static.md) and
-[proxying and gateways](https://github.com/lovrozagar/honey/blob/main/docs/proxy.md).
+Full reference: [static files](https://github.com/workerstack/backend/blob/main/docs/static.md) and
+[proxying and gateways](https://github.com/workerstack/backend/blob/main/docs/proxy.md).
 
 ## The OpenAPI document
 
@@ -803,9 +805,9 @@ you the document as a value instead, for a file you commit or a build step. Tags
 externalDocs and webhooks are all declared, never guessed.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { serveOpenApi } from "@lovrozagar/honey/openapi"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
+import { honey } from "@workerstack/backend"
+import { serveOpenApi } from "@workerstack/backend/openapi"
+import { scalar } from "@workerstack/backend/openapi/scalar"
 
 const app = honey()
 
@@ -826,10 +828,10 @@ serveOpenApi(app, {
 The document as a value, the route manifest, YAML, and either reference page explicitly:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { generateManifest, generateOpenApi, serveManifest, toYaml } from "@lovrozagar/honey/openapi"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
-import { swagger } from "@lovrozagar/honey/openapi/swagger"
+import { honey } from "@workerstack/backend"
+import { generateManifest, generateOpenApi, serveManifest, toYaml } from "@workerstack/backend/openapi"
+import { scalar } from "@workerstack/backend/openapi/scalar"
+import { swagger } from "@workerstack/backend/openapi/swagger"
 
 const app = honey()
 app.get("/orders").handler((ctx) => ctx.res.json("ok", []))
@@ -848,9 +850,9 @@ Webhooks, the requests your API sends out, are declared once as a contract: the 
 Standard Webhooks delivery, and the contract signs each attempt:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { serveOpenApi } from "@lovrozagar/honey/openapi"
-import { webhookContract } from "@lovrozagar/honey/webhook"
+import { honey } from "@workerstack/backend"
+import { serveOpenApi } from "@workerstack/backend/openapi"
+import { webhookContract } from "@workerstack/backend/webhook"
 import * as z from "zod"
 
 const events = webhookContract({
@@ -869,12 +871,12 @@ const { body, headers } = await events.sign(
 await fetch("https://example.com/hook", { body, headers, method: "POST" })
 ```
 
-Full reference: [the OpenAPI document](https://github.com/lovrozagar/honey/blob/main/docs/openapi.md) and
-[webhooks](https://github.com/lovrozagar/honey/blob/main/docs/capabilities/webhooks.md).
+Full reference: [the OpenAPI document](https://github.com/workerstack/backend/blob/main/docs/openapi.md) and
+[webhooks](https://github.com/workerstack/backend/blob/main/docs/capabilities/webhooks.md).
 
 ## Serving a prebuilt or external document
 
-`serveStaticOpenApi(app, options)` from `@lovrozagar/honey/openapi/static` serves a document someone has already
+`serveStaticOpenApi(app, options)` from `@workerstack/backend/openapi/static` serves a document someone has already
 built. Nothing generates it, so the generator never reaches the bundle: an app that serves its document this way
 carries about 1.2 KB gzipped over a bare `honey()`. Reach for it when the build plugin already wrote the document to
 disk, when a gateway serves a document assembled elsewhere, or when a Worker should answer the spec without parsing
@@ -884,9 +886,9 @@ document, which is the usual case.
 The source is an inline value, a Workers asset binding, a URL, or a loader of your own:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
-import { serveStaticOpenApi } from "@lovrozagar/honey/openapi/static"
+import { honey } from "@workerstack/backend"
+import { scalar } from "@workerstack/backend/openapi/scalar"
+import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"
 
 /* a document you already have as a value: serialized once, on the first request */
 const inline = serveStaticOpenApi(honey(), {
@@ -925,7 +927,7 @@ No copy script is needed to put the bytes where a Worker can read them: point th
 assets directory wrangler serves, and codegen writes both files there on every generate.
 
 ```ts
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 
 export default {
 	plugins: [
@@ -943,7 +945,7 @@ kept, so the next request tries again, but a load that succeeded is never refres
 server serving a `url` source keeps the document it first fetched until it restarts or redeploys. A failing asset,
 an unbound binding and a failing loader are a 500; a URL that fails or answers non-2xx is a 502.
 
-Full reference: [the OpenAPI document](https://github.com/lovrozagar/honey/blob/main/docs/openapi.md).
+Full reference: [the OpenAPI document](https://github.com/workerstack/backend/blob/main/docs/openapi.md).
 
 ## The MCP server
 
@@ -955,8 +957,8 @@ included — dispatches in process, and is guarded by the app's own auth. It is 
 `mcp(app, path, handler, options)` mounts the handler `codegen.mcp` generated beside your app:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { type McpHandler, mcp } from "@lovrozagar/honey/mcp"
+import { honey } from "@workerstack/backend"
+import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
 declare const mcpHandler: McpHandler
@@ -972,11 +974,11 @@ Bearer challenges), which is what ChatGPT requires; `uploads()` takes files out 
 through a tool argument; `urlFiles()` lets a file argument be an https URL from a host you list.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { type McpHandler, mcp } from "@lovrozagar/honey/mcp"
-import { oauth } from "@lovrozagar/honey/mcp/oauth"
-import { memoryUploadStore, uploads } from "@lovrozagar/honey/mcp/uploads"
-import { urlFiles } from "@lovrozagar/honey/mcp/url-files"
+import { honey } from "@workerstack/backend"
+import { type McpHandler, mcp } from "@workerstack/backend/mcp"
+import { oauth } from "@workerstack/backend/mcp/oauth"
+import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"
+import { urlFiles } from "@workerstack/backend/mcp/url-files"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
 declare const mcpHandler: McpHandler
@@ -1000,8 +1002,8 @@ mcp(app, "/mcp", mcpHandler, {
 bytes), and the MCP page shows that end to end. Only a route marked `meta({ mcp: true })` becomes a tool, and each
 tool's input and output schemas come from the route's own.
 
-Full reference: [the generated MCP server](https://github.com/lovrozagar/honey/blob/main/docs/mcp.md) and
-[MCP structured output](https://github.com/lovrozagar/honey/blob/main/docs/capabilities/mcp-structured-output.md).
+Full reference: [the generated MCP server](https://github.com/workerstack/backend/blob/main/docs/mcp.md) and
+[MCP structured output](https://github.com/workerstack/backend/blob/main/docs/capabilities/mcp-structured-output.md).
 
 ## Logging and tracing
 
@@ -1009,9 +1011,9 @@ Full reference: [the generated MCP server](https://github.com/lovrozagar/honey/b
 to a response before the error is reported.
 
 ```ts
-import { HoneyError, honey } from "@lovrozagar/honey"
-import { createLogger } from "@lovrozagar/honey/logger"
-import { requestId } from "@lovrozagar/honey/request-id"
+import { HoneyError, honey } from "@workerstack/backend"
+import { createLogger } from "@workerstack/backend/logger"
+import { requestId } from "@workerstack/backend/request-id"
 
 const app = honey()
 	.use(requestId())
@@ -1030,9 +1032,9 @@ W3C `traceparent`, so a span from a caller stays one trace. With it on, the logg
 `span_id`, and `requestId` stays the client-facing id.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { createLogger } from "@lovrozagar/honey/logger"
-import { otelAdapter, type OtelApi } from "@lovrozagar/honey/telemetry/otel"
+import { honey } from "@workerstack/backend"
+import { createLogger } from "@workerstack/backend/logger"
+import { otelAdapter, type OtelApi } from "@workerstack/backend/telemetry/otel"
 
 declare const api: OtelApi
 
@@ -1048,9 +1050,9 @@ A request logged as the command that would repeat it is its own middleware, and 
 its own for a failing call you want to paste into a terminal — both redact credentials by default:
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { curlLogger } from "@lovrozagar/honey/curl-logger"
-import { requestToCurl } from "@lovrozagar/honey/request-to-curl"
+import { honey } from "@workerstack/backend"
+import { curlLogger } from "@workerstack/backend/curl-logger"
+import { requestToCurl } from "@workerstack/backend/request-to-curl"
 
 declare const req: Request
 
@@ -1061,14 +1063,14 @@ app.get("/").handler((ctx) => ctx.res.text("ok", "up"))
 const command = await requestToCurl(req, { excludeHeader: (name) => name === "authorization" })
 ```
 
-Full reference: [logging, errors and tracing](https://github.com/lovrozagar/honey/blob/main/docs/observability.md).
+Full reference: [logging, errors and tracing](https://github.com/workerstack/backend/blob/main/docs/observability.md).
 
 ## Internationalization and crypto
 
 Error messages translate through a dictionary you supply, and ICU messages interpolate with plurals:
 
 ```ts run
-import { interpolate } from "@lovrozagar/honey/i18n"
+import { interpolate } from "@workerstack/backend/i18n"
 
 const message = "{count, plural, one {# new message} other {# new messages}} for {name}"
 console.log(interpolate(message, { count: 3, name: "Ada" }, "en"))
@@ -1076,8 +1078,8 @@ console.log(interpolate(message, { count: 3, name: "Ada" }, "en"))
 ```
 
 ```ts
-import { defineErrors, honey } from "@lovrozagar/honey"
-import { createErrorTranslator, translateError } from "@lovrozagar/honey/i18n"
+import { defineErrors, honey } from "@workerstack/backend"
+import { createErrorTranslator, translateError } from "@workerstack/backend/i18n"
 
 const errors = defineErrors({ not_found: "not_found" })
 
@@ -1099,7 +1101,7 @@ const german = translateError(errors.not_found(), translations, "de")
 Crypto is WebCrypto, with the comparison that does not leak by timing. It resolves a boolean, so await it:
 
 ```ts run
-import { timingSafeEqual } from "@lovrozagar/honey/crypto"
+import { timingSafeEqual } from "@workerstack/backend/crypto"
 
 const expected = "s3cret-token"
 if (await timingSafeEqual("s3cret-token", expected)) console.log("token accepted")
@@ -1108,12 +1110,12 @@ if (!(await timingSafeEqual("guess", expected))) console.log("guess refused")
 // prints: guess refused
 ```
 
-Full reference: [internationalization](https://github.com/lovrozagar/honey/blob/main/docs/i18n.md),
-[crypto](https://github.com/lovrozagar/honey/blob/main/docs/crypto.md),
-[JWT](https://github.com/lovrozagar/honey/blob/main/docs/jwt.md),
-[user agent](https://github.com/lovrozagar/honey/blob/main/docs/user-agent.md),
-[cron](https://github.com/lovrozagar/honey/blob/main/docs/cron.md) and
-[queue](https://github.com/lovrozagar/honey/blob/main/docs/queue.md).
+Full reference: [internationalization](https://github.com/workerstack/backend/blob/main/docs/i18n.md),
+[crypto](https://github.com/workerstack/backend/blob/main/docs/crypto.md),
+[JWT](https://github.com/workerstack/backend/blob/main/docs/jwt.md),
+[user agent](https://github.com/workerstack/backend/blob/main/docs/user-agent.md),
+[cron](https://github.com/workerstack/backend/blob/main/docs/cron.md) and
+[queue](https://github.com/workerstack/backend/blob/main/docs/queue.md).
 
 ## Testing
 
@@ -1122,8 +1124,8 @@ over real HTTP when you ask for it. Request fields a handler reads but a test ca
 options rather than mocks.
 
 ```ts run
-import { honey } from "@lovrozagar/honey"
-import { testClient } from "@lovrozagar/honey/testing"
+import { honey } from "@workerstack/backend"
+import { testClient } from "@workerstack/backend/testing"
 
 const app = honey()
 app.get("/hello").handler((ctx) => ctx.res.json("ok", { hello: ctx.search.name ?? "world", ip: ctx.ip }))
@@ -1134,8 +1136,8 @@ console.log(answer.status, JSON.stringify(await answer.json()))
 // prints: 200 {"hello":"Ada","ip":"203.0.113.7"}
 ```
 
-Full reference: [testing an app](https://github.com/lovrozagar/honey/blob/main/docs/testing.md) and
-[SDK conformance](https://github.com/lovrozagar/honey/blob/main/docs/conformance.md), which is how the generated
+Full reference: [testing an app](https://github.com/workerstack/backend/blob/main/docs/testing.md) and
+[SDK conformance](https://github.com/workerstack/backend/blob/main/docs/conformance.md), which is how the generated
 clients are held to behaving alike.
 
 ## The build plugin and the honey CLI
@@ -1144,7 +1146,7 @@ The Vite plugin writes the app's artifacts — the route tree, the types, the ma
 MCP handler — at build start, and again on each save in dev:
 
 ```ts
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 import { defineConfig } from "vite"
 
 export default defineConfig({
@@ -1155,7 +1157,7 @@ export default defineConfig({
 What it generates is `codegen`, and each output takes a path or a config of its own:
 
 ```ts
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 
 export default {
 	plugins: [
@@ -1180,10 +1182,10 @@ export default {
 }
 ```
 
-`@lovrozagar/honey/build` adds the production bundle for a deploy target, so `vite build` emits one file to run:
+`@workerstack/backend/build` adds the production bundle for a deploy target, so `vite build` emits one file to run:
 
 ```ts
-import { createBuildPlugin } from "@lovrozagar/honey/build"
+import { createBuildPlugin } from "@workerstack/backend/build"
 import { defineConfig } from "vite"
 
 export default defineConfig({
@@ -1214,7 +1216,7 @@ honey init --workers --force
 
 The SDKs, the CLI and the MCP server are honey-clients's: `honey-clients generate --app <path>`.
 
-Full reference: [the build plugin](https://github.com/lovrozagar/honey/blob/main/docs/plugin.md).
+Full reference: [the build plugin](https://github.com/workerstack/backend/blob/main/docs/plugin.md).
 
 ## Generated clients
 
@@ -1257,80 +1259,80 @@ export async function health(client: Kitchen): Promise<string> {
 ```
 
 That block is a verbatim slice of
-[the compiled example](https://github.com/lovrozagar/honey/blob/main/docs/examples/ts/example.ts): the tests
+[the compiled example](https://github.com/workerstack/backend/blob/main/docs/examples/ts/example.ts): the tests
 type-check it against an SDK generated from a real document, so it cannot drift from what the generator writes.
 
-Full reference: [code generation](https://github.com/lovrozagar/honey/blob/main/docs/codegen.md),
-[the generated clients](https://github.com/lovrozagar/honey/blob/main/docs/client.md),
-[their per-language recipes](https://github.com/lovrozagar/honey/blob/main/docs/sdk-recipes.md),
-[the generated CLI](https://github.com/lovrozagar/honey/blob/main/docs/cli.md) and
-[releasing it](https://github.com/lovrozagar/honey/blob/main/docs/cli-release.md).
+Full reference: [code generation](https://github.com/workerstack/backend/blob/main/docs/codegen.md),
+[the generated clients](https://github.com/workerstack/backend/blob/main/docs/client.md),
+[their per-language recipes](https://github.com/workerstack/backend/blob/main/docs/sdk-recipes.md),
+[the generated CLI](https://github.com/workerstack/backend/blob/main/docs/cli.md) and
+[releasing it](https://github.com/workerstack/backend/blob/main/docs/cli-release.md).
 
 ## Every export
 
 Each feature is a subpath: import what the app uses, and a bundle carries nothing else. An app that never imports
-`@lovrozagar/honey/ws` bundles no WebSocket code, and one that never imports `@lovrozagar/honey/openapi` no document
+`@workerstack/backend/ws` bundles no WebSocket code, and one that never imports `@workerstack/backend/openapi` no document
 generator.
 
-| Export                              | What it holds                                                                                                            |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `@lovrozagar/honey`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                       |
-| `@lovrozagar/honey/node`            | `serve(app, options)` on Node's `node:http`                                                                              |
-| `@lovrozagar/honey/bun`             | `serve(app, options)` on `Bun.serve`                                                                                     |
-| `@lovrozagar/honey/ws`              | `ws(app, path)`, a WebSocket route                                                                                       |
-| `@lovrozagar/honey/ws/bun`          | `bunWebSocket`                                                                                                           |
-| `@lovrozagar/honey/ws/node`         | `nodeWebSocket` (with the optional `ws` peer)                                                                            |
-| `@lovrozagar/honey/webhook`         | `signWebhook`                                                                                                            |
-| `@lovrozagar/honey/cron`            | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`                                   |
-| `@lovrozagar/honey/cron/serve`      | `serveCron`, `ServeCronOptions`, `CronHandle`, `CronFailure`                                                             |
-| `@lovrozagar/honey/cron/workers`    | `workersCron`, `WorkersScheduledController`                                                                              |
-| `@lovrozagar/honey/queue`           | `queueContract`, `queueMessage`, `defineConsumer`, `deadLetter`, `QueueBodyError`, `QueueDeadLetter`, and their types    |
-| `@lovrozagar/honey/queue/serve`     | `serveQueue`, `memoryQueueStore`, `QueueStore`, `ServeQueueOptions`, `QueueHandle`, `QueueFailure` and the store's types |
-| `@lovrozagar/honey/queue/workers`   | `workersQueue`, `WorkersQueueOptions` and the binding's types                                                            |
-| `@lovrozagar/honey/user-agent`      | `parseUserAgent`, `ParsedUserAgent`, `DeviceType`                                                                        |
-| `@lovrozagar/honey/ws/workers`      | `workersWebSocket`                                                                                                       |
-| `@lovrozagar/honey/ws/session`      | `createWsSession`: the session runtime a custom WebSocket adapter builds on                                              |
-| `@lovrozagar/honey/realtime`        | `realtime(app, path, options)`: a resumable connection over WebSocket, SSE and long-poll                                 |
-| `@lovrozagar/honey/mcp`             | `mcp(app, path, handler, options?)`: the app's tools over MCP's Streamable HTTP, the handler `codegen.mcp` writes        |
-| `@lovrozagar/honey/mcp/oauth`       | `oauth(options)`: `mcp()`'s opt-in OAuth 2.1 resource server (RFC 9728 metadata, Bearer challenges)                      |
-| `@lovrozagar/honey/mcp/uploads`     | `uploads(options)`, `memoryUploadStore()`: `mcp()`'s opt-in out-of-band file uploads (the file-uploads extension's flow) |
-| `@lovrozagar/honey/mcp/url-files`   | `urlFiles(options)`: `mcp()`'s opt-in file arguments as https URLs from listed hosts                                     |
-| `@lovrozagar/honey/openapi`         | `serveOpenApi`, `serveManifest`, `generateOpenApi`, `generateManifest`, `toYaml`                                         |
-| `@lovrozagar/honey/openapi/auth`    | `basic`, `credentialsMatch`: HTTP Basic in front of a served document and its docs pages                                 |
-| `@lovrozagar/honey/openapi/scalar`  | `scalar`, the Scalar API reference page                                                                                  |
-| `@lovrozagar/honey/openapi/static`  | `serveStaticOpenApi`, a document built ahead of time or living elsewhere, served without the generator                   |
-| `@lovrozagar/honey/openapi/swagger` | `swagger`, the Swagger UI page                                                                                           |
-| `@lovrozagar/honey/i18n`            | `createErrorTranslator`, `translateError`, `interpolate`, `createInterpolator`                                           |
-| `@lovrozagar/honey/input`           | `streamed()`, a request body left unread for the handler                                                                 |
-| `@lovrozagar/honey/range`           | `rangeResponse`, a `Range` request answered from bytes                                                                   |
-| `@lovrozagar/honey/cache-control`   | `cacheControl`, `httpDate`                                                                                               |
-| `@lovrozagar/honey/compress`        | `compress`                                                                                                               |
-| `@lovrozagar/honey/etag`            | `etag`, `notModified`                                                                                                    |
-| `@lovrozagar/honey/rate-limit`      | `rateLimit`, `memoryRateLimitStore`                                                                                      |
-| `@lovrozagar/honey/cors`            | `cors`                                                                                                                   |
-| `@lovrozagar/honey/csrf`            | `csrf`                                                                                                                   |
-| `@lovrozagar/honey/body-limit`      | `bodyLimit`                                                                                                              |
-| `@lovrozagar/honey/timeout`         | `timeout`                                                                                                                |
-| `@lovrozagar/honey/ip-restrict`     | `ipRestrict`, `ipAllowed`, `isIpRule`                                                                                    |
-| `@lovrozagar/honey/request-id`      | `requestId`                                                                                                              |
-| `@lovrozagar/honey/secure-headers`  | `secureHeaders`                                                                                                          |
-| `@lovrozagar/honey/server-timing`   | `serverTiming`                                                                                                           |
-| `@lovrozagar/honey/powered-by`      | `poweredBy`                                                                                                              |
-| `@lovrozagar/honey/pretty-json`     | `prettyJson`                                                                                                             |
-| `@lovrozagar/honey/logger`          | `createLogger`                                                                                                           |
-| `@lovrozagar/honey/curl-logger`     | `curlLogger`, a request logged as a command that repeats it                                                              |
-| `@lovrozagar/honey/telemetry/otel`  | `otelAdapter`                                                                                                            |
-| `@lovrozagar/honey/static`          | `staticFiles`                                                                                                            |
-| `@lovrozagar/honey/proxy`           | `proxy`, a route that forwards to an upstream                                                                            |
-| `@lovrozagar/honey/accepts`         | `accepts`, content negotiation                                                                                           |
-| `@lovrozagar/honey/cookie`          | `serializeCookie`, `parseCookieHeader`                                                                                   |
-| `@lovrozagar/honey/cookie-sign`     | `createCookieSigner`                                                                                                     |
-| `@lovrozagar/honey/crypto`          | `timingSafeEqual`                                                                                                        |
-| `@lovrozagar/honey/request-to-curl` | `requestToCurl`                                                                                                          |
-| `@lovrozagar/honey/testing`         | `testClient`, an app called in process or over a runtime's `serve`                                                       |
-| `@lovrozagar/honey/tree`            | the route tree's types                                                                                                   |
-| `@lovrozagar/honey/plugin`          | `honeyPlugin()`, the Vite plugin that generates the app's artifacts                                                      |
-| `@lovrozagar/honey/build`           | `createBuildPlugin`, a production bundle for a deploy target                                                             |
+| Export                                 | What it holds                                                                                                            |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `@workerstack/backend`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                       |
+| `@workerstack/backend/node`            | `serve(app, options)` on Node's `node:http`                                                                              |
+| `@workerstack/backend/bun`             | `serve(app, options)` on `Bun.serve`                                                                                     |
+| `@workerstack/backend/ws`              | `ws(app, path)`, a WebSocket route                                                                                       |
+| `@workerstack/backend/ws/bun`          | `bunWebSocket`                                                                                                           |
+| `@workerstack/backend/ws/node`         | `nodeWebSocket` (with the optional `ws` peer)                                                                            |
+| `@workerstack/backend/webhook`         | `signWebhook`                                                                                                            |
+| `@workerstack/backend/cron`            | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`                                   |
+| `@workerstack/backend/cron/serve`      | `serveCron`, `ServeCronOptions`, `CronHandle`, `CronFailure`                                                             |
+| `@workerstack/backend/cron/workers`    | `workersCron`, `WorkersScheduledController`                                                                              |
+| `@workerstack/backend/queue`           | `queueContract`, `queueMessage`, `defineConsumer`, `deadLetter`, `QueueBodyError`, `QueueDeadLetter`, and their types    |
+| `@workerstack/backend/queue/serve`     | `serveQueue`, `memoryQueueStore`, `QueueStore`, `ServeQueueOptions`, `QueueHandle`, `QueueFailure` and the store's types |
+| `@workerstack/backend/queue/workers`   | `workersQueue`, `WorkersQueueOptions` and the binding's types                                                            |
+| `@workerstack/backend/user-agent`      | `parseUserAgent`, `ParsedUserAgent`, `DeviceType`                                                                        |
+| `@workerstack/backend/ws/workers`      | `workersWebSocket`                                                                                                       |
+| `@workerstack/backend/ws/session`      | `createWsSession`: the session runtime a custom WebSocket adapter builds on                                              |
+| `@workerstack/backend/realtime`        | `realtime(app, path, options)`: a resumable connection over WebSocket, SSE and long-poll                                 |
+| `@workerstack/backend/mcp`             | `mcp(app, path, handler, options?)`: the app's tools over MCP's Streamable HTTP, the handler `codegen.mcp` writes        |
+| `@workerstack/backend/mcp/oauth`       | `oauth(options)`: `mcp()`'s opt-in OAuth 2.1 resource server (RFC 9728 metadata, Bearer challenges)                      |
+| `@workerstack/backend/mcp/uploads`     | `uploads(options)`, `memoryUploadStore()`: `mcp()`'s opt-in out-of-band file uploads (the file-uploads extension's flow) |
+| `@workerstack/backend/mcp/url-files`   | `urlFiles(options)`: `mcp()`'s opt-in file arguments as https URLs from listed hosts                                     |
+| `@workerstack/backend/openapi`         | `serveOpenApi`, `serveManifest`, `generateOpenApi`, `generateManifest`, `toYaml`                                         |
+| `@workerstack/backend/openapi/auth`    | `basic`, `credentialsMatch`: HTTP Basic in front of a served document and its docs pages                                 |
+| `@workerstack/backend/openapi/scalar`  | `scalar`, the Scalar API reference page                                                                                  |
+| `@workerstack/backend/openapi/static`  | `serveStaticOpenApi`, a document built ahead of time or living elsewhere, served without the generator                   |
+| `@workerstack/backend/openapi/swagger` | `swagger`, the Swagger UI page                                                                                           |
+| `@workerstack/backend/i18n`            | `createErrorTranslator`, `translateError`, `interpolate`, `createInterpolator`                                           |
+| `@workerstack/backend/input`           | `streamed()`, a request body left unread for the handler                                                                 |
+| `@workerstack/backend/range`           | `rangeResponse`, a `Range` request answered from bytes                                                                   |
+| `@workerstack/backend/cache-control`   | `cacheControl`, `httpDate`                                                                                               |
+| `@workerstack/backend/compress`        | `compress`                                                                                                               |
+| `@workerstack/backend/etag`            | `etag`, `notModified`                                                                                                    |
+| `@workerstack/backend/rate-limit`      | `rateLimit`, `memoryRateLimitStore`                                                                                      |
+| `@workerstack/backend/cors`            | `cors`                                                                                                                   |
+| `@workerstack/backend/csrf`            | `csrf`                                                                                                                   |
+| `@workerstack/backend/body-limit`      | `bodyLimit`                                                                                                              |
+| `@workerstack/backend/timeout`         | `timeout`                                                                                                                |
+| `@workerstack/backend/ip-restrict`     | `ipRestrict`, `ipAllowed`, `isIpRule`                                                                                    |
+| `@workerstack/backend/request-id`      | `requestId`                                                                                                              |
+| `@workerstack/backend/secure-headers`  | `secureHeaders`                                                                                                          |
+| `@workerstack/backend/server-timing`   | `serverTiming`                                                                                                           |
+| `@workerstack/backend/powered-by`      | `poweredBy`                                                                                                              |
+| `@workerstack/backend/pretty-json`     | `prettyJson`                                                                                                             |
+| `@workerstack/backend/logger`          | `createLogger`                                                                                                           |
+| `@workerstack/backend/curl-logger`     | `curlLogger`, a request logged as a command that repeats it                                                              |
+| `@workerstack/backend/telemetry/otel`  | `otelAdapter`                                                                                                            |
+| `@workerstack/backend/static`          | `staticFiles`                                                                                                            |
+| `@workerstack/backend/proxy`           | `proxy`, a route that forwards to an upstream                                                                            |
+| `@workerstack/backend/accepts`         | `accepts`, content negotiation                                                                                           |
+| `@workerstack/backend/cookie`          | `serializeCookie`, `parseCookieHeader`                                                                                   |
+| `@workerstack/backend/cookie-sign`     | `createCookieSigner`                                                                                                     |
+| `@workerstack/backend/crypto`          | `timingSafeEqual`                                                                                                        |
+| `@workerstack/backend/request-to-curl` | `requestToCurl`                                                                                                          |
+| `@workerstack/backend/testing`         | `testClient`, an app called in process or over a runtime's `serve`                                                       |
+| `@workerstack/backend/tree`            | the route tree's types                                                                                                   |
+| `@workerstack/backend/plugin`          | `honeyPlugin()`, the Vite plugin that generates the app's artifacts                                                      |
+| `@workerstack/backend/build`           | `createBuildPlugin`, a production bundle for a deploy target                                                             |
 
 The root export's values: `honey()` and the `Honey` class behind it, `HoneyContext` and `HoneyRes` (the handler's
 `ctx` and its `ctx.res`), `HoneyError`, `defineErrors` and `ERROR_META`, `definePreset` and `Preset`, `createMiddleware`,
@@ -1338,11 +1340,11 @@ The root export's values: `honey()` and the `Honey` class behind it, `HoneyConte
 
 ## Type helpers
 
-Exported from `@lovrozagar/honey`, each over the app you built (`typeof app`). This is how a test, a client or a
+Exported from `@workerstack/backend`, each over the app you built (`typeof app`). This is how a test, a client or a
 helper of yours stays tied to the routes rather than to a copy of their shapes.
 
 ```ts
-import { honey, type InferRouteInput, type InferRoutePaths, type InferRoutes } from "@lovrozagar/honey"
+import { honey, type InferRouteInput, type InferRoutePaths, type InferRoutes } from "@workerstack/backend"
 import * as z from "zod"
 
 const app = honey()
@@ -1380,11 +1382,11 @@ const edition: string | undefined = input.search.edition
 
 Every page's examples are compiled by the repository's tests.
 
-- [All the docs](https://github.com/lovrozagar/honey/blob/main/docs/README.md)
-- [Migrating from 0.7](https://github.com/lovrozagar/honey/blob/main/docs/migration.md)
-- [Package exports](https://github.com/lovrozagar/honey/blob/main/docs/packages.md)
-- [What a tarball ships, and why](https://github.com/lovrozagar/honey/blob/main/packages/core/docs/packaging.md)
-- [The repository](https://github.com/lovrozagar/honey)
+- [All the docs](https://github.com/workerstack/backend/blob/main/docs/README.md)
+- [Migrating from 0.7](https://github.com/workerstack/backend/blob/main/docs/migration.md)
+- [Package exports](https://github.com/workerstack/backend/blob/main/docs/packages.md)
+- [What a tarball ships, and why](https://github.com/workerstack/backend/blob/main/packages/core/docs/packaging.md)
+- [The repository](https://github.com/workerstack/backend)
 
 ## License
 

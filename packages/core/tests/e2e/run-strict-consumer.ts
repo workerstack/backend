@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Packaging tier. Packs @lovrozagar/honey exactly as npm would, installs the tarball into a
+ * Packaging tier. Packs @workerstack/backend exactly as npm would, installs the tarball into a
  * throwaway consumer whose tsconfig turns on every strictness flag we could plausibly meet,
  * and fails on any diagnostic originating inside the package.
  *
@@ -27,7 +27,7 @@ const fixture = join(here, "strict-consumer")
 const sandbox = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "honey-strict-consumer-"))
 const keep = process.argv.includes("--keep")
 
-const PKG = "@lovrozagar/honey"
+const PKG = "@workerstack/backend"
 
 /* a real header, then what ./user-agent must answer for it through the packed subpath */
 const PINNED_USER_AGENTS = [
@@ -119,7 +119,7 @@ await Bun.write(
 	join(consumer, "package.json"),
 	`${JSON.stringify(
 		{
-			dependencies: { [PKG]: `file:${coreTarball}`, "@lovrozagar/honey-clients": `file:${genTarball}`, zod: "4.3.6" },
+			dependencies: { [PKG]: `file:${coreTarball}`, "@workerstack/clients": `file:${genTarball}`, zod: "4.3.6" },
 			/* esbuild at the version wrangler pins, for the tree-shake gate beside vite's rolldown */
 			devDependencies: { esbuild: "0.28.1", typescript: "7.0.2", vite: "8.1.4" },
 			name: "strict-consumer-sandbox",
@@ -228,9 +228,9 @@ if (inPackage.length === 0 && inGenerated.length === 0 && inConsumer.length === 
 	await Bun.write(
 		join(consumer, "smoke.ts"),
 		[
-			'import { honey } from "@lovrozagar/honey"',
-			'import { serveOpenApi } from "@lovrozagar/honey/openapi"',
-			'import { parseUserAgent } from "@lovrozagar/honey/user-agent"',
+			'import { honey } from "@workerstack/backend"',
+			'import { serveOpenApi } from "@workerstack/backend/openapi"',
+			'import { parseUserAgent } from "@workerstack/backend/user-agent"',
 			'import * as z from "zod"',
 			"const app = honey<{}>()",
 			'app.get("/hi").output({ "application/json": { ok: z.object({ ok: z.boolean() }) } })',
@@ -293,7 +293,7 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	await Bun.write(
 		join(dir, "node-smoke.mjs"),
 		[
-			'import { honey } from "@lovrozagar/honey"',
+			'import { honey } from "@workerstack/backend"',
 			"const app = honey()",
 			'app.get("/hi").handler((c) => c.res.text("ok", "hi"))',
 			'const res = await app.fetch(new Request("http://x/hi"), {})',
@@ -310,8 +310,8 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	await Bun.write(
 		join(dir, "src", "server-app.ts"),
 		[
-			'import { honey } from "@lovrozagar/honey"',
-			'import { serve } from "@lovrozagar/honey/node"',
+			'import { honey } from "@workerstack/backend"',
+			'import { serve } from "@workerstack/backend/node"',
 			'export const app = honey().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))',
 			"export default app",
 			`await serve(app, { port: ${port} })`,
@@ -320,7 +320,7 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	await Bun.write(
 		join(dir, "vite.config.ts"),
 		[
-			'import { honeyPlugin } from "@lovrozagar/honey/plugin"',
+			'import { honeyPlugin } from "@workerstack/backend/plugin"',
 			'export default { plugins: [honeyPlugin({ app: "src/server-app.ts", codegen: { openApi: { title: "T", version: "1" } } })] }',
 		].join("\n"),
 	)
@@ -333,7 +333,7 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	await Bun.write(
 		join(dir, "vite.build.config.ts"),
 		[
-			'import { createBuildPlugin } from "@lovrozagar/honey/build"',
+			'import { createBuildPlugin } from "@workerstack/backend/build"',
 			'import base from "./vite.config.ts"',
 			"export default {",
 			"  ...base,",

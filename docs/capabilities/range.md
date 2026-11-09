@@ -1,6 +1,6 @@
 # Range requests
 
-`rangeResponse(request, body)` from `@lovrozagar/honey/range` answers a `Range`
+`rangeResponse(request, body)` from `@workerstack/backend/range` answers a `Range`
 request with `206 Partial Content` and the slice it asked for, and every other request with the whole body and
 `Accept-Ranges: bytes`. An unsatisfiable range answers 416, and an absurd one (a huge number, thousands of ranges)
 falls back to the whole body at once. `staticFiles` uses it for every sized file.
@@ -8,8 +8,8 @@ falls back to the whole body at once. `staticFiles` uses it for every sized file
 ## Example
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { rangeResponse } from "@lovrozagar/honey/range"
+import { honey } from "@workerstack/backend"
+import { rangeResponse } from "@workerstack/backend/range"
 
 const video = new Blob([new Uint8Array(1024)], { type: "video/mp4" })
 
@@ -23,8 +23,8 @@ A route that declares its output forwards the answer instead. Its 200 and 206 ar
 goes out as `rangeResponse` built it. A 206 on a route that declares no `partial_content` is refused.
 
 ```ts
-import { defineErrors, honey } from "@lovrozagar/honey"
-import { rangeResponse } from "@lovrozagar/honey/range"
+import { defineErrors, honey } from "@workerstack/backend"
+import { rangeResponse } from "@workerstack/backend/range"
 
 const video = new Blob([new Uint8Array(1024)], { type: "video/mp4" })
 const errors = defineErrors({ range_unsatisfiable: "range_not_satisfiable" })

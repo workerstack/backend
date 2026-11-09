@@ -11,7 +11,7 @@ import { builtinModules, createRequire } from "node:module"
 import { join } from "node:path"
 
 /** What the dist imports and a consumer provides itself: runtimes, optional peers, the clients package. */
-const PROVIDED = ["bun", "ws", "vite", "jiti", "typescript", "@lovrozagar/honey-clients"]
+const PROVIDED = ["bun", "ws", "vite", "jiti", "typescript", "@workerstack/clients"]
 const provided = (id: string) =>
 	id.startsWith("node:") ||
 	id.startsWith("cloudflare:") ||
@@ -30,12 +30,14 @@ function bundlers(consumer: string): { esbuild: Esbuild; rolldown: Rolldown } {
 
 /** Every subpath of the package installed in `consumer`, as a consumer imports it. */
 function subpaths(consumer: string): string[] {
-	const manifest = JSON.parse(readFileSync(join(consumer, "node_modules/@lovrozagar/honey/package.json"), "utf8")) as {
+	const manifest = JSON.parse(
+		readFileSync(join(consumer, "node_modules/@workerstack/backend/package.json"), "utf8"),
+	) as {
 		exports: Record<string, { default?: string } | string>
 	}
 	return Object.entries(manifest.exports)
 		.filter(([, target]) => typeof target === "object" && target.default !== undefined)
-		.map(([subpath]) => (subpath === "." ? "@lovrozagar/honey" : `@lovrozagar/honey/${subpath.slice(2)}`))
+		.map(([subpath]) => (subpath === "." ? "@workerstack/backend" : `@workerstack/backend/${subpath.slice(2)}`))
 }
 
 /**

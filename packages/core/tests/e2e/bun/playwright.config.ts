@@ -23,7 +23,7 @@ export default defineConfig({
 	},
 	webServer: {
 		/* prod serves the bundle run.ts built, with no honey-source condition and the answer check dropped
-		   (honey-no-output-check): what a deploy runs (Q14); dev resolves @lovrozagar/honey to its source, not a
+		   (honey-no-output-check): what a deploy runs (Q14); dev resolves @workerstack/backend to its source, not a
 		   dist/ that may be stale or missing */
 		command: isDev
 			? "bun --conditions=honey-source src/server.ts"

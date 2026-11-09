@@ -450,7 +450,7 @@ describe("nothing is built when nothing records", () => {
 
 	it("app.telemetry() refuses a value that is not one", () => {
 		expect(() => honey<{}>().telemetry({} as Telemetry)).toThrow(
-			"app.telemetry(): pass otelAdapter(api) from @lovrozagar/honey/telemetry, or a value with a tracer",
+			"app.telemetry(): pass otelAdapter(api) from @workerstack/backend/telemetry, or a value with a tracer",
 		)
 	})
 })

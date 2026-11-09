@@ -7,7 +7,7 @@
  * in D1 or a Durable Object and the bytes in R2 (docs/mcp.md, "The store must claim atomically"). Each object deletes
  * what it holds when the upload expires (an alarm), so nothing outlives its token.
  */
-import type { UploadStore } from "@lovrozagar/honey/mcp/uploads"
+import type { UploadStore } from "@workerstack/backend/mcp/uploads"
 
 /** As much of a Durable Object's storage as the object uses. */
 type Storage = {
