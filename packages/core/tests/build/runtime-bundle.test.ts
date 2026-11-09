@@ -1,6 +1,6 @@
 /**
  * What an app's bundle carries from the installed package (bit 19 i, ported from v0's runtime-bundle.test.ts): the
- * real core tarball, installed beside honey-clients and every optional peer (ws, oxfmt, ts-morph; jiti is core's own
+ * real core tarball, installed beside honey-clients at the version core pins and every optional peer (ws, oxfmt, ts-morph; jiti is core's own
  * dependency), so a leak would be bundled rather than fail to resolve. A bundle of `honey()` leaves out the tooling
  * and every optional feature until its subpath is imported; a Worker built by the build plugin carries none of the
  * build-time packages; and a core-only install loads the plugin, failing by name only when it is asked to generate.
@@ -10,14 +10,14 @@ import { join } from "node:path"
 import { gzipSync } from "node:zlib"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { pinnedBunVersion, withPinnedBun } from "../fixture/pinned-bun.ts"
-import { consumer, pack, run, scratch, type Tarballs, write } from "./fixture/packed.ts"
+import { CLIENTS, consumer, pack, run, scratch, write } from "./fixture/packed.ts"
 
 /* a bundle's bytes are the Bun's that builds it: the pinned one CI runs, never PATH's (skipped without it, required
  * under HONEY_REQUIRE_TOOLCHAINS) */
 const BUN = withPinnedBun()
 
 const files = scratch("runtime-bundle")
-let tarballs: Tarballs
+let tarball = ""
 let full = ""
 
 /* a marker per optional runtime feature: present only when the feature is bundled */
@@ -41,10 +41,10 @@ const BUILD_TIME: Readonly<Record<string, RegExp>> = {
 }
 
 beforeAll(() => {
-	tarballs = pack(files.out)
+	tarball = pack(files.out)
 	full = consumer(
 		join(files.out, "full"),
-		{ "@workerstack/backend": `file:${tarballs.core}`, "@workerstack/clients": `file:${tarballs.gen}` },
+		{ "@workerstack/backend": `file:${tarball}`, "@workerstack/clients": CLIENTS },
 		["ws", "oxfmt", "ts-morph"],
 	)
 }, 180_000)
@@ -378,7 +378,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 	}, 90_000)
 
 	it("a core-only install loads the plugin, and only a generation names the missing honey-clients", () => {
-		const dir = consumer(join(files.out, "core-only"), { "@workerstack/backend": `file:${tarballs.core}` })
+		const dir = consumer(join(files.out, "core-only"), { "@workerstack/backend": `file:${tarball}` })
 		write(dir, {
 			"plugin.mjs": [
 				'import { honeyPlugin } from "@workerstack/backend/plugin"',

@@ -4,17 +4,17 @@
  * `ts v0`, `sh v0` and `text v0` are v0 "before" blocks shown as text only, `ts rc.20`, `sh rc.20` and `ts rc.21` the
  * same for a 1.0 release candidate's code (the migration guide's rc.20 -> rc.21 and rc.21 -> rc.22 sections), and `sh`,
  * `json`, `yaml`, `text` and `http` are shown as they are.
- * The SDK and per-language blocks are compiled by gen's examples-compile tests, against the SDKs they call.
+ * The SDK and per-language blocks are known and left uncompiled here: they call a generated SDK, not the package.
  */
 import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
-import { allBlocks, type Block, blocksOf, REPO } from "../../../gen/src/emit/shared/__fixtures__/docs-blocks.ts"
+import { allBlocks, type Block, blocksOf, REPO } from "./docs-blocks.ts"
 
 const CORE = join(REPO, "packages/core")
 const TSC = join(REPO, "node_modules/typescript/bin/tsc")
-/* the block languages c compiles here, the SDK and per-language ones gen compiles, and the ones shown as text */
+/* the block languages compiled here, the SDK and per-language ones, and the ones shown as text */
 const COMPILED = new Set(["ts", "ts run"])
 const ELSEWHERE = new Set(["ts sdk", "go", "rust", "python", "csharp", "java"])
 const SHOWN = new Set([

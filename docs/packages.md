@@ -69,12 +69,8 @@ generator.
 
 ## @workerstack/clients
 
-| Export                     | What it holds                                                                                                                                                                                     |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@workerstack/clients`     | `generated`, `writeTarget`, `TARGETS`, `targetOptionSchemas`, `METADATA_FIELDS`: a run as data, its files and packages; `generateRouteTree`, `generateTypes`, `extractTypes` for the build plugin |
-| `@workerstack/clients/cli` | the `honey-clients` command's `main`                                                                                                                                                              |
-
-The SDK, CLI and MCP generators run through `honey-clients generate` ([code generation](codegen.md)).
+The generator's exports are listed in [its own README](https://github.com/workerstack/clients/blob/main/README.md), and its targets in
+[code generation](https://github.com/workerstack/clients/blob/main/docs/codegen.md).
 
 ## Utilities
 

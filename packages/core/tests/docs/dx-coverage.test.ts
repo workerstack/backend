@@ -6,7 +6,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
-import { REPO } from "../../../gen/src/emit/shared/__fixtures__/docs-blocks.ts"
+import { REPO } from "./docs-blocks.ts"
 import { DX, dangling, pages, pointersOf, rows, tracked, undocumented } from "./dx.ts"
 
 describe("dx/ pointers", () => {
@@ -21,7 +21,7 @@ describe("dx/ pointers", () => {
 			"| value | required | default | outcome | pitfall | test |",
 			"| --- | --- | --- | --- | --- | --- |",
 			"| a | no | — | — | — | `routing/app.test.ts` |",
-			"| b | no | — | — | — | `nowhere/bogus.test.ts`, `emit/*/binary.test.ts` |",
+			"| b | no | — | — | — | `nowhere/bogus.test.ts`, `adapters/*/serve.test.ts` |",
 		].join("\n")
 		expect(dangling(pointersOf("fixture.md", table), tracked, rows)).toEqual(["fixture.md:4 nowhere/bogus.test.ts"])
 	})

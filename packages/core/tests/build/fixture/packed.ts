@@ -1,18 +1,21 @@
 /**
- * The published tarballs and the projects that install them (bit 19 i). Both packages are packed by
+ * The published tarball and the projects that install it (bit 19 i). The package is packed by
  * scripts/pack.ts, the script release.yml's pack job runs: a staged copy with every catalog: and workspace: specifier
  * resolved, prepack building dist/ there, so the checkout never gets a dist/ a source run could pick up by mistake. A
  * consumer sits under TMPDIR, outside the repo, so nothing its install lacks resolves from the repo's node_modules.
  */
 import { spawnSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 
 export const CORE = resolve(import.meta.dirname, "../../..")
 export const REPO = resolve(CORE, "../..")
+/** The honey-clients version core pins, which an install takes from npm. */
+export const CLIENTS = (
+	JSON.parse(readFileSync(join(CORE, "package.json"), "utf8")) as { devDependencies: Record<string, string> }
+).devDependencies["@workerstack/clients"] as string
 
-export type Tarballs = { readonly core: string; readonly gen: string }
 export type Run = { code: number; out: string }
 
 /** `cmd args` in `cwd`, its stdout and stderr together; bounded, so a hung child fails its leg. */
@@ -31,17 +34,16 @@ export function scratch(name: string): { done: () => void; out: string } {
 	return { done: () => rmSync(out, { force: true, recursive: true }), out }
 }
 
-/** Both packages' tarballs as release.yml packs them, into `out`. */
-export function pack(out: string): Tarballs {
+/** The package's tarball as release.yml packs it, into `out`. */
+export function pack(out: string): string {
 	const into = join(out, "tarballs")
-	const packed = spawnSync("bun", [join(REPO, "scripts/pack.ts"), into, CORE, resolve(CORE, "../gen")], {
+	const packed = spawnSync("bun", [join(REPO, "scripts/pack.ts"), into, CORE], {
 		cwd: REPO,
 		encoding: "utf8",
 		timeout: 120_000,
 	})
 	must("scripts/pack.ts", { code: packed.status ?? 1, out: `${packed.stdout}${packed.stderr}` })
-	const [core = "", gen = ""] = packed.stdout.trim().split("\n")
-	return { core, gen }
+	return packed.stdout.trim()
 }
 
 /** A consumer project at `dir` that npm-installs `dependencies`, then links `links` from the repo's node_modules. */

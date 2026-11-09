@@ -20,8 +20,7 @@
 		".codex/**",
 		".gemini/**",
 		".grok/**",
-		".rulesync/**",
-		"packages/gen/src/_tokenizer/**"
+		".rulesync/**"
 	],
 	"categories": {
 		"correctness": "error",
@@ -52,8 +51,6 @@
 				"packages/core/tests/integration/**",
 				"packages/core/tests/types/**",
 				"packages/core/tests/regression/**",
-				"packages/gen/src/**",
-				"packages/gen/tests/**",
 				"bench/src/significance.ts",
 				"bench/src/significance.test.ts",
 				"bench/src/gate.ts",
@@ -90,19 +87,13 @@
 			}
 		},
 		{
-			"files": [
-				"packages/core/src/**",
-				"packages/core/tests/**",
-				"packages/core/lint/**",
-				"packages/gen/src/**",
-				"packages/gen/tests/**"
-			],
+			"files": ["packages/core/src/**", "packages/core/tests/**", "packages/core/lint/**"],
 			"rules": {
 				"honey/no-console": "error"
 			}
 		},
 		{
-			"files": ["packages/core/**/*.test.ts", "packages/gen/**/*.test.ts"],
+			"files": ["packages/core/**/*.test.ts"],
 			"rules": {
 				"honey/spawn-timeout": "error"
 			}
@@ -115,8 +106,6 @@
 				"packages/core/tests/integration/**",
 				"packages/core/tests/types/**",
 				"packages/core/tests/regression/**",
-				"packages/gen/src/**/*.test.ts",
-				"packages/gen/tests/**",
 				"bench/src/significance.test.ts"
 			],
 			"rules": {

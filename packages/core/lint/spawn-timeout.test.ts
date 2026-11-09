@@ -1,11 +1,12 @@
+import { join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import { SPAWN_TIMEOUT } from "../tests/fixture/spawn-timeout.ts"
 import { oxlintReports, reportsOf } from "./rule-harness.ts"
-import { messagesOf, rule, SHARED } from "./spawn-timeout.js"
+import { MESSAGES, rule, SHARED } from "./spawn-timeout.js"
 
 const FILE = "packages/core/src/build/x.test.ts"
 const SHARED_IMPORT = 'import { SPAWN_TIMEOUT } from "../../../tests/fixture/spawn-timeout.ts"\n'
-const MESSAGES = messagesOf("core")
 const VITEST = 'import { afterAll, beforeAll, describe, expect, it, test, vi } from "vitest"\n'
 const CHILD = 'import { spawnSync } from "node:child_process"\n'
 const SPAWNS = '() => { expect(spawnSync("git", ["status"]).status).toBe(0) }'
@@ -17,6 +18,11 @@ describe("honey/spawn-timeout: a test that spawns", () => {
 	it("is refused without a timeout, with the shared constant named as the fix", () => {
 		expect(messages(`${VITEST}${CHILD}it("spawns", ${SPAWNS})\n`)).toEqual([MESSAGES.test])
 		expect(MESSAGES.test).toContain("SPAWN_TIMEOUT (packages/core/tests/fixture/spawn-timeout.ts)")
+	})
+
+	it("names the module core's tests import SPAWN_TIMEOUT from, so the fix it gives cannot point at a moved file", () => {
+		const imported = fileURLToPath(new URL("../tests/fixture/spawn-timeout.ts", import.meta.url))
+		expect(join(import.meta.dirname, "../../..", SHARED)).toBe(imported)
 	})
 
 	it("passes a timeout of its own: trailing, as options, or as a named options object", () => {
@@ -131,20 +137,14 @@ describe("honey/spawn-timeout: scope", () => {
 		expect(messages(code)).toEqual([])
 	})
 
-	it("reads core's and gen's test files, not core's e2e (bun test, Playwright) nor a non-test module", () => {
+	it("reads core's test files, not core's e2e (bun test, Playwright) nor a non-test module", () => {
 		const code = `${VITEST}${CHILD}it("a", ${SPAWNS})\n`
 		const files = {
 			"packages/core/src/a.test.ts": code,
 			"packages/core/src/b.ts": code,
 			"packages/core/tests/e2e/apps/x/c.test.ts": code,
-			"packages/gen/tests/d.test.ts": code,
 		}
-		expect(reportsOf(rule, files)).toEqual([
-			{ file: "packages/core/src/a.test.ts", message: messagesOf("core").test },
-			{ file: "packages/gen/tests/d.test.ts", message: messagesOf("gen").test },
-		])
-		/* each names its own package's module: gen never imports core, nor core gen's src */
-		expect(messagesOf("gen").test).toContain(`SPAWN_TIMEOUT (${SHARED.gen})`)
+		expect(reportsOf(rule, files)).toEqual([{ file: "packages/core/src/a.test.ts", message: MESSAGES.test }])
 	})
 
 	it("fails oxlint through the honey plugin entry", { timeout: SPAWN_TIMEOUT }, () => {

@@ -31,7 +31,8 @@ describe("honey/no-header-mode", () => {
 				"",
 			].join("\n"),
 			"packages/core/src/routing/dispatch.test.ts": 'export const f = (h: Headers) => h.get("x-honey-debug")\n',
-			"packages/gen/src/emit/ts/response.ts": 'export const f = (h: Headers) => h.get("x-honey-version")\n',
+			"packages/core/tests/e2e/apps/kitchen/src/_gen/sdk/response.ts":
+				'export const f = (h: Headers) => h.get("x-honey-version")\n',
 		}
 		expect(reportsOf(rule, fixture)).toEqual([])
 	})

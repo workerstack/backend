@@ -32,13 +32,15 @@ client and an MCP server. These pages cover each part, each with an example the 
 
 ## Generated clients
 
-- [Code generation](codegen.md)
-- [Generated clients](client.md)
-- [SDK recipes](sdk-recipes.md)
-- [The generated CLI](cli.md)
-- [Releasing a generated CLI](cli-release.md)
-- [The generated MCP server](mcp.md)
-- [SDK conformance](conformance.md)
+`@workerstack/clients` generates them, and its pages live in [its repository](https://github.com/workerstack/clients):
+
+- [Code generation](https://github.com/workerstack/clients/blob/main/docs/codegen.md)
+- [Generated clients](https://github.com/workerstack/clients/blob/main/docs/client.md)
+- [SDK recipes](https://github.com/workerstack/clients/blob/main/docs/sdk-recipes.md)
+- [The generated CLI](https://github.com/workerstack/clients/blob/main/docs/cli.md)
+- [Releasing a generated CLI](https://github.com/workerstack/clients/blob/main/docs/cli-release.md)
+- [The generated MCP server, and mounting it in an app](mcp.md)
+- [SDK conformance](https://github.com/workerstack/clients/blob/main/docs/conformance.md)
 
 ## Capabilities new in 1.0
 
@@ -50,6 +52,3 @@ client and an MCP server. These pages cover each part, each with an example the 
 - [Problem+JSON errors](capabilities/problem-json.md)
 - [Webhooks](capabilities/webhooks.md)
 - [Realtime resume](capabilities/realtime-resume.md)
-- [The C# and Java SDKs](capabilities/csharp-java-sdks.md)
-- [The generated CLI](capabilities/generated-cli.md)
-- [MCP structured output](capabilities/mcp-structured-output.md)

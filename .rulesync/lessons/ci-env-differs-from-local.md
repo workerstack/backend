@@ -1,6 +1,6 @@
 ---
 name: ci-env-differs-from-local
-paths: ["packages/gen/src/**","packages/core/src/**",".github/workflows/ci.yml"]
+paths: ["packages/core/src/**",".github/workflows/ci.yml"]
 hits: 1
 last-hit: 2026-11-01
 evidence: ["plan 21"]

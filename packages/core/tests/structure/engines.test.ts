@@ -32,14 +32,12 @@ function oldest(versions: readonly number[][]): string {
 	return (first ?? []).join(".")
 }
 
-describe("each published package's Node floor", () => {
-	it("is the oldest Node CI runs, for honey and honey-clients alike", () => {
+describe("the published package's Node floor", () => {
+	it("is the oldest Node CI runs", () => {
 		const floor = `>=${oldest(pinnedNodes())}`
-		const declared = ["packages/core", "packages/gen"].map(
-			(dir) =>
-				(JSON.parse(readFileSync(join(ROOT, dir, "package.json"), "utf8")) as { engines?: { node?: string } }).engines
-					?.node,
-		)
-		expect([floor, declared]).toEqual([">=22.12.0", [floor, floor]])
+		const declared = (
+			JSON.parse(readFileSync(join(ROOT, "packages/core/package.json"), "utf8")) as { engines?: { node?: string } }
+		).engines?.node
+		expect([floor, declared]).toEqual([">=22.12.0", floor])
 	})
 })

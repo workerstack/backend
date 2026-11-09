@@ -1002,8 +1002,8 @@ mcp(app, "/mcp", mcpHandler, {
 bytes), and the MCP page shows that end to end. Only a route marked `meta({ mcp: true })` becomes a tool, and each
 tool's input and output schemas come from the route's own.
 
-Full reference: [the generated MCP server](https://github.com/workerstack/backend/blob/main/docs/mcp.md) and
-[MCP structured output](https://github.com/workerstack/backend/blob/main/docs/capabilities/mcp-structured-output.md).
+Full reference: [the generated MCP server](https://github.com/workerstack/backend/blob/main/docs/mcp.md), its
+[structured output](https://github.com/workerstack/backend/blob/main/docs/mcp.md#reference) included.
 
 ## Logging and tracing
 
@@ -1137,7 +1137,7 @@ console.log(answer.status, JSON.stringify(await answer.json()))
 ```
 
 Full reference: [testing an app](https://github.com/workerstack/backend/blob/main/docs/testing.md) and
-[SDK conformance](https://github.com/workerstack/backend/blob/main/docs/conformance.md), which is how the generated
+[SDK conformance](https://github.com/workerstack/clients/blob/main/docs/conformance.md), which is how the generated
 clients are held to behaving alike.
 
 ## The build plugin and the honey CLI
@@ -1258,15 +1258,15 @@ export async function health(client: Kitchen): Promise<string> {
 }
 ```
 
-That block is a verbatim slice of
-[the compiled example](https://github.com/workerstack/backend/blob/main/docs/examples/ts/example.ts): the tests
-type-check it against an SDK generated from a real document, so it cannot drift from what the generator writes.
+That block is a slice of
+[the compiled example](https://github.com/workerstack/clients/blob/main/docs/examples/ts/example.ts), which the generator's own tests
+type-check against an SDK generated from a real document.
 
-Full reference: [code generation](https://github.com/workerstack/backend/blob/main/docs/codegen.md),
-[the generated clients](https://github.com/workerstack/backend/blob/main/docs/client.md),
-[their per-language recipes](https://github.com/workerstack/backend/blob/main/docs/sdk-recipes.md),
-[the generated CLI](https://github.com/workerstack/backend/blob/main/docs/cli.md) and
-[releasing it](https://github.com/workerstack/backend/blob/main/docs/cli-release.md).
+Full reference: [code generation](https://github.com/workerstack/clients/blob/main/docs/codegen.md),
+[the generated clients](https://github.com/workerstack/clients/blob/main/docs/client.md),
+[their per-language recipes](https://github.com/workerstack/clients/blob/main/docs/sdk-recipes.md),
+[the generated CLI](https://github.com/workerstack/clients/blob/main/docs/cli.md) and
+[releasing it](https://github.com/workerstack/clients/blob/main/docs/cli-release.md).
 
 ## Every export
 

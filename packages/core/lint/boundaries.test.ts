@@ -8,10 +8,9 @@ const NODE = "node builtins are for the Node adapter and build-time code only"
 const ADAPTER = "only the same runtime's adapter may import an adapter"
 const ESCAPE = "an import stays inside its package's src (no repo path outside it, no sibling package)"
 const WS = "ws is for the Node WebSocket adapter only"
-const TS_MORPH = "ts-morph is for honey-clients's extract/ only"
+const TS_MORPH = "ts-morph is honey-clients's dependency, not core's"
 const CLIENTS = "core reaches honey-clients from build/ only"
 const CLIENTS_STATIC = "core imports honey-clients through import() only: it is an optional peer"
-const INTERNAL = "honey-clients reads @workerstack/backend through public subpaths only"
 const global = (name: string) => `${name} is not available here (00-rules environments)`
 
 describe("honey/boundaries: imports", () => {
@@ -21,7 +20,6 @@ describe("honey/boundaries: imports", () => {
 			"packages/core/src/adapters/node/serve.ts": 'import { createServer } from "node:http"\n',
 			"packages/core/src/ws/node.ts": 'import { STATUS_CODES } from "node:http"\n',
 			"packages/core/src/build/plugin.ts": 'import { readFileSync } from "node:fs"\n',
-			"packages/gen/src/gen/write.ts": 'import { writeFileSync } from "node:fs"\n',
 		}
 		expect(reportsOf(rule, fixture)).toEqual([
 			{ file: "packages/core/src/routing/app.ts", message: NODE },
@@ -61,26 +59,23 @@ describe("honey/boundaries: imports", () => {
 	it("never leaves the package's src: no repo path outside it, no sibling package by path", () => {
 		const fixture = {
 			"packages/core/src/routing/app.ts": 'import { judge } from "../../../../bench/src/significance.ts"\n',
-			"packages/core/src/errors/error.ts": 'export * from "../../../gen/src/ir/model.ts"\n',
-			"packages/gen/src/ir/build.ts": 'import { x } from "../../../core/src/routing/app.ts"\n',
+			"packages/core/src/errors/error.ts": 'export * from "../../../clients/src/ir/model.ts"\n',
 			"packages/core/src/routing/match.ts":
 				'import { tree } from "./tree.ts"\nimport { e } from "../errors/error.ts"\n',
 		}
 		expect(reportsOf(rule, fixture)).toEqual([
 			{ file: "packages/core/src/routing/app.ts", message: ESCAPE },
 			{ file: "packages/core/src/errors/error.ts", message: ESCAPE },
-			{ file: "packages/gen/src/ir/build.ts", message: ESCAPE },
 		])
 	})
 })
 
 describe("honey/boundaries: packages", () => {
-	it("pins ws, ts-morph and honey-clients to their one importer", () => {
+	it("pins ws and honey-clients to their one importer, and keeps ts-morph out of core", () => {
 		const fixture = {
 			"packages/core/src/ws/session.ts": 'import { WebSocketServer } from "ws"\n',
 			"packages/core/src/ws/node.ts": 'import { WebSocketServer } from "ws"\n',
-			"packages/gen/src/emit/ts/sdk.ts": 'import { Project } from "ts-morph"\n',
-			"packages/gen/src/extract/extract.ts": 'import { Project } from "ts-morph"\n',
+			"packages/core/src/build/types.ts": 'import { Project } from "ts-morph"\n',
 			"packages/core/src/openapi/document.ts": 'import { generate } from "@workerstack/clients"\n',
 			"packages/core/src/build/plugin.ts": 'import { generateTypes } from "@workerstack/clients"\n',
 			"packages/core/src/build/generate.ts": [
@@ -93,26 +88,11 @@ describe("honey/boundaries: packages", () => {
 		}
 		expect(reportsOf(rule, fixture)).toEqual([
 			{ file: "packages/core/src/ws/session.ts", message: WS },
-			{ file: "packages/gen/src/emit/ts/sdk.ts", message: TS_MORPH },
+			{ file: "packages/core/src/build/types.ts", message: TS_MORPH },
 			{ file: "packages/core/src/openapi/document.ts", message: CLIENTS },
 			/* bit 19 h2 (Q2): an optional peer, so build/ reaches it on demand, never as the module loads */
 			{ file: "packages/core/src/build/plugin.ts", message: CLIENTS_STATIC },
 			{ file: "packages/core/src/build/generate.ts", message: CLIENTS_STATIC },
-		])
-	})
-
-	it("keeps honey-clients on @workerstack/backend's public subpaths", () => {
-		const fixture = {
-			"packages/gen/src/ir/load.ts": [
-				'import type { OpenApiSpec } from "@workerstack/backend/openapi"',
-				'import { x } from "@workerstack/backend/src/routing/app.ts"',
-				'import { z } from "@workerstack/backend/dist/index.js"',
-				"",
-			].join("\n"),
-		}
-		expect(reportsOf(rule, fixture)).toEqual([
-			{ file: "packages/gen/src/ir/load.ts", message: INTERNAL },
-			{ file: "packages/gen/src/ir/load.ts", message: INTERNAL },
 		])
 	})
 })
@@ -134,7 +114,6 @@ describe("honey/boundaries: runtime globals", () => {
 			"packages/core/src/adapters/bun/serve.ts": "export const s = Bun.serve\n",
 			"packages/core/src/ws/workers.ts": "export const p = new WebSocketPair()\n",
 			"packages/core/src/build/cli.ts": "export const argv = process.argv\n",
-			"packages/gen/src/cli.ts": "export const argv = process.argv\n",
 			"packages/core/src/routing/match.ts": "const o = { process: 1, Bun: 2 }\nexport const n = o.process + o.Bun\n",
 		}
 		expect(reportsOf(rule, fixture)).toEqual([

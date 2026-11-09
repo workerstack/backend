@@ -17,10 +17,10 @@ const TSV = [
 	"lint/no-v8-ignore.test.ts\tcore\ttest\t00\trule test\t—",
 	"tests/structure/check-tree.test.ts\tcore\ttest\t00\tgate\t—",
 	"tests/e2e/apps/{compose,kitchen}\tcore\tapp\t00\tapps\te2e/apps/*",
-	"src/emit/go/sdk.ts\tgen\tsrc\t12\tgo\tcodegen-go.ts",
-	"src/runtime/go/*\tgen\truntime\t12\tgo runtime\tclient-go/*",
-	"scripts/capture.ts\tgen\tscript\t00\tcapture\t—",
-	"packages/gen/src/_tokenizer/\tgen\tcorpus\t00\ttokenizer\t—",
+	"src/build/plugin.ts\tcore\tsrc\t12\tplugin\tplugin.ts",
+	"tests/fixture/apps/*\tcore\tcorpus\t12\tfixture apps\t—",
+	"scripts/capture.ts\tcore\tscript\t00\tcapture\t—",
+	"packages/core/tests/corpus/\tcore\tcorpus\t00\tcorpus\t—",
 	"blueprint/baselines/{oracle,perf}-baseline.txt\tcore\tcorpus\t00\tbaselines\t—",
 	".oxlintrc.json\tcore\tconfig\t19\tlint config\t.oxlintrc.json",
 	"./scripts/pack.ts\tcore\tscript\t19\tthe packer\t—",
@@ -34,8 +34,8 @@ const BIT_00_FILES = [
 	"packages/core/tests/structure/check-tree.test.ts",
 	"packages/core/tests/e2e/apps/compose/src/app.ts",
 	"packages/core/tests/e2e/apps/kitchen/package.json",
-	"packages/gen/scripts/capture.ts",
-	"packages/gen/src/_tokenizer/o200k_base.json",
+	"packages/core/scripts/capture.ts",
+	"packages/core/tests/corpus/o200k_base.json",
 	"blueprint/baselines/oracle-baseline.txt",
 	"blueprint/baselines/perf-baseline.txt",
 ]
@@ -52,10 +52,10 @@ describe("parseRows", () => {
 			"packages/core/lint/no-v8-ignore.test.ts",
 			"packages/core/tests/structure/check-tree.test.ts",
 			"packages/core/tests/e2e/apps/{compose,kitchen}",
-			"packages/gen/src/emit/go/sdk.ts",
-			"packages/gen/src/runtime/go/*",
-			"packages/gen/scripts/capture.ts",
-			"packages/gen/src/_tokenizer/",
+			"packages/core/src/build/plugin.ts",
+			"packages/core/tests/fixture/apps/*",
+			"packages/core/scripts/capture.ts",
+			"packages/core/tests/corpus/",
 			"blueprint/baselines/{oracle,perf}-baseline.txt",
 			".oxlintrc.json",
 			"scripts/pack.ts",
@@ -78,18 +78,18 @@ describe("checkTree --complete 00", () => {
 	})
 
 	it("reports a file in scope that no row lists", () => {
-		const files = [...BIT_00_FILES, "packages/core/src/routing/stray.ts", "packages/gen/tests/x.test.ts"]
+		const files = [...BIT_00_FILES, "packages/core/src/routing/stray.ts", "packages/core/lint/x.test.ts"]
 		expect(checkTree(rows, files, 0)).toEqual([
 			"unlisted: packages/core/src/routing/stray.ts",
-			"unlisted: packages/gen/tests/x.test.ts",
+			"unlisted: packages/core/lint/x.test.ts",
 		])
 	})
 
 	it("reports a file born before its bit", () => {
-		const files = [...BIT_00_FILES, "packages/gen/src/emit/go/sdk.ts", "packages/gen/src/runtime/go/client.go"]
+		const files = [...BIT_00_FILES, "packages/core/src/build/plugin.ts", "packages/core/tests/fixture/apps/x.json"]
 		expect(checkTree(rows, files, 0)).toEqual([
-			"early: packages/gen/src/emit/go/sdk.ts (bit 12, complete 00)",
-			"early: packages/gen/src/runtime/go/client.go (bit 12, complete 00)",
+			"early: packages/core/src/build/plugin.ts (bit 12, complete 00)",
+			"early: packages/core/tests/fixture/apps/x.json (bit 12, complete 00)",
 		])
 	})
 
@@ -132,33 +132,5 @@ describe("the repository", () => {
 			.split("\0")
 			.filter((f) => f !== "")
 		expect(checkTree(parseRows(tsv), files, COMPLETE)).toEqual([])
-	})
-})
-
-/** gen's SDK-only grid rows, where bit 21 i2 staged the over-cap row's targets. */
-const SDK_ROWS = "packages/gen/tests/integration/conformance/features-sdk.ts"
-const OVER_CAP_FIX = "add the remaining SDKs to the over-cap row and delete OVER_CAP_SDKS"
-const source = () => readFileSync(join(REPO, SDK_ROWS), "utf8")
-
-/**
- * What bit 21 still owes at `complete` of the staged over-cap list: nothing before it closes; once COMPLETE reaches 21,
- * the fix while `text` (features-sdk.ts) still declares OVER_CAP_SDKS, so the list cannot outlive the bit.
- */
-const overCapOwed = (complete: number, text: string) =>
-	complete >= 21 && /\bOVER_CAP_SDKS\b/.test(text) ? [OVER_CAP_FIX] : []
-
-describe("bit 21's staged over-cap list (i2)", () => {
-	/* i7 deleted the list, so the leg seeds it back into today's source to prove the guard still reds on it */
-	it("names its fix once the bit closes while features-sdk.ts declares it, and nothing without it", () => {
-		const staged = `${source()}\nexport const OVER_CAP_SDKS = ["ts"] as const\n`
-		expect([overCapOwed(21, staged), overCapOwed(21, source()), overCapOwed(20, staged)]).toEqual([
-			[OVER_CAP_FIX],
-			[],
-			[],
-		])
-	})
-
-	it(`is gone before bit 21 closes (COMPLETE is ${COMPLETE})`, () => {
-		expect(overCapOwed(COMPLETE, source())).toEqual([])
 	})
 })

@@ -13,8 +13,6 @@ import { jobsRunning, ROOT, stepsRunning, upstream, workflow } from "./fixture/w
 import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 
 const release = workflow("release.yml")
-/** the packages whose version the entry must cover; both ship under one tag */
-const SHIPPED = ["packages/core", "packages/gen"]
 const versionOf = (dir: string) =>
 	(JSON.parse(readFileSync(join(ROOT, dir, "package.json"), "utf8")) as { version: string }).version
 
@@ -89,10 +87,8 @@ describe("a candidate reads its release's notes", () => {
 describe("this repository's CHANGELOG", () => {
 	const changelog = readFileSync(join(ROOT, "CHANGELOG.md"), "utf8")
 
-	it("holds the entry for the version both packages ship", () => {
-		const versions = [...new Set(SHIPPED.map(versionOf))]
-		expect(versions).toHaveLength(1)
-		expect(missingEntry(changelog, versions[0] as string)).toBeNull()
+	it("holds the entry for the version the package ships", () => {
+		expect(missingEntry(changelog, versionOf("packages/core"))).toBeNull()
 	})
 
 	it("opens on the entry the shipped version reads, which a candidate shares with its release", () => {

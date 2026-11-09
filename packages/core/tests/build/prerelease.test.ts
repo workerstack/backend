@@ -66,8 +66,8 @@ const publishes = stepsRunning(release, "npm publish")
 const releasing = stepsRunning(release, "gh release create")
 
 describe("release.yml publishes a candidate under next, a release under latest", () => {
-	it("has a publish step per shipped package, and one GitHub release step", () => {
-		expect(publishes).toHaveLength(2)
+	it("has the shipped package's publish step, and one GitHub release step", () => {
+		expect(publishes).toHaveLength(1)
 		expect(releasing).toHaveLength(1)
 	})
 
@@ -111,10 +111,8 @@ const manifestOf = (dir: string) =>
 	}
 
 describe("the versions this repository ships", () => {
-	it("are one version in both packages, and the peer range accepts a candidate", () => {
+	it("take a candidate of honey-clients through the optional peer range", () => {
 		const core = manifestOf("packages/core")
-		const gen = manifestOf("packages/gen")
-		expect(core.version).toBe(gen.version)
 		/*
 		 * `>=1.0.0` would exclude `1.0.0-rc.1`: under semver a prerelease satisfies a range only when the range
 		 * itself carries a prerelease at the same version. `>=1.0.0-0` accepts every 1.0.0 candidate and everything

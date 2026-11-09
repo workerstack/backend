@@ -5,7 +5,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
-import { blocksOf, DOCS } from "../../../gen/src/emit/shared/__fixtures__/docs-blocks.ts"
+import { blocksOf, DOCS } from "./docs-blocks.ts"
 import { dangling, rows, tracked } from "./dx.ts"
 
 /** The capabilities v1 added, each with its page under docs/capabilities/. */
@@ -18,9 +18,6 @@ const CAPABILITIES = [
 	["problem+json errors", "problem-json.md"],
 	["webhooks", "webhooks.md"],
 	["realtime resume", "realtime-resume.md"],
-	["the C# and Java SDKs", "csharp-java-sdks.md"],
-	["the generated CLI", "generated-cli.md"],
-	["MCP structured output", "mcp-structured-output.md"],
 ] as const
 
 /** What capability page `page` lacks: the page, an example, a "Tested by:" line, or a test it names that does not exist. */

@@ -11,7 +11,7 @@ const WRAPPERS = new Set(["ParenthesizedExpression", "TSAsExpression", "TSNonNul
 function inScope(filename) {
 	const file = String(filename).replaceAll("\\", "/")
 	if (/\.test\.[cm]?[jt]sx?$/.test(file)) return false
-	return file.includes("/packages/core/src/") || file.includes("/packages/gen/src/")
+	return file.includes("/packages/core/src/")
 }
 
 function unwrap(node) {

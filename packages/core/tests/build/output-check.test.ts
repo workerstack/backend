@@ -59,8 +59,7 @@ console.log(answer.status, await answer.text())
 `
 
 beforeAll(() => {
-	const tarballs = pack(files.out)
-	dir = consumer(join(files.out, "app"), { "@workerstack/backend": `file:${tarballs.core}` }, ["vite"])
+	dir = consumer(join(files.out, "app"), { "@workerstack/backend": `file:${pack(files.out)}` }, ["vite"])
 	write(dir, { "build.mjs": BUILD, "call-worker.mjs": CALL_WORKER, "src/app.mjs": APP })
 }, 180_000)
 afterAll(() => files.done())
