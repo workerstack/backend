@@ -10,19 +10,22 @@
  */
 import { createHash } from "node:crypto"
 import * as z from "zod"
-import { serve } from "../../../src/adapters/bun/serve.ts"
-import { defineErrors } from "../../../src/errors/errors.ts"
-import { createErrorTranslator } from "../../../src/i18n/error-i18n.ts"
-import type { NextFn } from "../../../src/middleware/middleware.ts"
-import { requestId } from "../../../src/middleware/request-id.ts"
-import { type McpHandler, mcp } from "../../../src/mcp/mount.ts"
-import { serveOpenApi } from "../../../src/openapi/serve.ts"
-import { honey } from "../../../src/routing/app.ts"
+import { serve } from "@workerstack/backend/bun"
+import { defineErrors } from "@workerstack/backend"
+import { createErrorTranslator } from "@workerstack/backend/i18n"
+import type { MiddlewareFn } from "@workerstack/backend"
+
+/** The `next` a middleware is handed, read off the exported middleware type. */
+type NextFn = Parameters<MiddlewareFn>[1]
+import { requestId } from "@workerstack/backend/request-id"
+import { type McpHandler, mcp } from "@workerstack/backend/mcp"
+import { serveOpenApi } from "@workerstack/backend/openapi"
+import { honey } from "@workerstack/backend"
 import { listenDropFront } from "./drop-front.ts"
 import { createReferenceServer } from "./reference-server.ts"
 import { realtimeRoutes } from "./app-realtime.ts"
 import { secureRoutes } from "./app-secure.ts"
-import { ws } from "../../../src/ws/route.ts"
+import { ws } from "@workerstack/backend/ws"
 
 /** The app's origins, known once every listener is up: the drop origin cuts each answer at its end (drop-front.ts). */
 export type Origins = { readonly alt: string; readonly drop: string; readonly url: string }

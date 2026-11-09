@@ -142,12 +142,27 @@ describe("sanitizeOpenApiSpec: extensions inside schemas", () => {
 	})
 })
 
+/** Every x- key honey's generators read off a document. */
+const GENERATORS_READ = [
+	"x-deprecated",
+	"x-honey-error",
+	"x-honey-errors",
+	"x-honey-route",
+	"x-honey-webhook",
+	"x-honey-wildcard",
+	"x-idempotency-key",
+	"x-invalidate",
+	"x-mcp",
+	"x-mcp-file",
+	"x-realtime",
+	"x-websocket",
+]
+
 describe("sanitizeOpenApiSpec: what honey's generators read", () => {
 	it("keeps every x- key honey's generators read off an operation, a response, a parameter or a schema", () => {
-		const read = new Set<string>()
-		for (const file of ["../../../gen/src/ir/slots.ts", "../../../gen/src/emit/mcp/files.ts"])
-			for (const [, key] of readFileSync(new URL(file, import.meta.url), "utf8").matchAll(/"(x-[a-z-]+)"/g))
-				read.add(key as string)
+		/* the keys @workerstack/clients reads (its src/ir/slots.ts and src/emit/mcp/files.ts), copied word for word in
+		 * its tests/integration/x-keys.test.ts, which fails when it reads one this list does not name: change both */
+		const read = new Set(GENERATORS_READ)
 		const marked = Object.fromEntries([...read].map((key) => [key, true]))
 		const out = sanitizeOpenApiSpec(
 			spec(

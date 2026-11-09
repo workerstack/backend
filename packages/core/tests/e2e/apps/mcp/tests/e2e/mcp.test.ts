@@ -6,7 +6,7 @@
  */
 import { createHash } from "node:crypto"
 import { expect, test } from "@playwright/test"
-import { httpSession, type Step, withClients } from "../../../../../../../gen/src/emit/mcp/__fixtures__/clients.ts"
+import { httpSession, type Step, withClients } from "../../../../../fixture/mcp-clients/clients.ts"
 import { e2eBaseUrl } from "../../../../playwright-app.ts"
 import { KEY } from "../../src/key.ts"
 

@@ -8,7 +8,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { MARK_KEY, markOf, reap } from "../../../gen/src/gen/__fixtures__/survivors.ts"
+import { MARK_KEY, markOf, reap } from "../../tests/fixture/survivors.ts"
 import { appSource, type Project, project } from "./__fixtures__/project.ts"
 
 const SLOW = 60_000

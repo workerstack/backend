@@ -6,14 +6,14 @@
  */
 import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
-import type { createClient } from "../../../gen/src/runtime/ts/app.ts"
-import type { ErrorsFor, OutputDefFor } from "../../../gen/src/runtime/ts/app-types.ts"
-import type { Result } from "../../../gen/src/runtime/ts/response.ts"
-import type { SSEEvent } from "../../../gen/src/runtime/ts/sse.ts"
-import { defineErrors } from "../../src/errors/errors.ts"
-import { streamed } from "../../src/input/input.ts"
-import { honey } from "../../src/routing/app.ts"
-import type { InferRoutes } from "../../src/routing/app-types.ts"
+import type { createClient } from "../../src/runtime/ts/app.ts"
+import type { ErrorsFor, OutputDefFor } from "../../src/runtime/ts/app-types.ts"
+import type { Result } from "../../src/runtime/ts/response.ts"
+import type { SSEEvent } from "../../src/runtime/ts/sse.ts"
+import { defineErrors } from "@workerstack/backend"
+import { streamed } from "@workerstack/backend/input"
+import { honey } from "@workerstack/backend"
+import type { InferRoutes } from "@workerstack/backend"
 
 const user = z.object({ email: z.string(), id: z.string(), name: z.string() })
 const row = z.object({ id: z.string(), name: z.string() })

@@ -9,7 +9,7 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { gzipSync } from "node:zlib"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { pinnedBunVersion, withPinnedBun } from "../../../gen/src/gen/__fixtures__/pinned-bun.ts"
+import { pinnedBunVersion, withPinnedBun } from "../fixture/pinned-bun.ts"
 import { consumer, pack, run, scratch, type Tarballs, write } from "./fixture/packed.ts"
 
 /* a bundle's bytes are the Bun's that builds it: the pinned one CI runs, never PATH's (skipped without it, required

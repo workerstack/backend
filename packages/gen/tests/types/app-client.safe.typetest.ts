@@ -6,12 +6,12 @@
  */
 import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
-import type { createClient } from "../../../gen/src/runtime/ts/app.ts"
-import type { ErrorEnvelope } from "../../../gen/src/runtime/ts/app-types.ts"
-import type { DecodeError } from "../../../gen/src/runtime/ts/error.ts"
-import type { Result } from "../../../gen/src/runtime/ts/response.ts"
-import { defineErrors } from "../../src/errors/errors.ts"
-import { honey } from "../../src/routing/app.ts"
+import type { createClient } from "../../src/runtime/ts/app.ts"
+import type { ErrorEnvelope } from "../../src/runtime/ts/app-types.ts"
+import type { DecodeError } from "../../src/runtime/ts/error.ts"
+import type { Result } from "../../src/runtime/ts/response.ts"
+import { defineErrors } from "@workerstack/backend"
+import { honey } from "@workerstack/backend"
 
 const row = z.object({ id: z.string(), name: z.string() })
 
