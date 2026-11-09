@@ -12,6 +12,11 @@ generated from a small example API (`Kitchen`); yours is named after your docume
 The SDK sections cover the four SDKs 0.7.3 shipped: TypeScript, Python, Go and Rust. The C# and Java SDKs are new
 in 1.0, so they migrate nothing; their client is documented in [the generated clients page](https://github.com/workerstack/clients/blob/main/docs/client.md).
 
+## From 1.0.0-rc.23 to 1.0.0-rc.24
+
+Nothing changes for a backend app. `@workerstack/clients` now ships from github.com/workerstack/clients, and
+its own migration notes are in that repository's `docs/migration.md`.
+
 ## From 1.0.0-rc.22 to 1.0.0-rc.23
 
 Only the names moved: the packages are `@workerstack/backend` and `@workerstack/clients`, and the repository is
