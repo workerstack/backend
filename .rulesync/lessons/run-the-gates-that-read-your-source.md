@@ -1,9 +1,9 @@
 ---
 name: run-the-gates-that-read-your-source
 paths: ["packages/core/src/**","packages/core/lint/**","blueprint/files.tsv"]
-hits: 5
-last-hit: 2026-11-07
-evidence: ["plan 21","roadmap 2","plan 32","plan 33","plan 40 rc.22: init.test.ts spawned bun -e on core source without --conditions=honey-source, so the new #output-check package import resolved to an unbuilt dist; lane gates passed, the first tip verify caught it"]
+hits: 6
+last-hit: 2026-11-09
+evidence: ["roadmap 2","plan 32","plan 33","plan 40 rc.22: init.test.ts spawned bun -e on core source without --conditions=honey-source, so the new #output-check package import resolved to an unbuilt dist; lane gates passed, the first tip verify caught it","plan 48: lint max-lines on route-builder.ts and a 113-line describe, and a docs block examples-compile reads, failed after the touched suites were green"]
 ---
 
 # Changed source reds the gates that read it, not only its own tests
@@ -27,12 +27,14 @@ read those files kept failing afterwards:
   toolchain group at a time. Overlapping runs then timed out cases that pass alone.
 
 ## Fix
-After changing anything under `packages/*/src`, run the readers before verify, under the package's own
-config:
+After changing anything under `packages/*/src`, run the readers before the CLAUDE.md gate set (the repo
+has no `verify` script since gen left in 77ef4aa4), under the package's own config:
 
     bun vitest run --root packages/core lint tests/structure
 
 A new file also needs its `blueprint/files.tsv` row at `COMPLETE + 1`, read from
 `packages/core/tests/structure/check-tree.ts` at edit time. Extracting a module is the case most likely
 to trip a derivation: a lint rule that follows named calls cannot see through a closure stored in a
-table.
+table. `bun run lint` reads the source too: `max-lines` (300 code lines) and `max-lines-per-function`
+(60, a test's `describe` included) fail a file a feature grows past them; split by meaning, as
+`app-types.ts` and `start-types.ts` were split.

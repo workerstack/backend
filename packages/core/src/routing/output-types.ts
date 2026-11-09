@@ -84,6 +84,31 @@ export type OutputSchemas = {
 	/** 3xx statuses: the redirects `ctx.res.redirect` takes, each documented with a `Location`, and a 304 a forwarded answer may be. */ readonly redirect?: RedirectStatuses
 }
 
+/** One level of a sparse fieldset: the fields it names and the relations it embeds; `*` names every field. */
+export type Selection = {
+	/** Each embedded relation by name, with what it selects; `null` selects all of it. */
+	readonly relations: Readonly<Record<string, Selection | null>>
+	/** The field names at this level; `*` stands for every field, a leading `@` for a computed one. */
+	readonly scalars: readonly string[]
+}
+
+/** An answer cut to a selection: the rows of the array at the envelope key `at`, or, without `at`, the body itself. */
+export type Projection = {
+	/** The envelope key holding the array of rows; omitted when the body is the one row. */
+	readonly at?: string
+	/** What the rows keep. */
+	readonly select: Selection
+}
+
+/** `.output()`'s options. */
+export type OutputOptions<TCtx> = {
+	/**
+	 * The selection this request's answer is cut to, or `null` for a whole answer. The check then accepts a row that
+	 * leaves out a field the selection did not name, and refuses every other mismatch.
+	 */
+	readonly projection?: (ctx: TCtx) => Projection | null
+}
+
 /** `.output()`'s shorthand: JSON bodies by 2xx status key, beside the headers and redirects of the explicit form. */
 export type JsonShorthand = StatusSchemas & {
 	/** The schema of the headers each 2xx or 3xx status carries, by status key; that status's helper then requires them. */ readonly headers?: HeaderSchemas

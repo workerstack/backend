@@ -11,6 +11,7 @@ import type {
 	KnownStatusKeys,
 	LooseOutput,
 	NormalizeOutput,
+	OutputOptions,
 	OutputSchemas,
 } from "./output-types.ts"
 import type { ErrorFactories } from "./settings.ts"
@@ -18,12 +19,10 @@ import type { MaybePromise, MiddlewareFn, RuntimeMiddleware } from "../middlewar
 import { answeringBody, normalizeOutput } from "../validation/validate-output.ts"
 import type { Honey } from "./app.ts"
 import type {
-	ApplyScoped,
 	ChainSupplied,
 	ComputeErrorsByStatus,
 	HoneyMeta,
 	HandlerCtx,
-	InitAccMeta,
 	MergeRoute,
 	RouteMeta,
 	ScopedMwEntry,
@@ -33,7 +32,6 @@ import type {
 import { errorsOf } from "./middleware-chain.ts"
 import { joinPatterns, parsePattern } from "./pattern.ts"
 import { addRoute, type HandleView, type HoneyGraph, type PendingRoute, type RouteSource, settle } from "./register.ts"
-import type { MergePath, ParamsFromPath } from "./types.ts"
 
 /** Everything a builder carries at the type level. */
 export type BuilderTypes = {
@@ -153,61 +151,6 @@ export type HandlerReturn<B extends BuilderTypes> = Honey<
 	B["scopedMw"]
 >
 
-/** The builder `app.get(path)` starts, from the app handle's own type. */
-export type StartOf<H, TPath extends string, TMethod extends string> =
-	H extends Honey<
-		infer TEnv,
-		infer TCtx,
-		infer TRoutes,
-		infer TMeta,
-		infer TFactory,
-		infer TDefaults extends string,
-		infer TBase extends string,
-		infer TTaps extends Record<string, unknown>,
-		infer TScoped extends readonly ScopedMwEntry[]
-	>
-		? BuilderChain<{
-				/** Starts from the meta the app declared, or `{}` when it declared none. */
-				accMeta: InitAccMeta<TMeta>
-				/** The app's ctx. */
-				baseCtx: TCtx
-				/** The app's base path. */
-				basePath: TBase
-				/** The app's ctx plus what middleware scoped to this path adds. */
-				ctx: TCtx & ApplyScoped<TScoped, MergePath<TBase, TPath>>
-				/** The app's default error keys. */
-				defaultErrors: TDefaults
-				/** The app's environment type. */
-				env: TEnv
-				/** The app's error factory. */
-				errorFactory: TFactory
-				/** No keys declared yet. */
-				errorKeys: never
-				/** No `.input()` yet. */
-				input: never
-				/** The meta type the app declared. */
-				meta: TMeta
-				/** No `.output()` yet. */
-				output: never
-				/** The path's params, strings. */
-				params: ParamsFromPath<MergePath<TBase, TPath>>
-				/** No client input yet. */
-				request: {}
-				/** The route's HTTP method, or a union of them for `app.on()`. */
-				method: TMethod
-				/** The route's full path, base path included. */
-				path: MergePath<TBase, TPath>
-				/** The routes the app has so far. */
-				routes: TRoutes
-				/** The app's path-scoped middleware. */
-				scopedMw: TScoped
-				/** The app's declared tap payloads. */
-				taps: TTaps
-				/** No one-shot method called yet. */
-				used: never
-			}>
-		: never
-
 /** What a builder carries at runtime. */
 export type BuilderState = {
 	/** The error key an undeclared or unknown throw becomes on this route; `null` defers to the app's. */
@@ -227,6 +170,8 @@ export type BuilderState = {
 	} | null
 	/** what `.output()` declared */
 	readonly output: OutputSchemas | null
+	/** `.output()`'s projection */
+	readonly projection: RouteSource["op"]
 	/** explicit meta: chain `.meta()` overlaid by route `.meta()` */
 	readonly meta: Readonly<Record<string, unknown>> | null
 	/** The route's first HTTP method. */
@@ -353,9 +298,12 @@ export class RouteBuilder<B extends BuilderTypes> {
 	 * statuses and `headers` those of a 2xx or 3xx; an error answer is declared with `.errors()`, and a key the route
 	 * cannot answer is refused with a message naming it. Status keys alone
 	 * (`{ ok: schema }`) declare JSON. With one 2xx status under one media type the handler may return the body.
+	 * `options.projection` names the selection a request's answer is cut to (a sparse fieldset), so a row leaving out a
+	 * field the selection did not name passes the check.
 	 */
 	output<const TOutput extends LooseOutput = {}>(
 		schemas: (OutputSchemas | JsonShorthand) & KnownStatusKeys<TOutput>,
+		options?: OutputOptions<RouteHandlerCtx<B>>,
 	): BuilderChain<
 		Next<
 			B,
@@ -365,7 +313,10 @@ export class RouteBuilder<B extends BuilderTypes> {
 			}
 		>
 	> {
-		return this.#next({ output: normalizeOutput(schemas) })
+		return this.#next({
+			output: normalizeOutput(schemas),
+			projection: (options?.projection ?? null) as RouteSource["op"],
+		})
 	}
 
 	/** Route-level middleware, after the chain and the scopes; the meta it gives counts as supplied for `.meta()`. */
@@ -390,6 +341,7 @@ export class RouteBuilder<B extends BuilderTypes> {
 			fn: answeringBody(s.output, fn as unknown as RouteSource["fn"]),
 			in: s.input?.step ?? null,
 			iv: s.input?.schemas ?? null,
+			op: s.projection,
 			out: s.output,
 			own: s.graph.settings,
 			rb: s.boundaryKey,
@@ -423,6 +375,7 @@ export function startRoute(
 		method: route.method,
 		output: null,
 		middlewares: [],
+		projection: null,
 		parent,
 		path: fullPath,
 		pending,

@@ -28,6 +28,7 @@ function source(): RouteSource {
 		fn: () => new Response("x"),
 		in: null,
 		iv: null,
+		op: null,
 		out: null,
 		own: createGraph().settings,
 		rb: null,

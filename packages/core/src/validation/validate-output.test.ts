@@ -290,9 +290,9 @@ describe("output validation through the app: where the body is read from", () =>
 		const check = compileOutput({ "application/json": { created: z.null(), ok: z.object({ id: z.string() }) } }, null)
 		const answers = await Promise.all(
 			[new HoneyRes(), new HoneyRes(true)].map(async (res) => {
-				const passed = await check(res.json("created", undefined))
+				const passed = await check(res.json("created", undefined), {})
 				const failed = (await Promise.resolve()
-					.then(() => check(res.json("ok", undefined)))
+					.then(() => check(res.json("ok", undefined), {}))
 					.catch((e: unknown) => e)) as HoneyError
 				return [passed.status, failed.errorKey]
 			}),

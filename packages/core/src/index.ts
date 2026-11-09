@@ -54,6 +54,7 @@ export type {
 	RouteRecord,
 } from "./routing/app-types.ts"
 export type { HoneyCodegen, RouteSelectorOf, WithOutput } from "./routing/codegen-types.ts"
+export type { OutputOptions, Projection, Selection } from "./routing/output-types.ts"
 export type { TapContext, TapHandler } from "./routing/tap.ts"
 export { mergeTree } from "./routing/tree-merge.ts"
 export type { MergePath, PrefixRoutes } from "./routing/types.ts"

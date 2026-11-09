@@ -203,7 +203,7 @@ function planRoute(
 	/* only a route with .input() pays for it: the step runs between the middleware and the handler */
 	const input = r.in === null ? r.fn : withInput(r.in, r.fn)
 	/* only a route with .output() pays for the check, and none where the build resolved #output-check to its no-op */
-	const check = r.out === null ? null : outputCheck(r.out as OutputSchemas)
+	const check = r.out === null ? null : outputCheck(r.out as OutputSchemas, r.op)
 	/* a route with .output() checks what forward() answered, whatever the build */
 	const forwarded =
 		r.out === null ? input : withOutput(forwardCheck(r.out as OutputSchemas, thrownStatuses(r, chain, policy)), input)
