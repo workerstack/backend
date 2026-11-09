@@ -12,6 +12,12 @@ generated from a small example API (`Kitchen`); yours is named after your docume
 The SDK sections cover the four SDKs 0.7.3 shipped: TypeScript, Python, Go and Rust. The C# and Java SDKs are new
 in 1.0, so they migrate nothing; their client is documented in [the generated clients page](https://github.com/workerstack/clients/blob/main/docs/client.md).
 
+## From 1.0.0-rc.24 to 1.0.0-rc.25
+
+Nothing breaks. A list that answers a sparse fieldset (rows cut to `?select=`) failed the output check with a 500
+for every field it left out; pass `.output(schemas, { projection })` and that answer passes, as
+[Sparse fieldsets](input-output.md#sparse-fieldsets) shows.
+
 ## From 1.0.0-rc.23 to 1.0.0-rc.24
 
 Nothing changes for a backend app. `@workerstack/clients` now ships from github.com/workerstack/clients, and

@@ -63,7 +63,7 @@
     },
     "packages/core": {
       "name": "@workerstack/backend",
-      "version": "1.0.0-rc.24",
+      "version": "1.0.0-rc.25",
       "bin": {
         "honey": "bin/honey.js",
       },
