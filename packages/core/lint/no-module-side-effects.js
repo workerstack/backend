@@ -36,7 +36,7 @@ const PURE = /[@#]__PURE__/
 function inScope(filename) {
 	const file = String(filename).replaceAll("\\", "/")
 	if (/\.test\.[cm]?[jt]sx?$/.test(file)) return false
-	return file.includes("/packages/core/src/") || file.includes("/packages/gen/src/")
+	return file.includes("/packages/core/src/")
 }
 
 function children(node) {

@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process"
 import { readdirSync, readFileSync } from "node:fs"
 import { join, matchesGlob } from "node:path"
 import { parseRows } from "../structure/check-tree.ts"
-import { REPO } from "../../../gen/src/emit/shared/__fixtures__/docs-blocks.ts"
+import { REPO } from "./docs-blocks.ts"
 
 export const DX = join(REPO, "blueprint/dx")
 

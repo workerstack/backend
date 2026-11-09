@@ -18,10 +18,10 @@ This is the repository. **The guides are the two packages' own pages**, which is
 
 ## Packages
 
-| Package                                           | What it is                                                                                                                                                  |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@workerstack/backend`](packages/core/README.md) | The framework: routing, typed input and output, middleware, streaming, WebSockets and realtime, OpenAPI, the MCP mount, the `honey` CLI and the Vite plugin |
-| [`@workerstack/clients`](packages/gen/README.md)  | `honey-clients generate`: SDKs (TypeScript, Go, Rust, Python, C#, Java), a Go CLI and an MCP server from a document or a honey app                          |
+| Package                                                                              | What it is                                                                                                                                                  |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@workerstack/backend`](packages/core/README.md)                                    | The framework: routing, typed input and output, middleware, streaming, WebSockets and realtime, OpenAPI, the MCP mount, the `honey` CLI and the Vite plugin |
+| [`@workerstack/clients`](https://github.com/workerstack/clients/blob/main/README.md) | `honey-clients generate`: SDKs (TypeScript, Go, Rust, Python, C#, Java), a Go CLI and an MCP server from a document or a honey app                          |
 
 Each package's README is its complete guide: every export and every area, with examples the tests compile.
 
@@ -49,17 +49,18 @@ npx honey-clients generate --app src/app.ts --target ts --out generated
 ## Documentation
 
 - [`@workerstack/backend`](packages/core/README.md) — the framework, end to end
-- [`@workerstack/clients`](packages/gen/README.md) — the generator, every target and flag
+- [`@workerstack/clients`](https://github.com/workerstack/clients/blob/main/README.md) — the generator, every target and flag, in its own repository
 - [All the docs](docs/README.md) — a page per area, each example compiled by the tests
 - [Migrating from 0.7](docs/migration.md)
-- [Package exports](docs/packages.md) — every subpath either package exports
+- [Package exports](docs/packages.md) — every subpath the framework exports
 - [Packaging](packages/core/docs/packaging.md) — how a tarball is built and what it ships
 
 ## Develop
 
-The repository is a Bun workspace: `packages/core` is `@workerstack/backend`, `packages/gen` is
-`@workerstack/clients`, `packages/core/tests/e2e` holds the end-to-end apps and runtimes, `bench/` the
-benchmarks, `docs/` the documentation and `blueprint/` the design records.
+The repository is a Bun workspace: `packages/core` is `@workerstack/backend`, `packages/core/tests/e2e` holds the
+end-to-end apps and runtimes, `bench/` the benchmarks, `docs/` the documentation and `blueprint/` the design records.
+`@workerstack/clients` lives in [workerstack/clients](https://github.com/workerstack/clients); this repository installs
+it from npm.
 
 ```sh
 bun install
@@ -68,15 +69,14 @@ bun run verify
 
 `bun run verify` runs every gate in order and stops at the first failure: formatting, lint, type-checks, the tests,
 the generated outputs, the consumer type-checks and tests, and the end-to-end matrix. CI runs the same gates on every
-push, plus each SDK language's toolchain tests, the per-runtime end-to-end cells, the build tier and the packaging
-tier.
+push, plus the per-runtime end-to-end cells, the build tier and the packaging tier.
 
 ## Releases
 
-Both packages share a version. Set it in `packages/core/package.json` and `packages/gen/package.json`, then push a
-`vX.Y.Z` tag. The release workflow packs both tarballs, checks each version against the tag and that CHANGELOG.md
-carries that release's entry, runs CI on the tagged commit, then publishes both to npm with provenance and creates
-the GitHub release.
+Set the version in `packages/core/package.json`, then push a `vX.Y.Z` tag. The release workflow packs the tarball,
+checks its version against the tag and that CHANGELOG.md carries that release's entry, waits for CI on the tagged
+commit, then publishes it to npm with provenance and creates the GitHub release. `@workerstack/clients` releases
+from its own repository.
 
 Two rules the workflow enforces rather than trusts:
 

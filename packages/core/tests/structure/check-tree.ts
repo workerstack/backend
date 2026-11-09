@@ -17,13 +17,7 @@ type Entry = { bit: number; implicitTest: boolean; pattern: string }
 const REPO_PREFIXES = ["packages/", "bench/", "blueprint/", "."]
 
 /* where an unlisted file is a defect; elsewhere only listed rows are checked */
-const CHECKED_ROOTS = [
-	"packages/core/src/",
-	"packages/core/lint/",
-	"packages/core/tests/",
-	"packages/gen/src/",
-	"packages/gen/tests/",
-]
+const CHECKED_ROOTS = ["packages/core/src/", "packages/core/lint/", "packages/core/tests/"]
 
 const SOURCE = /\.[cm]?[jt]s$/
 const TEST = /\.test\.[cm]?[jt]s$/

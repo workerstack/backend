@@ -1,25 +1,21 @@
 /**
  * The READMEs (bit 22, the owner's ruling): each npm package's README is that package's complete guide, since that
- * page is what npm shows, and the root one is a short repository overview that points at both. This file holds them
- * to it: core's README covers every subpath it exports, every value its root export holds and every `dx/` area;
- * gen's covers every target and every flag its CLI takes; the root one stays an overview and links both. Every link
+ * page is what npm shows, and the root one is a short repository overview that points at both packages. This file
+ * holds them to it: core's README covers every subpath it exports, every value its root export holds and every `dx/`
+ * area; the root one stays an overview and links both packages' guides. Every link
  * in them, the packaging doc and the exports page resolves, each page's contents matches its headings, and their code
  * blocks compile with the docs' (examples-compile.test.ts). What ships in each tarball is packaging.test.ts's.
  */
 import { existsSync, readFileSync } from "node:fs"
 import { dirname, join, normalize } from "node:path"
 import { describe, expect, it } from "vitest"
-import { blocksOf, READMES, REPO } from "../../../gen/src/emit/shared/__fixtures__/docs-blocks.ts"
+import { blocksOf, READMES, REPO } from "./docs-blocks.ts"
 
 const BLOB = "https://github.com/workerstack/backend/blob/main/"
+/* the generator's pages live in its own repository */
+const CLIENTS_BLOB = "https://github.com/workerstack/clients/blob/main/"
 /* the pages whose links this file holds to resolving */
-const LINKED = [
-	"README.md",
-	"packages/core/README.md",
-	"packages/gen/README.md",
-	"packages/core/docs/packaging.md",
-	"docs/packages.md",
-]
+const LINKED = ["README.md", "packages/core/README.md", "packages/core/docs/packaging.md", "docs/packages.md"]
 /* the root README is an overview: a guide that grew back into it would show up here first */
 const OVERVIEW_LINES = 120
 
@@ -106,27 +102,6 @@ const dxAreas = (): string[] =>
 		.split("\n")
 		.flatMap((line) => [...line.matchAll(/^\| `([a-z-]+)\.md` \|/g)].map(([, area]) => area as string))
 
-/**
- * The generate CLI's flags, read from gen's sources rather than listed here: the targets and their
- * `--<target>-<option>` options from targets.ts's `TARGET_OPTIONS` table, the `--metadata-<field>` flags from
- * metadata.ts's `METADATA_FIELDS`, and the global flags from the ones args.ts's `takeFlag` matches. An option added
- * there and left out of gen's README reds the coverage leg below.
- */
-export function generateFlags(source: string): { flags: string[]; targets: string[] } {
-	const table = /const TARGET_OPTIONS = \{(.*?)\n\} as const/s.exec(source)?.[1] ?? ""
-	const kebab = (key: string) => key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
-	const targets: string[] = []
-	/* a target's options on one line, or wrapped one per line once the formatter breaks a long list */
-	const flags = [...table.matchAll(/^\t(\w+): \[([^\]]*)\],$/gm)].flatMap(([, target, options]) => {
-		targets.push(target as string)
-		return [...(options as string).matchAll(/"(\w+)"/g)].map(([, key]) => `--${target}-${kebab(key as string)}`)
-	})
-	const global = [...source.matchAll(/flag === "([a-z]+)"/g)].map(([, flag]) => `--${flag as string}`)
-	const fields = /const METADATA_FIELDS = \[(.*?)\] as const/s.exec(source)?.[1] ?? ""
-	const metadata = [...fields.matchAll(/"(\w+)"/g)].map(([, field]) => `--metadata-${kebab(field as string)}`)
-	return { flags: [...new Set([...global, ...flags, ...metadata])], targets }
-}
-
 describe("the npm READMEs are each their package's guide", () => {
 	// v0: df3a620f4a
 	/*
@@ -135,6 +110,8 @@ describe("the npm READMEs are each their package's guide", () => {
 	 * a reference table lives only in docs/. What a reader must find in the first screen stays, and the coverage the
 	 * caps used to stand in for is the compiled-block and coverage legs below.
 	 */
+	/* the SDK targets' matrix lives on the generator's codegen page, which the README links */
+	// v0: d678624171
 	it("core's README is the framework's guide: the tagged install, honey init, serve(app), /docs, curl /health", () => {
 		const readme = read("packages/core/README.md")
 		const has = (pattern: RegExp) => pattern.test(readme)
@@ -146,20 +123,8 @@ describe("the npm READMEs are each their package's guide", () => {
 			has(/\/docs/),
 			has(/\bcurl\b/),
 			has(/\/health/),
-			has(new RegExp(`${BLOB}docs/codegen\\.md`)),
+			readme.includes(`${CLIENTS_BLOB}docs/codegen.md`),
 		]).toEqual([true, true, true, true, true, true, true, true])
-	})
-
-	// v0: d678624171
-	it("gen's README is the generator's guide: the tagged install, generate, all eight targets", () => {
-		const readme = read("packages/gen/README.md")
-		const targets = ["ts", "go", "rust", "python", "csharp", "java", "cli", "mcp"]
-		expect([
-			/npm install --save-dev @workerstack\/clients@next/.test(readme),
-			/honey-clients generate/.test(readme),
-			targets.filter((target) => !new RegExp(`\`${target}\``).test(readme)),
-			readme.includes(`${BLOB}docs/codegen.md`),
-		]).toEqual([true, true, [], true])
 	})
 
 	// v0: c64d56ae7d
@@ -170,7 +135,7 @@ describe("the npm READMEs are each their package's guide", () => {
 		const v0Only = [/app\.serve\(/, /\.ws\(["'/]/, /\.realtime\(/, /_v0\b/, /\/trust\b/].filter(has).map(String)
 		expect([
 			has(/\]\(packages\/core\/README\.md\)/),
-			has(/\]\(packages\/gen\/README\.md\)/),
+			root.includes(`](${CLIENTS_BLOB}README.md)`),
 			has(/npm install @workerstack\/backend@next/),
 			has(/npm install --save-dev @workerstack\/clients@next/),
 			has(/^## Develop$/m),
@@ -202,9 +167,8 @@ describe("the READMEs' table of contents", () => {
 		])
 	})
 
-	it("holds all three READMEs' contents to their headings", () => {
-		for (const page of ["README.md", "packages/core/README.md", "packages/gen/README.md"])
-			expect(tocDrift(read(page)), page).toEqual([])
+	it("holds both READMEs' contents to their headings", () => {
+		for (const page of ["README.md", "packages/core/README.md"]) expect(tocDrift(read(page)), page).toEqual([])
 	})
 })
 
@@ -212,7 +176,7 @@ describe("the npm READMEs cover their package's surface", () => {
 	/*
 	 * The rule the owner asked for: a surface a package exports and its README never mentions is a surface nobody
 	 * finds, since npm's page is where a reader starts. Each list is read from the package itself, so a new subpath,
-	 * a new root value, a new `dx/` area or a new CLI option reds here until the guide names it.
+	 * a new root value or a new `dx/` area reds here until the guide names it.
 	 */
 	it("core's README names every subpath it exports and every value its root export holds", () => {
 		const readme = read("packages/core/README.md")
@@ -232,61 +196,33 @@ describe("the npm READMEs cover their package's surface", () => {
 		expect([areas.length > 15, areas.filter((area) => !readme.includes(`${BLOB}docs/${area}.md`))]).toEqual([true, []])
 	})
 
-	it("gen's README names every target, every flag its parser takes, and both its subpaths", () => {
-		const readme = read("packages/gen/README.md")
-		const { flags, targets } = generateFlags(
-			["src/gen/targets.ts", "src/gen/args.ts", "src/emit/shared/metadata.ts"]
-				.map((path) => read(`packages/gen/${path}`))
-				.join("\n"),
-		)
-		const subpaths = specifiers(read("packages/gen/package.json"), "@workerstack/clients")
-		expect([
-			targets.length,
-			flags.length > 20,
-			targets.filter((target) => !new RegExp(`\`${target}\``).test(readme)),
-			flags.filter((flag) => !readme.includes(flag)),
-			subpaths.filter((name) => !readme.includes(name)),
-			readme.includes("--help"),
-		]).toEqual([8, true, [], [], [], true])
-	})
-
 	it("reads the surfaces it checks from the packages themselves, not from a list of its own", () => {
 		expect(specifiers('{"exports":{".":{},"./ws/bun":{},"./package.json":"x"}}', "pkg")).toEqual(["pkg", "pkg/ws/bun"])
 		const index = ['export { honey, type Honey } from "./a.ts"', "export type {\n\tOne,\n} from './b.ts'"].join("\n")
 		expect(valueExports(index)).toEqual(["honey"])
-		const args = ["export const TARGET_OPTIONS = {", '\tts: ["name", "modulePath"],', "} as const satisfies X"].join(
-			"\n",
-		)
-		const fields = 'export const METADATA_FIELDS = [\n\t"licenseFile",\n] as const'
-		expect(generateFlags(`${args}\nif (flag === "spec") x()\n${fields}`)).toEqual({
-			flags: ["--spec", "--ts-name", "--ts-module-path", "--metadata-license-file"],
-			targets: ["ts"],
-		})
 	})
 })
 
 describe("the READMEs show working code", () => {
 	/*
-	 * Not vacuous: each package's README must carry at least one block the docs' tests compile.
-	 * `examples-compile.test.ts` type-checks every `ts` block of every page including these, and gen's compiles each
-	 * `ts sdk` block against a generated SDK — but a README with no fenced TypeScript at all would pass both by
-	 * having nothing to check. This is the leg that notices.
+	 * Not vacuous: the package's README must carry at least one block the docs' tests compile.
+	 * `examples-compile.test.ts` type-checks every `ts` block of every page including these, but a README with no
+	 * fenced TypeScript at all would pass it by having nothing to check. This is the leg that notices.
 	 */
-	it("each package README carries a block the tests compile, and names the pages that do not", () => {
-		const compiled = new Set(["ts", "ts run", "ts sdk"])
+	it("the package README carries a block the tests compile, and names the pages that do not", () => {
+		const compiled = new Set(["ts", "ts run"])
 		const without = READMES.filter(
 			(page) => inRepo(page) && !blocksOf(page, read(page)).some((block) => compiled.has(block.info)),
 		)
 		/*
-		 * The two package READMEs carry compiled code. The two below do not, and are pinned rather than excused: the
+		 * The package README carries compiled code. The two below do not, and are pinned rather than excused: the
 		 * root README is an overview whose code lives in the package guides, and packaging.md is prose about
 		 * tarballs, so when either gains a TypeScript block this leg reds and whoever added it tightens the list.
 		 */
 		expect(without).toEqual(["README.md", "packages/core/docs/packaging.md"])
-		for (const page of ["packages/core/README.md", "packages/gen/README.md"]) {
-			const blocks = blocksOf(page, read(page)).filter((block) => compiled.has(block.info))
-			expect(blocks.length, page).toBeGreaterThan(0)
-		}
+		expect(blocksOf("packages/core/README.md", read("packages/core/README.md")).some((b) => compiled.has(b.info))).toBe(
+			true,
+		)
 	})
 })
 
@@ -310,12 +246,9 @@ describe("the READMEs' links", () => {
 })
 
 describe("the exports page", () => {
-	it("lists every subpath either package exports", () => {
+	it("lists every subpath the package exports", () => {
 		const page = read("docs/packages.md")
-		const all = [
-			...specifiers(read("packages/core/package.json"), "@workerstack/backend"),
-			...specifiers(read("packages/gen/package.json"), "@workerstack/clients"),
-		]
+		const all = specifiers(read("packages/core/package.json"), "@workerstack/backend")
 		expect(all.filter((name) => !page.includes(`\`${name}\``))).toEqual([])
 	})
 })

@@ -4,8 +4,7 @@
 // the compiled JavaScript on any runtime (the tarball ships dist/, not src/).
 import { spawn } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
-import { createRequire } from "node:module"
-import { basename, dirname, join } from "node:path"
+import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const isBun = typeof globalThis.Bun !== "undefined"
@@ -47,18 +46,6 @@ function handOff(bun, env = {}) {
 	})
 }
 
-// A checkout's specifier for `name` mapped to its source: each export's `honey-source` file. The published exports
-// send `default` to dist/, which a checkout does not build.
-function sourceAliases(name) {
-	const root = dirname(createRequire(import.meta.url).resolve(`${name}/package.json`))
-	const { exports = {} } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
-	return Object.fromEntries(
-		Object.entries(exports)
-			.filter(([, target]) => typeof target === "object" && target["honey-source"])
-			.map(([subpath, target]) => [name + subpath.slice(1), join(root, target["honey-source"])]),
-	)
-}
-
 // A checkout's own subpath imports (`#output-check`) mapped to their `honey-source` file: jiti resolves a `#` import
 // with Node's conditions, which send it to the dist/ a checkout does not build.
 function importAliases() {
@@ -67,8 +54,8 @@ function importAliases() {
 	return Object.fromEntries(Object.entries(imports).map(([name, target]) => [name, join(root, target["honey-source"])]))
 }
 
-// A checkout on Bun runs its source natively, under the honey-source condition: honey-clients, and an app's honey,
-// resolve to source then, not to the unbuilt dist/. Set through BUN_OPTIONS when the caller did not, so every
+// A checkout on Bun runs its source natively, under the honey-source condition: an app's honey resolves to source
+// then, not to the unbuilt dist/. Set through BUN_OPTIONS when the caller did not, so every
 // generation child inherits it.
 const SOURCE_CONDITION = "--conditions=honey-source"
 const unconditioned = isBun && checkout && !process.execArgv.includes(SOURCE_CONDITION)
@@ -82,8 +69,7 @@ async function entry() {
 		 * throws "First argument must be an Error object" at a captureStackTrace on a non-Error (bit 20 k-fix) */
 		if (isBun) return import("../src/build/cli.ts")
 		const { createJiti } = await import("jiti")
-		const alias = { ...sourceAliases("@workerstack/clients"), ...importAliases() }
-		return createJiti(import.meta.url, { alias, tryNative: false }).import("../src/build/cli.ts")
+		return createJiti(import.meta.url, { alias: importAliases(), tryNative: false }).import("../src/build/cli.ts")
 	}
 	try {
 		return await import("../dist/build/cli.js")

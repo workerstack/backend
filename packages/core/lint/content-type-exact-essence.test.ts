@@ -11,13 +11,13 @@ describe("honey/content-type-exact-essence", () => {
 		const fixture = {
 			"packages/core/src/a.ts": 'export const f = (ct: string) => ct.startsWith("application/json")\n',
 			"packages/core/src/b.ts": "export const f = (t: string) => t.startsWith('text/')\n",
-			"packages/gen/src/c.ts": "export const f = (m: string) => m.startsWith(`multipart/form-data`)\n",
+			"packages/core/src/c.ts": "export const f = (m: string) => m.startsWith(`multipart/form-data`)\n",
 			"packages/core/src/d.ts": 'export const f = (h: Headers) => h.get("content-type")?.startsWith("image/")\n',
 		}
 		expect(reportsOf(rule, fixture)).toEqual([
 			{ file: "packages/core/src/a.ts", message: MESSAGE },
 			{ file: "packages/core/src/b.ts", message: MESSAGE },
-			{ file: "packages/gen/src/c.ts", message: MESSAGE },
+			{ file: "packages/core/src/c.ts", message: MESSAGE },
 			{ file: "packages/core/src/d.ts", message: MESSAGE },
 		])
 	})

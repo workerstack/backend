@@ -1,8 +1,7 @@
 name: Release
 
-# A v* tag publishes the two packages that ship, @workerstack/backend and @workerstack/clients, to npm with
-# provenance, once main's ci.yml push run (its harness and conformance gate included) passed on the tagged commit: the
-# tag reuses that run instead of running CI again, so tag the commit right after pushing it to main. A failed release
+# A v* tag publishes @workerstack/backend to npm with provenance, once main's ci.yml push run passed on the tagged
+# commit: the tag reuses that run instead of running CI again, so tag the commit right after pushing it to main. A failed release
 # re-runs on its tag: `gh workflow run release.yml --ref vX.Y.Z`; a version already on npm is skipped.
 on:
   push:
@@ -21,7 +20,7 @@ env:
   BUN_VERSION: "1.4.4"
 
 jobs:
-  # each manifest checked against the tag, then packed by its prepack: no write, no token
+  # the manifest checked against the tag, then packed by its prepack: no write, no token
   pack:
     name: pack
     runs-on: ubuntu-latest
@@ -45,14 +44,6 @@ jobs:
           if [ "$GITHUB_REF_TYPE" != tag ]; then echo "the release runs on a v* tag, not $GITHUB_REF_NAME"; exit 1; fi
           got="$(node -p 'const p = require("./package.json"); p.name + "@" + p.version')"
           if [ "$got" != "$PACKAGE@${GITHUB_REF_NAME#v}" ]; then echo "$got is not the tag's $PACKAGE@${GITHUB_REF_NAME#v}"; exit 1; fi
-      - name: Check @workerstack/clients against the tag
-        working-directory: packages/gen
-        env:
-          PACKAGE: "@workerstack/clients"
-        run: |
-          if [ "$GITHUB_REF_TYPE" != tag ]; then echo "the release runs on a v* tag, not $GITHUB_REF_NAME"; exit 1; fi
-          got="$(node -p 'const p = require("./package.json"); p.name + "@" + p.version')"
-          if [ "$got" != "$PACKAGE@${GITHUB_REF_NAME#v}" ]; then echo "$got is not the tag's $PACKAGE@${GITHUB_REF_NAME#v}"; exit 1; fi
       # the tag's notes: a version nobody wrote an entry for never reaches npm
       - name: Check the CHANGELOG entry for the tag
         run: bun "$GITHUB_WORKSPACE/scripts/changelog.ts" "${GITHUB_REF_NAME#v}"
@@ -60,9 +51,6 @@ jobs:
       # scripts/pack.ts, as the packaging tests pack: catalog: and workspace: resolved to versions, then npm pack
       - name: Pack @workerstack/backend
         working-directory: packages/core
-        run: bun ../../scripts/pack.ts "$RUNNER_TEMP/tarballs" .
-      - name: Pack @workerstack/clients
-        working-directory: packages/gen
         run: bun ../../scripts/pack.ts "$RUNNER_TEMP/tarballs" .
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -134,19 +122,8 @@ jobs:
           case "$v" in *-*) tag=next ;; *) tag=latest ;; esac
           if npm view "$PACKAGE@$v" version >/dev/null 2>&1; then echo "$PACKAGE@$v is already on npm"; exit 0; fi
           npm publish "$RUNNER_TEMP/tarballs/$TARBALL-$v.tgz" --provenance --access public --tag "$tag"
-      - name: Publish @workerstack/clients
-        env:
-          PACKAGE: "@workerstack/clients"
-          TARBALL: workerstack-clients
-        run: |
-          v="${GITHUB_REF_NAME#v}"
-          # a prerelease never takes `latest`: it publishes under `next`, so `npm install <pkg>` keeps giving the last
-          # final release until a final tag is cut. A version already on npm is skipped, as a re-run on the tag needs.
-          case "$v" in *-*) tag=next ;; *) tag=latest ;; esac
-          if npm view "$PACKAGE@$v" version >/dev/null 2>&1; then echo "$PACKAGE@$v is already on npm"; exit 0; fi
-          npm publish "$RUNNER_TEMP/tarballs/$TARBALL-$v.tgz" --provenance --access public --tag "$tag"
 
-  # the one job that writes: the tag's GitHub release, once both packages are on npm
+  # the one job that writes: the tag's GitHub release, once the package is on npm
   github-release:
     name: GitHub release
     needs: npm

@@ -12,13 +12,13 @@ describe("honey/no-module-side-effects", () => {
 			"packages/core/src/a.ts": "register()\n",
 			"packages/core/src/b.ts": "globalThis.honey = 1\n",
 			"packages/core/src/c.ts": "if (globalThis.x) {\n\tthrow new Error('x')\n}\n",
-			"packages/gen/src/d.ts": "for (const k of []) {\n}\n",
+			"packages/core/src/d.ts": "for (const k of []) {\n}\n",
 		}
 		expect(reportsOf(rule, fixture)).toEqual([
 			{ file: "packages/core/src/a.ts", message: MESSAGE },
 			{ file: "packages/core/src/b.ts", message: MESSAGE },
 			{ file: "packages/core/src/c.ts", message: MESSAGE },
-			{ file: "packages/gen/src/d.ts", message: MESSAGE },
+			{ file: "packages/core/src/d.ts", message: MESSAGE },
 		])
 	})
 

@@ -18,6 +18,7 @@ import { type AddressInfo, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { CLIENTS } from "../build/fixture/packed.ts"
 import { treeShake } from "./tree-shake.ts"
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -96,19 +97,17 @@ async function run(cmd: string[], cwd: string): Promise<{ code: number; out: str
 	return { code, out: stdout + stderr }
 }
 
-/* 1. pack both packages exactly as release.yml does: scripts/pack.ts, a staged copy, so the checkout stays source-only */
+/* 1. pack the package exactly as release.yml does: scripts/pack.ts, a staged copy, so the checkout stays source-only */
 console.log("packing …")
-const packed = await run(
-	["bun", join(repoRoot, "scripts/pack.ts"), sandbox, join(repoRoot, "packages/core"), join(repoRoot, "packages/gen")],
-	repoRoot,
-)
-const [coreTarball, genTarball] = packed.out.trim().split("\n")
-if (packed.code !== 0 || !coreTarball?.endsWith(".tgz") || !genTarball?.endsWith(".tgz")) {
+const packed = await run(["bun", join(repoRoot, "scripts/pack.ts"), sandbox, join(repoRoot, "packages/core")], repoRoot)
+/* the tarball's path is pack.ts's stdout, which `run` puts ahead of npm's notices on stderr */
+const coreTarball = packed.out.trim().split("\n")[0] ?? ""
+if (packed.code !== 0 || !coreTarball.endsWith(".tgz")) {
 	console.error(packed.out)
 	process.exit(1)
 }
 
-/* 2. a consumer that depends on the tarball, not the workspace */
+/* 2. a consumer that depends on the tarball, not the workspace, and on honey-clients at the version core pins */
 const consumer = join(sandbox, "consumer")
 mkdirSync(join(consumer, "src"), { recursive: true })
 /* every file the fixture ships, so a new leg needs no change here */
@@ -119,7 +118,7 @@ await Bun.write(
 	join(consumer, "package.json"),
 	`${JSON.stringify(
 		{
-			dependencies: { [PKG]: `file:${coreTarball}`, "@workerstack/clients": `file:${genTarball}`, zod: "4.3.6" },
+			dependencies: { [PKG]: `file:${coreTarball}`, "@workerstack/clients": CLIENTS, zod: "4.3.6" },
 			/* esbuild at the version wrangler pins, for the tree-shake gate beside vite's rolldown */
 			devDependencies: { esbuild: "0.28.1", typescript: "7.0.2", vite: "8.1.4" },
 			name: "strict-consumer-sandbox",

@@ -12,14 +12,14 @@ describe("honey/no-v8-ignore", () => {
 			"packages/core/src/a.ts": "/* v8 ignore next */\nexport const a = 1\n",
 			"packages/core/src/b.ts": "// c8 ignore start\nexport const b = 1\n// c8 ignore stop\n",
 			"packages/core/src/c.ts": "export const c = 1 /* istanbul ignore next */\n",
-			"packages/gen/src/d.ts": "/*   V8   IGNORE   else */\nexport const d = 1\n",
+			"packages/core/src/d.ts": "/*   V8   IGNORE   else */\nexport const d = 1\n",
 		}
 		expect(reportsOf(rule, fixture)).toEqual([
 			{ file: "packages/core/src/a.ts", message: MESSAGE },
 			{ file: "packages/core/src/b.ts", message: MESSAGE },
 			{ file: "packages/core/src/b.ts", message: MESSAGE },
 			{ file: "packages/core/src/c.ts", message: MESSAGE },
-			{ file: "packages/gen/src/d.ts", message: MESSAGE },
+			{ file: "packages/core/src/d.ts", message: MESSAGE },
 		])
 	})
 

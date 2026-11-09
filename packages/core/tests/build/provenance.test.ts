@@ -1,7 +1,7 @@
 /**
  * The release's provenance (bit 19 i, R7, Q13), read from .github/workflows/release.yml: the workflow reads by default,
- * the npm publish job alone mints an OIDC token, the GitHub release job alone writes; exactly the two packages that
- * ship are published, each with `--provenance` after its tag check; nothing goes to GitHub Packages; publishing waits
+ * the npm publish job alone mints an OIDC token, the GitHub release job alone writes; exactly the package that
+ * ships is published, each with `--provenance` after its tag check; nothing goes to GitHub Packages; publishing waits
  * on main's ci.yml push run green on the tagged commit; every action is pinned by commit and no checkout keeps
  * credentials.
  */
@@ -16,9 +16,9 @@ import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 const release = workflow("release.yml")
 const RELEASE_TEXT = readFileSync(join(ROOT, ".github/workflows/release.yml"), "utf8")
 
-/** the two packages that ship (bits/19:7), by the directory each is packed from */
+/** the package that ships, by the directory it is packed from */
 const SHIPPED = Object.fromEntries(
-	["packages/core", "packages/gen"].map((dir) => {
+	["packages/core"].map((dir) => {
 		const { name } = JSON.parse(readFileSync(join(ROOT, dir, "package.json"), "utf8")) as { name: string }
 		return [name, dir]
 	}),
@@ -71,7 +71,7 @@ describe("release.yml: privilege", () => {
 describe("release.yml: what is published", () => {
 	const publishes = allSteps().filter((step) => PUBLISH.test(step.run ?? ""))
 
-	it("publishes exactly the two packages that ship, each to npm with --provenance", () => {
+	it("publishes exactly the package that ships, to npm with --provenance", () => {
 		expect(publishes.map((step) => step.env?.PACKAGE).sort()).toEqual(Object.keys(SHIPPED).sort())
 		for (const step of publishes) {
 			expect(step.run, step.name).toMatch(/\bnpm publish "\$RUNNER_TEMP\/tarballs\/\$TARBALL-\$v\.tgz" /)

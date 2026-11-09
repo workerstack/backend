@@ -7,7 +7,7 @@
 		".": "./src/app.ts"
 	},
 	"scripts": {
-		"generate": "BUN_OPTIONS=--conditions=honey-source honey generate && bun --conditions=honey-source honey-clients generate --app src/gen-app.ts --target ts --ts-name Kitchen --out src/_gen/sdk",
+		"generate": "BUN_OPTIONS=--conditions=honey-source honey generate && BUN_OPTIONS=--conditions=honey-source honey-clients generate --app src/gen-app.ts --target ts --ts-name Kitchen --out src/_gen/sdk",
 		"test": "bun test --conditions=honey-source tests/smoke.test.ts",
 		"type:check": "tsc --noEmit"
 	},
@@ -17,7 +17,7 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "catalog:",
-		"@workerstack/clients": "workspace:*",
+		"@workerstack/clients": "1.0.0-rc.23",
 		"typescript": "catalog:"
 	}
 }

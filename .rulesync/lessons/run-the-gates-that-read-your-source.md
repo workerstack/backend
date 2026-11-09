@@ -1,6 +1,6 @@
 ---
 name: run-the-gates-that-read-your-source
-paths: ["packages/gen/src/**","packages/core/src/**","packages/core/lint/**","packages/gen/tests/structure/**","blueprint/files.tsv"]
+paths: ["packages/core/src/**","packages/core/lint/**","blueprint/files.tsv"]
 hits: 5
 last-hit: 2026-11-07
 evidence: ["plan 21","roadmap 2","plan 32","plan 33","plan 40 rc.22: init.test.ts spawned bun -e on core source without --conditions=honey-source, so the new #output-check package import resolved to an unbuilt dist; lane gates passed, the first tip verify caught it"]
@@ -27,12 +27,10 @@ read those files kept failing afterwards:
   toolchain group at a time. Overlapping runs then timed out cases that pass alone.
 
 ## Fix
-After changing anything under `packages/*/src`, run the readers before verify, each package under its
-own config:
+After changing anything under `packages/*/src`, run the readers before verify, under the package's own
+config:
 
     bun vitest run --root packages/core lint tests/structure
-    bun vitest run --root packages/gen tests/structure
-    bun run test:gen            # the coverage floor lives here
 
 A new file also needs its `blueprint/files.tsv` row at `COMPLETE + 1`, read from
 `packages/core/tests/structure/check-tree.ts` at edit time. Extracting a module is the case most likely

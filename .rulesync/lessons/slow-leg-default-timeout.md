@@ -1,6 +1,6 @@
 ---
 name: slow-leg-default-timeout
-paths: ["packages/gen/src/**/*.test.ts","packages/gen/tests/**/*.test.ts","packages/gen/scripts/*.test.ts","packages/core/tests/**/*.test.ts"]
+paths: ["packages/core/tests/**/*.test.ts"]
 hits: 2
 last-hit: 2026-11-03
 evidence: ["plan 21","plan 39"]

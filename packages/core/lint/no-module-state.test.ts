@@ -14,13 +14,13 @@ describe("honey/no-module-state", () => {
 			"packages/core/src/b.ts": "export var cache = {}\n",
 			"packages/core/src/c.ts":
 				"const seen = new Map<string, number>()\nexport const has = (k: string) => seen.has(k)\n",
-			"packages/gen/src/d.ts": "export const memo = new WeakMap()\n",
+			"packages/core/src/d.ts": "export const memo = new WeakMap()\n",
 		}
 		expect(reportsOf(rule, fixture)).toEqual([
 			{ file: "packages/core/src/a.ts", message: MESSAGE },
 			{ file: "packages/core/src/b.ts", message: MESSAGE },
 			{ file: "packages/core/src/c.ts", message: MESSAGE },
-			{ file: "packages/gen/src/d.ts", message: MESSAGE },
+			{ file: "packages/core/src/d.ts", message: MESSAGE },
 		])
 	})
 

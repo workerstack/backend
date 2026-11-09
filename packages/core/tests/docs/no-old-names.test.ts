@@ -1,14 +1,14 @@
 /**
- * No docs page or docs example names a v0 name v1 removed (bit 21 i7d): `throwOnError` and each language's
+ * No docs page names a v0 name v1 removed (bit 21 i7d): `throwOnError` and each language's
  * `--<lang>-throw-on-error`, the TS client's `TThrow` and its `<true>` argument, `SDKResult`, `SdkResult`,
  * `IsSuccess`, `ClientResult` and `requestSafe`. docs/migration.md is the one exemption: it is the page that tells a
- * reader what each name became, so it must name them. Every other file under docs/ is read, the example programs
- * included, since a removed name compiles nowhere and reads as current in prose.
+ * reader what each name became, so it must name them. Every other file under docs/ is read, since a removed name
+ * compiles nowhere and reads as current in prose.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { join, relative } from "node:path"
 import { describe, expect, it } from "vitest"
-import { DOCS, REPO } from "../../../gen/src/emit/shared/__fixtures__/docs-blocks.ts"
+import { DOCS, REPO } from "./docs-blocks.ts"
 
 /** The page that may name them: the migration guide, which exists to name them. */
 export const EXEMPT = "docs/migration.md"
@@ -54,7 +54,7 @@ export const SHIPPED_AT_V073: Readonly<Record<string, string | null>> = {
 	"honey-codegen": null,
 }
 
-/** Every file under `dir`, repo-relative and sorted: pages and example programs alike. */
+/** Every file under `dir`, repo-relative and sorted. */
 export function filesUnder(dir: string): string[] {
 	return readdirSync(dir)
 		.flatMap((name) => {
@@ -74,13 +74,12 @@ export function removedNames(file: string, text: string): string[] {
 }
 
 describe("the docs name no removed name (bit 21 i7d)", () => {
-	it("reads every file under docs/, the example programs included, migration.md the one exemption", () => {
+	it("reads every file under docs/, migration.md the one exemption", () => {
 		const files = filesUnder(DOCS)
-		expect({
-			examples: files.filter((file) => file.startsWith("docs/examples/")).length,
-			exempt: files.includes(EXEMPT),
-			pages: files.filter((file) => file.endsWith(".md")).length,
-		}).toEqual({ examples: 6, exempt: true, pages: 41 })
+		expect({ exempt: files.includes(EXEMPT), pages: files.filter((file) => file.endsWith(".md")).length }).toEqual({
+			exempt: true,
+			pages: 32,
+		})
 	})
 
 	/* one line per removed name, so a name dropped from REMOVED reds here rather than going unread over the docs */

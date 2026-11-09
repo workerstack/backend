@@ -1,7 +1,9 @@
 /**
  * The lose-nothing gate (H13): every v0 case of a feature whose bit has completed is either ported
  * (a v1 test carries `// v0: <id>`) or retired with a reason in the inventory. At bit 20 that covers every
- * feature, so nothing v0 tested went unaccounted when `_v0` was deleted; the inventory is frozen since.
+ * feature, so nothing v0 tested went unaccounted when `_v0` was deleted; the inventory is frozen since. The cases
+ * the generator's tests ported left with it for workerstack/clients, whose tests still carry their tags: the ids are
+ * frozen in v0-ported-in-clients.json at the clients commit they were read from.
  */
 import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
@@ -12,13 +14,7 @@ import { type Reassignment, unaccounted, type V0Case } from "./v0-inventory.ts"
 import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 
 const REPO = resolve(import.meta.dirname, "../../../..")
-const V1_ROOTS = [
-	"packages/core/src",
-	"packages/core/tests",
-	"packages/core/lint",
-	"packages/gen/src",
-	"packages/gen/tests",
-]
+const V1_ROOTS = ["packages/core/src", "packages/core/tests", "packages/core/lint"]
 const TAG = /\/\/ v0: ([0-9a-f]{10})\b/g
 /** A `// v0:` line carrying a second id: TAG reads only the first, so the rest would silently drop — one id per line. */
 const MULTI_TAG = /\/\/ v0: [0-9a-f]{10}\b[ ,]+[0-9a-f]{10}\b/
@@ -26,6 +22,9 @@ const MULTI_TAG = /\/\/ v0: [0-9a-f]{10}\b[ ,]+[0-9a-f]{10}\b/
 type Inventory = { cases: V0Case[]; reassigned: Record<string, Reassignment>; retired: Record<string, string> }
 
 const inventory = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v0-cases.json"), "utf8")) as Inventory
+const inClients = (
+	JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v0-ported-in-clients.json"), "utf8")) as { ids: string[] }
+).ids
 const known = new Set(inventory.cases.map((c) => c.id))
 
 function taggableFiles(): string[] {
@@ -61,8 +60,8 @@ describe(`v0 cases accounted for through bit ${String(COMPLETE).padStart(2, "0")
 		expect(Number.isInteger(COMPLETE)).toBe(true)
 	})
 
-	it("every port tag names a real v0 case", { timeout: SPAWN_TIMEOUT }, () => {
-		expect([...portedIds()].filter((id) => !known.has(id))).toEqual([])
+	it("every port tag names a real v0 case, here and in workerstack/clients", { timeout: SPAWN_TIMEOUT }, () => {
+		expect([...portedIds(), ...inClients].filter((id) => !known.has(id))).toEqual([])
 	})
 
 	it(
@@ -81,7 +80,7 @@ describe(`v0 cases accounted for through bit ${String(COMPLETE).padStart(2, "0")
 	it("every case of a completed feature is ported or retired", { timeout: SPAWN_TIMEOUT }, () => {
 		const accounting = {
 			complete: COMPLETE,
-			ported: portedIds(),
+			ported: new Set([...portedIds(), ...inClients]),
 			reassigned: inventory.reassigned,
 			retired: inventory.retired,
 		}

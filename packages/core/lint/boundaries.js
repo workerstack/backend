@@ -1,8 +1,8 @@
 import { builtinModules } from "node:module"
 
 /* 00-rules "Environments": portable core runs on Node, Bun and Workers from one source, so a
- * runtime's builtins, globals and adapters stay in that runtime's folder. build/ and honey-clients
- * are build-time Node code. */
+ * runtime's builtins, globals and adapters stay in that runtime's folder. build/ is build-time
+ * Node code. */
 
 const NODE_BUILTINS = new Set(builtinModules)
 
@@ -15,11 +15,11 @@ const RUNTIME_FILES = [
 
 /* who may touch each runtime global; an empty list means nobody */
 const GLOBALS = new Map([
-	["Buffer", ["node", "build", "gen"]],
+	["Buffer", ["node", "build"]],
 	["Bun", ["bun"]],
 	["WebSocketPair", ["workers"]],
 	["document", []],
-	["process", ["node", "build", "gen"]],
+	["process", ["node", "build"]],
 	["window", []],
 ])
 
@@ -30,26 +30,21 @@ const MESSAGES = {
 	codegen: "core reaches honey-clients from build/ only",
 	codegenStatic: "core imports honey-clients through import() only: it is an optional peer",
 	escape: "an import stays inside its package's src (no repo path outside it, no sibling package)",
-	internal: "honey-clients reads @workerstack/backend through public subpaths only",
 	node: "node builtins are for the Node adapter and build-time code only",
-	tsMorph: "ts-morph is for honey-clients's extract/ only",
+	tsMorph: "ts-morph is honey-clients's dependency, not core's",
 	ws: "ws is for the Node WebSocket adapter only",
 }
 
-/** `{ pkg, rel }` for a non-test file under a package's src/, else null. */
+/** The src-relative path of a non-test file under core's src/, else null. */
 function locate(filename) {
 	const file = String(filename).replaceAll("\\", "/")
 	if (/\.test\.[cm]?[jt]sx?$/.test(file)) return null
-	for (const pkg of ["core", "gen"]) {
-		const marker = `/packages/${pkg}/src/`
-		const index = file.lastIndexOf(marker)
-		if (index !== -1) return { pkg, rel: file.slice(index + marker.length) }
-	}
-	return null
+	const marker = "/packages/core/src/"
+	const index = file.lastIndexOf(marker)
+	return index === -1 ? null : file.slice(index + marker.length)
 }
 
-function bucketOf(pkg, rel) {
-	if (pkg === "gen") return "gen"
+function bucketOf(rel) {
 	for (const [bucket, pattern] of RUNTIME_FILES) if (pattern.test(rel)) return bucket
 	return "portable"
 }
@@ -73,35 +68,30 @@ function isNodeBuiltin(spec) {
 function relativeProblem(where, spec) {
 	const target = resolveRel(where.rel, spec)
 	if (target === null) return "escape"
-	const to = bucketOf(where.pkg, target)
+	const to = bucketOf(target)
 	return !ADAPTER_BUCKETS.has(to) || to === where.bucket ? null : "adapter"
 }
 
 function packageProblem(where, spec, dynamic) {
 	if (spec === "ws" || spec.startsWith("ws/")) return where.bucket === "node" ? null : "ws"
-	if (spec === "ts-morph") return where.pkg === "gen" && where.rel.startsWith("extract/") ? null : "tsMorph"
+	if (spec === "ts-morph") return "tsMorph"
 	if (spec.startsWith("@workerstack/clients")) {
-		if (where.pkg === "gen") return null
 		return where.bucket !== "build" ? "codegen" : dynamic ? null : "codegenStatic"
-	}
-	if (where.pkg === "gen" && spec.startsWith("@workerstack/backend/") && /\/(?:src|dist)\//.test(`${spec}/`)) {
-		return "internal"
 	}
 	return null
 }
 
 function problemOf(where, spec, dynamic) {
 	if (spec.startsWith(".")) return relativeProblem(where, spec)
-	if (isNodeBuiltin(spec))
-		return where.bucket === "node" || where.bucket === "build" || where.pkg === "gen" ? null : "node"
+	if (isNodeBuiltin(spec)) return where.bucket === "node" || where.bucket === "build" ? null : "node"
 	return packageProblem(where, spec, dynamic)
 }
 
 export const rule = {
 	create(context) {
-		const located = locate(context.filename)
-		if (located === null) return {}
-		const where = { ...located, bucket: bucketOf(located.pkg, located.rel) }
+		const rel = locate(context.filename)
+		if (rel === null) return {}
+		const where = { rel, bucket: bucketOf(rel) }
 		const checkSource = (node) => {
 			const spec = node.source?.type === "Literal" ? node.source.value : null
 			if (typeof spec !== "string") return

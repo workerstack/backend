@@ -5,7 +5,6 @@
 	"workspaces": {
 		"packages": [
 			"packages/core",
-			"packages/gen",
 			"packages/core/tests/e2e/*",
 			"packages/core/tests/e2e/apps/*",
 			"bench"
@@ -68,7 +67,7 @@
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"prepare": "lefthook install --reset-hooks-path",
-		"test": "bun run test:v1; v1=$?; bun run test:gen; gen=$?; bun run test:bench; bench=$?; exit $((v1 | gen | bench))",
+		"test": "bun run test:v1; v1=$?; bun run test:bench; bench=$?; exit $((v1 | bench))",
 		"test:bench": "bun run --filter @honey/bench test",
 		"test:build": "bun packages/core/tests/e2e/run-build.ts",
 		"test:build:all": "bun packages/core/tests/e2e/run-build.ts --runtime all",
@@ -82,13 +81,10 @@
 		"test:e2e:cf:prod": "bun packages/core/tests/e2e/run.ts --env cf --mode prod",
 		"test:e2e:node": "bun packages/core/tests/e2e/run.ts --env node",
 		"test:e2e:node:prod": "bun packages/core/tests/e2e/run.ts --env node --mode prod",
-		"test:gen": "bun run --filter @workerstack/clients test",
-		"test:harness": "bun run test:harness:gen",
-		"test:harness:gen": "bun run --filter @workerstack/clients test:harness",
 		"test:live:cf": "bun run --filter @honey/e2e-cf-workers test:live",
 		"test:packaging": "bun packages/core/tests/e2e/run-strict-consumer.ts",
 		"test:v1": "cd packages/core && vitest run --coverage",
-		"typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/gen/tsconfig.json && tsc --noEmit -p bench/tsconfig.json",
+		"typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p bench/tsconfig.json",
 		"typecheck:consumers": "bun run --filter './packages/core/tests/e2e/apps/*' --filter @honey/e2e-bun --filter @honey/e2e-node --filter @honey/e2e-cf-workers type:check"
 	},
 	"devDependencies": {

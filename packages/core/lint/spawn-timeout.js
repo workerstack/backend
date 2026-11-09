@@ -4,37 +4,27 @@
  * (.each, .skipIf … included) whose callback spawns (spawners.js) passes a timeout itself or inherits one: from its
  * describe's timeout, or from a file-scope `vi.setConfig({ testTimeout })`. vitest's hook (beforeAll … afterEach)
  * passes its own or inherits `vi.setConfig({ hookTimeout })`: a describe's timeout never bounds a hook (vitest 4,
- * probed). An inherited bound is named, never a bare number: SPAWN_TIMEOUT or the file's measured bound. Each package
- * keeps its own SPAWN_TIMEOUT (SHARED; gen never imports core, nor core gen's src), held equal by core's
- * tests/structure/spawn-timeout-twins.test.ts, and a message names the file's own package's. Scope:
- * the test files core's and gen's vitest projects run; core's tests/e2e run under bun test and Playwright instead. */
+ * probed). An inherited bound is named, never a bare number: SPAWN_TIMEOUT (SHARED) or the file's measured bound.
+ * Scope: the test files core's vitest projects run; core's tests/e2e run under bun test and Playwright instead. */
 import { repoPath, spawnScope, spawnsIn } from "./spawners.js"
 
-/** Each package's own SPAWN_TIMEOUT module. */
-export const SHARED = {
-	core: "packages/core/tests/fixture/spawn-timeout.ts",
-	gen: "packages/gen/src/gen/__fixtures__/spawn-timeout.ts",
-}
+/** The SPAWN_TIMEOUT module the messages name as the fix. */
+export const SHARED = "packages/core/tests/fixture/spawn-timeout.ts"
 const TESTS = new Set(["it", "test"])
 const SUITES = new Set(["describe", "suite"])
 const HOOKS = new Set(["afterAll", "afterEach", "beforeAll", "beforeEach"])
-/** The messages for a file of package `pkg`, naming that package's SPAWN_TIMEOUT module as the fix. */
-export function messagesOf(pkg) {
-	const fix = `pass SPAWN_TIMEOUT (${SHARED[pkg]}) as its timeout`
-	const named = `name it: SPAWN_TIMEOUT (${SHARED[pkg]}), or the file's measured bound`
-	return {
-		config: (key) => `vi.setConfig's ${key} is a bare number; ${named}`,
-		hook: `a hook that spawns a process needs its own timeout, vitest's 10 s default is not a process start's: ${fix}`,
-		suite: `a describe's timeout is a bare number; ${named}`,
-		test: `a test that spawns a process needs an explicit timeout, vitest's 5 s default is not a process start's: ${fix}`,
-	}
+const FIX = `pass SPAWN_TIMEOUT (${SHARED}) as its timeout`
+const NAMED = `name it: SPAWN_TIMEOUT (${SHARED}), or the file's measured bound`
+export const MESSAGES = {
+	config: (key) => `vi.setConfig's ${key} is a bare number; ${NAMED}`,
+	hook: `a hook that spawns a process needs its own timeout, vitest's 10 s default is not a process start's: ${FIX}`,
+	suite: `a describe's timeout is a bare number; ${NAMED}`,
+	test: `a test that spawns a process needs an explicit timeout, vitest's 5 s default is not a process start's: ${FIX}`,
 }
 
 function inScope(path) {
 	return (
-		path !== undefined &&
-		/^packages\/(?:core|gen)\/.*\.test\.ts$/.test(path) &&
-		!path.startsWith("packages/core/tests/e2e/")
+		path !== undefined && /^packages\/core\/.*\.test\.ts$/.test(path) && !path.startsWith("packages/core/tests/e2e/")
 	)
 }
 
@@ -173,7 +163,7 @@ export const rule = {
 				const scope = spawnScope(program, path)
 				const ctx = {
 					constants: constantsOf(program),
-					messages: messagesOf(path.split("/")[1]),
+					messages: MESSAGES,
 					report: (node, message) => context.report({ message, node }),
 					spawns: (fn) =>
 						fn !== undefined && (fn.type === "Identifier" ? scope.names.has(fn.name) : spawnsIn(fn.body, scope)),
