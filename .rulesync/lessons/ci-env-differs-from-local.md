@@ -1,9 +1,9 @@
 ---
 name: ci-env-differs-from-local
-paths: ["packages/core/src/**",".github/workflows/ci.yml"]
-hits: 1
-last-hit: 2026-11-01
-evidence: ["plan 21"]
+paths: ["packages/core/src/**",".github/workflows/ci.yml","packages/core/tests/build/runtime-bundle.test.ts"]
+hits: 2
+last-hit: 2026-11-09
+evidence: ["plan 21","plan 48: runtime-bundle locks set from local Node 26.12.0's zlib; CI's node-current 26.13.0 (zlib 1.3.2.1-motley) gzips the same bundle 64-71 bytes larger and failed the static-doc lock"]
 ---
 
 # `verify` runs CI's scripts, not CI's environment
@@ -34,3 +34,8 @@ pushing:
 And when a leg asserts exact stderr or stdout, pin what it depends on — `{ PATH: "" }`, or the pinned
 binary through `$RUFF`/`$RUSTFMT`/`$GOFMT` — rather than inheriting the machine. A leg whose
 expectation changes with what happens to be installed passes here and fails there.
+
+A size lock is the same gap. `tests/build/runtime-bundle.test.ts` gzips with the Node that runs vitest,
+and CI's test job runs node-current (`bun packages/core/tests/build/node-current.ts`), not the machine's
+Node. Plan 48 set its locks from Node 26.12.0; CI's 26.13.0 (zlib 1.3.2.1-motley) gzips the same bytes
+up to 71 larger and failed the lock. Measure a new lock under that Node before pushing.
