@@ -131,6 +131,19 @@ describe.sequential("the tarballs, installed (bit 19 i)", () => {
 		},
 	)
 
+	it("publish no honey-source condition, which names the src/ a tarball does not ship", () => {
+		/* a process that sets the condition (the bins' Bun hand-off, an app's generate) resolves an installed package
+		 * through it, so a published honey-source sends that process to a missing file */
+		const carried = ["@workerstack/backend", "@workerstack/clients"].flatMap((pkg) =>
+			JSON.stringify(JSON.parse(readFileSync(join(app, "node_modules", pkg, "package.json"), "utf8"))).includes(
+				'"honey-source"',
+			)
+				? [pkg]
+				: [],
+		)
+		expect(carried).toEqual([])
+	})
+
 	it("carry bin/, dist/, the README and the license but no source, and every export's files", () => {
 		const missing: string[] = []
 		for (const pkg of ["@workerstack/backend", "@workerstack/clients"]) {
@@ -139,7 +152,7 @@ describe.sequential("the tarballs, installed (bit 19 i)", () => {
 				/* every condition an install resolves; honey-source is the checkout's */
 				const conditions = typeof target === "string" ? { default: target } : target
 				for (const [condition, file] of Object.entries(conditions))
-					if (condition !== "honey-source" && !existsSync(join(root, file))) missing.push(`${subpath} ${file}`)
+					if (!existsSync(join(root, file))) missing.push(`${subpath} ${condition} ${file}`)
 			}
 		}
 		expect([readdirSync(join(app, "node_modules/@workerstack/backend")).sort(), missing]).toEqual([
