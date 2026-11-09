@@ -28,7 +28,6 @@
 		"**/.wrangler/**",
 		"**/.honey/**",
 		"**/.cache/**",
-		"blueprint/**",
-		"packages/gen/src/_tokenizer/**"
+		"blueprint/**"
 	]
 }
