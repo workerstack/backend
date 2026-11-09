@@ -1,5 +1,5 @@
 /**
- * The generators as a consumer reaches them: `@lovrozagar/honey-clients`'s own entry, typed, with no cast and no
+ * The generators as a consumer reaches them: `@workerstack/clients`'s own entry, typed, with no cast and no
  * deep path. A consumer that writes the files itself (a flat layout, or a document patched in memory) needs this —
  * the bin always writes `<out>/<target>/` — and the leg is here so the names cannot quietly drop off the entry.
  */
@@ -12,7 +12,7 @@ import {
 	writeGenerated,
 	type Written,
 	writeTarget,
-} from "@lovrozagar/honey-clients"
+} from "@workerstack/clients"
 
 const document: Record<string, unknown> = {
 	info: { title: "Strict", version: "1.0.0" },

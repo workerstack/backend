@@ -1,5 +1,5 @@
 /**
- * `oauth(options)` (bit 21 f, H24.4), `@lovrozagar/honey/mcp/oauth`: the mounted MCP endpoint as an OAuth 2.1 resource
+ * `oauth(options)` (bit 21 f, H24.4), `@workerstack/backend/mcp/oauth`: the mounted MCP endpoint as an OAuth 2.1 resource
  * server, handed to `mcp(app, path, handler, { authenticate, oauth: oauth(options) })`. An ordinary import (H23), so an
  * app that mounts MCP without it bundles none of this. honey is the resource server's discovery half only: no
  * authorization server, and no token validation, which stays the app's (`authenticate`, and each route's own check).

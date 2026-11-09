@@ -1,14 +1,14 @@
 # Queue
 
-`@lovrozagar/honey/queue` defines a typed queue. `@lovrozagar/honey/queue/workers` consumes it from a Workers Queue
-binding, and `@lovrozagar/honey/queue/serve` consumes it in a Node or Bun process from a `QueueStore`.
+`@workerstack/backend/queue` defines a typed queue. `@workerstack/backend/queue/workers` consumes it from a Workers Queue
+binding, and `@workerstack/backend/queue/serve` consumes it in a Node or Bun process from a `QueueStore`.
 
 ## Example
 
 A sender imports only the contract.
 
 ```ts
-import { queueContract, queueMessage, type QueueTarget } from "@lovrozagar/honey/queue"
+import { queueContract, queueMessage, type QueueTarget } from "@workerstack/backend/queue"
 
 export const jobs = queueContract({ welcome: queueMessage<{ userId: string }>() })
 
@@ -25,7 +25,7 @@ await jobs.send(JOBS, "welcome", { userId: "u2" }, { delaySeconds: 60 })
 A consumer handles each type.
 
 ```ts
-import { deadLetter, defineConsumer, queueContract, queueMessage } from "@lovrozagar/honey/queue"
+import { deadLetter, defineConsumer, queueContract, queueMessage } from "@workerstack/backend/queue"
 
 type Env = { readonly RESEND_KEY: string }
 
@@ -82,8 +82,8 @@ platform after the report.
 ## On Workers
 
 ```ts
-import { defineConsumer, queueContract, queueMessage } from "@lovrozagar/honey/queue"
-import { workersQueue } from "@lovrozagar/honey/queue/workers"
+import { defineConsumer, queueContract, queueMessage } from "@workerstack/backend/queue"
+import { workersQueue } from "@workerstack/backend/queue/workers"
 
 const jobs = queueContract({ ping: queueMessage<number>() })
 const consumer = defineConsumer<{}>()(jobs, { handlers: { ping: async () => {} } })
@@ -124,8 +124,8 @@ Messages of a batch run at once, and one message cannot fail the batch.
 ## In a process
 
 ```ts
-import { defineConsumer, queueContract, queueMessage } from "@lovrozagar/honey/queue"
-import { memoryQueueStore, serveQueue } from "@lovrozagar/honey/queue/serve"
+import { defineConsumer, queueContract, queueMessage } from "@workerstack/backend/queue"
+import { memoryQueueStore, serveQueue } from "@workerstack/backend/queue/serve"
 
 const jobs = queueContract({ ping: queueMessage<number>() })
 const consumer = defineConsumer<{}>()(jobs, { handlers: { ping: async () => {} } })

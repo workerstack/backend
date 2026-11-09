@@ -1,6 +1,6 @@
 name: Release
 
-# A v* tag publishes the two packages that ship, @lovrozagar/honey and @lovrozagar/honey-clients, to npm with
+# A v* tag publishes the two packages that ship, @workerstack/backend and @workerstack/clients, to npm with
 # provenance, once main's ci.yml push run (its harness and conformance gate included) passed on the tagged commit: the
 # tag reuses that run instead of running CI again, so tag the commit right after pushing it to main. A failed release
 # re-runs on its tag: `gh workflow run release.yml --ref vX.Y.Z`; a version already on npm is skipped.
@@ -37,18 +37,18 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - name: Check @lovrozagar/honey against the tag
+      - name: Check @workerstack/backend against the tag
         working-directory: packages/core
         env:
-          PACKAGE: "@lovrozagar/honey"
+          PACKAGE: "@workerstack/backend"
         run: |
           if [ "$GITHUB_REF_TYPE" != tag ]; then echo "the release runs on a v* tag, not $GITHUB_REF_NAME"; exit 1; fi
           got="$(node -p 'const p = require("./package.json"); p.name + "@" + p.version')"
           if [ "$got" != "$PACKAGE@${GITHUB_REF_NAME#v}" ]; then echo "$got is not the tag's $PACKAGE@${GITHUB_REF_NAME#v}"; exit 1; fi
-      - name: Check @lovrozagar/honey-clients against the tag
+      - name: Check @workerstack/clients against the tag
         working-directory: packages/gen
         env:
-          PACKAGE: "@lovrozagar/honey-clients"
+          PACKAGE: "@workerstack/clients"
         run: |
           if [ "$GITHUB_REF_TYPE" != tag ]; then echo "the release runs on a v* tag, not $GITHUB_REF_NAME"; exit 1; fi
           got="$(node -p 'const p = require("./package.json"); p.name + "@" + p.version')"
@@ -58,10 +58,10 @@ jobs:
         run: bun "$GITHUB_WORKSPACE/scripts/changelog.ts" "${GITHUB_REF_NAME#v}"
       - run: bun install --frozen-lockfile
       # scripts/pack.ts, as the packaging tests pack: catalog: and workspace: resolved to versions, then npm pack
-      - name: Pack @lovrozagar/honey
+      - name: Pack @workerstack/backend
         working-directory: packages/core
         run: bun ../../scripts/pack.ts "$RUNNER_TEMP/tarballs" .
-      - name: Pack @lovrozagar/honey-clients
+      - name: Pack @workerstack/clients
         working-directory: packages/gen
         run: bun ../../scripts/pack.ts "$RUNNER_TEMP/tarballs" .
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -123,10 +123,10 @@ jobs:
         with:
           name: tarballs
           path: ${{ runner.temp }}/tarballs
-      - name: Publish @lovrozagar/honey
+      - name: Publish @workerstack/backend
         env:
-          PACKAGE: "@lovrozagar/honey"
-          TARBALL: lovrozagar-honey
+          PACKAGE: "@workerstack/backend"
+          TARBALL: workerstack-backend
         run: |
           v="${GITHUB_REF_NAME#v}"
           # a prerelease never takes `latest`: it publishes under `next`, so `npm install <pkg>` keeps giving the last
@@ -134,10 +134,10 @@ jobs:
           case "$v" in *-*) tag=next ;; *) tag=latest ;; esac
           if npm view "$PACKAGE@$v" version >/dev/null 2>&1; then echo "$PACKAGE@$v is already on npm"; exit 0; fi
           npm publish "$RUNNER_TEMP/tarballs/$TARBALL-$v.tgz" --provenance --access public --tag "$tag"
-      - name: Publish @lovrozagar/honey-clients
+      - name: Publish @workerstack/clients
         env:
-          PACKAGE: "@lovrozagar/honey-clients"
-          TARBALL: lovrozagar-honey-clients
+          PACKAGE: "@workerstack/clients"
+          TARBALL: workerstack-clients
         run: |
           v="${GITHUB_REF_NAME#v}"
           # a prerelease never takes `latest`: it publishes under `next`, so `npm install <pkg>` keeps giving the last

@@ -24,7 +24,7 @@ afterEach(() => {
 /** A service: its routes, each with its security and the meta the gateway's filters read. */
 const service = (name: string, routes: readonly (readonly [string, string | string[], string])[]) =>
 	[
-		'import { honey } from "@lovrozagar/honey"',
+		'import { honey } from "@workerstack/backend"',
 		`export const ${name} = honey()`,
 		...routes.map(
 			([path, security, kind]) =>
@@ -50,7 +50,7 @@ const FILES = {
 	]),
 	/* acme.gateway.app.ts: its own routes and errors, and the catch-all its services' routes delegate to */
 	"src/gateway.ts": [
-		'import { defineErrors, honey } from "@lovrozagar/honey"',
+		'import { defineErrors, honey } from "@workerstack/backend"',
 		'export const app = honey().errorFactory(defineErrors({ maintenance: "service_unavailable" }))',
 		'app.metaSpec({ meta: { kind: "x-kind", worker: false } } as never)',
 		'app.get("/health").errors("maintenance").handler((c) => c.res.text("ok", "up"))',
@@ -66,7 +66,7 @@ const FILES = {
 		["/growth/actors", "iaActor", "internal"],
 	]),
 	"src/route-tree.ts": [
-		'import { mergeTree } from "@lovrozagar/honey"',
+		'import { mergeTree } from "@workerstack/backend"',
 		'import { extract } from "./extract.ts"',
 		'import { growth } from "./growth.ts"',
 		'import { saas } from "./saas.ts"',
@@ -79,7 +79,7 @@ const FILES = {
 	]),
 	/* the tree as it stood before saas joined, with the gateway built without its tree: seeds the served one's */
 	"src/seed.ts": [
-		'import { mergeTree } from "@lovrozagar/honey"',
+		'import { mergeTree } from "@workerstack/backend"',
 		'import { extract } from "./extract.ts"',
 		'import { app as gateway } from "./gateway.ts"',
 		'import { growth } from "./growth.ts"',
@@ -87,7 +87,7 @@ const FILES = {
 		"export const app = gateway",
 		"",
 	].join("\n"),
-	"vite.config.ts": `import { honeyPlugin } from "@lovrozagar/honey/plugin"
+	"vite.config.ts": `import { honeyPlugin } from "@workerstack/backend/plugin"
 
 const isContractRoute = (meta) => meta.kind === "contract"
 const hasApiKey = (meta) => [meta.security].flat().includes("apiKey")

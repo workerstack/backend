@@ -142,7 +142,7 @@ const WITH_UNCONVERTIBLE = [
 	'\t.post("/custom")',
 	'\t.input({ json: { "~standard": { validate: (value: unknown) => ({ value }), vendor: "custom", version: 1 } } })',
 	'\t.handler((c) => c.res.text("ok", "c"))',
-	'import { createLogger } from "@lovrozagar/honey/logger"',
+	'import { createLogger } from "@workerstack/backend/logger"',
 ]
 
 const WITH_SECURED = [
@@ -151,7 +151,7 @@ const WITH_SECURED = [
 	'\t.handler((c) => c.res.text("ok", "s"))',
 ]
 
-const WITH_SOCKET = ['import { ws } from "@lovrozagar/honey/ws"', 'ws(app, "/live").handler({})']
+const WITH_SOCKET = ['import { ws } from "@workerstack/backend/ws"', 'ws(app, "/live").handler({})']
 
 describe("artifactsOf (bit 19 h2)", () => {
 	// v0: 7d37ebfc5c
@@ -244,7 +244,7 @@ describe("artifactsOf (bit 19 h2), continued (2)", () => {
 		const made = fresh({ "src/down.ts": appSource() })
 		made.write(
 			"src/routes.ts",
-			'import { mergeTree } from "@lovrozagar/honey"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n',
+			'import { mergeTree } from "@workerstack/backend"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n',
 		)
 		await expect(artifacts({ codegen: { mergeTree: "src/routes.ts", types: true } }, made.dir)).rejects.toThrow(
 			"codegen.types with codegen.mergeTree needs a gateway app: config.app, or the merge entry's app export",
@@ -255,10 +255,10 @@ describe("artifactsOf (bit 19 h2), continued (2)", () => {
 describe("prepare: the tree written first (bit 19 h2)", () => {
 	const GATEWAY = {
 		"src/app.ts":
-			'import { honey } from "@lovrozagar/honey"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = honey().routeTree(routeTree)\n',
+			'import { honey } from "@workerstack/backend"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = honey().routeTree(routeTree)\n',
 		"src/down.ts": appSource(),
 		"src/routes.ts":
-			'import { mergeTree } from "@lovrozagar/honey"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n',
+			'import { mergeTree } from "@workerstack/backend"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n',
 	}
 
 	it("asks a gateway whose app loads the tree to write it first while it is missing or stale, then not", async () => {
@@ -293,7 +293,7 @@ describe("virtualCode (bit 19 h2)", () => {
 		const made = fresh({ "down/app.ts": appSource() })
 		made.write(
 			"src/routes.ts",
-			'import { mergeTree } from "@lovrozagar/honey"\nimport { app } from "../down/app.ts"\nexport const tree = mergeTree([app.toRouteTree(), { worker: "down" }])\n',
+			'import { mergeTree } from "@workerstack/backend"\nimport { app } from "../down/app.ts"\nexport const tree = mergeTree([app.toRouteTree(), { worker: "down" }])\n',
 		)
 		const config = resolveHoneyConfig({
 			codegen: {

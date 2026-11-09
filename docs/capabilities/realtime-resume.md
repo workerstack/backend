@@ -9,8 +9,8 @@ SDK speaks the same protocol.
 ## Example
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { realtime } from "@lovrozagar/honey/realtime"
+import { honey } from "@workerstack/backend"
+import { realtime } from "@workerstack/backend/realtime"
 
 const app = honey()
 

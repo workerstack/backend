@@ -1,7 +1,7 @@
 /**
- * `serve(app, options)` from `@lovrozagar/honey/node`: run the app on Node's `node:http` server. A
+ * `serve(app, options)` from `@workerstack/backend/node`: run the app on Node's `node:http` server. A
  * plain function the server module imports; nothing registers itself (H23). Bun has its own entry,
- * `@lovrozagar/honey/bun`, with the same handle.
+ * `@workerstack/backend/bun`, with the same handle.
  */
 import type { Server } from "node:http"
 import { DEFAULT_CLOSE_TIMEOUT, DEFAULT_HOSTNAME, type FetchApp, type ServeHandle, urlOf } from "../serve-handle.ts"

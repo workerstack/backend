@@ -1,6 +1,6 @@
 /**
- * serve(app) as a server module uses it: `@lovrozagar/honey/node` in this process, and
- * `@lovrozagar/honey/bun` in a spawned `bun`; on Cloudflare Workers the exported app is the Worker. The handle it returns, a server that
+ * serve(app) as a server module uses it: `@workerstack/backend/node` in this process, and
+ * `@workerstack/backend/bun` in a spawned `bun`; on Cloudflare Workers the exported app is the Worker. The handle it returns, a server that
  * survives a client leaving, a graceful drain, and a port free again after close().
  */
 import { spawn } from "node:child_process"

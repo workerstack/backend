@@ -8,7 +8,7 @@ typed response-header accessors, and an undeclared header is not typed.
 ## Example
 
 ```ts
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 import * as z from "zod"
 
 const app = honey()

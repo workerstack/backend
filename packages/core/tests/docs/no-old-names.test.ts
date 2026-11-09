@@ -49,8 +49,8 @@ export const SHIPPED_AT_V073: Readonly<Record<string, string | null>> = {
 	TThrow: "packages/core/src/client/types.ts",
 	requestSafe: "packages/core/src/client/http.ts",
 	throwOnError: "packages/core/src/client/sdk.ts",
-	/* renamed to @lovrozagar/honey-clients before 1.0; v0.7.3 shipped no separate package at all, codegen lived
-	 * inside @lovrozagar/honey, so no page may name it — migration.md included */
+	/* renamed to @workerstack/clients before 1.0; v0.7.3 shipped no separate package at all, codegen lived
+	 * inside the core package, so no page may name it — migration.md included */
 	"honey-codegen": null,
 }
 
@@ -80,7 +80,7 @@ describe("the docs name no removed name (bit 21 i7d)", () => {
 			examples: files.filter((file) => file.startsWith("docs/examples/")).length,
 			exempt: files.includes(EXEMPT),
 			pages: files.filter((file) => file.endsWith(".md")).length,
-		}).toEqual({ examples: 6, exempt: true, pages: 40 })
+		}).toEqual({ examples: 6, exempt: true, pages: 41 })
 	})
 
 	/* one line per removed name, so a name dropped from REMOVED reds here rather than going unread over the docs */

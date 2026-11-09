@@ -1,4 +1,4 @@
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 
 /* Acme's public scheme: an API key in Authorization, its prefix in the description */
 const apiKey = {

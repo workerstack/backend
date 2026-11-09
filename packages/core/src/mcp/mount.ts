@@ -5,7 +5,7 @@
  * middleware apply; the handler answers GET and DELETE 405), internal and served, so they stay out of the documents
  * and out of the tool set. Each call dispatches in-process through `app.fetch` with the request's env and execution
  * context, every middleware and the operation's own auth running again; only the credential headers the tools'
- * schemes name ride it. A plain function the app imports (`@lovrozagar/honey/mcp`), so an app serving no MCP
+ * schemes name ride it. A plain function the app imports (`@workerstack/backend/mcp`), so an app serving no MCP
  * bundles none of it.
  *
  * Auth, fail-closed: when any tool's operation requires a credential, the mount needs `authenticate`, run on every
@@ -13,14 +13,14 @@
  * the credential the request carries, which the inner routes check again. Mounting secured tools without it throws,
  * with no exception.
  *
- * OAuth (bit 21 f, opt-in, H23): `oauth` takes what `oauth(options)` from `@lovrozagar/honey/mcp/oauth` returns,
+ * OAuth (bit 21 f, opt-in, H23): `oauth` takes what `oauth(options)` from `@workerstack/backend/mcp/oauth` returns,
  * so an app that never imports it bundles none of the resource server. Here is only its hook: called once at mount
  * (its refusals before any route registers), its challenge on every 401 and on the handler's challenged 403, its
  * metadata route registered after the endpoint's. It needs `authenticate`, even when no tool declares security.
  *
- * Files (bit 21 g, opt-in, H23): `uploads` takes what `uploads(options)` from `@lovrozagar/honey/mcp/uploads`
+ * Files (bit 21 g, opt-in, H23): `uploads` takes what `uploads(options)` from `@workerstack/backend/mcp/uploads`
  * returns (called once at mount, its PUT route registered once the endpoint's path is checked free; each request's
- * uploads handed to the handler), and `urlFiles` what `urlFiles(options)` from `@lovrozagar/honey/mcp/url-files` returns. Neither is
+ * uploads handed to the handler), and `urlFiles` what `urlFiles(options)` from `@workerstack/backend/mcp/url-files` returns. Neither is
  * imported here, so a mount without them bundles none of either.
  */
 import type { ExecutionCtx, HoneyContext } from "../context/context.ts"

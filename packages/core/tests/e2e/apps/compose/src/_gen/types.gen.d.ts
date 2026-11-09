@@ -1,10 +1,10 @@
-import type { HoneyContext, WithOutput, HoneyError } from "@lovrozagar/honey"
+import type { HoneyContext, WithOutput, HoneyError } from "@workerstack/backend"
 
 export type BaseCtx = HoneyContext<{ JWT_SECRET: string; REDIS_URL: string }> & { cache: { get: (_k: string) => null | string; set: (_k: string, _v: string) => void }; session: { orgId: string; permissions: string[]; userId: string } }
 
 export type RouteSelector = "DELETE /resources/:resourceId" | "GET /account" | "GET /docs" | "GET /feed" | "GET /health" | "GET /resources/:resourceId" | "POST /account/settings" | "POST /resources"
 
-declare module "@lovrozagar/honey" {
+declare module "@workerstack/backend" {
 	interface HoneyCodegen {
 		routeSelector: RouteSelector
 	}

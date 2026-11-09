@@ -1,6 +1,6 @@
 # Static files
 
-`staticFiles({ resolve })` from `@lovrozagar/honey/static` serves files from wherever they live: a disk, a
+`staticFiles({ resolve })` from `@workerstack/backend/static` serves files from wherever they live: a disk, a
 bucket, a Workers asset binding. `resolve(ctx, filePath)` returns a `Response`, a body (`Blob`, bytes or a ranged
 source), or `null` to fall through to the next handler. The content type comes from the extension, `Range`
 requests get 206 partial answers, and conditional GETs (`If-None-Match`, `If-Modified-Since`) answer 304.
@@ -9,9 +9,9 @@ requests get 206 partial answers, and conditional GETs (`If-None-Match`, `If-Mod
 ## Example
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { cacheControl } from "@lovrozagar/honey/cache-control"
-import { staticFiles } from "@lovrozagar/honey/static"
+import { honey } from "@workerstack/backend"
+import { cacheControl } from "@workerstack/backend/cache-control"
+import { staticFiles } from "@workerstack/backend/static"
 
 const assets = new Map<string, Blob>([["/app.js", new Blob(["console.log(1)"])]])
 

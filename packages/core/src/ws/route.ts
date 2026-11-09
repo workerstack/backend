@@ -1,6 +1,6 @@
 /**
  * `ws(app, path)`: a WebSocket route on `app`'s handle, `.handler({ onOpen, onMessage, onClose, … })`
- * registers it. A plain function the app module imports (`@lovrozagar/honey/ws`), not a `Honey`
+ * registers it. A plain function the app module imports (`@workerstack/backend/ws`), not a `Honey`
  * method, so an app that never opens a socket bundles none of the route builder (H23).
  */
 import type { Honey } from "../routing/app.ts"

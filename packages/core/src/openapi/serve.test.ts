@@ -16,7 +16,7 @@ type Doc = { info: Record<string, unknown>; paths: Record<string, Record<string,
 
 /** The refusal of a `docs` value that is not the path-to-page map, opening with `what`. */
 const MAP_HINT = (what: string) =>
-	`${what}: import { scalar } from "@lovrozagar/honey/openapi/scalar" (or swagger from "@lovrozagar/honey/openapi/swagger") and pass docs: { "/docs": scalar }`
+	`${what}: import { scalar } from "@workerstack/backend/openapi/scalar" (or swagger from "@workerstack/backend/openapi/swagger") and pass docs: { "/docs": scalar }`
 type App = { fetch(request: Request, env: object): Promise<Response> | Response }
 
 const get = (app: App, path: string, init?: RequestInit) => app.fetch(new Request(`http://x${path}`, init), {})

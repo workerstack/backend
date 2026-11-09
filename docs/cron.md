@@ -1,12 +1,12 @@
 # Cron
 
-`@lovrozagar/honey/cron` defines scheduled jobs once. `@lovrozagar/honey/cron/workers` runs them from a Workers cron
-trigger, and `@lovrozagar/honey/cron/serve` runs them on a timer in a Node or Bun process.
+`@workerstack/backend/cron` defines scheduled jobs once. `@workerstack/backend/cron/workers` runs them from a Workers cron
+trigger, and `@workerstack/backend/cron/serve` runs them on a timer in a Node or Bun process.
 
 ## Example
 
 ```ts
-import { defineCron } from "@lovrozagar/honey/cron"
+import { defineCron } from "@workerstack/backend/cron"
 
 type Env = { readonly DATABASE_URL: string }
 
@@ -44,8 +44,8 @@ Export the handler from the entry your build points at. Honey's build moves a `s
 where workerd calls it.
 
 ```ts
-import { defineCron } from "@lovrozagar/honey/cron"
-import { workersCron } from "@lovrozagar/honey/cron/workers"
+import { defineCron } from "@workerstack/backend/cron"
+import { workersCron } from "@workerstack/backend/cron/workers"
 
 const cron = defineCron<{}>({ schedules: { "*/5 * * * *": { ping: async ({ log }) => log.info("ping") } } })
 
@@ -64,8 +64,8 @@ again, and the run rethrows.
 a clock step corrects itself within a minute.
 
 ```ts
-import { defineCron } from "@lovrozagar/honey/cron"
-import { serveCron } from "@lovrozagar/honey/cron/serve"
+import { defineCron } from "@workerstack/backend/cron"
+import { serveCron } from "@workerstack/backend/cron/serve"
 
 declare function report(error: unknown): void
 
@@ -79,8 +79,8 @@ process.once("SIGTERM", () => running.close(10_000))
 Pass exactly one of `singleInstance: true` or `claim`. With several instances, `claim` decides which one runs a tick:
 
 ```ts
-import { defineCron } from "@lovrozagar/honey/cron"
-import { serveCron } from "@lovrozagar/honey/cron/serve"
+import { defineCron } from "@workerstack/backend/cron"
+import { serveCron } from "@workerstack/backend/cron/serve"
 
 declare const store: { insertIfAbsent(key: string): Promise<boolean> }
 declare function report(error: unknown): void

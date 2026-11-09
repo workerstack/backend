@@ -6,9 +6,9 @@
  * each at most 1 MiB, in `uploadStore`: this process's memory on bun and node, a Durable Object on a Worker
  * (uploads-object.ts), so every isolate claims and takes through one place.
  */
-import type { WSAdapter } from "@lovrozagar/honey"
-import { mcp } from "@lovrozagar/honey/mcp"
-import { memoryUploadStore, type UploadStore, uploads } from "@lovrozagar/honey/mcp/uploads"
+import type { WSAdapter } from "@workerstack/backend"
+import { mcp } from "@workerstack/backend/mcp"
+import { memoryUploadStore, type UploadStore, uploads } from "@workerstack/backend/mcp/uploads"
 import { mcpHandler } from "./_gen/mcp.gen.ts"
 import { UPLOAD_SECRET } from "./key.ts"
 import { type AppOptions, createRoutes } from "./routes.ts"

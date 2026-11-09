@@ -1,5 +1,5 @@
 /**
- * `urlFiles(options)` (bit 21 g, H24.5), `@lovrozagar/honey/mcp/url-files`: a mounted tool's file argument given as
+ * `urlFiles(options)` (bit 21 g, H24.5), `@workerstack/backend/mcp/url-files`: a mounted tool's file argument given as
  * `{url}`, fetched by the app, handed to `mcp(app, path, handler, { urlFiles: urlFiles(options) })`. Off unless
  * imported and passed (H23); a mount without it shows no `{url}` value and refuses one. The guards, each its rule:
  * - **the host** is one the list names exactly (its port too, when not 443); an entry `*.example.com` names every

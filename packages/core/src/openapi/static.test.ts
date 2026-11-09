@@ -14,7 +14,7 @@ type App = { fetch(request: Request, env: object): Promise<Response> | Response 
 
 /** What a refused `docs` value is shown to pass instead. */
 const MAP_FIX =
-	'import { scalar } from "@lovrozagar/honey/openapi/scalar" (or swagger from "@lovrozagar/honey/openapi/swagger") and pass docs: { "/docs": scalar }'
+	'import { scalar } from "@workerstack/backend/openapi/scalar" (or swagger from "@workerstack/backend/openapi/swagger") and pass docs: { "/docs": scalar }'
 
 const DOC = { info: { title: "Prebuilt", version: "2.0.0" }, openapi: "3.1.0", paths: {} }
 const YAML = 'openapi: "3.1.0"\ninfo:\n  title: Prebuilt\n'

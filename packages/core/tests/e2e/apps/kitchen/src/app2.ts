@@ -8,7 +8,7 @@ import type {
 	InferRouteOutput,
 	InferRoutePaths,
 	InferRoutes,
-} from "@lovrozagar/honey"
+} from "@workerstack/backend"
 import * as z from "zod"
 import { base } from "./context"
 import { Service } from "./service"

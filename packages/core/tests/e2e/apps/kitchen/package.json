@@ -12,12 +12,12 @@
 		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@lovrozagar/honey": "workspace:*",
+		"@workerstack/backend": "workspace:*",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
-		"@lovrozagar/honey-clients": "workspace:*",
 		"@playwright/test": "catalog:",
+		"@workerstack/clients": "workspace:*",
 		"typescript": "catalog:"
 	}
 }

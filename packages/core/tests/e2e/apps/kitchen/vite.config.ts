@@ -1,4 +1,4 @@
-import { honeyPlugin } from "@lovrozagar/honey/plugin"
+import { honeyPlugin } from "@workerstack/backend/plugin"
 
 export default {
 	plugins: [

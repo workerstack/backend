@@ -1,4 +1,4 @@
-import type { WSAdapter } from "@lovrozagar/honey"
+import type { WSAdapter } from "@workerstack/backend"
 import { createApp } from "./app.ts"
 import { events } from "./events.ts"
 

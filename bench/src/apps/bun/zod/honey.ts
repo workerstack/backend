@@ -1,4 +1,4 @@
-import { createMiddleware, honey } from "@lovrozagar/honey"
+import { createMiddleware, honey } from "@workerstack/backend"
 import * as z from "zod"
 
 const body = z.object({ age: z.number(), name: z.string() })

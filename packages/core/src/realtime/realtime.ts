@@ -1,6 +1,6 @@
 /**
  * `realtime(app, path, opts)`: a realtime route, built on `ws(app, path)` through the public API
- * alone. A plain function the app module imports (`@lovrozagar/honey/realtime`); nothing registers
+ * alone. A plain function the app module imports (`@workerstack/backend/realtime`); nothing registers
  * itself (H23), and an app that never calls it bundles none of it.
  *
  * It returns the publisher for the route's namespace: REST handlers publish through it. The bus is

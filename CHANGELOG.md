@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to [`@lovrozagar/honey`](https://www.npmjs.com/package/@lovrozagar/honey) are documented in this file.
+All notable changes to [`@workerstack/backend`](https://www.npmjs.com/package/@workerstack/backend) and [`@workerstack/clients`](https://www.npmjs.com/package/@workerstack/clients), formerly `@lovrozagar/honey` and `@lovrozagar/honey-clients`, are documented in this file.
 
 ## 1.0.0
 
@@ -8,6 +8,7 @@ honey ships as two packages now: [`@lovrozagar/honey`](https://www.npmjs.com/pac
 
 ### Breaking
 
+- **The packages moved to the workerstack org.** `@lovrozagar/honey` is now [`@workerstack/backend`](https://www.npmjs.com/package/@workerstack/backend), every subpath included, and `@lovrozagar/honey-clients` is now [`@workerstack/clients`](https://www.npmjs.com/package/@workerstack/clients). The repository is github.com/workerstack/backend. The `honey` and `honey-clients` commands, `HoneyError` and every other exported name, `HONEY_*`, the `honey-source` condition, `x-honey-*` headers and error codes keep their names. Generated files import the new names once you rerun `honey generate` and `honey-clients generate`. [Migrating from @lovrozagar/honey](https://github.com/workerstack/backend/blob/main/docs/migrating-to-workerstack.md) maps each name.
 - **The generated CLI's install scripts come from installgen.** They verify `checksums.txt` against the release workflow on that exact tag, read the latest tag from the release's `version.txt`, and install to `~/.local/bin`. A CLI generated without `--cli-repo` has no install scripts, and `<PREFIX>_INSTALL_BASE` and `<PREFIX>_INSTALL_ARCH` are gone; `<PREFIX>_VERSION`, `<PREFIX>_INSTALL_DIR` and `<PREFIX>_INSTALL_VERIFY=require` stay, and `<PREFIX>_NO_MODIFY_PATH=1` is new.
 
 Every deliberate change has its before and after in [the migration guide](https://github.com/lovrozagar/honey/blob/main/docs/migration.md), one section each. The headlines:

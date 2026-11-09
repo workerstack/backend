@@ -15,9 +15,9 @@ type PackageJson = {
 	type?: string
 }
 
-const APP_TS = `import { honey } from "@lovrozagar/honey"
-import { serveOpenApi } from "@lovrozagar/honey/openapi"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
+const APP_TS = `import { honey } from "@workerstack/backend"
+import { serveOpenApi } from "@workerstack/backend/openapi"
+import { scalar } from "@workerstack/backend/openapi/scalar"
 
 export const app = serveOpenApi(
 	honey()
@@ -27,13 +27,13 @@ export const app = serveOpenApi(
 )
 `
 
-const SERVER_TS = `import { serve } from "@lovrozagar/honey/bun"
+const SERVER_TS = `import { serve } from "@workerstack/backend/bun"
 import { app } from "./app.ts"
 
 await serve(app, { port: Number(process.env.PORT ?? 3000) })
 `
 
-const VITE_CONFIG_TS = `import { honeyPlugin } from "@lovrozagar/honey/plugin"
+const VITE_CONFIG_TS = `import { honeyPlugin } from "@workerstack/backend/plugin"
 
 export default {
 	plugins: [
@@ -44,7 +44,7 @@ export default {
 }
 `
 
-const WORKER_TS = `import { workersWebSocket } from "@lovrozagar/honey/ws/workers"
+const WORKER_TS = `import { workersWebSocket } from "@workerstack/backend/ws/workers"
 import { app } from "./app.ts"
 
 app.wsAdapter(workersWebSocket())
@@ -55,7 +55,7 @@ export default {
 `
 
 /** The scoped package the templates import: unscoped `honey` on npm is someone else's. */
-const PACKAGE_NAME = "@lovrozagar/honey"
+const PACKAGE_NAME = "@workerstack/backend"
 
 const SCRIPTS: Readonly<Record<string, string>> = { dev: "bun --watch src/server.ts", generate: "honey generate" }
 

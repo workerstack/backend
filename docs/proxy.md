@@ -1,6 +1,6 @@
 # Proxying and gateways
 
-`proxy({ destination })` from `@lovrozagar/honey/proxy` forwards a request and streams the answer back.
+`proxy({ destination })` from `@workerstack/backend/proxy` forwards a request and streams the answer back.
 `destination(ctx, url, init)` returns the upstream `Response`: a `fetch()`, a Workers service binding, a Durable Object
 stub. `requestHeaders` adds or overrides the forwarded headers, and `onResponse` edits the answer's headers before it
 streams back. A network failure answers 502 `bad_gateway` and a timeout 504 `gateway_timeout`. `proxy()` declares both
@@ -13,8 +13,8 @@ documents each downstream route's own error keys.
 ## Example
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { proxy } from "@lovrozagar/honey/proxy"
+import { honey } from "@workerstack/backend"
+import { proxy } from "@workerstack/backend/proxy"
 
 const app = honey()
 
@@ -40,9 +40,9 @@ gateway's own routes. Three files keep the app generation reads apart from the o
   `routeTree()` can be called at any point, and a route registered on the new app binds to its leaf.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { proxy } from "@lovrozagar/honey/proxy"
-import type { RouteTree } from "@lovrozagar/honey/tree"
+import { honey } from "@workerstack/backend"
+import { proxy } from "@workerstack/backend/proxy"
+import type { RouteTree } from "@workerstack/backend/tree"
 
 /* gateway.app.ts */
 export const app = honey()

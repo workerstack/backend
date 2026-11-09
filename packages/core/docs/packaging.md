@@ -7,7 +7,7 @@ under `node_modules`, and `skipLibCheck` covers `.d.ts` only. Measured against v
 raw TypeScript, from a fixture with every plausible strictness flag on:
 
 ```text
-522 diagnostics originate inside @lovrozagar/honey
+522 diagnostics originate inside @workerstack/backend
 
     358  TS4111   Property 'x' comes from an index signature, must be accessed with ['x']
      81  TS5097   An import path can only end with '.ts' when allowImportingTsExtensions is enabled
@@ -28,7 +28,7 @@ whose runtime entry is `.ts` cannot run on plain Node at all.
 
 ## What ships
 
-`@lovrozagar/honey` and `@lovrozagar/honey-clients` each ship `bin/`, `dist/` (compiled JavaScript and its `.d.ts`), the
+`@workerstack/backend` and `@workerstack/clients` each ship `bin/`, `dist/` (compiled JavaScript and its `.d.ts`), the
 README and the license. No source. Every export names three conditions:
 
 ```json

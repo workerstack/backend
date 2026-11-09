@@ -11,9 +11,9 @@ compile; list the keys in `metaSpec({ extensions })` and a strict policy reports
 ## Example
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { serveOpenApi } from "@lovrozagar/honey/openapi"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
+import { honey } from "@workerstack/backend"
+import { serveOpenApi } from "@workerstack/backend/openapi"
+import { scalar } from "@workerstack/backend/openapi/scalar"
 
 const app = honey()
 
@@ -37,15 +37,15 @@ browser sees. A page path that is taken, given twice, or holds a parameter throw
 
 ## Prebuilt or external documents
 
-`serveStaticOpenApi(app, options)` from `@lovrozagar/honey/openapi/static` serves a document the app did not
+`serveStaticOpenApi(app, options)` from `@workerstack/backend/openapi/static` serves a document the app did not
 generate: the file the build plugin already wrote, a Workers asset binding, a URL, an inline value, or a loader of
 your own. It imports none of the generator, so it is what a Worker serving a large committed document wants; an app
 whose own routes are the document wants `serveOpenApi`.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
-import { serveStaticOpenApi } from "@lovrozagar/honey/openapi/static"
+import { honey } from "@workerstack/backend"
+import { scalar } from "@workerstack/backend/openapi/scalar"
+import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"
 
 const app = honey()
 
@@ -84,8 +84,8 @@ fresh checkout. A named document outside the assets directory, or no directory t
 generation.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { serveStaticOpenApi } from "@lovrozagar/honey/openapi/static"
+import { honey } from "@workerstack/backend"
+import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"
 
 /* src/_gen/openapi-sources.gen.ts, as honey generate writes it for a document named "public" in JSON and YAML */
 const openApiSources = {
@@ -99,16 +99,16 @@ serveStaticOpenApi(app, { ...openApiSources.public, jsonPath: "/v1/openapi/spec"
 
 ## Guarding a document
 
-`auth: basic({ realm, verify })` from `@lovrozagar/honey/openapi/auth` puts HTTP Basic in front of every route the
+`auth: basic({ realm, verify })` from `@workerstack/backend/openapi/auth` puts HTTP Basic in front of every route the
 call mounts: the JSON, the YAML and each docs page. A browser asks for the pair once, then sends it with the docs
 page's own request for the document.
 
 ```ts
-import { honey } from "@lovrozagar/honey"
-import { basic, credentialsMatch } from "@lovrozagar/honey/openapi/auth"
-import { scalar } from "@lovrozagar/honey/openapi/scalar"
-import { serveStaticOpenApi } from "@lovrozagar/honey/openapi/static"
-import { swagger } from "@lovrozagar/honey/openapi/swagger"
+import { honey } from "@workerstack/backend"
+import { basic, credentialsMatch } from "@workerstack/backend/openapi/auth"
+import { scalar } from "@workerstack/backend/openapi/scalar"
+import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"
+import { swagger } from "@workerstack/backend/openapi/swagger"
 
 type Env = { OPENAPI_DOCS_PASSWORD: string }
 

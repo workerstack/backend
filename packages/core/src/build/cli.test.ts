@@ -45,7 +45,7 @@ function fresh(files: Record<string, string> = {}): Project {
 }
 
 const CONFIG = (options: string) =>
-	`import { honeyPlugin } from "@lovrozagar/honey/plugin"\nexport default { plugins: [honeyPlugin(${options})] }\n`
+	`import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin(${options})] }\n`
 
 /** `honey <argv>` in process from `dir`: its exit code and what it wrote. */
 async function run(argv: readonly string[], dir: string, signal?: AbortSignal) {
@@ -149,7 +149,7 @@ describe("honey generate (bit 19 h2), continued (2)", () => {
 		async () => {
 			const { dir } = fresh({
 				"src/app.ts": appSource(),
-				"vite.config.ts": `import { honeyPlugin } from "@lovrozagar/honey/plugin"\nexport default ({ command, mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: command === "build" && mode === "production" } })] })\n`,
+				"vite.config.ts": `import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default ({ command, mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: command === "build" && mode === "production" } })] })\n`,
 			})
 			expect((await run(["generate"], dir)).status).toBe(0)
 			expect(read(dir, "src/_gen/manifest.gen.json")).not.toBe("")
@@ -166,7 +166,7 @@ describe("honey generate (bit 19 h2), continued (3)", () => {
 			const { dir } = fresh({
 				"src/a.ts": appSource(),
 				"src/b.ts": appSource({ extra: ['\t.get("/b").handler((c) => c.res.text("ok", "b"))'] }),
-				"vite.config.ts": `import { honeyPlugin } from "@lovrozagar/honey/plugin"\nexport default { plugins: [honeyPlugin({ app: "src/a.ts" }), [honeyPlugin({ app: "src/b.ts" })], honeyPlugin({})] }\n`,
+				"vite.config.ts": `import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin({ app: "src/a.ts" }), [honeyPlugin({ app: "src/b.ts" })], honeyPlugin({})] }\n`,
 			})
 			const asked = await run(["generate"], dir)
 			expect([asked.status, asked.err.split("\n").slice(0, 4)]).toEqual([
@@ -305,7 +305,7 @@ describe("honey generate --watch (bit 19 h2)", () => {
 		async () => {
 			const made = fresh({
 				"src/app.ts":
-					'import { honey } from "@lovrozagar/honey"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
+					'import { honey } from "@workerstack/backend"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
 				"src/routes.ts": 'export const path = "/first"\n',
 			})
 			watching(made.dir, ["--app", "src/app.ts"])
@@ -315,7 +315,7 @@ describe("honey generate --watch (bit 19 h2)", () => {
 			expect(await until(() => tree().includes('"GET /second"'))).toBe(true)
 			made.write(
 				"src/app.ts",
-				'import { honey } from "@lovrozagar/honey"\nexport const app = honey().get("/third").handler((c) => c.res.text("ok", "ok"))\n',
+				'import { honey } from "@workerstack/backend"\nexport const app = honey().get("/third").handler((c) => c.res.text("ok", "ok"))\n',
 			)
 			expect(await until(() => tree().includes('"GET /third"'))).toBe(true)
 		},
@@ -412,7 +412,7 @@ describe("honey generate's edges (bit 19 h2)", () => {
 		async () => {
 			const { dir } = fresh({
 				"src/app.ts": appSource({ extra: HIDDEN_ADDITION }),
-				"vite.config.ts": `import { honeyPlugin } from "@lovrozagar/honey/plugin"\nexport default ({ command, mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: command === "serve" && mode === "development", tree: false, types: true } })] })\n`,
+				"vite.config.ts": `import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default ({ command, mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: command === "serve" && mode === "development", tree: false, types: true } })] })\n`,
 			})
 			let err = ""
 			const io = { err: (text: string) => void (err += text), out: () => {} }

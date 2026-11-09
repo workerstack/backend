@@ -29,7 +29,7 @@ export default defineConfig({
 })
 
 /**
- * dev resolves @lovrozagar/honey to its source through src/worker.ts; prod serves the app's built Workers bundle under
+ * dev resolves @workerstack/backend to its source through src/worker.ts; prod serves the app's built Workers bundle under
  * local workerd, unbundled and with no source condition: what a deploy runs (j3). The bundle is one file, no chunks.
  * A WEB_ONLY app (bit 21 h) runs its own configs, without nodejs_compat and with the Durable Object its uploads go
  * through: dev wrangler.mcp.jsonc (src/mcp-dev.ts, from source), prod wrangler.web.jsonc (the built bundle as above,

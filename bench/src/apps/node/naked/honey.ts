@@ -1,5 +1,5 @@
-import { createMiddleware, honey } from "@lovrozagar/honey"
-import { serve } from "@lovrozagar/honey/node"
+import { createMiddleware, honey } from "@workerstack/backend"
+import { serve } from "@workerstack/backend/node"
 
 const withTiming = createMiddleware(async (_ctx, next) => {
 	const start = performance.now()

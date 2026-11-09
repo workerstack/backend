@@ -11,7 +11,7 @@ const WS = "ws is for the Node WebSocket adapter only"
 const TS_MORPH = "ts-morph is for honey-clients's extract/ only"
 const CLIENTS = "core reaches honey-clients from build/ only"
 const CLIENTS_STATIC = "core imports honey-clients through import() only: it is an optional peer"
-const INTERNAL = "honey-clients reads @lovrozagar/honey through public subpaths only"
+const INTERNAL = "honey-clients reads @workerstack/backend through public subpaths only"
 const global = (name: string) => `${name} is not available here (00-rules environments)`
 
 describe("honey/boundaries: imports", () => {
@@ -81,13 +81,13 @@ describe("honey/boundaries: packages", () => {
 			"packages/core/src/ws/node.ts": 'import { WebSocketServer } from "ws"\n',
 			"packages/gen/src/emit/ts/sdk.ts": 'import { Project } from "ts-morph"\n',
 			"packages/gen/src/extract/extract.ts": 'import { Project } from "ts-morph"\n',
-			"packages/core/src/openapi/document.ts": 'import { generate } from "@lovrozagar/honey-clients"\n',
-			"packages/core/src/build/plugin.ts": 'import { generateTypes } from "@lovrozagar/honey-clients"\n',
+			"packages/core/src/openapi/document.ts": 'import { generate } from "@workerstack/clients"\n',
+			"packages/core/src/build/plugin.ts": 'import { generateTypes } from "@workerstack/clients"\n',
 			"packages/core/src/build/generate.ts": [
-				'import type { RouteTree } from "@lovrozagar/honey-clients"',
-				'export type { RouteTree } from "@lovrozagar/honey-clients"',
-				'export { generateTypes } from "@lovrozagar/honey-clients"',
-				'export const codegen = () => import("@lovrozagar/honey-clients")',
+				'import type { RouteTree } from "@workerstack/clients"',
+				'export type { RouteTree } from "@workerstack/clients"',
+				'export { generateTypes } from "@workerstack/clients"',
+				'export const codegen = () => import("@workerstack/clients")',
 				"",
 			].join("\n"),
 		}
@@ -101,12 +101,12 @@ describe("honey/boundaries: packages", () => {
 		])
 	})
 
-	it("keeps honey-clients on @lovrozagar/honey's public subpaths", () => {
+	it("keeps honey-clients on @workerstack/backend's public subpaths", () => {
 		const fixture = {
 			"packages/gen/src/ir/load.ts": [
-				'import type { OpenApiSpec } from "@lovrozagar/honey/openapi"',
-				'import { x } from "@lovrozagar/honey/src/routing/app.ts"',
-				'import { z } from "@lovrozagar/honey/dist/index.js"',
+				'import type { OpenApiSpec } from "@workerstack/backend/openapi"',
+				'import { x } from "@workerstack/backend/src/routing/app.ts"',
+				'import { z } from "@workerstack/backend/dist/index.js"',
 				"",
 			].join("\n"),
 		}

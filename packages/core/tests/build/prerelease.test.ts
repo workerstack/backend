@@ -1,7 +1,7 @@
 /**
  * A prerelease never takes npm's `latest` (bit 22, the 1.0.0-rc.1 release): release.yml's publish steps compute the
  * dist-tag from the tag's own version — `next` when it carries a prerelease, `latest` otherwise — and the GitHub
- * release is marked a prerelease to match. So while a candidate is out, `npm install @lovrozagar/honey` keeps giving
+ * release is marked a prerelease to match. So while a candidate is out, `npm install @workerstack/backend` keeps giving
  * the last final release, and the releases page agrees with the registry.
  *
  * Each leg runs the step's real bash with `npm` and `gh` replaced by recorders on PATH, so what is proven is the
@@ -45,7 +45,7 @@ function ran(step: Step | undefined, version: string) {
 	const env = {
 		GH_TOKEN: "x",
 		GITHUB_REF_NAME: `v${version}`,
-		GITHUB_REPOSITORY: "lovrozagar/honey",
+		GITHUB_REPOSITORY: "workerstack/backend",
 		GITHUB_REF_TYPE: "tag",
 		HOME: process.env.HOME ?? "",
 		PATH: `${dir}:/usr/bin:/bin`,
@@ -120,6 +120,6 @@ describe("the versions this repository ships", () => {
 		 * itself carries a prerelease at the same version. `>=1.0.0-0` accepts every 1.0.0 candidate and everything
 		 * after, so it needs no edit when rc.2 is cut (checked against the semver package before it was written).
 		 */
-		expect(core.peerDependencies?.["@lovrozagar/honey-clients"]).toBe(">=1.0.0-0")
+		expect(core.peerDependencies?.["@workerstack/clients"]).toBe(">=1.0.0-0")
 	})
 })

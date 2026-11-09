@@ -27,7 +27,7 @@ async function started(...args: Parameters<typeof serve<{ db?: string }>>): Prom
 	return handle
 }
 
-describe("serve(app) from @lovrozagar/honey/node", () => {
+describe("serve(app) from @workerstack/backend/node", () => {
 	// v0: 5eda2d7e11
 	// v0: 5b31c80894
 	it("listens with node:http and hands back the bound port, its URL and Node's own server", async () => {
@@ -84,7 +84,7 @@ describe("serve(app) from @lovrozagar/honey/node", () => {
 	})
 })
 
-describe("serve(app) from @lovrozagar/honey/node: close(timeout)", () => {
+describe("serve(app) from @workerstack/backend/node: close(timeout)", () => {
 	it("drains, and the server stops answering", async () => {
 		const handle = await serve(app(), { hostname: "127.0.0.1", port: 0 })
 		await handle.close()

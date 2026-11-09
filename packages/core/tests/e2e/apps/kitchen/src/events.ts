@@ -1,4 +1,4 @@
-import { webhookContract } from "@lovrozagar/honey/webhook"
+import { webhookContract } from "@workerstack/backend/webhook"
 import * as z from "zod"
 
 /** The Standard Webhooks events kitchen declares: its OpenAPI document's webhooks, and what its sample route signs. */

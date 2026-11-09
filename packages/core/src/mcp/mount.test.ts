@@ -271,7 +271,7 @@ describe("mcp(app, path, handler) routes (bit 21 e), continued (2)", () => {
 	})
 })
 
-describe("@lovrozagar/honey/mcp (bit 21 e, R8)", () => {
+describe("@workerstack/backend/mcp (bit 21 e, R8)", () => {
 	it("ships mcp from its own subpath, never the root, so an app serving no MCP bundles none of it", async () => {
 		const root = await import("../index.ts")
 		const { exports } = (await import("../../package.json", { with: { type: "json" } })).default

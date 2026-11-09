@@ -1,4 +1,4 @@
-import { honey } from "@lovrozagar/honey"
+import { honey } from "@workerstack/backend"
 import * as z from "zod"
 
 /**

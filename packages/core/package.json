@@ -1,12 +1,23 @@
 {
-	"name": "@lovrozagar/honey",
+	"name": "@workerstack/backend",
 	"version": "1.0.0-rc.22",
 	"description": "Type-safe API framework built on Web Standards. Builder-pattern DX, precompiled radix tree in production.",
+	"keywords": [
+		"api",
+		"cloudflare-workers",
+		"framework",
+		"openapi",
+		"workerstack"
+	],
+	"homepage": "https://github.com/workerstack/backend#readme",
+	"bugs": {
+		"url": "https://github.com/workerstack/backend/issues"
+	},
 	"license": "MIT",
 	"author": "lovrozagar",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/lovrozagar/honey.git",
+		"url": "git+https://github.com/workerstack/backend.git",
 		"directory": "packages/core"
 	},
 	"bin": {
@@ -336,13 +347,13 @@
 		"jiti": "2.7.0"
 	},
 	"devDependencies": {
-		"@lovrozagar/honey-clients": "workspace:*",
 		"@opentelemetry/api": "1.9.1",
 		"@opentelemetry/core": "2.11.0",
 		"@opentelemetry/sdk-trace-base": "2.11.0",
 		"@total-typescript/ts-reset": "catalog:",
 		"@types/node": "catalog:",
 		"@vitest/coverage-v8": "4.1.10",
+		"@workerstack/clients": "workspace:*",
 		"ajv": "8.20.0",
 		"ajv-formats": "3.0.1",
 		"arktype": "catalog:",
@@ -359,11 +370,11 @@
 		"zod": "catalog:"
 	},
 	"peerDependencies": {
-		"@lovrozagar/honey-clients": ">=1.0.0-0",
+		"@workerstack/clients": ">=1.0.0-0",
 		"ws": ">=8.21.0"
 	},
 	"peerDependenciesMeta": {
-		"@lovrozagar/honey-clients": {
+		"@workerstack/clients": {
 			"optional": true
 		},
 		"ws": {

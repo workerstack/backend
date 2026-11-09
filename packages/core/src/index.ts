@@ -1,5 +1,5 @@
 /**
- * `@lovrozagar/honey`: the app (`honey()`), its context, errors, middleware and responses, the tree merge, and the
+ * `@workerstack/backend`: the app (`honey()`), its context, errors, middleware and responses, the tree merge, and the
  * types an app is read through. Everything optional is its own subpath; nothing here registers itself (H23).
  */
 export { toFetchRequest } from "./adapters/fetch-request.ts"

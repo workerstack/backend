@@ -145,7 +145,7 @@ export function mountAll(
 
 /** What a `docs` value that is not the map is shown to pass instead. */
 const DOCS_FIX =
-	'import { scalar } from "@lovrozagar/honey/openapi/scalar" (or swagger from "@lovrozagar/honey/openapi/swagger") and pass docs: { "/docs": scalar }'
+	'import { scalar } from "@workerstack/backend/openapi/scalar" (or swagger from "@workerstack/backend/openapi/swagger") and pass docs: { "/docs": scalar }'
 
 /**
  * The docs pages' routes: each page built for the JSON URL the browser sees (the prefix the app strips,

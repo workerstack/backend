@@ -15,7 +15,7 @@ const CORE = join(import.meta.dirname, "../..")
 const GET_EXE_PATH = pathToFileURL(join(CORE, "../../node_modules/typescript/lib/getExePath.js")).href
 const { default: getExePath } = (await import(GET_EXE_PATH)) as { default: () => string }
 
-/* inside core, so `@lovrozagar/honey` resolves through the workspace link with core's honey-source condition */
+/* inside core, so `@workerstack/backend` resolves through the workspace link with core's honey-source condition */
 mkdirSync(join(CORE, ".tmp"), { recursive: true })
 const scratch = mkdtempSync(join(CORE, ".tmp/output-completions-"))
 let server: ChildProcessWithoutNullStreams | undefined
@@ -58,7 +58,7 @@ const REDIRECTS = [
 
 /** The fixture: a custom media type and a typo that must compile, then the call completions are asked inside. */
 const PRELUDE = [
-	'import { honey } from "@lovrozagar/honey"',
+	'import { honey } from "@workerstack/backend"',
 	'import * as z from "zod"',
 	"const row = z.object({ x: z.string() })",
 	'const route = honey().get("/x")',

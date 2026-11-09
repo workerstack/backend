@@ -134,8 +134,8 @@ describe("openapi-sources.gen.ts: what it refuses (plan 39 7.5)", () => {
 describe("openapi-sources.gen.ts, imported by the app it is generated for (plan 39 7.5)", () => {
 	/* the module depends on the config alone, so a generation writes it before it loads the app that imports it */
 	const APP = [
-		'import { honey } from "@lovrozagar/honey"',
-		'import { serveStaticOpenApi } from "@lovrozagar/honey/openapi/static"',
+		'import { honey } from "@workerstack/backend"',
+		'import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"',
 		'import { openApiSources } from "./_gen/openapi-sources.gen.ts"',
 		"export const app = honey()",
 		'app.get("/health").handler((c) => c.res.text("ok", "up"))',
