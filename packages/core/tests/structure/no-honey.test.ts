@@ -27,7 +27,7 @@ const HISTORY = [
 	"docs/migrating-to-workerstack.md",
 	"docs/migration.md",
 ]
-const HISTORY_TREES = ["blueprint/", ".rulesync/lessons/"]
+const HISTORY_TREES = ["blueprint/", ".repo/lessons/"]
 
 /** Whether `file` records history, where the old name stays. */
 function historical(file: string): boolean {
@@ -112,7 +112,7 @@ describe("no honey", () => {
 
 	it("points every lesson's paths at files that exist", { timeout: SPAWN_TIMEOUT }, () => {
 		const files = tracked()
-		const lessons = files.filter((path) => /^\.rulesync\/lessons\/[^/]+\.md$/.test(path))
+		const lessons = files.filter((path) => /^\.repo\/lessons\/[^/]+\.md$/.test(path))
 		const dangling = lessons.flatMap((path) =>
 			danglingGlobs(readFileSync(join(REPO, path), "utf8"), files).map((glob) => `${path}: ${glob}`),
 		)

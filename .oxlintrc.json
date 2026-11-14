@@ -1,8 +1,12 @@
 {
 	"$schema": "./node_modules/oxlint/configuration_schema.json",
-	"extends": ["./oxlint.base.json"],
 	"plugins": ["typescript", "unicorn", "oxc"],
-	"jsPlugins": [{ "name": "backend", "specifier": "./packages/core/lint/index.js" }],
+	"jsPlugins": [
+		{
+			"name": "backend",
+			"specifier": "./packages/core/lint/index.js"
+		}
+	],
 	"env": {
 		"node": true
 	},
@@ -18,9 +22,12 @@
 		".agents/**",
 		".claude/**",
 		".codex/**",
-		".gemini/**",
 		".grok/**",
-		".rulesync/**"
+		"**/dist/**",
+		"**/coverage/**",
+		".tmp/**",
+		".cursor/**",
+		".repo/**"
 	],
 	"categories": {
 		"correctness": "error",
@@ -66,7 +73,14 @@
 			"rules": {
 				"complexity": ["error", 15],
 				"max-depth": ["error", 4],
-				"max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
+				"max-lines": [
+					"error",
+					{
+						"max": 300,
+						"skipBlankLines": true,
+						"skipComments": true
+					}
+				],
 				"max-lines-per-function": ["error", 60],
 				"max-params": ["error", 4],
 				"vitest/expect-expect": "error",
@@ -107,7 +121,14 @@
 				"bench/src/significance.test.ts"
 			],
 			"rules": {
-				"max-lines": ["error", { "max": 500, "skipBlankLines": true, "skipComments": true }]
+				"max-lines": [
+					"error",
+					{
+						"max": 500,
+						"skipBlankLines": true,
+						"skipComments": true
+					}
+				]
 			}
 		}
 	]
