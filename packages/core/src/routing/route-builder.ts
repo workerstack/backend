@@ -69,8 +69,6 @@ export type BuilderTypes = {
 	routes: unknown
 	/** The path-scoped middleware of the app. */
 	scopedMw: readonly ScopedMwEntry[]
-	/** The tap payloads the app declared. */
-	taps: Record<string, unknown>
 	/** The one-shot methods already called. */
 	used: string
 }
@@ -120,7 +118,6 @@ export type RouteHandlerCtx<B extends BuilderTypes> = HandlerCtx<
 	B["errorFactory"],
 	B["errorKeys"] | B["defaultErrors"],
 	B["path"],
-	B["taps"],
 	B["input"],
 	B["output"]
 >
@@ -147,7 +144,6 @@ export type HandlerReturn<B extends BuilderTypes> = HttpApp<
 	B["errorFactory"],
 	B["defaultErrors"],
 	B["basePath"],
-	B["taps"],
 	B["scopedMw"]
 >
 

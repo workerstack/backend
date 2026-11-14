@@ -4,7 +4,7 @@
  * factory and meta come from that chain and the app it was registered on. Re-runs whenever a
  * registration moved the graph's epoch.
  */
-import { type HttpContext, REQUEST, type RouteInfo } from "../context/context.ts"
+import { type HttpContext, REQUEST, type RouteInfo, TAP_CHECK } from "../context/context.ts"
 import { withInput } from "../input/input.ts"
 import { forwardCheck, withOutput } from "../validation/validate-output.ts"
 import { outputCheck } from "#output-check"
@@ -40,7 +40,7 @@ import {
 } from "./register.ts"
 import { type AppSettings, assertSettingsAgree, type ErrorFactories } from "./settings.ts"
 import type { RequestTrace } from "../telemetry/request-trace.ts"
-import { answering, firing, tapsFor } from "./tap.ts"
+import { answering, firing, type TapFiring, type Taps, tapsFor } from "./tap.ts"
 import { dict } from "./tree.ts"
 
 /** Everything a matched route runs, compiled once. */
@@ -185,6 +185,30 @@ function tracedHandler(handler: (ctx: object) => MaybePromise<Response>): (ctx: 
 	}
 }
 
+/**
+ * The taps a route registers and the ones its meta fires, each meta value parsed here once: a value its tap's schema
+ * refuses fails where the routes compile, not in the background of every request. `null` for a route with no taps and
+ * for a WebSocket route, whose upgrade fires none.
+ */
+function routeTaps(
+	g: HttpGraph,
+	r: RouteHandler,
+	meta: Readonly<Record<string, unknown>> | null,
+): { readonly meta: readonly TapFiring[]; readonly registered: Taps } | null {
+	const registered = tapsFor(g.settings, r.own)
+	if (registered === null || r.id.startsWith("WS ")) return null
+	const fired: TapFiring[] = []
+	for (const tap of registered.values()) {
+		const value = meta !== null && Object.hasOwn(meta, tap.name) ? meta[tap.name] : undefined
+		if (value === undefined) continue
+		const checked = tap[TAP_CHECK](value)
+		if ("issue" in checked)
+			throw new Error(`route ${r.id}: meta "${tap.name}" fails tap ${tap.name}'s schema: ${checked.issue}`)
+		fired.push({ payload: checked.value, tap })
+	}
+	return { meta: fired, registered }
+}
+
 function planRoute(
 	g: HttpGraph,
 	r: RouteHandler,
@@ -197,7 +221,7 @@ function planRoute(
 	const meta = routeMeta(chain, r.xm)
 	r.mt = meta
 	/* only a route with taps pays for them: the handler marks its answer, the chain fires after */
-	const taps = tapsFor(g.settings, r.own)
+	const taps = routeTaps(g, r, meta)
 	const traced = g.settings.telemetry !== null
 	const run = traced ? chain.map(tracedMiddleware) : chain
 	/* only a route with .input() pays for it: the step runs between the middleware and the handler */
@@ -217,7 +241,7 @@ function planRoute(
 		pfChain: run,
 		policy,
 		route: { errors, id: r.id, meta: meta ?? EMPTY_META, pattern: r.rp },
-		run: taps === null ? compiled : firing(compiled, taps),
+		run: taps === null ? compiled : firing(compiled, taps.registered, taps.meta),
 	}
 }
 

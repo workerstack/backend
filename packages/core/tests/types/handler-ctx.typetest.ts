@@ -10,6 +10,7 @@ import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware, type MiddlewareFn } from "../../src/middleware/middleware.ts"
 import { httpApp } from "../../src/routing/app.ts"
 import type { InferCtx } from "../../src/routing/app-types.ts"
+import { defineTap, type TapMeta } from "../../src/routing/define-tap.ts"
 
 describe("ctx.params", () => {
 	// v0: 8d3b08b315
@@ -356,10 +357,14 @@ describe("the whole ctx at once", () => {
 
 describe("the whole ctx with taps, meta and empty declarations", () => {
 	// v0: 0e91063a38
-	it("with taps and meta too: a declared tap takes its payload, nothing else", () => {
+	it("with taps and meta too: a defined tap takes its payload, nothing else", () => {
 		const errs = defineErrors({ not_found: "not_found" })
+		const audit = defineTap("audit", z.object({ action: z.string(), actor_id: z.string() }), () => {})
+		const webhook = defineTap("webhook", z.object({ event: z.string() }), () => {})
 		httpApp<{}>()
-			.taps<{ audit: { action: string; actor_id: string }; webhook: { event: string } }>()
+			.metaType<TapMeta<typeof audit>>()
+			.tap(audit)
+			.tap(webhook)
 			.use(withUser)
 			.post("/orgs/:orgId/members")
 			.input({ json: z.object({ email: z.string() }) })
@@ -370,12 +375,12 @@ describe("the whole ctx with taps, meta and empty declarations", () => {
 				expectTypeOf(ctx.input.json.email).toEqualTypeOf<string>()
 				expectTypeOf(ctx.errors.not_found).toBeFunction()
 				expectTypeOf(ctx.routePattern).toEqualTypeOf<"/orgs/:orgId/members">()
-				ctx.tap("audit", { action: "member.invite", actor_id: ctx.userId })
-				ctx.tap("webhook", { event: "member.invited" })
-				// @ts-expect-error a key the taps do not declare
+				ctx.tap(audit, { action: "member.invite", actor_id: ctx.userId })
+				ctx.tap(webhook, { event: "member.invited" })
+				// @ts-expect-error a string key is no tap
 				ctx.tap("invalid", {})
-				// @ts-expect-error another key's payload
-				ctx.tap("audit", { event: "wrong" })
+				// @ts-expect-error another tap's payload
+				ctx.tap(audit, { event: "wrong" })
 				expectTypeOf(ctx.res).not.toHaveProperty("text")
 				return ctx.res.json("created", { id: "mem_1" })
 			})

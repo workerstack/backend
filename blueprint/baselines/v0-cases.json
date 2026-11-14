@@ -46637,6 +46637,15 @@
 		}
 	},
 	"retired": {
+		"6fea98e765": "plan 60: a tap is fired by its defined object and must be registered on the route's app or one serving it, so c.tap() with an unregistered tap throws instead of being ignored (tap.test 'a tap the app never registered throws')",
+		"859201c776": "plan 60: c.tap() on an app with no taps throws 'not registered on this app' instead of passing silently (tap.test 'an app with no taps throws for any tap')",
+		"931239c157": "plan 60: c.tap() takes a defined tap, never a string key, so no form accepts any key and an unknown payload (tap.typetest 'the string-keyed forms are gone')",
+		"fc68a018ed": "plan 60: c.tap() takes a defined tap object, so there is no key to autocomplete; its payload is typed by the tap's schema (tap.typetest 'takes the tap's exact input')",
+		"96b7a09811": "plan 60: .taps<T>() is gone; a tap's payload type comes from defineTap's schema (tap.typetest 'the string-keyed forms are gone')",
+		"d7ec11758e": "plan 60: .taps<T>() is gone, so there is no order against .metaType<T>(); a meta-fired tap's key joins the meta type through TapMeta (tap.typetest 'beside the app's own meta type')",
+		"d33ab29fdf": "plan 60: there is no TTaps key map to have one or many keys; each tap is its own defined object (tap.typetest 'payload shapes')",
+		"1ca342352b": "plan 60: there is no TTaps key map to have one or many keys; each tap is its own defined object (tap.typetest 'payload shapes')",
+		"35707c9e48": "plan 60: $taps no longer carries a declared map; it stays {} for the pinned clients extractor (tap.typetest '$taps stays {}')",
 		"438e928517": "plan 39 5.6: routeTree() returns a new app and can be called at any point, the routes registered before it replayed onto the tree, so a late call no longer throws (route-tree.test 'a new app, called at any point')",
 		"5acb87fe58": "plan 39 5.6: routeTree() returns a new app and can be called at any point, the routes registered before it replayed onto the tree, so a late call no longer throws (route-tree.test 'a new app, called at any point')",
 		"124924980a": "plan 39 5.5: streamed() (was readableStream()) wraps a json or form body only, which it leaves unread for the handler; search, headers and cookies are read before the handler, so they always run their schema and a wrapper there is a type error (input.typetest)",

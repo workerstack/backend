@@ -13,6 +13,7 @@ import type { JwtVerifyResult, VerifyJwtOptions } from "../../src/security/jwt.t
 import type { SignWebhookOptions, WebhookHeaders } from "../../src/security/webhook.ts"
 import type { SSEEvent, SSEOptions, SSEStream } from "../../src/response/sse.ts"
 import { type ProducerOptions, type ProducerSink, producerStream } from "../../src/streaming/producer-stream.ts"
+import type { TapFiring, Taps } from "../../src/routing/tap.ts"
 import type { JsonSchema, jsonSchemaOf } from "../../src/schema/to-json-schema.ts"
 import type { WSContext, WSHandler } from "../../src/ws/contract.ts"
 export type NormalizePath = (raw: string, encodedSlashes?: "allow" | "reject") => string | null
@@ -317,20 +318,18 @@ export function translatingInPlace(real: ErrorTranslatorFactory): ErrorTranslato
 	}
 }
 
-export type Firing = (
-	run: CompiledChain,
-	taps: ReadonlyMap<string, (ctx: object, payload: unknown) => unknown>,
-) => CompiledChain
+export type Firing = (run: CompiledChain, taps: Taps, metaCalls: readonly TapFiring[]) => CompiledChain
 
 /**
  * `firing` that runs each `ctx.tap()` call's handler inline, awaited before the answer goes out.
  * context.ts loads lazily: a top-level import would load it before the suite's mock is in place.
  */
 export const inlineFiring: Firing = (run, taps) => async (ctx) => {
-	const { TAPS } = await import("../../src/context/context.ts")
+	const { REQUEST, TAPS } = await import("../../src/context/context.ts")
+	;(ctx as { [REQUEST]: { taps?: Taps } })[REQUEST].taps = taps
 	const response = await run(ctx)
 	for (const call of (ctx as { [TAPS]: readonly TapCall[] | null })[TAPS] ?? []) {
-		await taps.get(call.key)?.(ctx, call.payload)
+		await call.tap.handler(ctx as never, call.payload)
 	}
 	return response
 }

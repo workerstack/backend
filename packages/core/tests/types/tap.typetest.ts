@@ -1,106 +1,138 @@
 /**
- * Tap typing: `.taps<T>()` declares each key's payload, so `ctx.tap()` takes only those keys and
- * their exact payloads, an `app.tap()` handler gets its key's payload and a TapContext (no `res`,
- * no `tap`), and route meta may carry any tap key with its payload. Without `.taps()`, `ctx.tap()`
- * takes any key. Checked by typecheck.
+ * Tap typing: `defineTap(name, schema, handler)` types the handler's payload by the schema's output and `c.tap(tap,
+ * payload)` by its input; `app.tap(tap)` registers it and returns the handle; a meta-fired tap's key joins the app's
+ * meta type through `TapMeta<typeof tap>`. The string-keyed forms are gone. Checked by typecheck.
  */
 import { describe, expectTypeOf, it } from "vitest"
+import * as z from "zod"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
 import { httpApp } from "../../src/routing/app.ts"
-import type { TapContext } from "../../src/routing/tap.ts"
+import { defineTap, type TapDefinition, type TapContext, type TapMeta } from "../../src/routing/define-tap.ts"
 
-type AppTaps = {
-	audit: { action: string; actor_id: string }
-	webhook: { event: string }
-}
+const audit = defineTap("audit", z.object({ action: z.string(), actor_id: z.string() }), () => {})
+const webhook = defineTap("webhook", z.object({ event: z.string() }), () => {})
+/* input and output differ: a string in, a number out */
+const counted = defineTap("counted", z.object({ n: z.string().transform(Number) }), (_ctx, payload) => {
+	expectTypeOf(payload).toEqualTypeOf<{ n: number }>()
+})
 
-describe("ctx.tap(): keys and payloads from .taps<T>()", () => {
-	// v0: fc68a018ed
+describe("c.tap(tap, payload): the payload is the schema's input", () => {
 	// v0: 0f942cb812
 	// v0: e52161eadf
-	it("a declared key takes its exact payload; any other key, shape or extra field is an error", () => {
+	it("takes the tap's exact input; another shape, a missing or extra field, or a string key is an error", () => {
 		httpApp<{}>()
-			.taps<AppTaps>()
+			.tap(audit)
+			.tap(webhook)
 			.get("/t")
 			.handler((c) => {
-				c.tap("audit", { action: "create", actor_id: "usr_1" })
-				c.tap("webhook", { event: "created" })
-				expectTypeOf<Parameters<typeof c.tap>[0]>().toEqualTypeOf<"audit" | "webhook">()
-				// @ts-expect-error an undeclared key
-				c.tap("nonexistent", {})
+				expectTypeOf<Parameters<typeof c.tap<typeof audit>>[1]>().toEqualTypeOf<{
+					action: string
+					actor_id: string
+				}>()
+				expectTypeOf<Parameters<typeof c.tap<typeof counted>>[1]>().toEqualTypeOf<{ n: string }>()
+				c.tap(audit, { action: "create", actor_id: "usr_1" })
+				c.tap(webhook, { event: "created" })
+				c.tap(counted, { n: "3" })
 				// @ts-expect-error the wrong shape
-				c.tap("audit", { wrong: true })
+				c.tap(audit, { wrong: true })
 				// @ts-expect-error a required field missing
-				c.tap("audit", { action: "create" })
-				// @ts-expect-error another key's shape
-				c.tap("webhook", { action: "nope" })
+				c.tap(audit, { action: "create" })
+				// @ts-expect-error another tap's shape
+				c.tap(webhook, { action: "nope" })
 				// @ts-expect-error an extra field
-				c.tap("audit", { action: "create", actor_id: "usr_1", extra: true })
+				c.tap(audit, { action: "create", actor_id: "usr_1", extra: true })
+				// @ts-expect-error the schema's output is not its input
+				c.tap(counted, { n: 3 })
+				// @ts-expect-error a string key is gone
+				c.tap("audit", { action: "create", actor_id: "usr_1" })
 				return c.res.json("ok", {})
 			})
 	})
 
-	// v0: 931239c157
 	// v0: bc13d010d8
-	it("without .taps(), any key and any payload; it returns nothing either way", () => {
+	it("returns nothing", () => {
 		httpApp<{}>()
 			.get("/t")
 			.handler((c) => {
-				c.tap("anything", { any: "payload" })
-				c.tap("other", 42)
-				expectTypeOf(c.tap("more", null)).toBeVoid()
+				expectTypeOf(c.tap(webhook, { event: "e" })).toBeVoid()
 				return c.res.json("ok", {})
 			})
 	})
 })
 
-describe("app.tap(): the handler", () => {
+describe("defineTap and app.tap(tap)", () => {
 	// v0: 9c2d380a3c
-	it("gets its key's payload", () => {
-		const app = httpApp<{}>().taps<AppTaps>()
-		app.tap("audit", (_ctx, payload) => {
-			expectTypeOf(payload).toEqualTypeOf<{ action: string; actor_id: string }>()
-		})
-		app.tap("webhook", (_ctx, payload) => {
+	it("the handler's payload is the schema's output, and the tap keeps its name and schema", () => {
+		const schema = z.object({ event: z.string() })
+		const tap = defineTap("hook", schema, (_ctx, payload) => {
 			expectTypeOf(payload).toEqualTypeOf<{ event: string }>()
 		})
+		expectTypeOf(tap).toEqualTypeOf<TapDefinition<"hook", typeof schema, unknown>>()
+		expectTypeOf(tap.name).toEqualTypeOf<"hook">()
 	})
 
 	// v0: ac27224138
 	// v0: b5c3db911c
-	it("gets a TapContext over the app's env: the request, no res and no tap", () => {
+	it("a handler typed by the env gets a TapContext over it: the request, no res and no tap", () => {
 		type Env = { DB_URL: string; SECRET: string }
-		httpApp<Env>()
-			.taps<AppTaps>()
-			.tap("audit", (ctx) => {
-				expectTypeOf(ctx).toEqualTypeOf<TapContext<Env>>()
-				expectTypeOf(ctx.env.SECRET).toEqualTypeOf<string>()
-				expectTypeOf(ctx.params).toEqualTypeOf<Record<string, string>>()
-				expectTypeOf(ctx.headers).toEqualTypeOf<Record<string, string>>()
-				expectTypeOf(ctx.meta).toEqualTypeOf<Record<string, unknown>>()
-				expectTypeOf(ctx.search).toEqualTypeOf<Record<string, string>>()
-				expectTypeOf(ctx.req).toEqualTypeOf<Request>()
-				expectTypeOf(ctx.background).toBeFunction()
-				expectTypeOf(ctx).not.toHaveProperty("res")
-				expectTypeOf(ctx).not.toHaveProperty("tap")
-			})
+		const secretTap = defineTap("secret", z.object({ id: z.string() }), (ctx: TapContext<Env>) => {
+			expectTypeOf(ctx.env.SECRET).toEqualTypeOf<string>()
+			expectTypeOf(ctx.params).toEqualTypeOf<Record<string, string>>()
+			expectTypeOf(ctx.headers).toEqualTypeOf<Record<string, string>>()
+			expectTypeOf(ctx.meta).toEqualTypeOf<Record<string, unknown>>()
+			expectTypeOf(ctx.search).toEqualTypeOf<Record<string, string>>()
+			expectTypeOf(ctx.req).toEqualTypeOf<Request>()
+			expectTypeOf(ctx.background).toBeFunction()
+			expectTypeOf(ctx).not.toHaveProperty("res")
+			expectTypeOf(ctx).not.toHaveProperty("tap")
+		})
+		httpApp<Env>().tap(secretTap)
 	})
 
 	// v0: 9f5d7cad5f
 	// v0: d63932cc79
-	it("may return nothing or a promise, and app.tap() returns the handle", () => {
-		const app = httpApp<{}>().taps<AppTaps>()
-		const chained = app.tap("audit", () => {}).tap("webhook", async () => {})
+	it("a handler may return nothing or a promise, and app.tap() returns the handle", () => {
+		const later = defineTap("later", z.object({}), async () => {})
+		const app = httpApp<{}>()
+		const chained = app.tap(audit).tap(later)
 		expectTypeOf(chained).toEqualTypeOf(app)
+	})
+
+	it("a tap typed by its schema and env is a TapDefinition: it goes in a map and to c.tap and app.tap", () => {
+		type Env = { SECRET: string }
+		const typed = defineTap("typed", z.object({ id: z.string() }), (ctx: TapContext<Env>, payload) => {
+			void ctx.env.SECRET
+			void payload.id
+		})
+		const map: ReadonlyMap<string, TapDefinition> = new Map([[typed.name, typed]])
+		expectTypeOf(map).toEqualTypeOf<ReadonlyMap<string, TapDefinition>>()
+		httpApp<Env>()
+			.tap(typed)
+			.get("/t")
+			.handler((c) => {
+				c.tap(typed, { id: "1" })
+				return c.res.json("ok", {})
+			})
 	})
 })
 
-describe("route meta: tap keys with their payloads", () => {
+describe("the string-keyed forms", () => {
+	it("are gone", () => {
+		const app = httpApp<{}>()
+		expectTypeOf(app.tap).parameter(0).not.toBeString()
+		// @ts-expect-error a key and a handler is no longer a tap
+		app.tap("audit", () => {})
+		// @ts-expect-error .taps<T>() is gone
+		app.taps<{ audit: { action: string } }>()
+	})
+})
+
+describe("route meta: a meta-fired tap's key through TapMeta", () => {
 	// v0: fe9637b053
 	// v0: 0012d0d7c2
-	it("a tap key in meta must carry its payload's shape; every tap key is optional there", () => {
-		const app = httpApp<{}>().taps<AppTaps>()
+	it("TapMeta types the key by the schema's input, and it is optional", () => {
+		const app = httpApp<{}>().metaType<TapMeta<typeof audit>>().tap(audit)
 		app
 			.get("/a")
 			.meta({ audit: { action: "create", actor_id: "usr_1" } })
@@ -114,69 +146,54 @@ describe("route meta: tap keys with their payloads", () => {
 			.meta({ audit: { wrong: true } })
 			.handler((c) => c.res.json("ok", {}))
 		app.get("/none").handler((c) => c.res.json("ok", {}))
-		app
-			.get("/webhook")
-			.meta({ webhook: { event: "created" } })
+	})
+
+	// v0: c81529e274
+	// v0: 9a356bf11d
+	it("beside the app's own meta type, both reach the handler's meta", () => {
+		type RouteMeta = { operationId: string; security: string }
+		httpApp<{}>()
+			.metaType<RouteMeta & TapMeta<typeof webhook>>()
+			.tap(webhook)
+			.get("/a")
+			.meta({ operationId: "a", security: "jwt", webhook: { event: "test" } })
 			.handler((c) => {
+				expectTypeOf(c.meta.operationId).toEqualTypeOf<string>()
 				expectTypeOf(c.meta.webhook).toEqualTypeOf<{ event: string }>()
 				return c.res.json("ok", {})
 			})
 	})
 
-	// v0: c81529e274
-	// v0: 9a356bf11d
-	// v0: d7ec11758e
-	it("beside a .metaType<T>() declaration, before or after it: both reach the handler's meta", () => {
-		type RouteMeta = { operationId: string; security: string }
-		httpApp<{}>()
-			.metaType<RouteMeta>()
-			.taps<AppTaps>()
-			.get("/a")
-			.meta({ operationId: "a", security: "jwt", webhook: { event: "test" } })
-			.handler((c) => {
-				expectTypeOf(c.meta).toMatchTypeOf<
-					Readonly<{ operationId: string; security: string; webhook: { event: string } }>
-				>()
-				return c.res.json("ok", {})
-			})
-		httpApp<{}>()
-			.taps<AppTaps>()
-			.metaType<RouteMeta>()
-			.get("/b")
-			.meta({ audit: { action: "create", actor_id: "sys" }, operationId: "b", security: "jwt" })
-			.handler((c) => {
-				c.tap("webhook", { event: "done" })
-				return c.res.json("ok", {})
-			})
+	it("TapMeta maps the tap's name to its schema's input", () => {
+		expectTypeOf<TapMeta<typeof counted>>().toEqualTypeOf<{ readonly counted?: { n: string } }>()
 	})
 })
 
-describe("ctx.tap() keeps its keys through every handle", () => {
+describe("c.tap() through every handle", () => {
 	// v0: 6d4061927d
 	// v0: 6053b5e91c
 	// v0: 0bb3f8b0bc
 	// v0: 4b7706da43
-	it("basePath, use, errorFactory and context all keep the declared taps", () => {
+	it("basePath, use, errorFactory and context all keep a typed c.tap", () => {
 		const errors = defineErrors({ a: "bad_request", b: "not_found" })
-		const app = httpApp<{}>().taps<AppTaps>()
+		const app = httpApp<{}>().tap(audit)
 		app
 			.basePath("/api/v1")
 			.get("/t")
 			.handler((c) => {
 				expectTypeOf(c.routePattern).toEqualTypeOf<"/api/v1/t">()
-				// @ts-expect-error still declared after basePath
-				c.tap("bad", {})
+				// @ts-expect-error still typed after basePath
+				c.tap(audit, {})
 				return c.res.json("ok", {})
 			})
 		app
 			.use(createMiddleware(async (_ctx, next) => next({ a: 1 })))
-			.use(createMiddleware(async (_ctx, next) => next({ b: "two" })))
 			.get("/u")
 			.handler((c) => {
 				expectTypeOf(c.a).toEqualTypeOf<number>()
-				c.tap("audit", { action: "test", actor_id: "sys" })
-				// @ts-expect-error still declared after use
-				c.tap("bad", {})
+				c.tap(audit, { action: "test", actor_id: "sys" })
+				// @ts-expect-error still typed after use
+				c.tap(audit, {})
 				return c.res.json("ok", {})
 			})
 		app
@@ -186,8 +203,8 @@ describe("ctx.tap() keeps its keys through every handle", () => {
 			.errors("b")
 			.handler((c) => {
 				expectTypeOf(c.errors.b).toBeFunction()
-				// @ts-expect-error still declared after errorFactory
-				c.tap("bad", {})
+				// @ts-expect-error still typed after errorFactory
+				c.tap(audit, {})
 				return c.res.json("ok", {})
 			})
 		app
@@ -195,25 +212,27 @@ describe("ctx.tap() keeps its keys through every handle", () => {
 			.get("/c")
 			.handler((c) => {
 				expectTypeOf(c.db.query).toBeFunction()
-				// @ts-expect-error still declared after context
-				c.tap("nope", {})
+				// @ts-expect-error still typed after context
+				c.tap(audit, {})
 				return c.res.json("ok", {})
 			})
 	})
 })
 
-describe("ctx.tap() beside a mounted sub-app", () => {
+describe("c.tap() across a mount", () => {
 	// v0: f0e7d816a5
-	it("a parent that mounted a sub keeps its own taps", () => {
+	it("a parent that mounted a sub keeps a typed c.tap", () => {
 		const child = httpApp<{}>()
-		child.get("/child").handler((c) => c.res.json("ok", {}))
-		const parent = httpApp<{}>().taps<AppTaps>()
+		child.get("/child").handler((c) => {
+			c.tap(audit, { action: "child", actor_id: "sys" })
+			return c.res.json("ok", {})
+		})
+		const parent = httpApp<{}>().tap(audit)
 		parent.route(child)
 		parent.get("/parent").handler((c) => {
-			c.tap("audit", { action: "test", actor_id: "sys" })
-			expectTypeOf<Parameters<typeof c.tap>[0]>().toEqualTypeOf<"audit" | "webhook">()
-			// @ts-expect-error still declared
-			c.tap("bad", {})
+			expectTypeOf(c.tap(audit, { action: "test", actor_id: "sys" })).toBeVoid()
+			// @ts-expect-error still typed
+			c.tap(audit, { action: 1 })
 			return c.res.json("ok", {})
 		})
 	})
@@ -224,51 +243,41 @@ describe("payload shapes", () => {
 	// v0: 9aff5039d2
 	// v0: 6c6c854912
 	it("nested objects, unions and arrays type both ends", () => {
-		type Taps = {
-			audit: { action: string; metadata: { ip: string; ua: string } }
-			batch: { ids: string[]; operation: string }
-			event: { id: string; type: "created" } | { reason: string; type: "deleted" }
-		}
-		const app = httpApp<{}>().taps<Taps>()
-		app.get("/t").handler((c) => {
-			c.tap("audit", { action: "create", metadata: { ip: "1.2.3.4", ua: "chrome" } })
-			c.tap("event", { id: "1", type: "created" })
-			c.tap("event", { reason: "cleanup", type: "deleted" })
-			return c.res.json("ok", {})
-		})
-		app.tap("audit", (_ctx, payload) => expectTypeOf(payload.metadata.ip).toEqualTypeOf<string>())
-		app.tap("batch", (_ctx, payload) => expectTypeOf(payload.ids).toEqualTypeOf<string[]>())
-	})
-
-	// v0: d33ab29fdf
-	// v0: 1ca342352b
-	it("one key or many: each is its own, and nothing else is a key", () => {
+		const nested = defineTap(
+			"nested",
+			z.object({ action: z.string(), metadata: z.object({ ip: z.string(), ua: z.string() }) }),
+			(_ctx, payload) => expectTypeOf(payload.metadata.ip).toEqualTypeOf<string>(),
+		)
+		const batch = defineTap("batch", z.object({ ids: z.array(z.string()), operation: z.string() }), (_ctx, payload) =>
+			expectTypeOf(payload.ids).toEqualTypeOf<string[]>(),
+		)
+		const event = defineTap(
+			"event",
+			z.discriminatedUnion("type", [
+				z.object({ id: z.string(), type: z.literal("created") }),
+				z.object({ reason: z.string(), type: z.literal("deleted") }),
+			]),
+			() => {},
+		)
 		httpApp<{}>()
-			.taps<{ a: { x: number }; b: { y: string }; c: { z: boolean }; d: { w: null } }>()
+			.tap(nested)
+			.tap(batch)
+			.tap(event)
 			.get("/t")
 			.handler((c) => {
-				c.tap("a", { x: 1 })
-				c.tap("d", { w: null })
-				expectTypeOf<Parameters<typeof c.tap>[0]>().toEqualTypeOf<"a" | "b" | "c" | "d">()
-				// @ts-expect-error e is not a key
-				c.tap("e", {})
-				return c.res.json("ok", {})
-			})
-		httpApp<{}>()
-			.taps<{ log: { message: string } }>()
-			.get("/t")
-			.handler((c) => {
-				c.tap("log", { message: "hello" })
-				// @ts-expect-error only log
-				c.tap("other", {})
+				c.tap(nested, { action: "create", metadata: { ip: "1.2.3.4", ua: "chrome" } })
+				c.tap(batch, { ids: ["a"], operation: "delete" })
+				c.tap(event, { id: "1", type: "created" })
+				c.tap(event, { reason: "cleanup", type: "deleted" })
+				// @ts-expect-error deleted carries a reason, not an id
+				c.tap(event, { id: "1", type: "deleted" })
 				return c.res.json("ok", {})
 			})
 	})
 
-	// v0: 35707c9e48
-	it("$taps carries what .taps<T>() declared, and {} without it", () => {
+	it("$taps stays {}: a tap is no part of the app's type", () => {
 		expectTypeOf<ReturnType<typeof httpApp<{}>>["$taps"]>().toEqualTypeOf<{}>()
-		const app = httpApp<{}>().taps<AppTaps>()
-		expectTypeOf<(typeof app)["$taps"]>().toEqualTypeOf<AppTaps>()
+		const app = httpApp<{}>().tap(audit)
+		expectTypeOf<(typeof app)["$taps"]>().toEqualTypeOf<{}>()
 	})
 })

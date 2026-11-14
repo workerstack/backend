@@ -6,7 +6,6 @@ import type { ApplyOutput } from "./output-types.ts"
 import type { DeclaredMeta, InitAccMeta, RouteMeta, WithChainMeta, WithMiddlewareMeta } from "./meta-types.ts"
 import type { MiddlewareErrorKeys } from "../middleware/middleware.ts"
 import type { BuilderTypes } from "./route-builder.ts"
-import type { TapMethod } from "./tap.ts"
 import type { StatusKey } from "../response/status.ts"
 import type { InferOutput, StandardSchemaLike } from "../validation/standard-schema.ts"
 
@@ -119,25 +118,15 @@ export type HandlerCtx<
 	TErrorFactory = never,
 	TErrorKeys extends string = never,
 	TPath extends string = string,
-	TTaps = {},
 	TInput = never,
 	TOutput = never,
 > = ApplyOutput<
-	ApplyParams<
-		[TErrorFactory] extends [never]
-			? [keyof TTaps] extends [never]
-				? TCtx
-				: Omit<TCtx, "tap">
-			: Omit<TCtx, [keyof TTaps] extends [never] ? "errors" : "errors" | "tap">,
-		TParams
-	> &
-		/* declared taps replace the context's any-key tap; without them the context stays as it is */
-		([keyof TTaps] extends [never] ? {} : TapMethod<TTaps>) & {
-			/** The route's meta, frozen: what its middleware contributes, overlaid by chain and route `.meta()` values. */
-			readonly meta: Readonly<Omit<RouteMeta<TAccMeta>, "openApi">>
-			/** The route's canonical pattern with its base path, such as `/api/users/:id`. */
-			readonly routePattern: TPath
-		} & ([TErrorFactory] extends [never]
+	ApplyParams<[TErrorFactory] extends [never] ? TCtx : Omit<TCtx, "errors">, TParams> & {
+		/** The route's meta, frozen: what its middleware contributes, overlaid by chain and route `.meta()` values. */
+		readonly meta: Readonly<Omit<RouteMeta<TAccMeta>, "openApi">>
+		/** The route's canonical pattern with its base path, such as `/api/users/:id`. */
+		readonly routePattern: TPath
+	} & ([TErrorFactory] extends [never]
 			? {}
 			: [TErrorKeys] extends [never]
 				? {

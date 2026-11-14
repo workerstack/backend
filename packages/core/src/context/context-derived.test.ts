@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest"
+import * as z from "zod"
+import { defineTap } from "../routing/define-tap.ts"
 import { SILENT } from "../telemetry/logger.ts"
 import { ABORT_CONTEXT, HttpContext, NO_ROUTE, type RequestState, TAPS } from "./context.ts"
 
+const paid = defineTap("billing.paid", z.object({ id: z.number() }), () => {})
+
+/** A context on a route whose app registered `paid`. */
 function makeCtx(state?: Partial<RequestState<{ DB: string }>>) {
 	return new HttpContext(
-		{ env: { DB: "test" }, executionCtx: undefined, logger: SILENT, path: "/test", req: makeReq(), ...state },
+		{
+			env: { DB: "test" },
+			executionCtx: undefined,
+			logger: SILENT,
+			path: "/test",
+			req: makeReq(),
+			taps: new Map([[paid.name, paid]]),
+			...state,
+		},
 		NO_ROUTE,
 		{},
 	)
@@ -51,8 +64,8 @@ describe("HttpContext > a context derived with Object.create", () => {
 		const base = makeCtx({ req: makeReq("http://localhost/test?a=1", { cookie: "sid=abc" }) })
 		const wrapped = wrap(base)
 		expect([wrapped.cookies, wrapped.search, wrapped.signal]).toEqual([{ sid: "abc" }, { a: "1" }, base.signal])
-		wrapped.tap("k", 1)
-		expect(base[TAPS]).toEqual([{ key: "k", payload: 1 }])
+		wrapped.tap(paid, { id: 1 })
+		expect(base[TAPS]).toEqual([{ payload: { id: 1 }, tap: paid }])
 	})
 
 	it("logs as the request, whichever context asks first, even one that shadows path", () => {
@@ -71,8 +84,8 @@ describe("HttpContext > a context derived with Object.create", () => {
 		const derived = derive(base)
 		const signal = derived.signal
 		expect(base.signal).toBe(signal)
-		derived.tap("billing.paid", { id: 1 })
-		expect(base[TAPS]).toEqual([{ key: "billing.paid", payload: { id: 1 } }])
+		derived.tap(paid, { id: 1 })
+		expect(base[TAPS]).toEqual([{ payload: { id: 1 }, tap: paid }])
 		derived[ABORT_CONTEXT]("timeout")
 		expect(base.signal.aborted).toBe(true)
 		expect(base.signal.reason).toBe("timeout")
@@ -116,8 +129,8 @@ describe("HttpContext > c.with", () => {
 	it("queues its taps and aborts on the base", () => {
 		const base = shardCtx()
 		const derived = base.with({ shardDb: "s1" })
-		derived.tap("billing.paid", { id: 1 })
-		expect(base[TAPS]).toEqual([{ key: "billing.paid", payload: { id: 1 } }])
+		derived.tap(paid, { id: 1 })
+		expect(base[TAPS]).toEqual([{ payload: { id: 1 }, tap: paid }])
 		derived[ABORT_CONTEXT]("timeout")
 		expect(base.signal.aborted).toBe(true)
 	})

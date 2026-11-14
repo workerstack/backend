@@ -10,21 +10,11 @@ import type { MergePath } from "../routing/types.ts"
 import { startWsRoute, type WSRouteBuilder } from "../routing/ws-builder.ts"
 
 /** Any app handle: a `httpApp()` app or a handle its `use()`, `basePath()`, `context()` or `meta()` returned. */
-export type AnyHttpApp = HttpApp<any, any, any, any, any, any, any, any, any>
+export type AnyHttpApp = HttpApp<any, any, any, any, any, any, any, any>
 
 /** The builder `ws(app, path)` returns: the handle's ctx with the scopes over the route, at the joined path. */
 export type WsRouteOf<TApp, TPath extends string> =
-	TApp extends HttpApp<
-		any,
-		infer TCtx,
-		any,
-		any,
-		any,
-		any,
-		infer TBase,
-		any,
-		infer TScoped extends readonly ScopedMwEntry[]
-	>
+	TApp extends HttpApp<any, infer TCtx, any, any, any, any, infer TBase, infer TScoped extends readonly ScopedMwEntry[]>
 		? WSRouteBuilder<TCtx & ApplyScoped<TScoped, MergePath<TBase, TPath>>, MergePath<TBase, TPath>, TApp>
 		: never
 

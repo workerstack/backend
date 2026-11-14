@@ -22,7 +22,6 @@ export class HttpPreset<
 	TMeta = never,
 	TErrorFactory = never,
 	TDefaultErrors extends string = never,
-	TTaps extends Record<string, unknown> = {},
 > extends SettingsChain<TEnv> {
 	/** The ctx type an app started from this preset begins with. Type only. */
 	declare readonly $ctx: TCtx
@@ -34,8 +33,8 @@ export class HttpPreset<
 	declare readonly $errorFactory: TErrorFactory
 	/** The route meta type declared with `metaType<T>()`; `never` until then. Type only. */
 	declare readonly $meta: TMeta
-	/** The declared tap payloads. Type only. */
-	declare readonly $taps: TTaps
+	/** Always `{}`: a tap is no part of the app's type. Type only, read by the pinned clients extractor. */
+	declare readonly $taps: {}
 	readonly #chain: readonly RuntimeMiddleware[]
 
 	/** Without arguments, an empty preset, as `definePreset()` makes; the arguments are for the ones `use()` derives. */
@@ -55,8 +54,7 @@ export class HttpPreset<
 		TCtx & TAdds,
 		WithMiddlewareMeta<TMeta, TMwMeta>,
 		TErrorFactory,
-		TDefaultErrors | MiddlewareErrorKeys<TMwErrors>,
-		TTaps
+		TDefaultErrors | MiddlewareErrorKeys<TMwErrors>
 	> {
 		return new HttpPreset<TEnv>(this.settings, [...this.#chain, mw as unknown as RuntimeMiddleware]) as never
 	}

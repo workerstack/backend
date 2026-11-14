@@ -54,7 +54,7 @@ export type {
 } from "./routing/app-types.ts"
 export type { HttpCodegen, HttpOperationId, OperationCtx, OperationId, WithOutput } from "./routing/codegen-types.ts"
 export type { OutputOptions, HttpProjection, HttpSelection } from "./routing/output-types.ts"
-export type { TapContext, TapHandler } from "./routing/tap.ts"
+export { defineTap, type TapDefinition, type TapContext, type TapMeta } from "./routing/define-tap.ts"
 export { mergeTree } from "./routing/tree-merge.ts"
 export type { MergePath, PrefixRoutes } from "./routing/types.ts"
 export type { InferOutput, StandardSchemaLike } from "./validation/standard-schema.ts"

@@ -84,7 +84,8 @@
 		"StandardSchemaLike",
 		"StatusKey",
 		"TapContext",
-		"TapHandler",
+		"TapDefinition",
+		"TapMeta",
 		"TypedResponse",
 		"WSAdapter",
 		"WSAdapterOptions",
@@ -95,6 +96,7 @@
 		"createMiddleware",
 		"defineErrors",
 		"definePreset",
+		"defineTap",
 		"httpApp",
 		"mergeTree"
 	],

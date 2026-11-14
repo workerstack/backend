@@ -152,6 +152,7 @@ export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
 		why: "the runtime name the request log records; a server imports its runtime's serve, so an app never names one",
 	},
 	SuccessStatusKey: { kind: "internal", why: SHAPE },
+	TapHandler: { kind: "guide" },
 	Timing: { kind: "guide" },
 	TranslationRegistry: {
 		kind: "internal",

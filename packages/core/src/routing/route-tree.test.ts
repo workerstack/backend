@@ -4,6 +4,7 @@ import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware, type MiddlewareFn } from "../middleware/middleware.ts"
 import { collectRoutes } from "../openapi/collect.ts"
 import { httpApp } from "./app.ts"
+import { defineTap, type TapMeta } from "./define-tap.ts"
 import { gatewayTree } from "./gateway-tree.ts"
 import { createNode, insertRoute, type RouteEntry, type RouteTree } from "./tree.ts"
 import { mergeTree } from "./tree-merge.ts"
@@ -452,12 +453,17 @@ describe("routeTree(): whose routes and settings the new app carries", () => {
 		const loaded = httpApp<{}>().routeTree(source.toRouteTree())
 		const reloaded = loaded.routeTree(treeOf([["GET", "/orgs"]]))
 		const seen: unknown[] = []
-		const sub = httpApp<{}>()
-		sub.tap("audit", (_ctx, payload) => void seen.push(["sub's audit", payload]))
-		sub.get("/sub").handler((c) => (c.tap("audit", 1), c.res.text("ok", "sub")))
-		const app = httpApp<{}>()
-		app.tap("log", (_ctx, payload) => void seen.push(["app's log", payload]))
-		app.get("/own").handler((c) => (c.tap("log", 2), c.res.text("ok", "own")))
+		const audit = defineTap("audit", z.number(), (_ctx, payload) => void seen.push(["sub's audit", payload]))
+		const log = defineTap("log", z.number(), (_ctx, payload) => void seen.push(["app's log", payload]))
+		const servedLog = defineTap("served", z.number(), (_ctx, payload) => void seen.push(["served's tap", payload]))
+		const sub = httpApp<{}>().tap(audit)
+		sub.get("/sub").handler((c) => (c.tap(audit, 1), c.res.text("ok", "sub")))
+		const app = httpApp<{}>().metaType<TapMeta<typeof servedLog>>()
+		app.tap(log)
+		app
+			.get("/own")
+			.meta({ served: 3 })
+			.handler((c) => (c.tap(log, 2), c.res.text("ok", "own")))
 		app.route(sub)
 		const served = app.routeTree(
 			treeOf([
@@ -465,7 +471,7 @@ describe("routeTree(): whose routes and settings the new app carries", () => {
 				["GET", "/own"],
 			]),
 		)
-		served.tap("log", (_ctx, payload) => void seen.push(["served's log", payload]))
+		served.tap(servedLog)
 		const answers = [await call(loaded, "/orgs"), (await call(reloaded, "/orgs"))[0]]
 		for (const [at, path] of [
 			[served, "/sub"],
@@ -478,7 +484,8 @@ describe("routeTree(): whose routes and settings the new app carries", () => {
 			[
 				["sub's audit", 1],
 				["app's log", 2],
-				["served's log", 2],
+				["served's tap", 3],
+				["app's log", 2],
 			],
 		])
 	})

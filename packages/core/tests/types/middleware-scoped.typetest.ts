@@ -222,10 +222,10 @@ describe("mounted subs and positional generics", () => {
 	// v0: d2adb9ab18
 	// v0: 51db08872d
 	// v0: 84c9f852a1
-	it("HttpApp<> spelled with 8 positional generics is the 9-generic type, and httpApp() is HttpApp<Env>", () => {
-		type Eight = HttpApp<{}, HttpContext<{}>, {}, never, never, never, "/", {}>
-		type Nine = HttpApp<{}, HttpContext<{}>, {}, never, never, never, "/", {}, []>
-		expectTypeOf<Eight>().toEqualTypeOf<Nine>()
+	it("HttpApp<> spelled with 7 positional generics is the 8-generic type, and httpApp() is HttpApp<Env>", () => {
+		type Seven = HttpApp<{}, HttpContext<{}>, {}, never, never, never, "/">
+		type Eight = HttpApp<{}, HttpContext<{}>, {}, never, never, never, "/", []>
+		expectTypeOf<Seven>().toEqualTypeOf<Eight>()
 		expectTypeOf(httpApp<{}>()).toEqualTypeOf<HttpApp<{}>>()
 	})
 })

@@ -4,12 +4,13 @@
 import type { HttpError } from "../errors/error.ts"
 import type { ErrorFormat } from "../errors/problem-json.ts"
 import type { PayloadErrorFormatter, ErrorFormatter } from "../errors/projector.ts"
+import type { TapDefinition } from "../routing/define-tap.ts"
 import type { HttpMetaSpec, MetaSpecConfig } from "../meta/meta-spec-merge.ts"
 import { type BackendLogger, SILENT } from "../telemetry/logger.ts"
 import type { OtelTelemetry } from "../telemetry/request-trace.ts"
 import type { InferOutput, StandardSchemaLike } from "../validation/standard-schema.ts"
 import type { WSAdapter } from "../ws/contract.ts"
-import type { AddDefaults, FactoryKeys, Retyped, SetFactory, WithMetaType, WithTaps } from "./retype.ts"
+import type { AddDefaults, FactoryKeys, Retyped, SetFactory, WithMetaType } from "./retype.ts"
 import {
 	type AppSettings,
 	type ErrorI18n,
@@ -19,7 +20,6 @@ import {
 	type OnNotFoundFn,
 	type RequestLogOptions,
 } from "./settings.ts"
-import type { TapFn, TapHandler } from "./tap.ts"
 
 /** The settings surface every handle and preset shares: each setter applies to the whole app and returns the handle. */
 export abstract class SettingsChain<TEnv> {
@@ -27,8 +27,8 @@ export abstract class SettingsChain<TEnv> {
 	declare readonly $errorFactory: unknown
 	/** The route meta type declared with `metaType<T>()`; `never` until then. Type only. */
 	declare readonly $meta: unknown
-	/** The declared tap payloads. Type only. */
-	declare readonly $taps: Record<string, unknown>
+	/** Always `{}`: a tap is no part of the app's type. Type only, read by the pinned clients extractor. */
+	declare readonly $taps: {}
 	protected readonly settings: AppSettings<TEnv>
 
 	/** Takes the settings object shared by every handle of one app. */
@@ -40,22 +40,20 @@ export abstract class SettingsChain<TEnv> {
 	protected abstract invalidate(): void
 
 	/**
-	 * Register the hook for `key`. It runs once a route's handler has answered, and a synchronous tap can delay the response: once if the route's meta
-	 * sets `key`, and once per `ctx.tap(key, payload)`. Nothing fires on an error answer, a 404 or 405, an answer from
+	 * Register a tap made by `defineTap`, under its name; a later tap of that name replaces the earlier. It runs once a
+	 * route's handler has answered, and a synchronous tap can delay the response: once if the route's meta sets its
+	 * name, and once per `ctx.tap(tap, payload)`. Nothing fires on an error answer, a 404 or 405, an answer from
 	 * middleware, or a WebSocket upgrade. A throw is logged as a warning.
 	 */
-	tap<const TKey extends string>(
-		key: TKey,
-		handler: TapHandler<TEnv, this extends { readonly $taps: infer T } ? T : {}, TKey>,
-	): this {
-		;(this.settings.taps ??= new Map()).set(key, handler as TapFn<TEnv>)
+	tap(tap: TapDefinition<string, StandardSchemaLike, TEnv>): this {
+		;(this.settings.taps ??= new Map()).set(tap.name, tap as TapDefinition)
 		this.invalidate()
 		return this
 	}
 
 	/**
-	 * Type only: declare the route meta type, which constrains what route `.meta()` accepts (declared tap keys stay
-	 * allowed) and types `ctx.meta`. Returns this same handle; set values with `.meta({ … })`.
+	 * Type only: declare the route meta type, which constrains what route `.meta()` accepts and types `ctx.meta`; a
+	 * meta-fired tap's key joins it through `TapMeta<typeof tap>`. Returns this same handle; set values with `.meta({ … })`.
 	 */
 	metaType<TNewMeta extends Record<string, unknown>>(): WithMetaType<this, TNewMeta> {
 		return this as never
@@ -104,11 +102,6 @@ export abstract class SettingsChain<TEnv> {
 		settings.defaultBoundaryKey = key
 		settings.defaultErrorKeys.add(key)
 		;(this as unknown as SettingsChain<unknown>).invalidate()
-		return this as never
-	}
-
-	/** Type only: each tap key's payload, for `ctx.tap()`, tap handlers and route meta. */
-	taps<TNewTaps extends Record<string, unknown>>(): WithTaps<this, TNewTaps> {
 		return this as never
 	}
 
