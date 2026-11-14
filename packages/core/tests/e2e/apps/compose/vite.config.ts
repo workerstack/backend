@@ -1,12 +1,12 @@
-import { honeyPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin"
 
 export default {
 	plugins: [
-		honeyPlugin({
+		backendPlugin({
 			app: "src/gen-app.ts",
 			codegen: {
 				manifest: true,
-				openApi: { title: "Honey Compose", version: "0.0.1" },
+				openApi: { title: "Backend Compose", version: "0.0.1" },
 				tree: true,
 				types: true,
 			},

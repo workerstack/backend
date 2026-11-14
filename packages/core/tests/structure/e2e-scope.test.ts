@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest"
 
 const CORE = join(import.meta.dirname, "../..")
 const E2E = join(CORE, "tests/e2e")
-const IMPORTS_HONEY = /(?:from|import)\s*\(?\s*["']@workerstack\/backend(?:\/[^"']*)?["']/
+const IMPORTS_BACKEND = /(?:from|import)\s*\(?\s*["']@workerstack\/backend(?:\/[^"']*)?["']/
 
 /** Every TypeScript file under `dir`, installed and generated trees left out. */
 function sources(dir: string): string[] {
@@ -33,7 +33,7 @@ function scopeOf(file: string): string | undefined {
 
 describe("the e2e harness's package scope (bit 19 i)", () => {
 	it("puts no file that imports @workerstack/backend inside core's own package, so none self-references it", () => {
-		const importing = sources(E2E).filter((file) => IMPORTS_HONEY.test(readFileSync(file, "utf8")))
+		const importing = sources(E2E).filter((file) => IMPORTS_BACKEND.test(readFileSync(file, "utf8")))
 		expect(importing.length).toBeGreaterThan(0)
 		const selfReferencing = importing.filter((file) => scopeOf(file) === "@workerstack/backend")
 		expect(selfReferencing.map((file) => relative(CORE, file))).toEqual([])

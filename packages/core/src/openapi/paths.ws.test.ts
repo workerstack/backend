@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { honey } from "../routing/app.ts"
-import { SILENT, type Logger } from "../telemetry/logger.ts"
+import { httpApp } from "../routing/app.ts"
+import { SILENT, type BackendLogger } from "../telemetry/logger.ts"
 import { generateOpenApi } from "./generate.ts"
 import { ws } from "../ws/route.ts"
 
@@ -14,7 +14,7 @@ const params = (doc: Doc, path: string, method = "get") => (op(doc, path, method
 const names = (doc: Doc, path: string, method = "get") => params(doc, path, method).map((p) => p.name)
 
 /** A logger that keeps each warning's message. */
-function recording(): { logger: Logger; warnings: string[] } {
+function recording(): { logger: BackendLogger; warnings: string[] } {
 	const warnings: string[] = []
 	const warn = (first: unknown, second?: unknown) =>
 		void warnings.push(String(typeof first === "string" ? first : second))
@@ -29,7 +29,7 @@ describe("WebSocket operations", () => {
 	// v0: d537e2ff0d
 	// v0: 8b32760001
 	it("document a WS route as a GET upgrade: its policy run as ws, its search fields as parameters bar x-internal ones", () => {
-		const app = honey<{}>().metaType<{ tenant?: string }>()
+		const app = httpApp<{}>().metaType<{ tenant?: string }>()
 		app.metaSpec({ meta: { tenant: { key: "x-tenant", on: "http" } } })
 		app
 			.get("/a")
@@ -52,7 +52,7 @@ describe("WebSocket operations", () => {
 	})
 
 	it("leaves out a WS route an HTTP GET of the same path shadows, and says so through the logger", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/chat").handler((c) => c.res.text("ok", "ok"))
 		ws(app, "/chat").handler({ onMessage() {} })
 		const { logger, warnings } = recording()
@@ -65,7 +65,7 @@ describe("WebSocket operations", () => {
 
 	// v0: e61795b84c
 	it("leaves out a WS route marked internal and one filterRoutes rejects, keeping the rest", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		ws(app, "/open").handler({ onMessage() {} })
 		ws(app, "/hidden")
 			.meta({ internal: true })
@@ -79,7 +79,7 @@ describe("WebSocket operations", () => {
 describe("a WS route's own keys", () => {
 	// v0: 10d1ae37cb
 	it("documents a WS route with its own keys alone: never deprecated, security, x-invalidate or x-mcp", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const every = {
 			deprecated: true,
 			description: "d",
@@ -99,7 +99,7 @@ describe("a WS route's own keys", () => {
 			"description",
 			"tags",
 			"operationId",
-			"x-honey-route",
+			"x-backend-route",
 			"responses",
 		])
 	})

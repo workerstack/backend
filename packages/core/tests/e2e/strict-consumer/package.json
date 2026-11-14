@@ -1,5 +1,5 @@
 {
-	"name": "@honey/e2e-strict-consumer",
+	"name": "@backend/e2e-strict-consumer",
 	"version": "0.0.1",
 	"private": true,
 	"type": "module",

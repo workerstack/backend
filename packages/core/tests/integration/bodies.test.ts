@@ -5,7 +5,7 @@
  * declared, in process.
  */
 import { describe, expect, it } from "vitest"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type App = { fetch(request: Request, env: {}): Response | Promise<Response> }
 
@@ -25,7 +25,7 @@ const fileOf = (file: File) => ({ name: file.name, size: file.size, type: file.t
 
 /** Routes that read the request body through ctx.req and answer with what they read. */
 function readerApp() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.on(["POST", "PUT", "PATCH"], "/json").handler(async (ctx) => ctx.res.json("ok", { body: await ctx.req.json() }))
 	app.post("/json-or-400").handler(async (ctx) => {
 		try {
@@ -221,7 +221,7 @@ describe("multipart files and binary bodies arrive byte for byte", () => {
 	// v0: 022e2d7f2b
 	// v0: 07ca7696e7
 	it("a file of 8 bytes, 1MB or 5MB, and 50 files in one request", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.post("/upload").handler(async (ctx) => {
 			const files = [...(await ctx.req.formData()).values()].filter((value) => typeof value !== "string")
 			const sums = await Promise.all(files.map(async (file) => checksum(new Uint8Array(await file.arrayBuffer()))))
@@ -281,7 +281,7 @@ describe("every response helper in process", () => {
 	// v0: 720ce6de0c
 	// v0: 0c5b02a152
 	it("empty bodies, a 204 on DELETE and OPTIONS, and option headers beside the content type", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/html").handler((ctx) => ctx.res.html("ok", ""))
 		app.get("/text").handler((ctx) => ctx.res.text("ok", ""))
 		app.get("/array").handler((ctx) => ctx.res.json("ok", []))
@@ -341,7 +341,7 @@ describe("every status key on every response helper", () => {
 			unauthorized: 401,
 			unprocessable_entity: 422,
 		} as const
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/:helper/:key").handler((ctx) => {
 			const key = ctx.params.key as keyof typeof keys
 			const helper = ctx.params.helper as "csv" | "html" | "text" | "xml"
@@ -366,7 +366,7 @@ const BIG_TEXT = "line\n".repeat(50_000)
 
 /** An app answering each helper's specimen, a raw response, a 204 and a redirect. */
 function helpersApp() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/text").handler((ctx) => ctx.res.text("ok", `Héllo Wörld 🌍 日本語 Привет ${CJK}`))
 	app.get("/csv").handler((ctx) => ctx.res.csv("ok", QUOTED_CSV))
 	app.get("/html").handler((ctx) => ctx.res.html("ok", HTML_DOC))
@@ -456,7 +456,7 @@ describe("large and composed answers", () => {
 	// v0: 0971039f20
 	// v0: 9fded63fc5
 	it("a JSON or form request answered as csv, html, text or json", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.post("/csv").handler(async (ctx) => {
 			const { items } = (await ctx.req.json()) as { items: Array<{ name: string; value: string }> }
 			return ctx.res.csv("ok", ["name,value", ...items.map((item) => `${item.name},${item.value}`)].join("\n"))

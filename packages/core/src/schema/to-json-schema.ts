@@ -35,7 +35,7 @@ export type ConversionIssue =
 	| {
 			/** The side of the schema that was requested. */
 			readonly io: SchemaIo
-			/** No object came out, so the schema is `{}`: honey has no converter for this validator, no Effect converter was passed, or the converter returned a non-object. */
+			/** No object came out, so the schema is `{}`: backend has no converter for this validator, no Effect converter was passed, or the converter returned a non-object. */
 			readonly kind: "unsupported"
 			/** The validator library's name from the schema's `~standard.vendor`, such as `zod`. */
 			readonly vendor: string
@@ -53,12 +53,12 @@ export type ConversionIssue =
 
 /** Options for `jsonSchemaOf`. */
 export type JsonSchemaOptions = {
-	/** Converters honey cannot import itself. */
+	/** Converters backend cannot import itself. */
 	readonly converters?: {
-		/** Effect's JSON Schema function, passed in because honey never imports Effect. Unset, an Effect schema comes out as `{}` and is reported as `unsupported`. */
+		/** Effect's JSON Schema function, passed in because backend never imports Effect. Unset, an Effect schema comes out as `{}` and is reported as `unsupported`. */
 		readonly effect?: EffectConverter
 	}
-	/** Called once per conversion that went wrong in a way honey can detect. Default: nothing hears it. Not every `{}` is reported: a valibot, yup or older ArkType node with no conversion comes out unconstrained silently. */
+	/** Called once per conversion that went wrong in a way backend can detect. Default: nothing hears it. Not every `{}` is reported: a valibot, yup or older ArkType node with no conversion comes out unconstrained silently. */
 	readonly report?: (issue: ConversionIssue) => void
 }
 

@@ -6,14 +6,14 @@
 import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
 import type { TypedResponse } from "../../src/response/response.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import type { DeclaredAnswer } from "../../src/routing/output-types.ts"
 
 describe("ctx.res.noContent(): only on a route that declares its 204", () => {
 	const row = z.object({ id: z.string() })
 
 	it("is gone without a declared no_content, and an empty output declares none", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/a")
 			.output({ ok: row })
@@ -39,7 +39,7 @@ describe("ctx.res.noContent(): only on a route that declares its 204", () => {
 	})
 
 	it("is there where no_content is declared, in the shorthand or under a media type", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/a/:id")
 			.output({ no_content: true, ok: row })
@@ -58,7 +58,7 @@ describe("ctx.res.noContent(): only on a route that declares its 204", () => {
 	})
 
 	it("stays on a route with no .output(), which declares nothing it could be held to", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.delete("/a")
 			.handler((c) => {
 				expectTypeOf(c.res.noContent()).toEqualTypeOf<TypedResponse<"none", "no_content">>()
@@ -70,7 +70,7 @@ describe("ctx.res.noContent(): only on a route that declares its 204", () => {
 describe("a declared 204 or 205 is no body helper's status", () => {
 	it("refuses no_content and reset_content to json, the text helpers and binary, which throw on a null-body status", () => {
 		const row = z.object({ id: z.string() })
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.delete("/a")
 			.output({ no_content: true, ok: row, reset_content: true })

@@ -12,7 +12,7 @@ import { generateMcpHandler } from "@workerstack/clients"
 import { type McpHandler, type McpOptions, mcp } from "../../../src/mcp/mount.ts"
 import { oauth } from "../../../src/mcp/oauth.ts"
 import { generateOpenApi } from "../../../src/openapi/generate.ts"
-import { honey } from "../../../src/routing/app.ts"
+import { httpApp } from "../../../src/routing/app.ts"
 
 const ISSUER = "https://auth.example"
 const READ = "Bearer read-token"
@@ -41,7 +41,7 @@ const TOKENS: Readonly<Record<string, readonly string[]>> = {
 /** A shop: `orders.create` needs `orders:write` (403 step-up without, 401 for an unknown token); requests it saw. */
 function shop(challenge = NEEDED) {
 	const seen: { authorization: string | null; url: string }[] = []
-	const app = honey()
+	const app = httpApp()
 	app
 		.post("/orders")
 		.meta({ mcp: true, security: [{ oauth: ["orders:write"] }] })
@@ -209,7 +209,7 @@ describe("mcp(..., { oauth }) refusals at mount (bit 21 f)", () => {
 		const mount =
 			(overrides: object, options: McpOptions = { authenticate }) =>
 			() =>
-				mcp(honey(), "/mcp", handler, { ...options, oauth: oauth({ ...OAUTH, ...overrides }) })
+				mcp(httpApp(), "/mcp", handler, { ...options, oauth: oauth({ ...OAUTH, ...overrides }) })
 		expect(
 			[
 				mount({ authorizationServers: [] }),
@@ -335,7 +335,7 @@ describe("mcp(..., { oauth }) no token passthrough (bit 21 f, SC26)", () => {
 		const result = (called.body as { result: { _meta: unknown; content: { text: string }[] } }).result
 		expect([called.status, result._meta, seen, network.mock.calls]).toEqual([
 			200,
-			{ "honey/status": 200 },
+			{ "backend/status": 200 },
 			[{ authorization: WRITE, url: "https://shop.example/orders" }],
 			[],
 		])

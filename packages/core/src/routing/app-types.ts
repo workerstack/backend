@@ -1,6 +1,6 @@
 /** The app's type machinery: the handler ctx, each route's record, and the `Infer*` ladder. Type-only. */
-import type { HoneyContext, REQUEST } from "../context/context.ts"
-import type { Honey } from "./app.ts"
+import type { HttpContext, REQUEST } from "../context/context.ts"
+import type { HttpApp } from "./app.ts"
 import type { RouteSelectorOf } from "./codegen-types.ts"
 import type { ApplyOutput } from "./output-types.ts"
 import type { DeclaredMeta, InitAccMeta, RouteMeta, WithChainMeta, WithMiddlewareMeta } from "./meta-types.ts"
@@ -12,14 +12,14 @@ import type { InferOutput, StandardSchemaLike } from "../validation/standard-sch
 
 /**
  * The request context a handler or middleware sees, without the framework's internal slot. `TMeta` types `ctx.meta`:
- * a middleware typed `HoneyCtx<Env, RouteMeta>` mounts on an app that declared `metaType<RouteMeta>()`.
+ * a middleware typed `HttpCtx<Env, RouteMeta>` mounts on an app that declared `metaType<RouteMeta>()`.
  */
-export type HoneyCtx<TEnv = Record<string, unknown>, TMeta = Record<string, unknown>> = Omit<
-	HoneyContext<TEnv>,
+export type HttpCtx<TEnv = Record<string, unknown>, TMeta = Record<string, unknown>> = Omit<
+	HttpContext<TEnv>,
 	typeof REQUEST | "meta"
 > & {
 	/** The matched route's meta: the built-in keys and the app's own. */
-	readonly meta: Readonly<HoneyMeta<TMeta>>
+	readonly meta: Readonly<HttpMeta<TMeta>>
 }
 
 /** The route meta keys every route accepts without declaring them. */
@@ -54,7 +54,7 @@ type BuiltinMeta = {
 	operationId?: string
 	/**
 	 * Security requirement documented for the operation: a scheme name, alternative scheme names, or OpenAPI requirement
-	 * objects; `[]` documents the route as public, and a malformed value fails the document. honey does not enforce it
+	 * objects; `[]` documents the route as public, and a malformed value fails the document. backend does not enforce it
 	 * on requests.
 	 */
 	security?: Array<Record<string, string[]>> | string | string[]
@@ -67,9 +67,9 @@ type BuiltinMeta = {
 /**
  * Route meta: the built-in keys every route accepts, and the app's own `T`; a key `T` declares replaces the built-in
  * one, so an `extensions` with its own `x-` keys refuses a misspelled one and a `security` typed the app's way holds
- * that type. Name it wherever you declare route meta, as in `app.metaType<HoneyMeta<RouteMeta>>()`.
+ * that type. Name it wherever you declare route meta, as in `app.metaType<HttpMeta<RouteMeta>>()`.
  */
-export type HoneyMeta<T = {}> = Omit<BuiltinMeta, keyof T> & T
+export type HttpMeta<T = {}> = Omit<BuiltinMeta, keyof T> & T
 
 /** A middleware scoped by path at the type level: what it adds to routes under `path`. */
 export type ScopedMwEntry = {
@@ -336,7 +336,7 @@ export type InferRoutes<T> = T extends { readonly $routes: infer R } ? R : never
 /** The chain's context; `res` is left out so a handler ctx is assignable into services. */
 export type InferCtx<T> = T extends { readonly $ctx: infer TCtx } ? Omit<TCtx, "res"> : never
 
-/** The env type an app was created with (`TEnv` in `honey<TEnv>()`), which handlers read as `ctx.env`. */
+/** The env type an app was created with (`TEnv` in `httpApp<TEnv>()`), which handlers read as `ctx.env`. */
 export type InferEnv<T> = T extends { readonly $env: infer TEnv } ? TEnv : never
 
 /** Every HTTP method any route uses. */

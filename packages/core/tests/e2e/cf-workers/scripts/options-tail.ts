@@ -1,12 +1,12 @@
 /**
  * Time every OPTIONS preflight. Prints the slowest 10.
  *   bun packages/core/tests/e2e/cf-workers/scripts/options-tail.ts
- *   HONEY_CF_LIVE_URL=http://127.0.0.1:4102 bun packages/core/tests/e2e/cf-workers/scripts/options-tail.ts
+ *   BACKEND_CF_LIVE_URL=http://127.0.0.1:4102 bun packages/core/tests/e2e/cf-workers/scripts/options-tail.ts
  */
-const BASE = (process.env.HONEY_CF_LIVE_URL ?? "https://honey-cf-e2e.lovro-zagar5.workers.dev").replace(/\/$/, "")
-const N = Number(process.env.HONEY_CF_PRE ?? 400)
-const CONC = Number(process.env.HONEY_CF_CONCURRENCY ?? 50)
-const TIMEOUT = Number(process.env.HONEY_CF_TIMEOUT ?? 8_000)
+const BASE = (process.env.BACKEND_CF_LIVE_URL ?? "https://backend-cf-e2e.lovro-zagar5.workers.dev").replace(/\/$/, "")
+const N = Number(process.env.BACKEND_CF_PRE ?? 400)
+const CONC = Number(process.env.BACKEND_CF_CONCURRENCY ?? 50)
+const TIMEOUT = Number(process.env.BACKEND_CF_TIMEOUT ?? 8_000)
 
 type Sample = { ms: number; status: number | "timeout" | "error" }
 

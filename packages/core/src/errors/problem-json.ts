@@ -6,14 +6,14 @@
  * stand in for a member. Vars and the cause stay server-side, as in the native envelope. A schema
  * error keeps its declared body.
  */
-import type { HoneyError } from "./error.ts"
+import type { HttpError } from "./error.ts"
 
-/** How errors answer: honey's envelope (the default) or RFC 9457 Problem Details. */
-export type ErrorFormat = "honey" | "problem+json"
+/** How errors answer: backend's envelope (the default) or RFC 9457 Problem Details. */
+export type ErrorFormat = "backend" | "problem+json"
 
 export const PROBLEM_JSON = "application/problem+json"
 
-/* RFC 9110 §15.5–15.6 reason phrases (418 from RFC 2324), for every error status honey names */
+/* RFC 9110 §15.5–15.6 reason phrases (418 from RFC 2324), for every error status backend names */
 const REASON: Readonly<Record<number, string>> = /* @__PURE__ */ Object.freeze({
 	400: "Bad Request",
 	401: "Unauthorized",
@@ -58,12 +58,12 @@ const REASON: Readonly<Record<number, string>> = /* @__PURE__ */ Object.freeze({
 })
 
 /** The Problem Details document for a standard error; `instance` is the request id, or `null`. */
-export function problemDetails(error: HoneyError, instance: string | null): Record<string, unknown> {
+export function problemDetails(error: HttpError, instance: string | null): Record<string, unknown> {
 	const doc: Record<string, unknown> = {
 		detail: error.message,
 		status: error.status,
 		title: REASON[error.status] ?? error.statusKey,
-		type: `https://honey.dev/errors/${error.errorKey}`,
+		type: `https://backend.dev/errors/${error.errorKey}`,
 	}
 	if (instance !== null) doc.instance = instance
 	if (Object.keys(error.fields).length > 0) doc.errors = error.fields

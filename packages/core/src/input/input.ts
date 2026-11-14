@@ -194,7 +194,7 @@ function compileBody(entry: InputEntry | undefined): CompiledBody | null {
 }
 
 /** A source with no ctx.input key: a body left unread for the handler, or the params, put on ctx.params. */
-const UNREAD: unique symbol = /* @__PURE__ */ Symbol("honey.unread")
+const UNREAD: unique symbol = /* @__PURE__ */ Symbol("backend.unread")
 
 /** The body source, read once, or UNREAD for a `streamed()` body. */
 function readBody(body: CompiledBody, ctx: InputCtx, parser: BodyParser): unknown {

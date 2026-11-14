@@ -9,17 +9,17 @@ import type { RuntimeMiddleware } from "../middleware/middleware.ts"
 import { ifNoneMatchHits } from "../response/etag.ts"
 import type { TypedResponse } from "../response/response.ts"
 import { isStaticPattern, joinPatterns, parsePattern } from "../routing/pattern.ts"
-import { assertRouteFree, GRAPH, type HandleView, type HoneyGraph, SERVED, VIEW } from "../routing/register.ts"
-import type { HoneyMeta, InferMeta } from "../routing/app-types.ts"
+import { assertRouteFree, GRAPH, type HandleView, type HttpGraph, SERVED, VIEW } from "../routing/register.ts"
+import type { HttpMeta, InferMeta } from "../routing/app-types.ts"
 import type { GuardFactory, ServedAuth } from "./basic-auth.ts"
 import type { DocsConfig, DocsContext } from "./docs-page.ts"
 
 /**
- * The route meta a serving call puts on every route it mounts: honey's own keys and the ones handle `A`
+ * The route meta a serving call puts on every route it mounts: backend's own keys and the ones handle `A`
  * declares (`metaType<T>()`), each optional, as a route's own `.meta()` takes them. Never `internal` or SERVED,
  * the marking every served route keeps.
  */
-export type ServedMeta<A> = Partial<Omit<HoneyMeta<[InferMeta<A>] extends [never] ? {} : InferMeta<A>>, "internal">> & {
+export type ServedMeta<A> = Partial<Omit<HttpMeta<[InferMeta<A>] extends [never] ? {} : InferMeta<A>>, "internal">> & {
 	/** Not settable: every served route is internal, so it never appears in generated artifacts. */
 	readonly internal?: never
 	readonly [SERVED]?: never
@@ -39,7 +39,7 @@ export type ServedHandler = (ctx: ServedContext) => unknown
 
 /** A handle serving routes about its app: what these functions read and register through. */
 export type ServingHandle = {
-	readonly [GRAPH]: HoneyGraph
+	readonly [GRAPH]: HttpGraph
 	readonly [VIEW]: HandleView
 	get(path: string): { meta(meta: object): ServedRoute }
 }

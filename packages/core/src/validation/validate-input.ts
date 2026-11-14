@@ -4,7 +4,7 @@
  * arktype, `type` from valibot) and mapped through one table, so clients see the same field
  * error keys whichever validator the server uses.
  */
-import { EK, type FieldError, HoneyError } from "../errors/error.ts"
+import { EK, type FieldError, HttpError } from "../errors/error.ts"
 import { dict } from "../routing/tree.ts"
 import type { StandardSchemaIssue, StandardSchemaLike, StandardSchemaResult } from "./standard-schema.ts"
 
@@ -74,7 +74,7 @@ export function issuesToFieldErrors(issues: readonly NormalizedIssue[], prefix: 
 }
 
 function fail(schema: StandardSchemaLike, issues: ReadonlyArray<StandardSchemaIssue>, prefix: string): never {
-	throw new HoneyError({
+	throw new HttpError({
 		errorKey: EK.validation_failed,
 		fields: issuesToFieldErrors(normalizeIssues(issues, schema["~standard"].vendor), prefix),
 		status: "bad_request",

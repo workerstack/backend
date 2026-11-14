@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
 import { realtime } from "../../src/realtime/realtime.ts"
 import type { ConnContext } from "../../src/realtime/route.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import type { WSAdapter, WSContext } from "../../src/ws/contract.ts"
 
 async function send(app: { fetch: (r: Request, env: never) => Response | Promise<Response> }, target: string) {
@@ -24,7 +24,7 @@ describe("scopes over non-ASCII literals", () => {
 	it.each(["/%C3%A9", "/%c3%a9", "/%c3%A9"])(
 		"R1: a scope over /é guards %s, whatever the escape case",
 		async (target) => {
-			const app = honey<{}>()
+			const app = httpApp<{}>()
 			app.use("/é", deny)
 			app.get("/:slug").handler((ctx) => ctx.res.text("ok", ctx.params.slug))
 			expect(await send(app, target)).toEqual(denied)
@@ -35,7 +35,7 @@ describe("scopes over non-ASCII literals", () => {
 	// regression: R1
 	// v0: b748dd1251
 	it("R1: a route literal written with lowercase escapes is covered by the scope", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use("/é", deny)
 		app.get("/%c3%a9/x").handler((ctx) => ctx.res.text("ok", "x"))
 		for (const target of ["/%C3%A9/x", "/%c3%a9/x"]) expect(await send(app, target)).toEqual(denied)
@@ -79,11 +79,11 @@ describe("realtime topics across mounts", () => {
 	// v0: afa4f6f08b — v1: one realtime() call is one bus and namespace however often it is mounted; a call per mount keeps mounts apart (ruling 12)
 	it("R2: a sub-app mounted twice shares its one realtime route; a realtime() per mount keeps them apart", async () => {
 		const { adapter, sockets } = openingAdapter()
-		const shared = honey<{}>()
+		const shared = httpApp<{}>()
 		realtime(shared, "/chat", { handler: echo })
-		const [v3, v4] = [honey<{}>(), honey<{}>()]
+		const [v3, v4] = [httpApp<{}>(), httpApp<{}>()]
 		for (const sub of [v3, v4]) realtime(sub, "/chat", { handler: echo })
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		app.route("/v1", shared)
 		app.route("/v2", shared)
 		app.route("/v3", v3)
@@ -100,9 +100,9 @@ describe("realtime topics across mounts", () => {
 	// v0: b61aa4e878
 	it("R2: a mounted realtime route does not share topics with the parent's route of the sub's path", async () => {
 		const { adapter, sockets } = openingAdapter()
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		realtime(sub, "/chat", { handler: echo })
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		realtime(app, "/chat", { handler: (_ctx, conn) => conn.join("t") })
 		app.route("/v1", sub)
 		await app.fetch(upgrade("/v1/chat"), {})

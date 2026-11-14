@@ -1,18 +1,18 @@
 import { describe, expect, it, vi } from "vitest"
 import * as z from "zod"
-import type { HoneyError } from "../errors/error.ts"
-import { honey } from "../routing/app.ts"
+import type { HttpError } from "../errors/error.ts"
+import { httpApp } from "../routing/app.ts"
 import { compileResponseHeaders } from "./response-headers.ts"
-import { HoneyRes } from "./response.ts"
+import { HttpRes } from "./response.ts"
 
 const get = (path: string, method = "GET") => new Request(`http://localhost${path}`, { method })
 
 /** The error `run` throws or rejects with. */
-async function failure(run: () => unknown): Promise<HoneyError> {
+async function failure(run: () => unknown): Promise<HttpError> {
 	try {
 		await run()
 	} catch (error) {
-		return error as HoneyError
+		return error as HttpError
 	}
 	throw new Error("did not fail")
 }
@@ -25,7 +25,7 @@ describe("compileResponseHeaders: the check a declaration compiles to", () => {
 	it("reads the answer's headers by lowercased name", async () => {
 		const seen = vi.fn((value: unknown) => ({ value }))
 		const check = compileResponseHeaders({ created: { "~standard": { validate: seen, vendor: "test", version: 1 } } })
-		const res = new HoneyRes()
+		const res = new HttpRes()
 		check?.(res.json("created", {}, { headers: { ETag: '"v1"', Location: "/users/1" } }))
 		expect(seen.mock.calls).toEqual([[{ "content-type": "application/json", etag: '"v1"', location: "/users/1" }]])
 	})
@@ -40,7 +40,7 @@ describe("compileResponseHeaders: the check a declaration compiles to", () => {
 	it("answers synchronously for a sync validator, a promise for an async one, and fails naming the status key", async () => {
 		const sync = compileResponseHeaders({ ok: z.object({ etag: z.string() }) })
 		const later = compileResponseHeaders({ ok: z.object({ etag: z.string().refine(async () => true) }) })
-		const res = new HoneyRes()
+		const res = new HttpRes()
 		const error = await failure(() => sync?.(res.json("ok", {})))
 		expect([
 			sync?.(res.json("ok", {}, { headers: { etag: '"a"' } })),
@@ -52,7 +52,7 @@ describe("compileResponseHeaders: the check a declaration compiles to", () => {
 
 /** An app checking its answers, with routes declaring the headers each status carries. */
 function declaring() {
-	const app = honey<{}>().logger(false)
+	const app = httpApp<{}>().logger(false)
 	const out = {
 		"application/json": { created: z.object({ id: z.string() }), no_content: true, ok: z.object({ id: z.string() }) },
 		headers: {

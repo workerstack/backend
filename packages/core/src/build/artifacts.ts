@@ -1,7 +1,7 @@
 /**
  * An app's artifacts as text (bit 19 h2): the route tree, the manifest, each OpenAPI document (JSON and YAML, Q7) and
  * the types; bit 21 e: the MCP handler the app mounts, from its own unsanitized document of the routes `filterRoutes`
- * keeps, honey-clients's generateMcpHandler writing its entry and the companion directory's runtime and SDK. This module runs inside the app's module graph: generate.ts loads it through the loader that loads the
+ * keeps, clients' generateMcpHandler writing its entry and the companion directory's runtime and SDK. This module runs inside the app's module graph: generate.ts loads it through the loader that loads the
  * app, and hands it that loader for the app, so the app and the core reading it are one instance (core's symbols
  * are per module). source.ts says which tree is written and which app is documented.
  */
@@ -19,7 +19,7 @@ import type { EffectConverter } from "../schema/to-json-schema.ts"
 import {
 	mcpPaths,
 	openApiOutputPaths,
-	type ResolvedHoneyConfig,
+	type ResolvedBackendConfig,
 	type ResolvedMcpOutput,
 	type ResolvedOpenApiOutput,
 } from "./config.ts"
@@ -99,7 +99,7 @@ type Generation = Run & { readonly warnings: { readonly warn: Report } }
 
 /** The types file: the unfiltered document (built once, its check already reported) joined with the extracted ctx. */
 async function typesOf(
-	config: ResolvedHoneyConfig,
+	config: ResolvedBackendConfig,
 	source: Documented & { tree: RouteTree },
 	run: Generation,
 	path: string,
@@ -133,7 +133,7 @@ async function typesOf(
  * changed: to be written first and the pass redone over it on a fresh graph.
  */
 export async function prepare(
-	config: ResolvedHoneyConfig,
+	config: ResolvedBackendConfig,
 	run: Pick<Run, "codegen" | "root"> & { first: boolean; load: ModuleLoader },
 ): Promise<{ rewrite: [string, string] | undefined; source: Source }> {
 	const source = await sourceOf(config, run.root, run.load, run.first)
@@ -174,7 +174,11 @@ function mcpFiles(
 }
 
 /** Every artifact `config` asks for from `source`, by its path from the project root. */
-export async function artifactsOf(config: ResolvedHoneyConfig, run: Run, source: Source): Promise<[string, string][]> {
+export async function artifactsOf(
+	config: ResolvedBackendConfig,
+	run: Run,
+	source: Source,
+): Promise<[string, string][]> {
 	const generation: Generation = { ...run, warnings: onceEach(run.report) }
 	const { manifest, mcp, openApi, securitySchemes, tree, types } = config.codegen
 	const files: [string, string][] = []
@@ -202,7 +206,7 @@ const SILENT: { readonly warn: Report } = { warn: () => {} }
 /** A virtual module's code: the route tree, the manifest, or the first OpenAPI document. */
 export async function virtualCode(
 	kind: "manifest" | "openApi" | "routes",
-	config: ResolvedHoneyConfig,
+	config: ResolvedBackendConfig,
 	run: Pick<Run, "root"> & { codegen: () => Promise<Clients>; load: ModuleLoader },
 ): Promise<string> {
 	const source = await sourceOf(config, run.root, run.load)

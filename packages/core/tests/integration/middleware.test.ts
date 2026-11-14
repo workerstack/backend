@@ -5,9 +5,9 @@
  */
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { HoneyError } from "../../src/errors/error.ts"
+import { HttpError } from "../../src/errors/error.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type Fetchable = { fetch: (r: Request, env: never) => Response | Promise<Response> }
 
@@ -64,12 +64,12 @@ const deny = () => createMiddleware(() => new Response("blocked", { status: 401 
 /** An app whose outermost middleware records what ctx.error holds once the rest has answered. */
 function observedApp() {
 	const seen: Array<{ cause: unknown; errorKey: string | undefined; status: number }> = []
-	const observer = createMiddleware(async (ctx: { error?: HoneyError }, next) => {
+	const observer = createMiddleware(async (ctx: { error?: HttpError }, next) => {
 		const res = await next()
 		seen.push({ cause: ctx.error?.cause, errorKey: ctx.error?.errorKey, status: res.status })
 		return res
 	})
-	return { app: honey<{}>().use(observer), seen }
+	return { app: httpApp<{}>().use(observer), seen }
 }
 
 describe("run order", () => {
@@ -86,7 +86,7 @@ describe("run order", () => {
 		"a chain of %i middlewares runs in registration order, then the handler sees the request",
 		async (n) => {
 			const trace: string[] = []
-			const app = honey<{ DB: string }>()
+			const app = httpApp<{ DB: string }>()
 			let chain = app
 			for (let i = 0; i < n; i++) chain = chain.use(tracer(trace, `mw${i}`))
 			chain.get("/users/:id").handler((ctx) => {
@@ -107,7 +107,7 @@ describe("run order", () => {
 	// v0: 8d9c33c410
 	it("chain middleware runs first, then the route's own use() calls, then the handler; after next() it unwinds", async () => {
 		const trace: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(tracer(trace, "chain1", true))
 			.use(tracer(trace, "chain2", true))
@@ -143,7 +143,7 @@ describe("what next() adds to ctx", () => {
 	// v0: 07e91fb5ad
 	// v0: 55605e9620
 	it("each middleware's additions, chain or route, of any value kind, reach the handler together", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(adds({ count: 42, tags: ["a", "b"] }))
 			.use(adds({ isAdmin: true, nothing: null }))
 		app
@@ -161,7 +161,7 @@ describe("what next() adds to ctx", () => {
 
 	// v0: 442fc94589
 	it("a later middleware's value for a key replaces an earlier one", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(adds({ version: "v1" }))
 			.use(adds({ version: "v2" }))
 		app.get("/t").handler((ctx) => ctx.res.json("ok", { version: ctx.version }))
@@ -171,7 +171,7 @@ describe("what next() adds to ctx", () => {
 	// v0: 3a39e3ef4d
 	it("one middleware instance serves two apps, each with its own routes", async () => {
 		const shared = adds({ shared: true })
-		const [a, b] = [honey<{}>().use(shared), honey<{}>().use(shared)]
+		const [a, b] = [httpApp<{}>().use(shared), httpApp<{}>().use(shared)]
 		a.get("/t").handler((ctx) => ctx.res.json("ok", { app: "a", shared: ctx.shared }))
 		b.get("/t").handler((ctx) => ctx.res.json("ok", { app: "b", shared: ctx.shared }))
 		expect((await send(a, "/t")).body).toEqual({ app: "a", shared: true })
@@ -186,7 +186,7 @@ describe("answering and rewriting the response", () => {
 		const cache = createMiddleware((ctx: { path: string }, next) =>
 			ctx.path === "/cached" ? Response.json({ cached: true }) : next(),
 		)
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const cached = app.use(cache)
 		for (const path of ["/cached", "/fresh"])
 			cached.get(path).handler((ctx) => {
@@ -203,11 +203,11 @@ describe("answering and rewriting the response", () => {
 	// v0: 1f5d595ad4
 	// v0: ae4cef7f27
 	it.each([
-		["the chain", (app: ReturnType<typeof honey<{}>>, mw: ReturnType<typeof deny>) => app.use(mw).get("/guarded")],
-		["the route", (app: ReturnType<typeof honey<{}>>, mw: ReturnType<typeof deny>) => app.get("/guarded").use(mw)],
+		["the chain", (app: ReturnType<typeof httpApp<{}>>, mw: ReturnType<typeof deny>) => app.use(mw).get("/guarded")],
+		["the route", (app: ReturnType<typeof httpApp<{}>>, mw: ReturnType<typeof deny>) => app.get("/guarded").use(mw)],
 	])("a middleware on %s that answers without next() is the answer; the handler never runs", async (_where, guard) => {
 		const handled: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		guard(app, deny()).handler((ctx) => {
 			handled.push("guarded")
 			return ctx.res.text("ok", "secret")
@@ -245,7 +245,7 @@ describe("answering and rewriting the response: after next()", () => {
 			{ "x-timing": "3ms" },
 		],
 	] as const)("a middleware that %s changes what the client gets", async (_label, rewrite, status, extra) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(createMiddleware(async (_ctx, next) => rewrite(await next())))
 			.get("/t")
@@ -261,7 +261,7 @@ describe("answering and rewriting the response: after next()", () => {
 			if (ctx.path === "/t") return Response.json({ replaced: true })
 			return res.status === 404 ? Response.json({ custom: true }) : res
 		})
-		const app = honey<{}>().use(replace)
+		const app = httpApp<{}>().use(replace)
 		app.get("/t").handler((ctx) => ctx.res.json("ok", { original: true }))
 		app.get("/kept").handler((ctx) => ctx.res.json("ok", { original: true }))
 		expect(await send(app, "/t")).toEqual(json({ replaced: true }))
@@ -285,7 +285,7 @@ describe("unknown paths and wrong methods", () => {
 		},
 	])("$label runs the chain's middleware, not a route's", async ({ answer, method, target }) => {
 		const trace: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(tracer(trace, "chain"))
 			.get("/exists")
@@ -298,7 +298,7 @@ describe("unknown paths and wrong methods", () => {
 	// v0: 305088dc1e
 	it("an app with middleware and no routes answers 404 after running it", async () => {
 		const trace: string[] = []
-		const app = honey<{}>().use(tracer(trace, "chain"))
+		const app = httpApp<{}>().use(tracer(trace, "chain"))
 		expect(await send(app, "/t")).toEqual(failure("not_found", 404))
 		expect(trace).toEqual(["chain"])
 	})
@@ -306,10 +306,10 @@ describe("unknown paths and wrong methods", () => {
 
 describe("ctx.error after next()", () => {
 	// v0: 4e5af7c920
-	it("holds the HoneyError an inner middleware threw", async () => {
+	it("holds the HttpError an inner middleware threw", async () => {
 		const { app, seen } = observedApp()
 		const forbid = createMiddleware(() => {
-			throw new HoneyError({ errorKey: "forbidden", status: "forbidden" })
+			throw new HttpError({ errorKey: "forbidden", status: "forbidden" })
 		})
 		app
 			.use(forbid)
@@ -338,7 +338,7 @@ describe("ctx.error after next()", () => {
 
 	// v0: 0bf423024b
 	it("error is a framework key, so context() refuses it", () => {
-		expect(() => honey().context({ error: 1 } as never)).toThrow('context() cannot set reserved key "error"')
+		expect(() => httpApp().context({ error: 1 } as never)).toThrow('context() cannot set reserved key "error"')
 	})
 })
 
@@ -414,7 +414,7 @@ describe("ctx.error after next(): mistakes inside the chain", () => {
 	// v0: 5769e0c401
 	it("a second next() throws where it is called, and the first answer stands", async () => {
 		const thrown: unknown[] = []
-		const app = honey<{}>().use(
+		const app = httpApp<{}>().use(
 			createMiddleware(async (_ctx, next) => {
 				const res = await next()
 				try {
@@ -435,7 +435,7 @@ describe("concurrent requests", () => {
 	// v0: b04e106a45
 	it("each request runs the chain once, with its own ctx", async () => {
 		let runs = 0
-		const app = honey<{}>().use(
+		const app = httpApp<{}>().use(
 			createMiddleware((ctx, next) => {
 				runs++
 				return next({ requestId: ctx.req.headers.get("x-id") })
@@ -454,7 +454,7 @@ describe("concurrent requests", () => {
 	// v0: 13c20aab5e
 	// v0: eeedfe98fd
 	it("a slow middleware holds only its own request, which still gets its additions", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const slow = createMiddleware(async (_ctx, next) => {
 			await new Promise((resolve) => setTimeout(resolve, 50))
 			return next({ delayed: true })

@@ -12,7 +12,7 @@ import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 const CORE = join(import.meta.dirname, "../..")
 const TSC = join(CORE, "../../node_modules/typescript/bin/tsc")
 
-/* inside core, so `@workerstack/backend` resolves through the workspace link with core's honey-source condition */
+/* inside core, so `@workerstack/backend` resolves through the workspace link with core's backend-source condition */
 mkdirSync(join(CORE, ".tmp"), { recursive: true })
 const scratch = mkdtempSync(join(CORE, ".tmp/output-messages-"))
 afterAll(() => rmSync(scratch, { force: true, recursive: true }))
@@ -36,10 +36,10 @@ const REFUSALS = [
 /** A module declaring one route with `output`. */
 const fixture = (output: string) =>
 	[
-		'import { honey } from "@workerstack/backend/http"',
+		'import { httpApp } from "@workerstack/backend/http"',
 		'import * as z from "zod"',
 		"const row = z.object({ x: z.string() })",
-		`honey().get("/x").output(${output})`,
+		`httpApp().get("/x").output(${output})`,
 		"export {}",
 		"",
 	].join("\n")

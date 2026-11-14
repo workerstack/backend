@@ -72,7 +72,7 @@ two say a token is for yours.
 | `remoteJwks(url, options?)`           | an issuer's keys, kept 10 minutes; concurrent lookups share one fetch                                                     |
 | `decodeJwtPayload(token)`             | the claims, unverified; never authorize on this                                                                           |
 | `importPkcs8(pem, alg)`               | a private signing key from a PKCS#8 PEM                                                                                   |
-| `isJwsAlgorithm(value)`               | whether honey supports that `alg`                                                                                         |
+| `isJwsAlgorithm(value)`               | whether backend supports that `alg`                                                                                       |
 
 `verifyJwt` also takes `clockToleranceSeconds` for skew on the time claims, `maxAgeSeconds` to refuse an older token,
 and `requiredClaims` for claims a token must carry beyond `exp`.

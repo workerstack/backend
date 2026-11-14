@@ -1,12 +1,12 @@
 /**
  * The settings setters every app handle and preset shares: each applies to the whole app and returns the handle.
  */
-import type { HoneyError } from "../errors/error.ts"
+import type { HttpError } from "../errors/error.ts"
 import type { ErrorFormat } from "../errors/problem-json.ts"
 import type { PayloadErrorFormatter, ErrorFormatter } from "../errors/projector.ts"
-import type { HoneyMetaSpec, MetaSpecConfig } from "../meta/meta-spec-merge.ts"
-import { type Logger, SILENT } from "../telemetry/logger.ts"
-import type { Telemetry } from "../telemetry/request-trace.ts"
+import type { HttpMetaSpec, MetaSpecConfig } from "../meta/meta-spec-merge.ts"
+import { type BackendLogger, SILENT } from "../telemetry/logger.ts"
+import type { OtelTelemetry } from "../telemetry/request-trace.ts"
 import type { InferOutput, StandardSchemaLike } from "../validation/standard-schema.ts"
 import type { WSAdapter } from "../ws/contract.ts"
 import type { AddDefaults, FactoryKeys, Retyped, SetFactory, WithMetaType, WithTaps } from "./retype.ts"
@@ -64,7 +64,7 @@ export abstract class SettingsChain<TEnv> {
 	/**
 	 * The app's error factory. A route mounted from an app that set its own keeps that one; a route from an app without a
 	 * factory uses this one. The keys `not_found`, `method_not_allowed` and `bad_request`, when the factory has them, build
-	 * honey's own 404, 405 and 400 answers.
+	 * backend's own 404, 405 and 400 answers.
 	 */
 	errorFactory<TFactory extends Record<string, (...args: never[]) => unknown>>(
 		factory: TFactory,
@@ -77,7 +77,7 @@ export abstract class SettingsChain<TEnv> {
 	/**
 	 * Error keys every route of this app declares, registered before or after the call, except a route mounted from an app
 	 * with its own factory, which keeps that app's defaults. A declared key closes a route: `ctx.errors` holds declared keys
-	 * only, and a thrown `HoneyError` with another key (honey's own keys excepted) answers as the boundary error, or a 500.
+	 * only, and a thrown `HttpError` with another key (backend's own keys excepted) answers as the boundary error, or a 500.
 	 * The keys are typed from the factory, so call `errorFactory()` first.
 	 */
 	defaultErrors<TThis, const TKeys extends FactoryKeys<TThis>>(
@@ -138,7 +138,7 @@ export abstract class SettingsChain<TEnv> {
 		TThis extends {
 			/** The app's route meta type. */ readonly $meta: unknown
 		},
-	>(this: TThis, config: HoneyMetaSpec<TThis["$meta"]>): TThis {
+	>(this: TThis, config: HttpMetaSpec<TThis["$meta"]>): TThis {
 		const source = (this as unknown as SettingsChain<TEnv>).settings.metaSpec
 		if (source.declared !== null) throw new Error("metaSpec() was already called on this app")
 		source.declared = config as MetaSpecConfig
@@ -146,7 +146,7 @@ export abstract class SettingsChain<TEnv> {
 	}
 
 	/** Where every server-side line goes; default `createLogger()` (by NODE_ENV), `false` for none. */
-	logger(logger: Logger | false): this {
+	logger(logger: BackendLogger | false): this {
 		this.settings.logger = logger === false ? SILENT : logger
 		return this
 	}
@@ -161,8 +161,8 @@ export abstract class SettingsChain<TEnv> {
 	 * Trace every request (a root span, the middleware and the handler under it) and report thrown
 	 * errors in the background. Pass `otelAdapter(api, options)` from `@workerstack/backend/telemetry`.
 	 */
-	telemetry(value: Telemetry): this {
-		if (typeof (value as Partial<Telemetry> | null)?.tracer?.startSpan !== "function") {
+	telemetry(value: OtelTelemetry): this {
+		if (typeof (value as Partial<OtelTelemetry> | null)?.tracer?.startSpan !== "function") {
 			throw new TypeError(
 				"app.telemetry(): pass otelAdapter(api) from @workerstack/backend/telemetry, or a value with a tracer",
 			)
@@ -187,8 +187,8 @@ export abstract class SettingsChain<TEnv> {
 	}
 
 	/**
-	 * Sets the hook that sees each thrown value before it is answered: return a `HoneyError` to replace it, a `Response`
-	 * to answer, or nothing for honey's own answer. A throw from the hook is logged and gets honey's own answer too.
+	 * Sets the hook that sees each thrown value before it is answered: return a `HttpError` to replace it, a `Response`
+	 * to answer, or nothing for backend's own answer. A throw from the hook is logged and gets backend's own answer too.
 	 */
 	onError(handler: OnErrorFn<TEnv>): this {
 		this.settings.onError = handler
@@ -197,14 +197,14 @@ export abstract class SettingsChain<TEnv> {
 
 	/**
 	 * Sets the hook that answers a request whose path exists but not for its method; `allowed` lists the methods that do,
-	 * and honey adds the `Allow` header to what it returns.
+	 * and backend adds the `Allow` header to what it returns.
 	 */
 	onMethodNotAllowed(handler: OnMethodNotAllowedFn<TEnv>): this {
 		this.settings.onMethodNotAllowed = handler
 		return this
 	}
 
-	/** Sets the hook that answers a request that matches no route; without it, honey answers its `not_found` error. */
+	/** Sets the hook that answers a request that matches no route; without it, backend answers its `not_found` error. */
 	onNotFound(handler: OnNotFoundFn<TEnv>): this {
 		this.settings.onNotFound = handler
 		return this
@@ -220,28 +220,28 @@ export abstract class SettingsChain<TEnv> {
 		return this
 	}
 
-	/** Answer errors as honey's envelope (the default) or RFC 9457 Problem Details; schema errors keep their body. */
+	/** Answer errors as backend's envelope (the default) or RFC 9457 Problem Details; schema errors keep their body. */
 	errorFormat(format: ErrorFormat): this {
 		this.settings.errorFormat = format
 		return this
 	}
 
 	/**
-	 * Shape the body of every error without a payload schema: `fn` gets the error and honey's default body (its `digest`
+	 * Shape the body of every error without a payload schema: `fn` gets the error and backend's default body (its `digest`
 	 * and `vars` included) and returns the schema's output type, and `schema` describes the body in the OpenAPI document.
 	 */
 	defaultErrorFormatter<TSchema extends StandardSchemaLike>(
 		schema: TSchema,
-		fn: (error: HoneyError, base: Record<string, unknown>) => InferOutput<TSchema>,
+		fn: (error: HttpError, base: Record<string, unknown>) => InferOutput<TSchema>,
 	): this
 	/**
-	 * Shape the body of every error without a payload schema: `fn` gets the error and honey's default body and returns the
+	 * Shape the body of every error without a payload schema: `fn` gets the error and backend's default body and returns the
 	 * body to send. If it throws, the failure is logged and the default body goes out.
 	 */
 	defaultErrorFormatter(fn: ErrorFormatter): this
 	defaultErrorFormatter(
 		schemaOrFn: ErrorFormatter | StandardSchemaLike,
-		fn?: (error: HoneyError, base: Record<string, unknown>) => unknown,
+		fn?: (error: HttpError, base: Record<string, unknown>) => unknown,
 	): this {
 		if (typeof schemaOrFn === "function") {
 			this.settings.errorSchema = null
@@ -259,7 +259,7 @@ export abstract class SettingsChain<TEnv> {
 	 */
 	payloadErrorFormatter<TSchema extends StandardSchemaLike>(
 		schema: TSchema,
-		fn: (error: HoneyError, data: Record<string, unknown>) => InferOutput<TSchema>,
+		fn: (error: HttpError, data: Record<string, unknown>) => InferOutput<TSchema>,
 	): this
 	/**
 	 * Shape the body of every error `defineErrors` gave a payload schema: `fn` gets the error and its payload and returns
@@ -268,13 +268,13 @@ export abstract class SettingsChain<TEnv> {
 	payloadErrorFormatter(fn: PayloadErrorFormatter): this
 	payloadErrorFormatter(
 		schemaOrFn: PayloadErrorFormatter | StandardSchemaLike,
-		fn?: (error: HoneyError, data: Record<string, unknown>) => unknown,
+		fn?: (error: HttpError, data: Record<string, unknown>) => unknown,
 	): this {
 		if (typeof schemaOrFn === "function") {
 			this.settings.payloadErrorSchema = null
 			this.settings.payloadErrorFormatter = schemaOrFn
 		} else {
-			const mapper = fn as (error: HoneyError, data: Record<string, unknown>) => Record<string, unknown>
+			const mapper = fn as (error: HttpError, data: Record<string, unknown>) => Record<string, unknown>
 			this.settings.payloadErrorSchema = schemaOrFn
 			this.settings.payloadErrorFormatter = (error, data) => mapper(error, data)
 		}

@@ -1,7 +1,7 @@
 /**
  * The mutation check (00-rules "Security gate"): a guard is load-bearing only if the adversarial
  * suite goes red without it. For each registered guard, run the suite with that guard disabled
- * (HONEY_MUTANT=<id>, applied by the suite through vi.doMock) and require a failing run; with
+ * (BACKEND_MUTANT=<id>, applied by the suite through vi.doMock) and require a failing run; with
  * every guard in place the suite must pass.
  *
  *     bun packages/core/tests/structure/mutation-harness.ts
@@ -429,7 +429,7 @@ export function guardNamed(id: string | undefined): Guard | undefined {
 
 /** The adversarial suite's run, with `mutant` disabled when given: its exit status and what failed, by name. */
 export function runSuite(mutant: string | undefined): SuiteRun {
-	return runVitest(CORE, [SUITE, ...CHILD_FLAGS], { ...process.env, HONEY_MUTANT: mutant ?? "" })
+	return runVitest(CORE, [SUITE, ...CHILD_FLAGS], { ...process.env, BACKEND_MUTANT: mutant ?? "" })
 }
 
 export function survivors(results: ReadonlyArray<{ id: string; status: number }>): string[] {

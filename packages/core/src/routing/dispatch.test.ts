@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { type Honey, honey } from "./app.ts"
+import { type HttpApp, httpApp } from "./app.ts"
 
 const req = (path: string, init?: RequestInit) => new Request(`http://localhost${path}`, init)
 const pass = createMiddleware((_ctx, next) => next())
-const gone = () => new HoneyError({ errorKey: "gone", status: "gone" })
+const gone = () => new HttpError({ errorKey: "gone", status: "gone" })
 
 /** An app with `GET /x`, plus `configure`. */
-function appWith(configure: (app: Honey<{}>) => void = () => undefined): Honey<{}> {
-	const app = honey<{}>()
+function appWith(configure: (app: HttpApp<{}>) => void = () => undefined): HttpApp<{}> {
+	const app = httpApp<{}>()
 	app.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 	configure(app)
 	return app
@@ -24,7 +24,7 @@ describe("dispatch: request targets and routing", () => {
 	it("a path the normalization policy rejects is a 400, through the factory's bad_request when it has one", async () => {
 		expect((await appWith().fetch(req("/a%2Fb"), {})).status).toBe(400)
 		const errors = defineErrors({ bad_request: "unprocessable_entity" })
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 		expect((await app.fetch(req("/a%2Fb"), {})).status).toBe(422)
 	})
@@ -42,13 +42,13 @@ describe("dispatch: request targets and routing", () => {
 	})
 
 	it("an ALL route answers every method, static or not", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/any").handler((ctx) => ctx.res.text("ok", ctx.req.method))
 		expect(await (await app.fetch(req("/any", { method: "DELETE" }), {})).text()).toBe("DELETE")
 	})
 
 	it("context values are on ctx; env and executionCtx are passed through", async () => {
-		const app = honey<{ n: number }>().context({ tag: "t" })
+		const app = httpApp<{ n: number }>().context({ tag: "t" })
 		app
 			.get("/c")
 			.handler((ctx) => ctx.res.json("ok", { env: ctx.env.n, tag: ctx.tag, wait: typeof ctx.executionCtx?.waitUntil }))
@@ -85,7 +85,7 @@ describe("dispatch: 404", () => {
 		const formatted = appWith((a) => a.defaultErrorFormatter((_e, shape) => ({ ...shape, at: 1 })))
 		expect((await body(formatted.fetch(req("/nope"), {}))).at).toBe(1)
 		const errors = defineErrors({ not_found: "gone" })
-		const factory = honey<{}>().errorFactory(errors)
+		const factory = httpApp<{}>().errorFactory(errors)
 		factory.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 		expect((await factory.fetch(req("/nope"), {})).status).toBe(410)
 		const custom = appWith((a) => a.payloadErrorFormatter((_e, data) => data))
@@ -100,7 +100,7 @@ describe("dispatch: onNotFound, and a miss under middleware", () => {
 	it("onNotFound answers with its own response, or an error rendered through jsonFromError", async () => {
 		const own = appWith((a) => a.onNotFound(() => Response.json({ custom: true }, { status: 404 })))
 		const rendered = appWith((a) =>
-			a.onNotFound((ctx) => ctx.jsonFromError(new HoneyError({ errorKey: "custom_not_found", status: "not_found" }))),
+			a.onNotFound((ctx) => ctx.jsonFromError(new HttpError({ errorKey: "custom_not_found", status: "not_found" }))),
 		)
 		const [mine, theirs] = [await own.fetch(req("/nope"), {}), await rendered.fetch(req("/nope"), {})]
 		expect([mine.status, await body(mine), theirs.status, (await body(theirs)).error_key]).toEqual([
@@ -113,7 +113,7 @@ describe("dispatch: onNotFound, and a miss under middleware", () => {
 
 	it("a miss with middleware runs the pipeline", async () => {
 		const seen: string[] = []
-		const app = honey<{}>().use(
+		const app = httpApp<{}>().use(
 			createMiddleware((ctx, next) => {
 				seen.push((ctx as { path: string }).path)
 				return next()
@@ -154,7 +154,7 @@ describe("dispatch: 405 and preflight", () => {
 	})
 
 	it("a preflight runs the asked-about route's chain; middleware can answer it", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(
 				createMiddleware((ctx, next) =>
@@ -184,8 +184,8 @@ describe("dispatch: 405 and preflight", () => {
 	})
 })
 
-function throwing(configure: (app: Honey<{}>) => void, thrown: () => unknown = gone): Honey<{}> {
-	const app = honey<{}>()
+function throwing(configure: (app: HttpApp<{}>) => void, thrown: () => unknown = gone): HttpApp<{}> {
+	const app = httpApp<{}>()
 	configure(app)
 	app.get("/t").handler(() => {
 		throw thrown()
@@ -193,11 +193,11 @@ function throwing(configure: (app: Honey<{}>) => void, thrown: () => unknown = g
 	return app
 }
 
-const unserializable = () => new HoneyError({ data: { n: 1n }, errorKey: "x", status: "conflict" })
+const unserializable = () => new HttpError({ data: { n: 1n }, errorKey: "x", status: "conflict" })
 
 describe("dispatch: the error boundary", () => {
-	it("onError mapping to a HoneyError replaces the error; a Response answers as is", async () => {
-		const mapped = throwing((a) => a.onError(() => new HoneyError({ errorKey: "teapot", status: "im_a_teapot" })))
+	it("onError mapping to a HttpError replaces the error; a Response answers as is", async () => {
+		const mapped = throwing((a) => a.onError(() => new HttpError({ errorKey: "teapot", status: "im_a_teapot" })))
 		expect((await mapped.fetch(req("/t"), {})).status).toBe(418)
 		const answered = throwing((a) => a.onError(() => new Response("mine", { status: 503 })))
 		expect(await (await answered.fetch(req("/t"), {})).text()).toBe("mine")
@@ -220,8 +220,8 @@ describe("dispatch: the error boundary", () => {
 		const seen: unknown[] = []
 		const app = throwing((a) =>
 			a.onError((error, ctx) => {
-				seen.push(error instanceof HoneyError, ctx.req.url, ctx.env)
-				return ctx.jsonFromError(new HoneyError({ errorKey: "x", status: "conflict" }))
+				seen.push(error instanceof HttpError, ctx.req.url, ctx.env)
+				return ctx.jsonFromError(new HttpError({ errorKey: "x", status: "conflict" }))
 			}),
 		)
 		expect((await app.fetch(req("/t"), { e: 1 } as never)).status).toBe(409)
@@ -231,7 +231,7 @@ describe("dispatch: the error boundary", () => {
 	// v0: c372a0f19d
 	// v0: 81b77f180c
 	it("a json body that cannot be serialized is an internal error, answered as one", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/circular").handler((ctx) => {
 			const cycle: Record<string, unknown> = { a: 1 }
 			cycle.self = cycle
@@ -291,14 +291,14 @@ describe("dispatch: what a handler's throw answers", () => {
 		],
 		["a toJSON that throws", (ctx) => ctx.res.json("ok", { toJSON: () => JSON.parse("{") as unknown })],
 	])("%s is a 500 internal_server_error", async (_label, fn) => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app.get("/t").handler(fn as never)
 		const res = await app.fetch(req("/t"), {})
 		expect(await body(res)).toMatchObject(internal)
 	})
 })
 
-describe("dispatch: a HoneyError a handler throws", () => {
+describe("dispatch: a HttpError a handler throws", () => {
 	// v0: 3c83c5ddcf
 	// v0: 2829bd54b7
 	// v0: 10bcea3353
@@ -309,10 +309,10 @@ describe("dispatch: a HoneyError a handler throws", () => {
 		["forbidden", "forbidden", 403],
 		["gone", "gone", 410],
 		["rate_limited", "too_many_requests", 429],
-	] as const)("a HoneyError %s with status %s answers %i with its key", async (errorKey, status, code) => {
-		const app = honey<{}>()
+	] as const)("a HttpError %s with status %s answers %i with its key", async (errorKey, status, code) => {
+		const app = httpApp<{}>()
 		app.post("/t").handler(() => {
-			throw new HoneyError({ errorKey, status })
+			throw new HttpError({ errorKey, status })
 		})
 		const res = await app.fetch(req("/t", { method: "POST" }), {})
 		expect([res.status, await body(res)]).toEqual([
@@ -323,7 +323,7 @@ describe("dispatch: a HoneyError a handler throws", () => {
 })
 
 describe("dispatch: every exit is exactly one Response", () => {
-	const exits = honey<{}>().trailingSlash("strip")
+	const exits = httpApp<{}>().trailingSlash("strip")
 	exits.get("/ok").handler((ctx) => ctx.res.text("ok", "ok"))
 	exits.get("/throws").handler(() => {
 		throw new Error("boom")
@@ -353,7 +353,7 @@ describe("dispatch: every exit is exactly one Response", () => {
 	it("a promise the handler never awaits still runs; the answer does not wait for it", async () => {
 		const ran: string[] = []
 		const gate = Promise.withResolvers<void>()
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/t").handler((ctx) => {
 			void gate.promise.then(() => ran.push("background"))
 			return ctx.res.text("ok", "immediate")

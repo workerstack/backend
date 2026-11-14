@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { createMiddleware, type RuntimeMiddleware } from "../middleware/middleware.ts"
-import { GRAPH, honey } from "./app.ts"
+import { GRAPH, httpApp } from "./app.ts"
 import { parsePattern } from "./pattern.ts"
 import {
 	addChain,
@@ -67,17 +67,17 @@ describe("the graph", () => {
 
 describe("the graph: mounting", () => {
 	it("mounting a graph into itself changes nothing; a scope already brought is not added twice", () => {
-		const app = honey()
+		const app = httpApp()
 		const g = app[GRAPH]
 		mount(g, ROOT_VIEW, g)
 		expect(g.epoch).toBe(0)
-		const sub = honey()
+		const sub = httpApp()
 		sub.use("/s", pass as never)
 		sub.get("/s/x").handler((c) => c.res.text("ok", "x"))
 		mount(g, ROOT_VIEW, sub[GRAPH])
 		expect(() => mount(g, ROOT_VIEW, sub[GRAPH])).toThrow(/Duplicate route/)
 		expect(g.scoped).toHaveLength(1)
-		const scopesOnly = honey()
+		const scopesOnly = httpApp()
 		scopesOnly.use("/t", pass as never)
 		mount(g, ROOT_VIEW, scopesOnly[GRAPH])
 		mount(g, ROOT_VIEW, scopesOnly[GRAPH])
@@ -85,12 +85,12 @@ describe("the graph: mounting", () => {
 	})
 
 	it("a mounted record keeps the sub's context values and meta under the mounting handle's", async () => {
-		const sub = honey().context({ a: "sub", b: "sub" })
+		const sub = httpApp().context({ a: "sub", b: "sub" })
 		sub
 			.meta({ tier: 2 })
 			.get("/x")
 			.handler((c) => c.res.json("ok", { a: c.a, b: c.b, meta: c.meta }))
-		const app = honey().context({ a: "app", c: "app" })
+		const app = httpApp().context({ a: "app", c: "app" })
 		app.meta({ owner: "app", tier: 1 }).route(sub as never)
 		expect(await (await get(app, "/x")).json()).toEqual({ a: "sub", b: "sub", meta: { owner: "app", tier: 2 } })
 	})

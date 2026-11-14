@@ -10,7 +10,7 @@ import { guardNamed } from "../../structure/mutation-harness.ts"
 
 const REPO = resolvePath(import.meta.dirname, "../../../../..")
 
-const mutant = guardNamed(process.env.HONEY_MUTANT)
+const mutant = guardNamed(process.env.BACKEND_MUTANT)
 if (mutant !== undefined) {
 	vi.doMock(resolvePath(REPO, mutant.module), async (importOriginal) => {
 		const original = await importOriginal<Record<string, unknown>>()
@@ -19,7 +19,7 @@ if (mutant !== undefined) {
 }
 
 /* imported after the mock, so a mutant reaches every module that uses it */
-const { honey } = (await import(
+const { httpApp } = (await import(
 	resolvePath(REPO, "packages/core/src/routing/app.ts")
 )) as typeof import("../../../src/routing/app.ts")
 const { cors } = (await import(
@@ -65,7 +65,7 @@ const { curlLogger } = (await import(
 const { createErrorTranslator } = (await import(
 	resolvePath(REPO, "packages/core/src/i18n/error-i18n.ts")
 )) as typeof import("../../../src/i18n/error-i18n.ts")
-const { HoneyError } = (await import(
+const { HttpError } = (await import(
 	resolvePath(REPO, "packages/core/src/errors/error.ts")
 )) as typeof import("../../../src/errors/error.ts")
 const { recorder } = (await import(
@@ -77,7 +77,7 @@ const { secureHeaders } = (await import(
 
 describe("v1 adversarial: no request strips the security headers", () => {
 	it("an error, an unknown path and a refused method still carry the CSP and nosniff", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const guarded = app.use(secureHeaders({ contentSecurityPolicy: "default-src 'self'" }))
 		guarded.get("/boom").handler(() => {
 			throw new Error("boom")
@@ -101,7 +101,7 @@ describe("v1 adversarial: no request strips the security headers", () => {
 
 describe("v1 adversarial: credentialed CORS never trusts the caller's Origin", () => {
 	it("a foreign Origin and the opaque null earn no allow-origin and no credentials", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(cors({ credentials: true, origin: ["https://app.example"] }))
 			.get("/me")
@@ -125,7 +125,7 @@ describe("v1 adversarial: credentialed CORS never trusts the caller's Origin", (
 
 describe("v1 adversarial: a cross-site write never passes csrf", () => {
 	it("a cross-site POST with no content type, as a form or a fetch could send it, is 403", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(csrf())
 			.post("/transfer")
@@ -143,7 +143,7 @@ describe("v1 adversarial: a cross-site write never passes csrf", () => {
 
 describe("v1 adversarial: a client never picks its request id", () => {
 	it("an inbound x-request-id is not adopted unless the hop is trusted", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(requestId())
 			.get("/t")
@@ -158,7 +158,7 @@ describe("v1 adversarial: a client never picks its request id", () => {
 
 describe("v1 adversarial: a handler that never answers cannot hold the request", () => {
 	it("timeout answers 504 within its duration, not when (or if) the handler does", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(timeout({ duration: 20 }))
 			.get("/stall")
@@ -171,7 +171,7 @@ describe("v1 adversarial: a handler that never answers cannot hold the request",
 
 describe("v1 adversarial: a timing name cannot forge a metric", () => {
 	it("a name or description carrying `,` `;` `=` and quotes stays one metric, not several", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(serverTiming())
 			.get("/t")
@@ -196,7 +196,7 @@ function fromPeer(peer: string, headers?: Record<string, string>): Request {
 
 describe("v1 adversarial: a client cannot rotate its rate-limit key", () => {
 	it("past the limit, a fresh X-Forwarded-For on every request is still 429", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(rateLimit({ limit: 2, windowMs: 60_000 }))
 			.get("/t")
@@ -213,7 +213,7 @@ describe("v1 adversarial: a client cannot rotate its rate-limit key", () => {
 describe("v1 adversarial: a key spray cannot grow the rate-limit store", () => {
 	it("20 000 distinct peers (an IPv6 /64 walk) leave the store at its cap", async () => {
 		const store = memoryRateLimitStore({ maxKeys: 1000, windowMs: 60_000 })
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(rateLimit({ limit: 1, store }))
 			.get("/t")
@@ -225,7 +225,7 @@ describe("v1 adversarial: a key spray cannot grow the rate-limit store", () => {
 
 describe("v1 adversarial: ipRestrict sees only the platform peer", () => {
 	it("a forwarding header naming an allowed address, CF-Connecting-IP off Workers included, is 403", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(ipRestrict({ allowList: ["10.0.0.0/8"] }))
 			.get("/t")
@@ -238,7 +238,7 @@ describe("v1 adversarial: ipRestrict sees only the platform peer", () => {
 	})
 
 	it("another spelling of a denied address (IPv4-mapped, zero-expanded, upper case) is still denied", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(ipRestrict({ denyList: ["::ffff:203.0.113.9", "2001:0DB8:0:0:0:0:0:1"] }))
 			.get("/t")
@@ -270,7 +270,7 @@ describe("v1 adversarial: a stored IP list reads addresses, not text", () => {
 describe("v1 adversarial: compressed length is no oracle for a secret (BREACH)", () => {
 	it("two same-length guesses reflected beside a session's token answer the same number of bytes", async () => {
 		const token = "f3a9c2e17b4d8a6052c9e1f7a3b8d4c6"
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(compress())
 			.get("/search")
@@ -303,7 +303,7 @@ function rawTarget(path: string, headers?: Record<string, string>): Request {
 describe("v1 adversarial: a proxied path never leaves the upstream's origin (SSRF)", () => {
 	it("//host and \\host targets reach destination as paths on the upstream; an encoded slash is a 400", async () => {
 		const seen: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: (_ctx, url) => {
@@ -328,7 +328,7 @@ describe("v1 adversarial: a proxied path never leaves the upstream's origin (SSR
 describe("v1 adversarial: nothing the client says about itself or the hop reaches the upstream", () => {
 	it("Host, forwarding headers, hop-by-hop and Connection-named headers, TE and Expect stay behind", async () => {
 		let sent: Record<string, string> = {}
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: (_ctx, _url, init) => {
@@ -358,7 +358,7 @@ describe("v1 adversarial: nothing the client says about itself or the hop reache
 describe("v1 adversarial: staticFiles never hands resolve a path that leaves the root", () => {
 	it("dot segments, encoded separators, NUL, drives and streams, double encoding: every path resolve gets stays inside", async () => {
 		const seen: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		/* the router lets encoded separators through to the handler: staticFiles must hold the line itself */
 		app.encodedSlashes("allow")
 		app
@@ -402,7 +402,7 @@ describe("v1 adversarial: a near-miss secret never compares equal", () => {
 describe("v1 adversarial: the request logger leaks no credential", () => {
 	it("Authorization, Cookie, a CSRF token, a session header, a token query and a non-text body never reach the line", async () => {
 		const lines: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(curlLogger({ body: true, log: (data) => lines.push(data.curl) }))
 			.post("/login")
@@ -427,8 +427,8 @@ describe("v1 adversarial: the request logger leaks no credential", () => {
 
 describe("v1 adversarial: one request's locale never leaks into another's answer", () => {
 	it("a shared error thrown in German, then in a locale with no templates and in __proto__, answers each as its own", async () => {
-		const shared = new HoneyError({ errorKey: "item_gone", status: "gone", vars: { name: "Order 7" } })
-		const app = honey<{}>()
+		const shared = new HttpError({ errorKey: "item_gone", status: "gone", vars: { name: "Order 7" } })
+		const app = httpApp<{}>()
 		app.errorI18n(
 			createErrorTranslator({
 				errors: { de: { item_gone: "{name} ist weg" } },
@@ -458,7 +458,7 @@ describe("v1 adversarial: a tap never delays, changes or fails the answer", () =
 	it("a throwing tap and a never-settling one answer 200 at once, past onError; a failed handler fires none", async () => {
 		const onError = vi.fn()
 		const fired: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.onError(onError)
 		app.tap("throws", () => {
 			fired.push("throws")
@@ -492,7 +492,7 @@ describe("v1 adversarial: a tap never delays, changes or fails the answer", () =
 describe("v1 adversarial: a client never picks the trace its request joins", () => {
 	it("an untrusted caller's traceparent and tracestate are only linked: the root starts its own trace", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		const headers = {
 			traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",

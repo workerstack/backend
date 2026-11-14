@@ -1,6 +1,6 @@
-# honey docs
+# backend docs
 
-honey is a typed web framework for the Fetch API, with code generation for clients in six languages, a command-line
+backend is a typed web framework for the Fetch API, with code generation for clients in six languages, a command-line
 client and an MCP server. These pages cover each part, each with an example the docs' tests compile.
 
 ## Getting started

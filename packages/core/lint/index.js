@@ -1,6 +1,7 @@
-// Oxlint registers one plugin name; this entry publishes every honey rule.
+// Oxlint registers one plugin name; this entry publishes every backend rule.
 import { rule as boundaries } from "./boundaries.js"
 import { rule as contentTypeExactEssence } from "./content-type-exact-essence.js"
+import { rule as exportName } from "./export-name.js"
 import { rule as noConsole } from "./no-console.js"
 import { rule as noHeaderMode } from "./no-header-mode.js"
 import { rule as noModuleSideEffects } from "./no-module-side-effects.js"
@@ -11,10 +12,11 @@ import { rule as spawnTimeout } from "./spawn-timeout.js"
 import { rule as unversionedPublic } from "./unversioned-public.js"
 
 export default {
-	meta: { name: "honey" },
+	meta: { name: "backend" },
 	rules: {
 		boundaries,
 		"content-type-exact-essence": contentTypeExactEssence,
+		"export-name": exportName,
 		"no-console": noConsole,
 		"no-header-mode": noHeaderMode,
 		"no-module-side-effects": noModuleSideEffects,

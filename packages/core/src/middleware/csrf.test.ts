@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { cors } from "./cors.ts"
 import { createMiddleware } from "./middleware.ts"
 import { csrf, type CSRFOptions } from "./csrf.ts"
@@ -10,7 +10,7 @@ const SELF = "https://app.example.com"
 
 /** POST/PUT/PATCH/DELETE/GET/HEAD/OPTIONS on /orders behind csrf(options). */
 function guarded(options?: CSRFOptions) {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	const protectedRoutes = app.use(csrf(options))
 	for (const method of ["get", "post", "put", "patch", "delete", "options"] as const) {
 		protectedRoutes[method]("/orders").handler((ctx) => ctx.res.text("ok", method))
@@ -165,7 +165,7 @@ describe("csrf(): its refusal is a declared 403", () => {
 	// v0: b57d79d37b
 	it("a forbidden error, also under an app error factory with default errors", async () => {
 		const errors = defineErrors({ teapot: "bad_request" })
-		const app = honey<{}>().errorFactory(errors).defaultErrors("teapot")
+		const app = httpApp<{}>().errorFactory(errors).defaultErrors("teapot")
 		app
 			.use(csrf())
 			.post("/orders")
@@ -183,9 +183,9 @@ describe("csrf(): its refusal is a declared 403", () => {
 
 	// v0: 040db204a1
 	it("covers routes a mounted sub-app brings", async () => {
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.post("/items").handler((ctx) => ctx.res.text("ok", "x"))
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use(csrf()).route("/shop", sub)
 		const res = await app.fetch(
 			new Request(`${SELF}/shop/items`, { headers: { origin: "https://evil.example" }, method: "POST" }),
@@ -202,7 +202,7 @@ describe("csrf() beside cors()", () => {
 	// v0: a055816429
 	it("a preflight is cors's to answer; an allowed cross-origin POST passes both; a foreign one is refused", async () => {
 		const partner = "https://partner.example"
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(cors({ origin: partner }))
 			.use(csrf({ origin: partner }))
@@ -233,7 +233,7 @@ describe("csrf()'s refusal beside other errors in the chain", () => {
 
 	// v0: a436c055db
 	it("csrf, a refused .input() and a handler throw all keep the outer middleware's headers", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(stamp)
 			.use(csrf({ origin: "https://app.example" }))
 		app.post("/form").handler((ctx) => ctx.res.text("ok", "x"))

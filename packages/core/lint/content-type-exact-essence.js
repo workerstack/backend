@@ -47,6 +47,6 @@ export const rule = {
 }
 
 export default {
-	meta: { name: "honey" },
+	meta: { name: "backend" },
 	rules: { "content-type-exact-essence": rule },
 }

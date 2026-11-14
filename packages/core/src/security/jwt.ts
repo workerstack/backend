@@ -15,7 +15,7 @@ import {
 	hmacKey,
 	isHmac,
 	isJwsAlgorithm,
-	type Jwk,
+	type JwtJwk,
 	type JwsAlgorithm,
 	type JwtHeader,
 	publicKey,
@@ -23,7 +23,7 @@ import {
 
 export type { JwkLookup, JwkSource, RemoteJwksOptions } from "./jwks.ts"
 export { remoteJwks } from "./jwks.ts"
-export type { AsymmetricAlgorithm, Jwk, JwsAlgorithm, JwtHeader } from "./jws.ts"
+export type { AsymmetricAlgorithm, JwtJwk, JwsAlgorithm, JwtHeader } from "./jws.ts"
 export { isJwsAlgorithm } from "./jws.ts"
 
 /** A token's claims. Verified only when they came from a `verifyJwt` success. */
@@ -87,7 +87,7 @@ export type JwtPublicKeyOptions = JwtClaimOptions & {
 	/** The `alg` values accepted. */
 	algorithms: readonly AsymmetricAlgorithm[]
 	/** The public key. */
-	jwk: Jwk
+	jwk: JwtJwk
 	/** Not with this kind of key: pass one of `secret`, `jwk` or `jwks`. */
 	jwks?: never
 	/** Not with this kind of key: pass one of `secret`, `jwk` or `jwks`. */
@@ -257,7 +257,7 @@ async function verifyingKey(
  *
  * @example
  * const result = await verifyJwt(token, { algorithms: ["HS256"], audience: "api", issuer: "auth", secret })
- * if (!result.success) throw new HoneyError({ errorKey: "unauthorized", status: "unauthorized" })
+ * if (!result.success) throw new HttpError({ errorKey: "unauthorized", status: "unauthorized" })
  *
  * const typed = await verifyJwt(token, { algorithms: ["HS256"], secret, schema: z.object({ sub: z.string() }) })
  * if (typed.success) typed.payload.sub // string

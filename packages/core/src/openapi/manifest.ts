@@ -1,12 +1,12 @@
 /**
  * `generateManifest(app, options?)`: the app's routes as plain data, one entry per route by method
- * and honey pattern, with the keys it may answer, its meta, the middleware it runs by name, and
+ * and backend pattern, with the keys it may answer, its meta, the middleware it runs by name, and
  * its shapes as JSON Schema; then every key once with its status. `visibility: "all"` (the
  * generate-time artifact) keeps every route and meta key; `"published"` (a served manifest)
  * applies the document's policy: no internal route, only the meta keys the metaSpec publishes.
  */
 import type { GRAPH } from "../routing/app.ts"
-import { type HoneyGraph, SERVED } from "../routing/register.ts"
+import { type HttpGraph, SERVED } from "../routing/register.ts"
 import { compareCodeUnits } from "../schema/canonicalize.ts"
 import type { JsonSchema, JsonSchemaOptions } from "../schema/to-json-schema.ts"
 import { metaSpecOf } from "../meta/meta-spec-merge.ts"
@@ -55,7 +55,7 @@ export type RouteManifest = {
 
 /** What `generateManifest` takes: how schemas convert, which routes it lists and how much it keeps. */
 export type GenerateManifestOptions = {
-	/** the converters honey cannot import itself: `effect`, without which an Effect schema comes out as `{}` */
+	/** the converters backend cannot import itself: `effect`, without which an Effect schema comes out as `{}` */
 	readonly converters?: JsonSchemaOptions["converters"]
 	/** leave out every route this answers false for */
 	readonly filterRoutes?: (route: OpenApiRouteInfo) => boolean
@@ -72,7 +72,7 @@ function byRoute(collected: readonly CollectedRoute[]): CollectedRoute[] {
 
 /** The app's route manifest. */
 export function generateManifest(
-	app: { readonly [GRAPH]: HoneyGraph },
+	app: { readonly [GRAPH]: HttpGraph },
 	options: GenerateManifestOptions = {},
 ): RouteManifest {
 	const published = options.visibility === "published"

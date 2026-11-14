@@ -9,10 +9,10 @@
  * given here, as written: a sub-app mounted twice runs one `realtime()` call, so both mounts share
  * its bus and namespace; call `realtime()` per mount to keep them apart.
  */
-import { type HoneyContext, REQUEST } from "../context/context.ts"
+import { type HttpContext, REQUEST } from "../context/context.ts"
 import type { MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts"
 import type { WSRouteBuilder, WSRouteCtx } from "../routing/ws-builder.ts"
-import { type AnyHoneyHandle, ws, type WsRouteOf } from "../ws/route.ts"
+import { type AnyHttpApp, ws, type WsRouteOf } from "../ws/route.ts"
 import { type RealtimeOptions, resolveRealtimeConfig } from "./route.ts"
 import {
 	createRealtimePublisher,
@@ -31,7 +31,7 @@ export type RealtimeCtx<TApp, TPath extends string> =
  * Add a realtime route at `path` on `app`. Returns the publisher for the route's namespace, which REST handlers use
  * to push frames to connected clients. Throws a `TypeError` for an invalid option.
  */
-export function realtime<TApp extends AnyHoneyHandle, const TPath extends string>(
+export function realtime<TApp extends AnyHttpApp, const TPath extends string>(
 	app: TApp,
 	path: TPath,
 	options: RealtimeOptions<RealtimeCtx<TApp, TPath>>,
@@ -45,7 +45,7 @@ export function realtime<TApp extends AnyHoneyHandle, const TPath extends string
 		const userId = identify === null ? null : ((await identify(ctx)) ?? null)
 		sessions.set(
 			ctx,
-			createRealtimeSession({ config, ctx, log: (ctx as unknown as HoneyContext)[REQUEST].logger, userId }),
+			createRealtimeSession({ config, ctx, log: (ctx as unknown as HttpContext)[REQUEST].logger, userId }),
 		)
 		return next()
 	}

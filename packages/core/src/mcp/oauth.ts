@@ -1,7 +1,7 @@
 /**
  * `oauth(options)` (bit 21 f, H24.4), `@workerstack/backend/mcp/oauth`: the mounted MCP endpoint as an OAuth 2.1 resource
  * server, handed to `mcp(app, path, handler, { authenticate, oauth: oauth(options) })`. An ordinary import (H23), so an
- * app that mounts MCP without it bundles none of this. honey is the resource server's discovery half only: no
+ * app that mounts MCP without it bundles none of this. backend is the resource server's discovery half only: no
  * authorization server, and no token validation, which stays the app's (`authenticate`, and each route's own check).
  * `oauth()` refuses options the spec forbids; the hook it returns, called by `mcp()` at mount, refuses a `resource`
  * that is not the endpoint and serves:
@@ -14,10 +14,10 @@
  *   "Scope Challenge Handling"), never `offline_access` (its "Refresh Tokens").
  * The public origin is the configured `resource`'s, else the request's own: no forwarded header is trusted (H23).
  */
-import type { HoneyContext } from "../context/context.ts"
+import type { HttpContext } from "../context/context.ts"
 import type { TypedResponse } from "../response/response.ts"
 import { joinPatterns, parsePattern } from "../routing/pattern.ts"
-import { assertRouteFree, GRAPH, type HandleView, type HoneyGraph, SERVED, VIEW } from "../routing/register.ts"
+import { assertRouteFree, GRAPH, type HandleView, type HttpGraph, SERVED, VIEW } from "../routing/register.ts"
 import { startRoute } from "../routing/route-builder.ts"
 import type { McpProtectedResource } from "./mount.ts"
 
@@ -34,11 +34,11 @@ export type McpOAuthOptions = {
 }
 
 /** The handle the hook registers on, as far as it reads one. */
-type Handle = { readonly [GRAPH]: HoneyGraph; readonly [VIEW]: HandleView }
+type Handle = { readonly [GRAPH]: HttpGraph; readonly [VIEW]: HandleView }
 
 /** A route's builder and its context, as far as the metadata route uses them. */
 type Registering = { meta(meta: object): { handler(fn: (ctx: Ctx) => TypedResponse): unknown } }
-type Ctx = HoneyContext & { readonly res: { raw(response: Response): TypedResponse } }
+type Ctx = HttpContext & { readonly res: { raw(response: Response): TypedResponse } }
 
 const WELL_KNOWN = "/.well-known/oauth-protected-resource"
 /* an auth-param, its value a token or a whole quoted-string (RFC 9110 §11.2), so a quoted "scope=" is no param */

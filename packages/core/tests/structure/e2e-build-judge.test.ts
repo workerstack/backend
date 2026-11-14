@@ -13,7 +13,7 @@ const KEY = "node 22"
  * CI run 40877110861's build (node) job, the one false red of k=1: the cloudflare reference 139 ms; defaults×workers
  * built once in 2,949 ms (ratio 21.21) where compose×workers took 2,472 and gateway×workers 2,501, siblings that
  * track it within a few %. Its normal build there is its CI median 17.84 x 139 = 2,480 ms; blueprint/baselines/build.json
- * held it to 20.98. Honey generate is ~90% of a build (this machine's surface: 1,286 of 1,421 ms).
+ * held it to 20.98. Backend generate is ~90% of a build (this machine's surface: 1,286 of 1,421 ms).
  */
 const RED_JOB = {
 	ceiling: { baseline: 17.84, catches: "+18%", ceiling: 20.98 },
@@ -41,7 +41,7 @@ describe("the e2e build gate's median of three builds", () => {
 		])
 	})
 
-	it("reds honey generate made 1.5x slower in all three builds", () => {
+	it("reds backend generate made 1.5x slower in all three builds", () => {
 		const slower = RED_JOB.normal * 0.9 * 1.5 + RED_JOB.normal * 0.1
 		expect(onRedJob([slower, slower + 15, slower - 15])).toMatchObject({ ratio: 25.87, status: "REGRESSED" })
 	})

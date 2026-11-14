@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { type WSAdapter, WSContextImpl, type WSHandler } from "../ws/contract.ts"
 import { createBus } from "./bus.ts"
 import { realtime } from "./realtime.ts"
@@ -68,13 +68,13 @@ const post = (path: string) => new Request(`https://app.example.com${path}`, { m
 const settle = () => new Promise((resolve) => setTimeout(resolve, 5))
 
 const reject = (): never => {
-	throw new HoneyError({ errorKey: "unauthorized", status: "unauthorized" })
+	throw new HttpError({ errorKey: "unauthorized", status: "unauthorized" })
 }
 
 /** An app on a fresh test adapter. */
 function appWith() {
 	const { adapter, sockets } = testAdapter()
-	return { app: honey<{}>().wsAdapter(adapter), sockets }
+	return { app: httpApp<{}>().wsAdapter(adapter), sockets }
 }
 
 describe("realtime(app, path, opts): registration", () => {
@@ -169,7 +169,7 @@ describe("realtime(app, path, opts): matching", () => {
 
 	// v0: 8ada927a9b
 	it("with no ws adapter the upgrade is a 500", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		realtime(app, "/rt", { handler: () => {} })
 		expect((await app.fetch(handshake("/rt"), {})).status).toBe(500)
 	})
@@ -181,7 +181,7 @@ describe("realtime(app, path, opts): mounted and chained handles", () => {
 	it("a mounted sub-app's realtime route upgrades through the parent, and a plain GET there is 426", async () => {
 		const { app } = appWith()
 		const opened: string[] = []
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		realtime(sub, "/chat/stream", { handler: () => void opened.push("sub") })
 		realtime(app.use(createMiddleware((_ctx, next) => next())), "/live", { handler: () => void opened.push("chained") })
 		app.route(sub)

@@ -1,7 +1,7 @@
 # @workerstack/backend
 
 A typed web framework for the Fetch API whose routes are the source of its clients. You write a route once, with its
-input and output schemas; honey runs it on Cloudflare Workers, and
+input and output schemas; backend runs it on Cloudflare Workers, and
 [`@workerstack/clients`](https://www.npmjs.com/package/@workerstack/clients) turns the same routes into an
 OpenAPI 3.1 document, typed SDKs for six languages, a command-line client and an MCP server.
 
@@ -30,7 +30,7 @@ package, so nothing here is pseudocode.
 - [Logging and tracing](#logging-and-tracing)
 - [Internationalization and crypto](#internationalization-and-crypto)
 - [Testing](#testing)
-- [The build plugin and the honey CLI](#the-build-plugin-and-the-honey-cli)
+- [The build plugin and the backend CLI](#the-build-plugin-and-the-backend-cli)
 - [Generated clients](#generated-clients)
 - [Every export](#every-export)
 - [Type helpers](#type-helpers)
@@ -39,21 +39,21 @@ package, so nothing here is pseudocode.
 
 ## Install
 
-honey moved to the workerstack org in 1.0.0-rc.23, and [the migration note](https://github.com/workerstack/backend/blob/main/docs/migrating-from-honey.md)
+backend moved to the workerstack org in 1.0.0-rc.23, and [the migration note](https://github.com/workerstack/backend/blob/main/docs/migrating-from-honey.md)
 maps each old package name to its new one. 1.0 is out as a release candidate, published under npm's `next` tag, so
 an install without a tag gets a deprecated placeholder.
 Add `@next` until the final release:
 
 ```sh
 npm install @workerstack/backend@next
-npx honey init
+npx --package @workerstack/backend backend init
 ```
 
-Apps run on Cloudflare Workers; the tooling needs Node 22.12 or later or Bun 1.3 or later. A schema library is yours to pick: honey validates
+Apps run on Cloudflare Workers; the tooling needs Node 22.12 or later or Bun 1.3 or later. A schema library is yours to pick: backend validates
 through [Standard Schema](https://standardschema.dev), so Zod, Valibot, ArkType, Effect Schema and Yup all work. The
 examples here use Zod.
 
-`honey init` writes `src/app.ts`, a Worker entry in `src/worker.ts`, a `wrangler.jsonc` and a Vite config;
+`backend init` writes `src/app.ts`, a Worker entry in `src/worker.ts`, a `wrangler.jsonc` and a Vite config;
 `npm run dev` runs it with `wrangler dev`.
 
 ## A route, end to end
@@ -62,12 +62,12 @@ Declare what a route takes and what it answers. `ctx.input` is typed by the sche
 payload for the status key you name:
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend/http"
+import { defineErrors, httpApp } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const errors = defineErrors({ not_found: "not_found" })
 
-const app = honey()
+const app = httpApp()
 
 app
 	.get("/books/:id")
@@ -90,11 +90,11 @@ export default app
 The reference UI comes from the document the routes already describe:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
-const app = honey()
+const app = httpApp()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
 
 export default serveOpenApi(app, { docs: { "/docs": scalar }, title: "Books", version: "1.0.0" })
@@ -110,22 +110,22 @@ curl http://127.0.0.1:8787/health
 Then generate a client from the app module itself, with no document to keep in step by hand:
 
 ```sh
-npx honey-clients generate --app src/app.ts --target ts --out generated
+npx --package @workerstack/clients clients generate --app src/app.ts --target ts --out generated
 ```
 
 ## The app
 
-`honey<TEnv>()` returns an app typed to its runtime environment — a Worker's bindings, or whatever your adapter
+`httpApp<TEnv>()` returns an app typed to its runtime environment — a Worker's bindings, or whatever your adapter
 passes. The chain derives handles that share one settings graph: `basePath()` rebases every route registered through
 it, `context()` adds static values the handler finds on `ctx`, and `use()` installs middleware for that handle and
 its descendants.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 
 type Env = { GREETING: string }
 
-const app = honey<Env>().basePath("/api").context({ startedAt: Date.now() })
+const app = httpApp<Env>().basePath("/api").context({ startedAt: Date.now() })
 
 app.get("/hello").handler((ctx) => ctx.res.json("ok", { greeting: ctx.env.GREETING, since: ctx.startedAt }))
 
@@ -138,9 +138,9 @@ export default app
 Settings sit on the same chain and apply to the whole app:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 
-const app = honey()
+const app = httpApp()
 	.trailingSlash("strip")
 	.encodedSlashes("reject")
 	.errorFormat("problem+json")
@@ -163,17 +163,17 @@ app.get("/").handler((ctx) => ctx.res.text("ok", "up"))
 | `onNotFound(handler)`, `onMethodNotAllowed(…)`   | the two misses                                                         |
 | `logger(logger \| false)`, `requestLog(…)`       | where lines go, and the one-line-per-request log                       |
 | `telemetry(value)`                               | the tracing adapter (`otelAdapter`)                                    |
-| `errorFormat(format)`                            | `"honey"` (the default) or `"problem+json"` (RFC 9457)                 |
+| `errorFormat(format)`                            | `"backend"` (the default) or `"problem+json"` (RFC 9457)               |
 | `defaultErrorFormatter`, `payloadErrorFormatter` | your own error body, schema-checked                                    |
 | `trailingSlash`, `encodedSlashes`, `stripPrefix` | path normalization, and the prefix a gateway already consumed          |
 | `wsAdapter(adapter)`                             | the WebSocket adapter (`workersWebSocket()`)                           |
 | `fetch(request, env, ctx)`                       | the Fetch handler an adapter calls                                     |
 
 Apps that share their settings write them once with `definePreset<TEnv>()`, which takes the same setters and
-`use(mw)`. `honey(preset)` starts an app with its own copy, typed as the same chain on `honey()` would be:
+`use(mw)`. `httpApp(preset)` starts an app with its own copy, typed as the same chain on `httpApp()` would be:
 
 ```ts
-import { defineErrors, definePreset, honey } from "@workerstack/backend/http"
+import { defineErrors, definePreset, httpApp } from "@workerstack/backend/http"
 import { requestId } from "@workerstack/backend/http/request-id"
 
 const errors = defineErrors({ internal_server_error: "internal_server_error" })
@@ -184,7 +184,7 @@ export const platform = definePreset<{ REGION: string }>()
 	.requestLog(true)
 	.use(requestId())
 
-const app = honey(platform)
+const app = httpApp(platform)
 
 app.get("/id").handler((ctx) => ctx.res.json("ok", { id: ctx.requestId }))
 ```
@@ -197,11 +197,11 @@ One method per call (`get`, `post`, `put`, `patch`, `delete`, `head`, `options`)
 set. Paths take `:params` and a trailing `*` wildcard; `meta()` carries what the document says about the route.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
-const app = honey()
+const app = httpApp()
 
 app
 	.get("/users/:id")
@@ -216,12 +216,12 @@ serveOpenApi(app, { title: "Users", version: "1.0.0", docs: { "/docs": scalar } 
 Sub-apps mount with `route()`, and `on()` registers one handler for several methods:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 
-const admin = honey()
+const admin = httpApp()
 admin.get("/stats").handler((ctx) => ctx.res.json("ok", { users: 1 }))
 
-const app = honey()
+const app = httpApp()
 app.route("/admin", admin)
 app.on(["POST", "PUT"], "/webhooks/:source").handler((ctx) => ctx.res.json("accepted", { from: ctx.params.source }))
 ```
@@ -246,15 +246,15 @@ Full reference: [routing](https://github.com/workerstack/backend/blob/main/docs/
 `.output()` declares what the route answers: its bodies by media type and 2xx status key, its 3xx statuses under
 `redirect`, a 204 as `no_content: true`, and the response headers of a 2xx or 3xx status. An error answer is declared
 with `.errors()`, and a key the route cannot answer is a type error naming the key and where it goes. Each answer is
-checked against the declaration, except in a production `vite build` through `honeyPlugin()`, which drops the check
-unless `honeyPlugin({ outputValidation: true })` keeps it. A media type other than JSON is just another key, so an
+checked against the declaration, except in a production `vite build` through `backendPlugin()`, which drops the check
+unless `backendPlugin({ outputValidation: true })` keeps it. A media type other than JSON is just another key, so an
 image or a CSV is as typed as a JSON body:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import * as z from "zod"
 
-const app = honey()
+const app = httpApp()
 
 app
 	.get("/avatar/:id")
@@ -270,11 +270,11 @@ app
 A body you do not want in memory is input too: `streamed()` leaves a json or form body unread for the handler to stream.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { streamed } from "@workerstack/backend/http/input"
 import * as z from "zod"
 
-const app = honey()
+const app = httpApp()
 
 app
 	.post("/ingest")
@@ -291,9 +291,9 @@ Content negotiation, when a route answers in more than one shape, reads the requ
 
 ```ts
 import { accepts } from "@workerstack/backend/http/accepts"
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 
-const app = honey()
+const app = httpApp()
 
 app.get("/report").handler((ctx) => {
 	const type = accepts(ctx.req, ["text/csv", "application/json"])
@@ -313,9 +313,9 @@ argument is the status key the route declared, which is what makes the payload's
 `redirect` entry, an undeclared media type's helper is gone, and so is `raw`.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 
-const app = honey()
+const app = httpApp()
 
 app.get("/page").handler((ctx) => ctx.res.html("ok", "<h1>hi</h1>"))
 app.get("/feed").handler((ctx) => ctx.res.xml("ok", "<feed />"))
@@ -333,7 +333,7 @@ app.get("/bytes").handler((ctx) =>
 Caching, entity tags and byte ranges are middleware and helpers over any of those:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { cacheControl } from "@workerstack/backend/http/cache-control"
 import { etag } from "@workerstack/backend/http/etag"
 import { prettyJson } from "@workerstack/backend/http/pretty-json"
@@ -341,7 +341,7 @@ import { rangeResponse } from "@workerstack/backend/http/range"
 
 const video = new Blob([new Uint8Array(1024)], { type: "video/mp4" })
 
-const app = honey()
+const app = httpApp()
 	.use(etag())
 	.use(prettyJson({ query: "pretty" }))
 	.use(cacheControl({ public: true, maxAge: 60, staleWhileRevalidate: 300 }))
@@ -357,12 +357,12 @@ header once for every route under it. `httpDate` from the same subpath formats a
 Streaming bodies clean up when the client leaves — the generator's `finally` runs:
 
 ```ts run
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 
 let ended = (_: string) => {}
 const cleanedUp = new Promise<string>((resolve) => (ended = resolve))
 
-const app = honey()
+const app = httpApp()
 
 app.get("/ticks").handler((ctx) =>
 	ctx.res.sse(
@@ -404,11 +404,11 @@ which keys it can throw with `.errors()`, and those keys are what the document a
 about.
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend/http"
+import { defineErrors, httpApp } from "@workerstack/backend/http"
 
 const errors = defineErrors({ out_of_stock: "conflict" })
 
-const app = honey().errorFormat("problem+json")
+const app = httpApp().errorFormat("problem+json")
 
 app
 	.post("/orders")
@@ -418,32 +418,32 @@ app
 	})
 ```
 
-`errorFormat("problem+json")` answers RFC 9457 Problem Details instead of honey's own body. Anything thrown becomes a
-`HoneyError`; `onError` sees it first, and `ERROR_META` is the symbol a thrown value carries its status under, so a
+`errorFormat("problem+json")` answers RFC 9457 Problem Details instead of backend's own body. Anything thrown becomes a
+`HttpError`; `onError` sees it first, and `ERROR_META` is the symbol a thrown value carries its status under, so a
 value from elsewhere can present itself as one. Under either format, `defaultErrorFormatter` gets the default body (the
 Problem Details document under `problem+json`) and its answer keeps that content type, while `payloadErrorFormatter`
 shapes the body of an error `defineErrors` gave a payload schema, which always answers `application/json`.
 
 ```ts
-import { defineErrors, ERROR_META, type ErrorFormatter, HoneyError, honey } from "@workerstack/backend/http"
+import { defineErrors, ERROR_META, type ErrorFormatter, HttpError, httpApp } from "@workerstack/backend/http"
 
 const errors = defineErrors({ db_timeout: "service_unavailable" })
 
 /* the body an error answers with: the default shape, plus whatever your API adds to it */
 const formatter: ErrorFormatter = (error, defaultShape) => ({ ...defaultShape, retriable: error.status >= 500 })
 
-const app = honey()
+const app = httpApp()
 	.errorFactory(errors)
 	.errorFormat("problem+json")
 	.defaultErrorFormatter(formatter)
 	.onError((error, ctx) => {
-		if (error instanceof HoneyError && error.errorKey === "db_timeout") return ctx.jsonFromError(error)
+		if (error instanceof HttpError && error.errorKey === "db_timeout") return ctx.jsonFromError(error)
 		return undefined
 	})
 
 app.get("/").handler((ctx) => ctx.res.text("ok", "up"))
 
-/* a thrown value of your own, carrying the status honey should answer with */
+/* a thrown value of your own, carrying the status backend should answer with */
 const refusal = Object.assign(new Error("nope"), { [ERROR_META]: { errorKey: "forbidden", status: 403 } })
 ```
 
@@ -456,7 +456,7 @@ A middleware is a function of `(ctx, next)`. Calling `next({ … })` adds typed 
 it sees — that is how per-request data (a user, a tenant, a database handle) reaches a handler without a global.
 
 ```ts
-import { type MiddlewareFn, honey } from "@workerstack/backend/http"
+import { type MiddlewareFn, httpApp } from "@workerstack/backend/http"
 import { cors } from "@workerstack/backend/http/cors"
 import { rateLimit } from "@workerstack/backend/http/rate-limit"
 import { secureHeaders } from "@workerstack/backend/http/secure-headers"
@@ -468,7 +468,7 @@ const withUser: MiddlewareFn<{ req: Request }, UserCtx> = (ctx, next) => {
 	return next({ user: token === null ? null : { id: "u1" } })
 }
 
-const app = honey()
+const app = httpApp()
 	.use(secureHeaders())
 	.use(cors({ origin: ["https://app.example.com"], credentials: true }))
 	.use(rateLimit({ limit: 100, windowMs: 60_000 }))
@@ -481,7 +481,7 @@ app.get("/me").handler((ctx) => ctx.res.json("ok", { user: ctx.user }))
 answer with (each route that mounts it declares them, and its document lists them) and the meta it gives those routes:
 
 ```ts
-import { createMiddleware, defineErrors, honey } from "@workerstack/backend/http"
+import { createMiddleware, defineErrors, httpApp } from "@workerstack/backend/http"
 
 const errors = defineErrors({ api_key_missing: "unauthorized" })
 
@@ -493,14 +493,14 @@ const requireKey = createMiddleware(
 	{ errors: [errors, "api_key_missing"], meta: { security: "apiKey" } },
 )
 
-const app = honey().errorFactory(errors).use(requireKey)
+const app = httpApp().errorFactory(errors).use(requireKey)
 app.get("/me").handler((ctx) => ctx.res.json("ok", { at: ctx.at }))
 ```
 
 The bundled set, each its own subpath so an app that does not import it bundles none of it:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { bodyLimit } from "@workerstack/backend/http/body-limit"
 import { compress } from "@workerstack/backend/http/compress"
 import { csrf } from "@workerstack/backend/http/csrf"
@@ -510,7 +510,7 @@ import { requestId } from "@workerstack/backend/http/request-id"
 import { serverTiming } from "@workerstack/backend/http/server-timing"
 import { timeout } from "@workerstack/backend/http/timeout"
 
-const app = honey()
+const app = httpApp()
 	.use(requestId())
 	.use(poweredBy())
 	.use(serverTiming())
@@ -556,9 +556,9 @@ The handler's `ctx` is one object, and these keys are reserved on it: `req`, `en
 from a middleware's `next({ … })`.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 
-const app = honey()
+const app = httpApp()
 
 app.get("/where/:id").handler((ctx) => {
 	ctx.log.info({ id: ctx.params.id }, "asked")
@@ -577,8 +577,8 @@ app.get("/where/:id").handler((ctx) => {
 ```
 
 `background(promise)` keeps work alive past the response where the runtime allows it, `signal` aborts when the client
-leaves, and `log` is the request's logger with the request id already bound. `HoneyContext` is the class behind it
-and `HoneyRes` the response builder, both exported for a helper of your own that takes either.
+leaves, and `log` is the request's logger with the request id already bound. `HttpContext` is the class behind it
+and `HttpRes` the response builder, both exported for a helper of your own that takes either.
 
 ## Cookies
 
@@ -587,12 +587,12 @@ secrets, newest first, so a rotation keeps the old ones verifying and a value si
 another:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { createCookieSigner } from "@workerstack/backend/http/cookie-sign"
 
 const signer = createCookieSigner({ name: "session", secrets: [process.env.COOKIE_SECRET ?? ""] })
 
-const app = honey()
+const app = httpApp()
 
 app.post("/login").handler(async (ctx) => {
 	const session = await signer.sign("user-1")
@@ -627,11 +627,11 @@ long-poll, whichever the client can hold — is `realtime(app, path, options)`. 
 route can publish into them.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { realtime } from "@workerstack/backend/realtime"
 import { ws } from "@workerstack/backend/ws"
 
-const app = honey()
+const app = httpApp()
 
 ws(app, "/echo").handler({
 	onMessage(_ctx, socket, data) {
@@ -656,10 +656,10 @@ app.post("/announce").handler(async (ctx) => {
 A publisher outside a connection works the same way, which is what a ticker is:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { realtime } from "@workerstack/backend/realtime"
 
-const app = honey()
+const app = httpApp()
 
 const prices = realtime(app, "/prices", {
 	namespace: "prices",
@@ -685,9 +685,9 @@ An app runs as a Cloudflare Worker: `export default app` is the Worker's `fetch`
 and `scheduled` and `queue` move onto the default.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 
-const app = honey()
+const app = httpApp()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
 
 export default app
@@ -696,11 +696,11 @@ export default app
 The app is the default export, and `app.fetch` the handler to wrap when you need to:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 
 type Env = { readonly SECRET: string }
 
-const app = honey<Env>()
+const app = httpApp<Env>()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
 
 export default { fetch: (...args: Parameters<typeof app.fetch>) => app.fetch(...args) }
@@ -709,16 +709,16 @@ export default { fetch: (...args: Parameters<typeof app.fetch>) => app.fetch(...
 ## Static files and proxying
 
 `staticFiles()` serves what a resolver of yours returns, so the bytes can come from a bundle, a KV store or a disk
-read — honey never assumes a filesystem.
+read — backend never assumes a filesystem.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { cacheControl } from "@workerstack/backend/http/cache-control"
 import { staticFiles } from "@workerstack/backend/http/static"
 
 const assets = new Map<string, Blob>([["/app.js", new Blob(["console.log(1)"])]])
 
-const app = honey()
+const app = httpApp()
 	.use(cacheControl({ public: true, maxAge: 3600 }))
 	.use(staticFiles({ prefix: "/assets", resolve: (_ctx, path) => assets.get(path) ?? null }))
 ```
@@ -727,10 +727,10 @@ const app = honey()
 upstream is explicit and nothing is reachable by accident.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { proxy } from "@workerstack/backend/http/proxy"
 
-const app = honey()
+const app = httpApp()
 
 app.all("/billing/*").handler(
 	proxy({
@@ -751,11 +751,11 @@ you the document as a value instead, for a file you commit or a build step. Tags
 externalDocs and webhooks are all declared, never guessed.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
-const app = honey()
+const app = httpApp()
 
 app
 	.get("/orders")
@@ -774,12 +774,12 @@ serveOpenApi(app, {
 The document as a value, the route manifest, YAML, and either reference page explicitly:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { generateManifest, generateOpenApi, serveManifest, toYaml } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 import { swagger } from "@workerstack/backend/http/openapi/swagger"
 
-const app = honey()
+const app = httpApp()
 app.get("/orders").handler((ctx) => ctx.res.json("ok", []))
 
 const document = generateOpenApi(app, { info: { title: "Shop", version: "1.2.0" } })
@@ -796,7 +796,7 @@ Webhooks, the requests your API sends out, are declared once as a contract: the 
 Standard Webhooks delivery, and the contract signs each attempt:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { serveOpenApi } from "@workerstack/backend/http/openapi"
 import { webhookContract } from "@workerstack/backend/http/webhook"
 import * as z from "zod"
@@ -805,7 +805,7 @@ const events = webhookContract({
 	"order.shipped": z.object({ orderId: z.string(), shippedAt: z.string() }),
 })
 
-const app = honey()
+const app = httpApp()
 
 serveOpenApi(app, { title: "Shop", version: "1.0.0", webhooks: events })
 
@@ -824,7 +824,7 @@ Full reference: [the OpenAPI document](https://github.com/workerstack/backend/bl
 
 `serveStaticOpenApi(app, options)` from `@workerstack/backend/http/openapi/static` serves a document someone has already
 built. Nothing generates it, so the generator never reaches the bundle: an app that serves its document this way
-carries about 1.2 KB gzipped over a bare `honey()`. Reach for it when the build plugin already wrote the document to
+carries about 1.2 KB gzipped over a bare `httpApp()`. Reach for it when the build plugin already wrote the document to
 disk, when a gateway serves a document assembled elsewhere, or when a Worker should answer the spec without parsing
 571 KB of it on every cold start. Reach for `serveOpenApi` instead when the running app's own routes are the
 document, which is the usual case.
@@ -832,30 +832,30 @@ document, which is the usual case.
 The source is an inline value, a Workers asset binding, a URL, or a loader of your own:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"
 
 /* a document you already have as a value: serialized once, on the first request */
-const inline = serveStaticOpenApi(honey(), {
+const inline = serveStaticOpenApi(httpApp(), {
 	json: { inline: { info: { title: "Shop", version: "1.2.0" }, openapi: "3.1.0", paths: {} } },
 })
 
 /* a Workers assets binding: env.ASSETS.fetch on the request's own origin */
-const onWorkers = serveStaticOpenApi(honey(), {
+const onWorkers = serveStaticOpenApi(httpApp(), {
 	docs: { "/docs": scalar },
 	json: { asset: "/openapi.json" },
 	yaml: { asset: "/openapi.yaml" },
 })
 
 /* someone else's document, with a cache-control of its own */
-const upstream = serveStaticOpenApi(honey(), {
+const upstream = serveStaticOpenApi(httpApp(), {
 	cacheControl: "public, s-maxage=3600, stale-while-revalidate=86400",
 	json: { url: "https://specs.example.com/v1/openapi.json" },
 })
 
 /* your own loader: whatever it returns is the document, a Response read once */
-const loaded = serveStaticOpenApi(honey(), {
+const loaded = serveStaticOpenApi(httpApp(), {
 	json: async (ctx) => await (ctx.env as { SPECS: { get(key: string): Promise<string> } }).SPECS.get("openapi"),
 	jsonPath: "/v1/openapi/spec",
 })
@@ -865,7 +865,7 @@ const loaded = serveStaticOpenApi(honey(), {
 not show. The JSON route is `${path}.json` (`path` is `/openapi` by default), the YAML routes `.yaml` and `.yml`
 appear only with a `yaml` source, and `jsonPath` or `yamlPath` replaces the stem outright. Every route is internal,
 so the document never documents its own endpoints, and `meta` rides along under that marking on every route the call
-mounts, the docs pages included. It takes what a route's own `.meta()` takes on that handle: honey's keys (a
+mounts, the docs pages included. It takes what a route's own `.meta()` takes on that handle: backend's keys (a
 `security` scheme, a `summary`) and the ones the app declared with `metaType<T>()`, so an app whose middleware turns
 `meta.cacheControl` into the header passes it here. `serveOpenApi` and `serveManifest` take the same `meta`.
 
@@ -873,11 +873,11 @@ No copy script is needed to put the bytes where a Worker can read them: point th
 assets directory wrangler serves, and codegen writes both files there on every generate.
 
 ```ts
-import { honeyPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin"
 
 export default {
 	plugins: [
-		honeyPlugin({
+		backendPlugin({
 			app: "src/app.ts",
 			codegen: { openApi: { path: "assets/openapi.json", title: "Shop", version: "1.2.0" } },
 		}),
@@ -886,7 +886,7 @@ export default {
 ```
 
 A document is loaded once per process or isolate and kept with its ETag — the upstream's strong `etag` when it sent
-one, else honey's own SHA-256 tag — and concurrent first requests share that one load. A load that failed is not
+one, else backend's own SHA-256 tag — and concurrent first requests share that one load. A load that failed is not
 kept, so the next request tries again, but a load that succeeded is never refreshed: a long-lived isolate
 serving a `url` source keeps the document it first fetched until it restarts or redeploys. A failing asset,
 an unbound binding and a failing loader are a 500; a URL that fails or answers non-2xx is a 502.
@@ -896,20 +896,20 @@ Full reference: [the OpenAPI document](https://github.com/workerstack/backend/bl
 ## The MCP server
 
 There are two ways to serve your API's tools over the Model Context Protocol, and they run in different places. The
-standalone server `honey-clients generate --target mcp` writes needs Node, and is what a local stdio install
+standalone server `clients generate --target mcp` writes needs Node, and is what a local stdio install
 (Claude Desktop, Claude Code, Cursor) starts. The mounted endpoint below runs wherever the app runs — Workers
 included — dispatches in process, and is guarded by the app's own auth. It is the one to use remotely.
 
 `mcp(app, path, handler, options)` mounts the handler `codegen.mcp` generated beside your app:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
 declare const mcpHandler: McpHandler
 
-const app = honey()
+const app = httpApp()
 mcp(app, "/mcp", mcpHandler, {
 	authenticate: (request) => /^ApiKey \S+$/.test(request.headers.get("authorization") ?? ""),
 })
@@ -920,7 +920,7 @@ Bearer challenges), which is what ChatGPT requires; `uploads()` takes files out 
 through a tool argument; `urlFiles()` lets a file argument be an https URL from a host you list.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { oauth } from "@workerstack/backend/mcp/oauth"
 import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"
@@ -930,7 +930,7 @@ import { urlFiles } from "@workerstack/backend/mcp/url-files"
 declare const mcpHandler: McpHandler
 declare const UPLOAD_SECRET: string
 
-const app = honey()
+const app = httpApp()
 mcp(app, "/mcp", mcpHandler, {
 	authenticate: (request) => /^ApiKey \S+$/.test(request.headers.get("authorization") ?? ""),
 	oauth: oauth({
@@ -957,16 +957,16 @@ Full reference: [the generated MCP server](https://github.com/workerstack/backen
 to a response before the error is reported.
 
 ```ts
-import { HoneyError, honey } from "@workerstack/backend/http"
+import { HttpError, httpApp } from "@workerstack/backend/http"
 import { createLogger } from "@workerstack/backend/logger"
 import { requestId } from "@workerstack/backend/http/request-id"
 
-const app = honey()
+const app = httpApp()
 	.use(requestId())
 	.logger(createLogger({ level: "info" }))
 	.requestLog(true)
 	.onError((error, ctx) => {
-		if (error instanceof HoneyError && error.errorKey === "db_timeout") return ctx.jsonFromError(error)
+		if (error instanceof HttpError && error.errorKey === "db_timeout") return ctx.jsonFromError(error)
 		return undefined
 	})
 
@@ -978,13 +978,13 @@ W3C `traceparent`, so a span from a caller stays one trace. With it on, the logg
 `span_id`, and `requestId` stays the client-facing id.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { createLogger } from "@workerstack/backend/logger"
 import { otelAdapter, type OtelApi } from "@workerstack/backend/telemetry/otel"
 
 declare const api: OtelApi
 
-const app = honey()
+const app = httpApp()
 	.logger(createLogger({ level: "info" }))
 	.telemetry(otelAdapter(api))
 	.requestLog(true)
@@ -996,13 +996,13 @@ A request logged as the command that would repeat it is its own middleware, and 
 its own for a failing call you want to paste into a terminal — both redact credentials by default:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { curlLogger } from "@workerstack/backend/http/curl-logger"
 import { requestToCurl } from "@workerstack/backend/http/request-to-curl"
 
 declare const req: Request
 
-const app = honey().use(curlLogger())
+const app = httpApp().use(curlLogger())
 app.get("/").handler((ctx) => ctx.res.text("ok", "up"))
 
 /* the authorization header left out of the logged command */
@@ -1024,7 +1024,7 @@ console.log(interpolate(message, { count: 3, name: "Ada" }, "en"))
 ```
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend/http"
+import { defineErrors, httpApp } from "@workerstack/backend/http"
 import { createErrorTranslator, translateError } from "@workerstack/backend/http/i18n"
 
 const errors = defineErrors({ not_found: "not_found" })
@@ -1032,7 +1032,7 @@ const errors = defineErrors({ not_found: "not_found" })
 /* locale, then error key, then the ICU template that key's message reads from */
 const translations = { errors: { de: { not_found: "Nicht gefunden" }, en: { not_found: "Not found" } } }
 
-const app = honey().errorI18n(
+const app = httpApp().errorI18n(
 	createErrorTranslator({
 		...translations,
 		resolveLocale: (ctx) => ctx.headers["accept-language"]?.slice(0, 2) ?? "en",
@@ -1069,10 +1069,10 @@ Full reference: [internationalization](https://github.com/workerstack/backend/bl
 options rather than mocks.
 
 ```ts run
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { testClient } from "@workerstack/backend/http/testing"
 
-const app = honey()
+const app = httpApp()
 app.get("/hello").handler((ctx) => ctx.res.json("ok", { hello: ctx.search.name ?? "world", ip: ctx.ip }))
 
 const client = testClient(app, { env: {} })
@@ -1085,28 +1085,28 @@ Full reference: [testing an app](https://github.com/workerstack/backend/blob/mai
 [SDK conformance](https://github.com/workerstack/clients/blob/main/docs/conformance.md), which is how the generated
 clients are held to behaving alike.
 
-## The build plugin and the honey CLI
+## The build plugin and the backend CLI
 
 The Vite plugin writes the app's artifacts — the route tree, the types, the manifest, the OpenAPI document and the
 MCP handler — at build start, and again on each save in dev:
 
 ```ts
-import { honeyPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin"
 import { defineConfig } from "vite"
 
 export default defineConfig({
-	plugins: [honeyPlugin({ app: "src/app.ts" })],
+	plugins: [backendPlugin({ app: "src/app.ts" })],
 })
 ```
 
 What it generates is `codegen`, and each output takes a path or a config of its own:
 
 ```ts
-import { honeyPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin"
 
 export default {
 	plugins: [
-		honeyPlugin({
+		backendPlugin({
 			app: "src/app.ts",
 			codegen: {
 				manifest: true,
@@ -1138,37 +1138,37 @@ export default defineConfig({
 })
 ```
 
-The `honey` CLI does the same generation without Vite, which is what a CI step or a `package.json` script wants:
+The `backend` CLI does the same generation without Vite, which is what a CI step or a `package.json` script wants:
 
 ```sh
-honey generate                       # reads vite.config.* and the honeyPlugin() in it
-honey generate --app src/app.ts --tree --types --manifest
-honey generate --config vite.config.ts --plugin 0 --watch
-honey generate --merge-tree src/_gen/routes.gen.ts   # a gateway's merged tree
-honey init --force
+backend generate                       # reads vite.config.* and the backendPlugin() in it
+backend generate --app src/app.ts --tree --types --manifest
+backend generate --config vite.config.ts --plugin 0 --watch
+backend generate --merge-tree src/_gen/routes.gen.ts   # a gateway's merged tree
+backend init --force
 ```
 
-| Flag                  | What it does                                                                     |
-| --------------------- | -------------------------------------------------------------------------------- |
-| `--config <path>`     | the Vite config holding `honeyPlugin()` (default: `vite.config.{ts,mts,js,mjs}`) |
-| `--plugin <n>`        | which `honeyPlugin()` in the config, 0-based                                     |
-| `--app <path>`        | the app entry; overrides the config's app, or replaces the config                |
-| `--tree`              | the route tree module                                                            |
-| `--types`             | the ambient types                                                                |
-| `--manifest`          | the route manifest                                                               |
-| `--merge-tree <path>` | the route tree source of a gateway                                               |
-| `--watch`             | generate again when files next to the app change                                 |
+| Flag                  | What it does                                                                       |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `--config <path>`     | the Vite config holding `backendPlugin()` (default: `vite.config.{ts,mts,js,mjs}`) |
+| `--plugin <n>`        | which `backendPlugin()` in the config, 0-based                                     |
+| `--app <path>`        | the app entry; overrides the config's app, or replaces the config                  |
+| `--tree`              | the route tree module                                                              |
+| `--types`             | the ambient types                                                                  |
+| `--manifest`          | the route manifest                                                                 |
+| `--merge-tree <path>` | the route tree source of a gateway                                                 |
+| `--watch`             | generate again when files next to the app change                                   |
 
-The SDKs, the CLI and the MCP server are honey-clients's: `honey-clients generate --app <path>`.
+The SDKs, the CLI and the MCP server are clients': `clients generate --app <path>`.
 
 Full reference: [the build plugin](https://github.com/workerstack/backend/blob/main/docs/plugin.md).
 
 ## Generated clients
 
-`honey-clients` reads the app module or the document and writes clients that know the routes:
+`clients` reads the app module or the document and writes clients that know the routes:
 
 ```sh
-npx honey-clients generate --app src/app.ts --target ts --target python --out generated
+npx --package @workerstack/clients clients generate --app src/app.ts --target ts --target python --out generated
 ```
 
 A call answers your value and throws a typed error by status; its `client.safe` mirror answers the same calls as a
@@ -1221,7 +1221,7 @@ generator.
 
 | Export                                      | What it holds                                                                                                                                                                        |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@workerstack/backend/http`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                                                                                   |
+| `@workerstack/backend/http`                 | `backend`, `HttpError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                                                                                  |
 | `@workerstack/backend/ws`                   | `ws(app, path)`, a WebSocket route; `workersWebSocket`                                                                                                                               |
 | `@workerstack/backend/http/webhook`         | `signWebhook`                                                                                                                                                                        |
 | `@workerstack/backend/cron`                 | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`; `workersCron`, `WorkersScheduledController`                                                  |
@@ -1266,11 +1266,11 @@ generator.
 | `@workerstack/backend/http/request-to-curl` | `requestToCurl`                                                                                                                                                                      |
 | `@workerstack/backend/http/testing`         | `testClient`, an app called in process                                                                                                                                               |
 | `@workerstack/backend/http/tree`            | the route tree's types                                                                                                                                                               |
-| `@workerstack/backend/plugin`               | `honeyPlugin()`, the Vite plugin that generates the app's artifacts                                                                                                                  |
+| `@workerstack/backend/plugin`               | `backendPlugin()`, the Vite plugin that generates the app's artifacts                                                                                                                |
 | `@workerstack/backend/build`                | `createBuildPlugin`, a production bundle for a deploy target                                                                                                                         |
 
-`@workerstack/backend/http` exports `honey()` and the `Honey` class behind it, `HoneyContext` and `HoneyRes` (the handler's
-`ctx` and its `ctx.res`), `HoneyError`, `defineErrors` and `ERROR_META`, `definePreset` and `Preset`, `createMiddleware` and
+`@workerstack/backend/http` exports `httpApp()` and the `HttpApp` class behind it, `HttpContext` and `HttpRes` (the handler's
+`ctx` and its `ctx.res`), `HttpError`, `defineErrors` and `ERROR_META`, `definePreset` and `HttpPreset`, `createMiddleware` and
 `mergeTree`.
 
 ## Type helpers
@@ -1279,10 +1279,10 @@ Exported from `@workerstack/backend/http`, each over the app you built (`typeof 
 helper of yours stays tied to the routes rather than to a copy of their shapes.
 
 ```ts
-import { honey, type InferRouteInput, type InferRoutePaths, type InferRoutes } from "@workerstack/backend/http"
+import { httpApp, type InferRouteInput, type InferRoutePaths, type InferRoutes } from "@workerstack/backend/http"
 import * as z from "zod"
 
-const app = honey()
+const app = httpApp()
 	.get("/books/:id")
 	.input({ params: { id: z.string().min(1) }, search: z.object({ edition: z.string().optional() }) })
 	.handler((ctx) => ctx.res.json("ok", { edition: ctx.input.search.edition, id: ctx.params.id }))

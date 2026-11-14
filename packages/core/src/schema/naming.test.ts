@@ -123,7 +123,7 @@ function envelope(key: string, value: unknown) {
 	return { properties, type: "object" }
 }
 
-describe("isErrorEnvelope: honey's error body", () => {
+describe("isErrorEnvelope: backend's error body", () => {
 	// v0: eaa140d1b2
 	// v0: 9e9a99c5e7
 	// v0: 3bca1654b4

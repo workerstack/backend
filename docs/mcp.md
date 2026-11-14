@@ -1,6 +1,6 @@
 # The generated MCP server
 
-`honey-clients generate --target mcp` writes a Model Context Protocol server: one tool per operation, its
+`clients generate --target mcp` writes a Model Context Protocol server: one tool per operation, its
 input schema from the operation's parameters and body, and structured output for agents. Read-only operations are
 annotated as such. The server takes its base URL, extra headers (`$<PREFIX>_HEADERS`) and its redirect policy
 (`$<PREFIX>_REDIRECT`) from the environment. A multipart operation is a tool too: each part is an argument, a file
@@ -10,7 +10,7 @@ with `--http` (see [Over HTTP](#over-http)).
 ## Example
 
 ```sh
-honey-clients generate --spec openapi.json --target mcp --out ./mcp
+clients generate --spec openapi.json --target mcp --out ./mcp
 ```
 
 ## Reference
@@ -43,7 +43,7 @@ The standalone server runs over stdio, started by the client. Generate it, then 
 `dist/server.js`:
 
 ```sh
-honey-clients generate --spec openapi.json --target mcp --out ./mcp
+clients generate --spec openapi.json --target mcp --out ./mcp
 ```
 
 The server's name is the document's title, lower case and hyphenated (`Acme` gives `acme`, its bin
@@ -152,7 +152,7 @@ there.
   tool shows the inline value and, with `urlFiles`, the URL value; it never shows a path.
 
 Each file argument costs a tool 98 tokens of schema (FileInput and path); a mounted tool's costs 97 with the URL value
-and 64 without it. The file-uploads extension is a draft that may still change; honey tracks it at every phase of bit 21.
+and 64 without it. The file-uploads extension is a draft that may still change; backend tracks it at every phase of bit 21.
 
 ## Over HTTP
 
@@ -189,30 +189,30 @@ SHOP_MCP_TOKEN=$(openssl rand -hex 32) SHOP_API_KEY=… shop-mcp --http --port 8
 An app can serve its own tools itself, at a path of its own, over Streamable HTTP: the same tools, each call
 dispatched in process through the app, so its middleware, limits and every route's own auth run again.
 
-| Value                               | What it is                                                                                                                                                                                          |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `codegen.mcp`                       | the `honeyPlugin()` output that writes the mounted handler: the entry `src/_gen/mcp.gen.ts` (exporting `mcpHandler`) plus its companion directory `src/_gen/mcp/`, the runtime and the API's TS SDK |
-| `mcp(app, path, handler, options?)` | from `@workerstack/backend/mcp`: mounts the generated handler at `path`, POST only (GET and DELETE answer 405), under the app's basePath and middleware, auth before any dispatch                   |
-| `authenticate(request, ctx)`        | required when any mounted tool's operation declares security, else `mcp()` throws at mount; it returns a boolean only, and `false` gets HTTP 401 with `WWW-Authenticate`                            |
+| Value                               | What it is                                                                                                                                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `codegen.mcp`                       | the `backendPlugin()` output that writes the mounted handler: the entry `src/_gen/mcp.gen.ts` (exporting `mcpHandler`) plus its companion directory `src/_gen/mcp/`, the runtime and the API's TS SDK |
+| `mcp(app, path, handler, options?)` | from `@workerstack/backend/mcp`: mounts the generated handler at `path`, POST only (GET and DELETE answer 405), under the app's basePath and middleware, auth before any dispatch                     |
+| `authenticate(request, ctx)`        | required when any mounted tool's operation declares security, else `mcp()` throws at mount; it returns a boolean only, and `false` gets HTTP 401 with `WWW-Authenticate`                              |
 
 The plugin writes the handler from the app's own routes marked `mcp: true`:
 
 ```ts
-import { honeyPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin"
 
-export default { plugins: [honeyPlugin({ app: "src/app.ts", codegen: { mcp: true } })] }
+export default { plugins: [backendPlugin({ app: "src/app.ts", codegen: { mcp: true } })] }
 ```
 
 The app mounts it, checking the credential before any tool runs:
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
 declare const mcpHandler: McpHandler
 
-const app = honey()
+const app = httpApp()
 mcp(app, "/mcp", mcpHandler, {
 	authenticate: (request) => /^ApiKey \S+$/.test(request.headers.get("authorization") ?? ""),
 })
@@ -224,7 +224,7 @@ mcp(app, "/mcp", mcpHandler, {
   schemes name (`Authorization` for an http, OAuth or OpenID scheme, an API key's own header) and no other. The inner
   routes check it again; `authenticate`'s answer reaches them as nothing else.
 - **An inner 401** (or a 403 for `insufficient_scope`) is the endpoint's HTTP answer with that challenge, never a
-  tool result. Any other status stays the tool's result, its status in `_meta` `honey/status`.
+  tool result. Any other status stays the tool's result, its status in `_meta` `backend/status`.
 - **Only the app's own origin.** A call that would leave the app's origin is refused before it is dispatched, so the
   credential never leaves the app.
 - **Bodies** are capped at 4 MiB as they stream (`maxBodyBytes` changes it), after the app's own `bodyLimit`. A browser
@@ -233,7 +233,7 @@ mcp(app, "/mcp", mcpHandler, {
 ### OAuth
 
 The mounted endpoint can act as an OAuth 2.1 resource server, the role the MCP authorization spec gives a protected
-server. honey serves the resource server's discovery half only: it never issues tokens and never checks them. You
+server. backend serves the resource server's discovery half only: it never issues tokens and never checks them. You
 bring the authorization server, and your own code (`authenticate` and each route) validates the token.
 
 | Value                          | What it is                                                                                                                                                                            |
@@ -245,7 +245,7 @@ bring the authorization server, and your own code (`authenticate` and each route
 | `options.resourceName`         | the endpoint's name as a user sees it                                                                                                                                                 |
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { oauth } from "@workerstack/backend/mcp/oauth"
 
@@ -262,7 +262,7 @@ const bearer = (request: Request) => /^Bearer (\S+)$/.exec(request.headers.get("
 const refused = (status: number, challenge: string) =>
 	new Response(null, { headers: { "www-authenticate": challenge }, status })
 
-const app = honey<Env>()
+const app = httpApp<Env>()
 app
 	.post("/orders")
 	.meta({ mcp: true, security: [{ oauth: ["mcp:write"] }] })
@@ -318,7 +318,7 @@ endpoint's URL as the token's audience**. `authenticate` checks the token on eve
 again, with the scopes each needs.
 
 **Behind a proxy.** The metadata's `resource` and the 401's `resource_metadata` use `resource`'s origin when it
-is set, and the request's own origin otherwise. honey trusts no forwarded header, so set `resource` when the
+is set, and the request's own origin otherwise. backend trusts no forwarded header, so set `resource` when the
 app sees a different origin from the client's (TLS ended at a proxy, an internal host name). `mcp()` throws when it
 names another path, or has a query, fragment or userinfo.
 
@@ -330,7 +330,7 @@ Bearer `authorization_token`.
 **An authorization server on Workers.** `@cloudflare/workers-oauth-provider`'s `OAuthAuthorizationServer` can be the
 authorization server, in its own Worker with your `/authorize` page, listing the endpoint's URL in its `resources`.
 It exposes `validateToken(resource, token)` over a Service Binding, which both `authenticate` and the routes call
-with the endpoint's URL. Its `OAuthResourceServer` is the half honey serves here, so the app doesn't use it. The
+with the endpoint's URL. Its `OAuthResourceServer` is the half backend serves here, so the app doesn't use it. The
 package's `examples/split-workers` shows the authorization server in full.
 
 **The standalone server** (`--http`) has no OAuth: it serves one local user on a loopback port with its own token, and
@@ -358,7 +358,7 @@ tool error. No shipping client implements the extension yet.
 | `PUT <path>/uploads/<token>` | the upload route `mcp()` registers: 204 when the bytes are taken                                                                                          |
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"
 
@@ -366,7 +366,7 @@ import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"
 declare const mcpHandler: McpHandler
 declare const UPLOAD_SECRET: string
 
-const app = honey()
+const app = httpApp()
 mcp(app, "/mcp", mcpHandler, {
 	authenticate: (request) => /^ApiKey \S+$/.test(request.headers.get("authorization") ?? ""),
 	uploads: uploads({ secret: UPLOAD_SECRET, store: memoryUploadStore() }),
@@ -395,7 +395,7 @@ What the endpoint checks:
 
 **The store must claim atomically.** `claim` must return true to one caller alone, even when two PUTs race, and
 `take` must hand the bytes to one caller alone. On Workers that means a Durable Object (one an upload, exported from
-your app's entry; a honey-built Worker exports it) or a D1 row (`INSERT … ON CONFLICT DO NOTHING`, `DELETE …
+your app's entry; a backend-built Worker exports it) or a D1 row (`INSERT … ON CONFLICT DO NOTHING`, `DELETE …
 RETURNING`) for the claim and the take, with the bytes in R2: a D1 row, and a SQLite Durable Object's, holds at most
 2 MB, far under the 50 MiB `maxBytes`.
 [End to end](#end-to-end-an-api-key-gateway-on-workers) has such a store. **Workers KV cannot keep an upload
@@ -422,14 +422,14 @@ plain argument.
 | `options.fetch`     | the fetch it runs, the platform's by default                                                                                                       |
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { urlFiles } from "@workerstack/backend/mcp/url-files"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
 declare const mcpHandler: McpHandler
 
-const app = honey()
+const app = httpApp()
 mcp(app, "/mcp", mcpHandler, { urlFiles: urlFiles({ hosts: ["files.example.com"] }) })
 ```
 
@@ -460,13 +460,13 @@ host.
 The plugin writes the handler, the scheme naming the header:
 
 ```ts
-import { honeyPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin"
 
 const apiKey = { description: "Format: ApiKey {key}", in: "header", name: "Authorization", type: "apiKey" }
 
 export default {
 	plugins: [
-		honeyPlugin({
+		backendPlugin({
 			app: "src/app.ts",
 			codegen: { mcp: true, openApi: { title: "Acme", version: "1.0.0" }, securitySchemes: { apiKey } },
 		}),
@@ -477,7 +477,7 @@ export default {
 The Worker:
 
 ```ts
-import { createMiddleware, honey } from "@workerstack/backend/http"
+import { createMiddleware, httpApp } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { type UploadStore, uploads } from "@workerstack/backend/mcp/uploads"
 import { urlFiles } from "@workerstack/backend/mcp/url-files"
@@ -558,7 +558,7 @@ const apiKeyAccess = createMiddleware<{ req: Request; env: Env }>(async (ctx, ne
 	return known ? next() : new Response(null, { headers: { "www-authenticate": "ApiKey" }, status: 401 })
 })
 
-const app = honey<Env>()
+const app = httpApp<Env>()
 app
 	.use(apiKeyAccess)
 	.post("/v1/projects/:project_id/extract")
@@ -575,11 +575,11 @@ mcp(app, "/mcp", mcpHandler, {
 export default app
 ```
 
-Built by honey's build plugin for Workers, with this module as the app's entry
+Built by backend's build plugin for Workers, with this module as the app's entry
 (`createBuildPlugin({ target: "workers" }, { entry: "src/app.ts", export: "default" })`), the Worker exports
 `UploadClaim` beside its default fetch: every named export of the entry passes through, so a Durable Object class, a
 `WorkerEntrypoint` or a Workflow is the Worker's own. An entry that exports a default beside a named app is refused,
-since the Worker's default is honey's fetch. Its config binds the class, the migration creating its namespace:
+since the Worker's default is backend's fetch. Its config binds the class, the migration creating its namespace:
 
 ```json
 {

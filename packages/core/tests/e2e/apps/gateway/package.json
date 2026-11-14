@@ -1,5 +1,5 @@
 {
-	"name": "@honey/e2e-gateway",
+	"name": "@backend/e2e-gateway",
 	"version": "0.0.1",
 	"private": true,
 	"type": "module",
@@ -7,8 +7,8 @@
 		".": "./src/app.ts"
 	},
 	"scripts": {
-		"generate": "BUN_OPTIONS=--conditions=honey-source honey generate",
-		"test": "bun test --conditions=honey-source tests/smoke.test.ts",
+		"generate": "BUN_OPTIONS=--conditions=backend-source backend generate",
+		"test": "bun test --conditions=backend-source tests/smoke.test.ts",
 		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {

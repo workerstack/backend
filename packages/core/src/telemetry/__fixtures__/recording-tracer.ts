@@ -1,11 +1,11 @@
 /**
- * A structural Tracer that records every span it starts: its name, kind, explicit parent, links,
+ * A structural OtelTracer that records every span it starts: its name, kind, explicit parent, links,
  * attributes, events, status and how many times it ended. `recording: false` samples every root out.
  */
-import type { Span, SpanOptions, Telemetry } from "../request-trace.ts"
+import type { OtelSpan, SpanOptions, OtelTelemetry } from "../request-trace.ts"
 import type { RemoteContext } from "../traceparent.ts"
 
-export type Recorded = Span & {
+export type Recorded = OtelSpan & {
 	attributes: Record<string, unknown>
 	ended: number
 	events: [string, Record<string, unknown> | undefined][]
@@ -20,7 +20,7 @@ export type Recorded = Span & {
 export function recorder(options: { recording?: boolean } = {}) {
 	const spans: Recorded[] = []
 	let next = 0
-	const startSpan = (name: string, { attributes, kind, links, parent }: SpanOptions): Span => {
+	const startSpan = (name: string, { attributes, kind, links, parent }: SpanOptions): OtelSpan => {
 		const id = (++next).toString(16).padStart(16, "0")
 		const span: Recorded = {
 			addEvent(event, attrs) {
@@ -52,7 +52,7 @@ export function recorder(options: { recording?: boolean } = {}) {
 		spans.push(span)
 		return span
 	}
-	const telemetry: Telemetry = { onError: null, tracer: { startSpan }, trustInbound: false }
+	const telemetry: OtelTelemetry = { onError: null, tracer: { startSpan }, trustInbound: false }
 	return { spans, telemetry }
 }
 

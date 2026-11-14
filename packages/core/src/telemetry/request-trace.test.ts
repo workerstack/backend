@@ -5,12 +5,12 @@
  * trust-gated inbound trace, a tracer that throws, and nothing built when the root is not recording.
  */
 import { describe, expect, it, vi } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { createMiddleware, namedMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { createLogger } from "./logger.ts"
 import { type Recorded, recorder, rootOf, tree } from "./__fixtures__/recording-tracer.ts"
-import type { Telemetry } from "./request-trace.ts"
+import type { OtelTelemetry } from "./request-trace.ts"
 
 const get = (path: string, init: RequestInit = {}) => new Request(`http://app.test${path}`, init)
 
@@ -37,7 +37,7 @@ describe("the root: started before routing, named by its route", () => {
 	// v0: 70785bd2c3
 	it("a SERVER span, renamed `{method} {route}` once routed, with the pattern, the id and the status", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/users/:id").handler((ctx) => ctx.res.text("ok", ctx.params.id))
 		await app.fetch(get("/users/42"), {})
 		const [root] = spans
@@ -46,7 +46,7 @@ describe("the root: started before routing, named by its route", () => {
 			"server",
 			null,
 			{
-				"honey.route_id": "GET /users/:id",
+				"backend.route_id": "GET /users/:id",
 				"http.request.method": "GET",
 				"http.response.body.size": 2,
 				"http.response.status_code": 200,
@@ -62,7 +62,7 @@ describe("the root: started before routing, named by its route", () => {
 	// v0: 663d9be257
 	it("never records the query, or the raw path as the route", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/users/:id").handler((ctx) => ctx.res.text("ok", "u"))
 		await app.fetch(get("/users/42?apikey=SECRET#frag"), {})
 		const values = spans.flatMap((s) => [s.name, ...Object.values(s.attributes).map(String)])
@@ -74,7 +74,7 @@ describe("the root: started before routing, named by its route", () => {
 
 	it("a request no route serves keeps the method alone as its name, with no route", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		await app.fetch(get("/nope"), {})
 		expect([spans[0]?.name, "http.route" in (spans[0]?.attributes ?? {})]).toEqual(["GET", false])
@@ -92,7 +92,7 @@ describe("the onion: each span under the one that called it", () => {
 	// v0: f22b61a8af
 	it("middleware.<name> nests the next one, http.handler the innermost; anonymous middleware says so", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app
 			.use(named("auth"))
 			.use(createMiddleware((_ctx, next) => next()))
@@ -116,7 +116,7 @@ describe("the onion: each span under the one that called it", () => {
 	it("a middleware's work after next() is inside its span: it ends after the handler's", async () => {
 		const { spans, telemetry } = recorder()
 		const order: string[] = []
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app
 			.use(
 				named("compressish", () => order.push(`after next, handler ended ${spans[2]?.ended}, own ${spans[1]?.ended}`)),
@@ -132,7 +132,7 @@ describe("the onion: one per request", () => {
 	// v0: a40a735c7f
 	it("two requests in flight at once each keep their own tree", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		let release: (() => void) | undefined
 		const held = new Promise<void>((resolve) => {
 			release = resolve
@@ -161,7 +161,7 @@ describe("errors: http.error under the span the error surfaced in", () => {
 	// v0: 1492812edb
 	it("a handler throw: http.handler fails, http.error under it, the root ERROR on the 5xx; no message, no stack", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.telemetry(telemetry)
 			.logger(createLogger({ level: "silent" }))
 		app.get("/boom").handler(() => {
@@ -176,8 +176,8 @@ describe("errors: http.error under the span the error surfaced in", () => {
 			"TypeError",
 			{
 				"exception.type": "TypeError",
-				"honey.digest": expect.stringMatching(/^[0-9a-f]{16}$/),
-				"honey.error_key": "internal_server_error",
+				"backend.digest": expect.stringMatching(/^[0-9a-f]{16}$/),
+				"backend.error_key": "internal_server_error",
 				"http.response.status_code": 500,
 			},
 		])
@@ -193,14 +193,14 @@ describe("errors: a middleware failing after next()", () => {
 	// v0: 9ee97f7238
 	it("a middleware throwing after next(): its own span fails and holds the http.error", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app
 			.use(
 				namedMiddleware(
 					"after",
 					createMiddleware(async (_ctx, next) => {
 						await next()
-						throw new HoneyError({ errorKey: "teapot", status: "im_a_teapot" })
+						throw new HttpError({ errorKey: "teapot", status: "im_a_teapot" })
 					}),
 				),
 			)
@@ -214,8 +214,8 @@ describe("errors: a middleware failing after next()", () => {
 			undefined,
 		])
 		expect(spans[3]?.attributes).toEqual({
-			"exception.type": "HoneyError",
-			"honey.error_key": "teapot",
+			"exception.type": "HttpError",
+			"backend.error_key": "teapot",
 			"http.response.status_code": 418,
 		})
 	})
@@ -227,7 +227,7 @@ describe("errors: what the span says", () => {
 		["an anonymous Error subclass is Error", "Error"],
 	])("%s", async (_name, type) => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry).logger(false)
+		const app = httpApp<{}>().telemetry(telemetry).logger(false)
 		app.get("/x").handler(() => {
 			throw type === "string" ? "plain" : new (class extends Error {})()
 		})
@@ -237,7 +237,7 @@ describe("errors: what the span says", () => {
 
 	it("a handler that answered nothing: http.error under the span it returned to", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry).logger(false)
+		const app = httpApp<{}>().telemetry(telemetry).logger(false)
 		app.get("/x").handler((() => undefined) as never)
 		await app.fetch(get("/x"), {})
 		expect(tree(spans)).toEqual(["- > GET /x", "GET /x > http.handler", "GET /x > http.error"])
@@ -251,7 +251,7 @@ describe("telemetry.onError: a reporter, never in the answer's way", () => {
 		const { spans, telemetry } = recorder()
 		const reports: Record<string, unknown>[] = []
 		const thrown = new Error("db down")
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.telemetry({ ...telemetry, onError: (report) => void reports.push({ ...report }) })
 			.onError(async () => new Response("mapped", { status: 503 }))
 		app
@@ -272,7 +272,7 @@ describe("telemetry.onError: a reporter, never in the answer's way", () => {
 			{
 				durationMs: expect.any(Number),
 				error: thrown,
-				honeyError: expect.any(HoneyError),
+				httpError: expect.any(HttpError),
 				method: "GET",
 				path: "/a",
 				routeId: "GET /a",
@@ -280,7 +280,7 @@ describe("telemetry.onError: a reporter, never in the answer's way", () => {
 				traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
 			},
 		])
-		expect((reports[0] as { honeyError: HoneyError }).honeyError.status).toBe(500)
+		expect((reports[0] as { httpError: HttpError }).httpError.status).toBe(500)
 	})
 })
 
@@ -288,7 +288,7 @@ describe("telemetry.onError: the ids and digest it carries", () => {
 	it("an unknown 5xx's report carries the digest the client got", async () => {
 		const { telemetry } = recorder()
 		const reports: Record<string, unknown>[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.logger(false)
 			.telemetry({ ...telemetry, onError: (report) => void reports.push({ ...report }) })
 		app.get("/x").handler(() => {
@@ -305,7 +305,7 @@ describe("telemetry.onError: the ids and digest it carries", () => {
 	])("%s: the report has no trace or span id", async (_name, broken) => {
 		const { telemetry } = recorder()
 		const reports: Record<string, unknown>[] = []
-		const tracer: Telemetry["tracer"] = {
+		const tracer: OtelTelemetry["tracer"] = {
 			startSpan(name, options) {
 				if (broken === "startSpan") throw new Error("tracer down")
 				return Object.assign(telemetry.tracer.startSpan(name, options), {
@@ -315,7 +315,7 @@ describe("telemetry.onError: the ids and digest it carries", () => {
 				})
 			},
 		}
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.logger(false)
 			.telemetry({ onError: (report) => void reports.push({ ...report }), tracer, trustInbound: false })
 		app.get("/x").handler(() => {
@@ -344,11 +344,11 @@ describe("telemetry.onError: a reporter that fails", () => {
 			},
 		]) {
 			const { telemetry } = recorder()
-			const app = honey<{}>()
+			const app = httpApp<{}>()
 				.logger(logger)
 				.telemetry({ ...telemetry, onError })
 			app.get("/boom").handler(() => {
-				throw new HoneyError({ errorKey: "gone", status: "gone" })
+				throw new HttpError({ errorKey: "gone", status: "gone" })
 			})
 			expect((await app.fetch(get("/boom"), {})).status).toBe(410)
 		}
@@ -384,7 +384,7 @@ describe("a tracer that throws never touches the answer", () => {
 			write: (line) => lines.push(JSON.parse(line) as Record<string, unknown>),
 		})
 		const { telemetry } = recorder()
-		const broken: Telemetry = {
+		const broken: OtelTelemetry = {
 			...telemetry,
 			tracer: {
 				startSpan(name, options) {
@@ -400,7 +400,7 @@ describe("a tracer that throws never touches the answer", () => {
 				},
 			},
 		}
-		const app = honey<{}>().logger(logger).telemetry(broken)
+		const app = httpApp<{}>().logger(logger).telemetry(broken)
 		app
 			.use(named("mw"))
 			.get("/a")
@@ -418,7 +418,7 @@ describe("a tracer that throws never touches the answer", () => {
 describe("nothing is built when nothing records", () => {
 	it("a sampled-out root: no child spans, no attributes set after it started, no events", async () => {
 		const { spans, telemetry } = recorder({ recording: false })
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		const traced = app.use(named("mw"))
 		traced.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		traced.get("/boom").handler(() => {
@@ -438,7 +438,7 @@ describe("nothing is built when nothing records", () => {
 	it("a mocked performance.now changes nothing about the spans", async () => {
 		const now = vi.spyOn(performance, "now").mockReturnValue(Number.NaN)
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		await app.fetch(get("/a"), {})
 		now.mockRestore()
@@ -449,7 +449,7 @@ describe("nothing is built when nothing records", () => {
 	})
 
 	it("app.telemetry() refuses a value that is not one", () => {
-		expect(() => honey<{}>().telemetry({} as Telemetry)).toThrow(
+		expect(() => httpApp<{}>().telemetry({} as OtelTelemetry)).toThrow(
 			"app.telemetry(): pass otelAdapter(api) from @workerstack/backend/telemetry, or a value with a tracer",
 		)
 	})

@@ -1,4 +1,4 @@
-/* What spawns a process, for honey/spawn-timeout: node:child_process's spawn, spawnSync, exec*, execFile* and fork,
+/* What spawns a process, for backend/spawn-timeout: node:child_process's spawn, spawnSync, exec*, execFile* and fork,
  * Bun.spawn, Bun.spawnSync and Bun.$, a function of the same file that reaches one of them, and the repo helpers named
  * in SPAWNING_HELPERS, imported by name or through a namespace (called on it, or destructured from it). A rule sees one file, so that list carries what another module's helper does; spawners.test.ts
  * derives the set from the code and holds the list equal to it, so it cannot rot either way. */
@@ -14,7 +14,10 @@ export const DEFERRED = new Map([
 	[
 		"packages/core/src/build/plugin.ts",
 		new Map([
-			["honeyPlugin", "builds the Vite plugin; runGenerate runs from its hooks, through serialized()'s held callback"],
+			[
+				"backendPlugin",
+				"builds the Vite plugin; runGenerate runs from its hooks, through serialized()'s held callback",
+			],
 		]),
 	],
 ])
@@ -111,7 +114,7 @@ function isSpawnMember(node, namespaces) {
 }
 
 /* a function kept as a property or method (a Vite plugin's hook) is a callback for later: the call that builds
- * the object does not run it, so honey() spawns nothing until Vite calls buildStart */
+ * the object does not run it, so httpApp() spawns nothing until Vite calls buildStart */
 const KEPT = new Set(["MethodDefinition", "Property", "PropertyDefinition"])
 const isKeptFunction = (node) => KEPT.has(node.type) && /Function/.test(node.value?.type ?? "")
 

@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import {
 	collectMiddlewareMeta,
 	compileChain,
@@ -33,7 +33,7 @@ const nextTwice: RuntimeMiddleware = async (_ctx, next) => {
 }
 
 const thrower: RuntimeMiddleware = () => {
-	throw new HoneyError({ errorKey: "nope", status: "forbidden" })
+	throw new HttpError({ errorKey: "nope", status: "forbidden" })
 }
 
 const outerStatus: RuntimeMiddleware = async (_ctx, next) => {
@@ -285,7 +285,7 @@ describe("middleware factories and meta", () => {
 	// v0: e83975eeb1
 	// v0: dcf1d551cf
 	it("createMiddleware stores the error keys it names, their factory, and its meta", () => {
-		const factory = { gone: () => new HoneyError({ errorKey: "gone", status: "gone" }), nope: () => null }
+		const factory = { gone: () => new HttpError({ errorKey: "gone", status: "gone" }), nope: () => null }
 		const mw = createMiddleware((_ctx, next) => next(), { errors: [factory, "gone"], meta: { a: 1 } })
 		expect(mw.errors).toEqual(["gone"])
 		expect((mw as { errorFactory?: unknown }).errorFactory).toBe(factory)

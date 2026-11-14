@@ -5,7 +5,7 @@
  */
 import { PEER_ADDRESS } from "../context/peer.ts"
 
-/** Anything with a `fetch` handler, such as a honey app. */
+/** Anything with a `fetch` handler, such as a backend app. */
 type FetchApp<TEnv> = {
 	/** Answers `request`, with `env` as the app's environment. */
 	fetch(request: Request, env: TEnv): Response | Promise<Response>

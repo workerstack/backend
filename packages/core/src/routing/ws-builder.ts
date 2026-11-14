@@ -5,8 +5,8 @@
  * answered before any 101 (H18.12). `.input()` takes the non-body sources (an upgrade is a bodyless
  * GET) and validates them after the chain, so a refused request answers 400 before any 101.
  */
-import { type HoneyContext, REQUEST } from "../context/context.ts"
-import { HoneyError } from "../errors/error.ts"
+import { type HttpContext, REQUEST } from "../context/context.ts"
+import { HttpError } from "../errors/error.ts"
 import type { MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts"
 import type { WSAdapter, WSHandler } from "../ws/contract.ts"
 import { originAllowed, validateOriginPolicy, type WSOriginPolicy } from "../ws/origin.ts"
@@ -20,8 +20,8 @@ import {
 	type NonBodyInput,
 } from "../input/input.ts"
 import { joinPatterns, parsePattern } from "./pattern.ts"
-import { addRoute, type HandleView, type HoneyGraph, type PendingRoute, settle } from "./register.ts"
-import type { HoneyMeta } from "./app-types.ts"
+import { addRoute, type HandleView, type HttpGraph, type PendingRoute, settle } from "./register.ts"
+import type { HttpMeta } from "./app-types.ts"
 import type { ErrorFactories } from "./settings.ts"
 import type { ParamsFromPath } from "./types.ts"
 
@@ -57,7 +57,7 @@ type WSBuilderState = {
 	/** The factory `.errors(factory, ...keys)` named. */
 	readonly errorSource: ErrorFactories | null
 	/** The app graph the route registers into. */
-	readonly graph: HoneyGraph
+	readonly graph: HttpGraph
 	/** `.input()`: the schemas as written (for documentation) and the step they compile to */
 	readonly input: {
 		/** The schemas as written, kept for documentation. */ readonly schemas: NonBodyInput
@@ -80,18 +80,18 @@ type WSBuilderState = {
 }
 
 const NO_ADAPTER =
-	"honey: a WebSocket route was requested but no adapter is set: call app.wsAdapter(adapter), or serve(app) on Node or Bun"
+	"backend: a WebSocket route was requested but no adapter is set: call app.wsAdapter(adapter), or serve(app) on Node or Bun"
 
 /** The route's terminal: check the origin, then hand the request to the serving app's adapter. */
 function upgrader(callbacks: WSHandler<unknown>, policy: WSOriginPolicy | null, route: string) {
 	return async (ctx: object): Promise<Response> => {
-		const context = ctx as HoneyContext<unknown>
+		const context = ctx as HttpContext<unknown>
 		const req = context.req
 		const url = new URL(req.url)
 		const credentialed = req.headers.has("cookie") || req.headers.has("authorization")
 		/* the full origin, scheme + host + port, as the adapter's canonical URL spells it */
 		if (!originAllowed(policy, req.headers.get("origin"), url.origin, credentialed)) {
-			throw new HoneyError({ errorKey: "forbidden", status: "forbidden" })
+			throw new HttpError({ errorKey: "forbidden", status: "forbidden" })
 		}
 		/* the serving app's adapter: dispatch puts it on the request state of a ws request */
 		const adapter = (context[REQUEST] as { ws?: WSAdapter | null }).ws
@@ -106,7 +106,7 @@ function upgrader(callbacks: WSHandler<unknown>, policy: WSOriginPolicy | null, 
 type HttpOnlyMeta = "deprecated" | "invalidate" | "mcp" | "security"
 
 /** What a WebSocket route's `.meta()` takes: an HTTP route's meta, the HTTP-only builtins refused. */
-export type WsMeta<TMeta = never> = Omit<HoneyMeta<[TMeta] extends [never] ? {} : TMeta>, HttpOnlyMeta> & {
+export type WsMeta<TMeta = never> = Omit<HttpMeta<[TMeta] extends [never] ? {} : TMeta>, HttpOnlyMeta> & {
 	readonly [K in HttpOnlyMeta]?: never
 }
 
@@ -127,8 +127,8 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
 
 	/**
 	 * Declare error keys this route may throw, built from `factory` instead of the app's.
-	 * With any key declared, `ctx.errors` holds only declared keys, and a thrown `HoneyError` with another key
-	 * (honey's own keys excepted) answers as the boundary error, or a 500.
+	 * With any key declared, `ctx.errors` holds only declared keys, and a thrown `HttpError` with another key
+	 * (backend's own keys excepted) answers as the boundary error, or a 500.
 	 */
 	errors(
 		factory: Record<string, (...args: never[]) => unknown>,
@@ -136,8 +136,8 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
 	): WSRouteBuilder<TCtx, TPath, TParent>
 	/**
 	 * Declare keys of the app's error factory that this route may throw.
-	 * With any key declared, `ctx.errors` holds only declared keys, and a thrown `HoneyError` with another key
-	 * (honey's own keys excepted) answers as the boundary error, or a 500.
+	 * With any key declared, `ctx.errors` holds only declared keys, and a thrown `HttpError` with another key
+	 * (backend's own keys excepted) answers as the boundary error, or a 500.
 	 */
 	errors(...keys: string[]): WSRouteBuilder<TCtx, TPath, TParent>
 	errors(...args: unknown[]): WSRouteBuilder<TCtx, TPath, TParent> {
@@ -201,7 +201,7 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
 
 /** The builder `ws(app, path)` starts on `view`'s handle, pending until `.handler()`. */
 export function startWsRoute<TCtx, TPath extends string, TParent>(
-	graph: HoneyGraph,
+	graph: HttpGraph,
 	view: HandleView,
 	parent: TParent,
 	path: string,

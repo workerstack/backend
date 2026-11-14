@@ -4,7 +4,7 @@
  * factory and meta come from that chain and the app it was registered on. Re-runs whenever a
  * registration moved the graph's epoch.
  */
-import { type HoneyContext, REQUEST, type RouteInfo } from "../context/context.ts"
+import { type HttpContext, REQUEST, type RouteInfo } from "../context/context.ts"
 import { withInput } from "../input/input.ts"
 import { forwardCheck, withOutput } from "../validation/validate-output.ts"
 import { outputCheck } from "#output-check"
@@ -34,7 +34,7 @@ import {
 	assertNothingDiscarded,
 	chainErrorKeys,
 	chainErrorMeta,
-	type HoneyGraph,
+	type HttpGraph,
 	type RouteHandler,
 	statusKeysOf,
 } from "./register.ts"
@@ -156,7 +156,7 @@ function thrownStatuses(r: RouteHandler, chain: readonly RuntimeMiddleware[], po
 }
 
 /** The scoped middleware a pattern runs: whole where the scope covers it, behind the path check where it covers part. */
-export function scopesFor(g: HoneyGraph, variants: readonly (readonly Segment[])[]): RuntimeMiddleware[] {
+export function scopesFor(g: HttpGraph, variants: readonly (readonly Segment[])[]): RuntimeMiddleware[] {
 	const out: RuntimeMiddleware[] = []
 	for (const entry of g.scoped) {
 		const coverage = variantsCoverage(variants, entry.segs)
@@ -168,7 +168,7 @@ export function scopesFor(g: HoneyGraph, variants: readonly (readonly Segment[])
 
 /** The request's trace: an app with telemetry traces every request it serves, and only its chains are wrapped. */
 function traceOf(ctx: object): RequestTrace {
-	return (ctx as HoneyContext<unknown>)[REQUEST].trace as RequestTrace
+	return (ctx as HttpContext<unknown>)[REQUEST].trace as RequestTrace
 }
 
 /** `mw` inside a `middleware.<name>` span on a traced request. */
@@ -186,7 +186,7 @@ function tracedHandler(handler: (ctx: object) => MaybePromise<Response>): (ctx: 
 }
 
 function planRoute(
-	g: HoneyGraph,
+	g: HttpGraph,
 	r: RouteHandler,
 	variants: readonly (readonly Segment[])[],
 	hooks: FinalizeHooks,
@@ -227,7 +227,7 @@ function planRoute(
  * So an app-wide logger or CORS policy covers unknown paths, and a scope's guard answers before
  * "not found" leaks what exists under it.
  */
-function planMiss(g: HoneyGraph, hooks: FinalizeHooks): Plan {
+function planMiss(g: HttpGraph, hooks: FinalizeHooks): Plan {
 	const chains = [...g.records.values()].map((r) => r.cm)
 	const prefix = commonPrefix(chains.length > 0 ? chains : [...g.served])
 	const chain = [...prefix, ...g.scoped.map((entry) => entry.guard)]
@@ -246,7 +246,7 @@ function planMiss(g: HoneyGraph, hooks: FinalizeHooks): Plan {
 }
 
 /** The graph's final table, recompiled only when a registration moved its epoch. */
-export function finalize(g: HoneyGraph, hooks: FinalizeHooks): FinalTable {
+export function finalize(g: HttpGraph, hooks: FinalizeHooks): FinalTable {
 	if (g.final !== null && g.final.epoch === g.epoch) return g.final
 	assertNothingDiscarded(g)
 	assertSettingsAgree(g.settings)

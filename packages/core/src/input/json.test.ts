@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import type { HoneyError } from "../errors/error.ts"
-import { honey } from "../routing/app.ts"
+import type { HttpError } from "../errors/error.ts"
+import { httpApp } from "../routing/app.ts"
 import { jsonInput } from "./json.ts"
 
 /** A POST carrying `body` as application/json. */
@@ -12,11 +12,11 @@ const post = (body: string) =>
 const passing = { "~standard": { validate: (value: unknown) => ({ value }), vendor: "test", version: 1 } }
 
 /** The error `run` rejects with. */
-async function rejected(run: () => Promise<unknown>): Promise<HoneyError> {
+async function rejected(run: () => Promise<unknown>): Promise<HttpError> {
 	try {
 		await run()
 	} catch (error) {
-		return error as HoneyError
+		return error as HttpError
 	}
 	throw new Error("did not reject")
 }
@@ -62,10 +62,10 @@ describe("jsonInput: the JSON body, read once and validated", () => {
 	})
 
 	// v0: 3881c674c7
-	it("through app.fetch, onError sees the 400 malformed_body HoneyError, never a SyntaxError 500", async () => {
+	it("through app.fetch, onError sees the 400 malformed_body HttpError, never a SyntaxError 500", async () => {
 		const seen: unknown[] = []
-		const app = honey<{}>().onError((error) => {
-			seen.push([(error as HoneyError).status, (error as HoneyError).errorKey])
+		const app = httpApp<{}>().onError((error) => {
+			seen.push([(error as HttpError).status, (error as HttpError).errorKey])
 		})
 		app
 			.post("/")
@@ -112,7 +112,7 @@ describe("a json body on a route: every method that may carry one", () => {
 	// v0: 0f27793bbf
 	// v0: 61aa92a7b4
 	it("validates the body on every method that may carry one, beside the params", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.on(["DELETE", "OPTIONS", "POST"], "/d/:id")
 			.input({ json: z.object({ reason: z.string() }), params: { id: z.coerce.number() } })

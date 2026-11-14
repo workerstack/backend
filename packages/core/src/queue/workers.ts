@@ -94,7 +94,7 @@ const deliveryOf = <Env>({ consumer, env, maxRetries, queue }: Run<Env>, message
 }
 
 /**
- * The `queue` handler for `consumer`. Export it under that name from the app's entry and honey's
+ * The `queue` handler for `consumer`. Export it under that name from the app's entry and backend's
  * Workers build moves it onto the default export. The platform's `max_retries` bounds attempts, and
  * past it a message is deleted unless the consumer has a dead-letter queue. Throws `TypeError` for a
  * `maxRetries` that is not a whole number from 0.

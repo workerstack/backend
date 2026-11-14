@@ -1,6 +1,6 @@
 /**
  * The Standard Schema V1 interface: the vendor-neutral contract zod, valibot, arktype and effect
- * implement. honey validates, converts and types schemas only through it, never through a vendor.
+ * implement. backend validates, converts and types schemas only through it, never through a vendor.
  */
 
 /** One validation problem reported by a schema. */
@@ -21,9 +21,9 @@ export type StandardSchemaIssue = {
 
 /** What a schema's `validate` returns. */
 export type StandardSchemaResult = {
-	/** The problems found. honey treats any defined value as a failure, even an empty list. */
+	/** The problems found. backend treats any defined value as a failure, even an empty list. */
 	readonly issues?: ReadonlyArray<StandardSchemaIssue> | undefined
-	/** The validated value, which honey uses when `issues` is undefined. */
+	/** The validated value, which backend uses when `issues` is undefined. */
 	readonly value?: unknown
 }
 
@@ -31,7 +31,7 @@ export type StandardSchemaResult = {
 export type StandardSchemaLike = {
 	/** The Standard Schema properties, under the spec's reserved key. */
 	readonly "~standard": {
-		/** Carries the schema's input and output types for inference. honey reads it only at the type level. */
+		/** Carries the schema's input and output types for inference. backend reads it only at the type level. */
 		readonly types?:
 			| {
 					/** What the schema accepts. */
@@ -40,9 +40,9 @@ export type StandardSchemaLike = {
 					readonly output: unknown
 			  }
 			| undefined
-		/** Validates a value. honey's validation stays synchronous unless this returns a promise. */
+		/** Validates a value. backend's validation stays synchronous unless this returns a promise. */
 		readonly validate: (value: unknown) => Promise<StandardSchemaResult> | StandardSchemaResult
-		/** Name of the library that made the schema, such as `zod`. honey picks its JSON Schema converter by this name. */
+		/** Name of the library that made the schema, such as `zod`. backend picks its JSON Schema converter by this name. */
 		readonly vendor: string
 		/** Version of the Standard Schema spec the schema implements. */
 		readonly version: number

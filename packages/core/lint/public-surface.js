@@ -7,7 +7,7 @@ import { declarationOf, declaredNames, walkPublic } from "./public-declarations.
  * read off the syntax, so oxlint can ask for it, and anything the walk cannot follow lands in `unknown` for the rule to
  * report: a form skipped in silence would pass a public gap. */
 
-const CONDITION = "honey-source"
+const CONDITION = "backend-source"
 
 function readManifest(dir) {
 	const path = join(dir, "package.json")
@@ -24,6 +24,17 @@ export function findPackageRoot(filename) {
 		if (usesCondition(readManifest(dir))) return dir
 	}
 	return null
+}
+
+/** The entries of the package at `root`: each source file an `exports` entry's source condition names, and the first entry key. */
+export function entryFiles(root) {
+	const entries = new Map()
+	for (const [key, value] of Object.entries(readManifest(root).exports)) {
+		if (typeof value !== "object" || !(CONDITION in value)) continue
+		const file = join(root, value[CONDITION])
+		if (!entries.has(file)) entries.set(file, key)
+	}
+	return entries
 }
 
 function unknownForm(statement, declaration) {
@@ -154,6 +165,11 @@ function exportNames(graph, file, seen = new Set()) {
 		return target === null ? [] : exportNames(graph, target, seen).filter((name) => name !== "default")
 	})
 	return [...new Set([...module.exports.keys(), ...stars])]
+}
+
+/** The names an `export *` of `file` carries: its exports and those of the stars it reaches, never `default`. */
+export function starredNames(file) {
+	return exportNames({ modules: new Map() }, file).filter((name) => name !== "default")
 }
 
 function collectReference(references, node) {

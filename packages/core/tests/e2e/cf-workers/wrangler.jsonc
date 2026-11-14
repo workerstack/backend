@@ -8,9 +8,9 @@
 	"compatibility_date": "2026-01-20",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "src/worker.ts",
-	"name": "honey-cf-e2e",
+	"name": "backend-cf-e2e",
 	"vars": {
-		"HONEY_E2E_APP": "kitchen",
+		"BACKEND_E2E_APP": "kitchen",
 	},
 	"workers_dev": true,
 }

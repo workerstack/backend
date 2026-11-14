@@ -4,15 +4,15 @@
  * request paths in routing-paths.test.ts. Every case asserts the whole answer.
  */ import { describe, expect, it } from "vitest"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { type Honey, honey } from "../../src/routing/app.ts"
+import { type HttpApp, httpApp } from "../../src/routing/app.ts"
 import type { HttpMethod } from "../../src/routing/types.ts"
 
-type App = Honey<{}>
+type App = HttpApp<{}>
 type Echo = { method: string; params: Record<string, string>; path: string; pattern: string }
 
 /** An app whose routes answer with the method, params, ctx.path and pattern they saw. */
 function echoApp(routes: ReadonlyArray<readonly [HttpMethod | "ALL", string]>): App {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	for (const [method, pattern] of routes) {
 		app
 			.on([method], pattern)
@@ -62,7 +62,7 @@ describe("method resolution", () => {
 	// v0: 923e952ede
 	// v0: 9ab6453be8
 	it("HEAD runs the GET route unless HEAD has its own, and is 404 where neither exists", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/page").handler((ctx) => ctx.res.text("ok", "get"))
 		app.get("/both").handler((ctx) => ctx.res.text("ok", "get"))
 		app
@@ -114,7 +114,7 @@ describe("method resolution: on() with several methods", () => {
 	// v0: ae47f23316
 	// v0: 77c1590a86
 	it("on() registers one route per listed method, with its chain and meta; any other method is 405", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.metaType<{ tag?: string }>()
 			.use(createMiddleware((_ctx, next) => next({ injected: "yes" })))
@@ -296,7 +296,7 @@ describe("404 and 405", () => {
 		["a very long path", `/${"a".repeat(10_000)}`],
 		["a path of many segments", "/x".repeat(1000)],
 	])("%s answers 404", async (_label, target) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		if (target !== "/") app.get("/known").handler((ctx) => ctx.res.text("ok", "k"))
 		const res = await send(app, target)
 		expect(res.status).toBe(404)
@@ -310,7 +310,7 @@ describe("registration", () => {
 	// v0: b2703a71c5
 	// v0: b5d1ab2ad1
 	it("the same method and pattern twice is an error, whether from a new builder or the same one", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const route = app.get("/x")
 		route.handler((ctx) => ctx.res.text("ok", "first"))
 		expect(() => app.get("/x").handler((ctx) => ctx.res.text("ok", "second"))).toThrow("Duplicate route: GET /x")
@@ -321,7 +321,7 @@ describe("registration", () => {
 	// v0: 30a1012a5a
 	// v0: 8cce2d79a9
 	it("a param or wildcard named differently where another route already named one is an error", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/users/:id").handler((ctx) => ctx.res.text("ok", "id"))
 		app.get("/files/*path").handler((ctx) => ctx.res.text("ok", "path"))
 		expect(() => app.get("/users/:userId/posts").handler((ctx) => ctx.res.text("ok", "posts"))).toThrow()
@@ -342,7 +342,7 @@ describe("registration", () => {
 	// v0: c41bbf815d
 	// v0: d582698c3f
 	it("handler() returns the app, so a long chain or hundreds of routes all register", async () => {
-		let chained = honey<{}>() as App
+		let chained = httpApp<{}>() as App
 		for (let i = 0; i < 50; i++) chained = chained.get(`/c${i}`).handler((ctx) => ctx.res.text("ok", `c${i}`)) as App
 		const many = echoApp(Array.from({ length: 500 }, (_, i) => ["GET", `/r${i}/:id`] as const))
 		expect((await send(chained, "/c0")).body).toBe("c0")
@@ -364,7 +364,7 @@ describe("answers stay the same", () => {
 	// v0: c92cb0eeca
 	it("with or without middleware on the route", async () => {
 		const bare = echoApp([["GET", "/x"]])
-		const wrapped = honey<{}>()
+		const wrapped = httpApp<{}>()
 		wrapped
 			.use(createMiddleware((_ctx, next) => next()))
 			.get("/x")
@@ -401,7 +401,7 @@ describe("a resource behind an auth chain, beside a public route", () => {
 	// v0: ea1334b3f4
 	// v0: cdef041f42
 	it("each method reaches its route with its status; without a token the chain answers 401 first", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const api = app.basePath("/api")
 		api.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
 		const authed = api.use(

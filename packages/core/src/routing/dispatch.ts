@@ -5,8 +5,8 @@
  * response at the `next()` boundary (`errors/on-error.ts`); the boundary never rejects.
  */
 import { headResponse } from "../input/body-kind.ts"
-import { HoneyContext, REQUEST, type RequestState } from "../context/context.ts"
-import { HoneyError } from "../errors/error.ts"
+import { HttpContext, REQUEST, type RequestState } from "../context/context.ts"
+import { HttpError } from "../errors/error.ts"
 import { boundary, errorCtx, formatterReport } from "../errors/on-error.ts"
 import { createErrorResponse, jsonAnswer } from "../errors/projector.ts"
 import { compileChain, type MaybePromise } from "../middleware/middleware.ts"
@@ -16,7 +16,7 @@ import type { Seen } from "../telemetry/request-log.ts"
 import { observe, startTrace } from "../telemetry/span-lifecycle.ts"
 import { finalize, type FinalizeHooks, type FinalTable, type Plan } from "./finalize.ts"
 import { matchRoute, matchWsRoute } from "./match.ts"
-import type { HoneyGraph } from "./register.ts"
+import type { HttpGraph } from "./register.ts"
 import { normalizePath, pathOfUrl, searchOfUrl } from "./request-path.ts"
 import { type AppSettings, defaultErrorFormatter } from "./settings.ts"
 import type { WSAdapter } from "../ws/contract.ts"
@@ -32,13 +32,13 @@ export type FetchState<TEnv = unknown> = RequestState<TEnv> & {
 const EMPTY_PARAMS: Record<string, string> = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.create(null))
 
 function stateOf(ctx: object): FetchState {
-	return (ctx as HoneyContext<unknown>)[REQUEST] as FetchState
+	return (ctx as HttpContext<unknown>)[REQUEST] as FetchState
 }
 
 /** The app's error for a framework condition: its factory's, else a plain one. */
-function frameworkError(s: AppSettings<unknown>, errorKey: string, status: StatusKey): HoneyError {
+function frameworkError(s: AppSettings<unknown>, errorKey: string, status: StatusKey): HttpError {
 	const make = s.errorFactory?.[errorKey]
-	return typeof make === "function" ? (make as () => HoneyError)() : new HoneyError({ errorKey, status })
+	return typeof make === "function" ? (make as () => HttpError)() : new HttpError({ errorKey, status })
 }
 
 /** Add `Allow` to a 405, rebuilding a response whose headers are immutable. */
@@ -74,7 +74,7 @@ function make405(s: AppSettings<unknown>, state: FetchState, allowed: string[]):
  * `onNotFound`, the default formatter (a custom one may stamp each body) and no factory override.
  */
 function fixedNotFound(): () => Response {
-	const error = new HoneyError({ errorKey: "not_found", status: "not_found" })
+	const error = new HttpError({ errorKey: "not_found", status: "not_found" })
 	const payload = JSON.stringify({
 		error_key: error.errorKey,
 		fields: error.fields,
@@ -96,7 +96,7 @@ function plainNotFound(s: AppSettings<unknown>): boolean {
 }
 
 /** The hooks a graph's chains are compiled with, created once per graph. */
-function hooksOf(g: HoneyGraph): FinalizeHooks {
+function hooksOf(g: HttpGraph): FinalizeHooks {
 	const s = g.settings
 	g.hooks ??= {
 		convert: boundary(s),
@@ -110,7 +110,7 @@ function hooksOf(g: HoneyGraph): FinalizeHooks {
 }
 
 /** The graph's final table, compiled with its hooks. */
-export function finalTable(g: HoneyGraph): FinalTable {
+export function finalTable(g: HttpGraph): FinalTable {
 	return finalize(g, hooksOf(g))
 }
 
@@ -141,7 +141,7 @@ function afterPrefix(prefix: string | null, path: string): string {
 function run(state: FetchState, plan: Plan, params: Record<string, string>): MaybePromise<Response> {
 	state.plan = plan
 	state.trace?.routed(plan.route, state.req.method)
-	const ctx = new HoneyContext(state, plan.route, params)
+	const ctx = new HttpContext(state, plan.route, params)
 	if (plan.cv !== null) Object.assign(ctx, plan.cv)
 	return plan.run(ctx)
 }
@@ -165,7 +165,7 @@ function miss(
  * short-circuits, else the answer is the 405 with `Allow`.
  */
 function preflight(
-	g: HoneyGraph,
+	g: HttpGraph,
 	final: FinalTable,
 	state: FetchState,
 	allowed: string[],
@@ -179,7 +179,7 @@ function preflight(
 	plan.pf ??= compileChain(plan.pfChain, hooks.miss, hooks.convert)
 	state.allowed = allowed
 	state.plan = plan
-	return plan.pf(new HoneyContext(state, plan.route, hit.params))
+	return plan.pf(new HttpContext(state, plan.route, hit.params))
 }
 
 function isWebSocketUpgrade(request: Request): boolean {
@@ -192,7 +192,7 @@ function upgradeRequired(): Response {
 }
 
 /** A ws upgrade on a ws route's path runs that route with the serving app's adapter; `null` when it is not one. */
-function upgrade(g: HoneyGraph, final: FinalTable, state: FetchState, method: string): MaybePromise<Response> | null {
+function upgrade(g: HttpGraph, final: FinalTable, state: FetchState, method: string): MaybePromise<Response> | null {
 	if (!final.ws || method !== "GET" || !isWebSocketUpgrade(state.req)) return null
 	const ws = matchWsRoute(g.root, state.path)
 	/* a loaded ws leaf no route serves is no upgrade */
@@ -202,7 +202,7 @@ function upgrade(g: HoneyGraph, final: FinalTable, state: FetchState, method: st
 }
 
 /** A plain GET that no HTTP route answers, on a path a ws route serves. */
-function onlyWs(g: HoneyGraph, final: FinalTable, state: FetchState, matched: boolean): boolean {
+function onlyWs(g: HttpGraph, final: FinalTable, state: FetchState, matched: boolean): boolean {
 	return !matched && final.ws && state.req.method === "GET" && matchWsRoute(g.root, state.path) !== null
 }
 
@@ -226,7 +226,7 @@ function newState(s: AppSettings<unknown>, incoming: Incoming, path: string, pla
 }
 
 /** Serve one request from the graph. */
-function route(g: HoneyGraph, incoming: Incoming) {
+function route(g: HttpGraph, incoming: Incoming) {
 	const { request } = incoming
 	const s = g.settings
 	const fullPath = normalizePath(pathOfUrl(request.url), s.encodedSlashes)
@@ -267,7 +267,7 @@ function runMatched(
 }
 
 /** The routed answer; a HEAD request's without its body, as GET's answer would be sent. */
-function routed(g: HoneyGraph, incoming: Incoming): MaybePromise<Response> {
+function routed(g: HttpGraph, incoming: Incoming): MaybePromise<Response> {
 	const answer = route(g, incoming)
 	if (incoming.request.method !== "HEAD") return answer
 	return answer instanceof Promise ? answer.then(headResponse) : headResponse(answer)
@@ -278,7 +278,7 @@ function routed(g: HoneyGraph, incoming: Incoming): MaybePromise<Response> {
  * is on. Routing never rejects; a throw (an app that cannot finalize) ends the root and goes on.
  */
 export function dispatch(
-	g: HoneyGraph,
+	g: HttpGraph,
 	request: Request,
 	env: unknown,
 	executionCtx: RequestState<unknown>["executionCtx"],

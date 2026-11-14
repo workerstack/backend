@@ -1,5 +1,5 @@
 /**
- * `HoneyError`: the one error shape honey answers with. It names its error key and status by the
+ * `HttpError`: the one error shape backend answers with. It names its error key and status by the
  * snake_case vocabulary, carries per-field errors, and keeps what the operator log needs (cause,
  * vars) apart from what the client sees.
  */
@@ -19,11 +19,11 @@ const EMPTY_FIELDS: Readonly<Record<string, FieldError[]>> = /* @__PURE__ */ Obj
 	/* @__PURE__ */ Object.create(null),
 )
 
-/** honey's own error keys, each with the status honey answers it with: what every `defineErrors` factory starts from. */
+/** backend's own error keys, each with the status backend answers it with: what every `defineErrors` factory starts from. */
 export type FrameworkErrors = {
 	/** an upstream answered badly: 502 */
 	readonly bad_gateway: "bad_gateway"
-	/** a request path honey rejects: 400 */
+	/** a request path backend rejects: 400 */
 	readonly bad_request: "bad_request"
 	/** a body over the size limit: 413 */
 	readonly content_too_large: "content_too_large"
@@ -72,7 +72,7 @@ export const EK: { readonly [K in keyof FrameworkErrors]: K } = /* @__PURE__ */ 
 	validation_failed: "validation_failed",
 })
 
-/** The status honey answers each of its own keys with. */
+/** The status backend answers each of its own keys with. */
 export const FRAMEWORK_ERRORS: FrameworkErrors = /* @__PURE__ */ Object.freeze({
 	bad_gateway: "bad_gateway",
 	bad_request: "bad_request",
@@ -100,10 +100,10 @@ export function isFrameworkErrorKey(key: string): boolean {
 	return key !== EK.internal_server_error && Object.hasOwn(EK, key)
 }
 
-/** What a `HoneyError` is built from. Only `errorKey` and `status` are required. */
-export type HoneyErrorOptions = {
+/** What a `HttpError` is built from. Only `errorKey` and `status` are required. */
+export type HttpErrorOptions = {
 	/**
-	 * The underlying failure, kept on the error's `cause`. Not sent to the client; `HoneyError.serialize()` includes
+	 * The underlying failure, kept on the error's `cause`. Not sent to the client; `HttpError.serialize()` includes
 	 * it.
 	 */
 	cause?: unknown
@@ -122,24 +122,24 @@ export type HoneyErrorOptions = {
 	headers?: Record<string, string>
 	/** The response status, by key such as `not_found`. A key that names no status makes the error a 500. */
 	status: StatusKey
-	/** Named values that fill the translated message's template. `HoneyError.serialize()` includes them. */
+	/** Named values that fill the translated message's template. `HttpError.serialize()` includes them. */
 	vars?: Record<string, number | string>
 }
 
 /** Marks an error built with a status key that names no status: not representable to a client. */
-const UNKNOWN_STATUS = /* @__PURE__ */ Symbol("honey.unknownStatus")
+const UNKNOWN_STATUS = /* @__PURE__ */ Symbol("backend.unknownStatus")
 
 /** Whether `error` was built with a status key that names no status. */
-export function hasUnknownStatus(error: HoneyError): boolean {
+export function hasUnknownStatus(error: HttpError): boolean {
 	return Object.hasOwn(error, UNKNOWN_STATUS)
 }
 
 /**
- * The error honey throws and answers with: an error key, a status, optional per-field problems and a payload.
+ * The error backend throws and answers with: an error key, a status, optional per-field problems and a payload.
  * The client sees the key, status, message and fields, or only `data` for a schema error. The cause stays on the
  * server, and `vars` reach the client only through a translated message.
  */
-export class HoneyError extends Error {
+export class HttpError extends Error {
 	/** Payload of an error declared with a schema; `undefined` otherwise. */
 	readonly data?: unknown
 	/** The error's key, for example `not_found`. */
@@ -156,7 +156,7 @@ export class HoneyError extends Error {
 	readonly vars?: Record<string, number | string>
 
 	/** Builds the error from `options`; the message is the error key. */
-	constructor(options: HoneyErrorOptions) {
+	constructor(options: HttpErrorOptions) {
 		/* no cause given: no own `cause` property, as with a plain Error */
 		super(options.errorKey, options.cause === undefined ? undefined : { cause: options.cause })
 		this.data = options.data
@@ -178,7 +178,7 @@ export class HoneyError extends Error {
 	static serialize(error: unknown): Record<string, unknown> {
 		if (!(error instanceof Error)) return { message: String(error) }
 		const out: Record<string, unknown> = { message: error.message, name: error.name, stack: error.stack }
-		if (error instanceof HoneyError) {
+		if (error instanceof HttpError) {
 			out.errorKey = error.errorKey
 			out.status = error.status
 			out.statusKey = error.statusKey
@@ -186,7 +186,7 @@ export class HoneyError extends Error {
 			if (error.vars !== undefined) out.vars = error.vars
 		}
 		/* v0 parity: a falsy cause (null, 0, "") is not logged */
-		if (error.cause) out.cause = HoneyError.serialize(error.cause)
+		if (error.cause) out.cause = HttpError.serialize(error.cause)
 		return out
 	}
 }

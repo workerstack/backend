@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { SILENT } from "../telemetry/logger.ts"
 import { scalar } from "./scalar.ts"
 import { serveManifest, serveOpenApi } from "./serve.ts"
@@ -10,7 +10,7 @@ type AppMeta = { cacheControl?: string; tenant?: "org" | "project" }
 /* An app whose middleware sets cache-control from the route's own meta, as a consumer's gateway does: a served
    route's meta has to reach it, or the header it writes is the default. */
 function gateway() {
-	const app = honey<{}>().logger(SILENT).metaType<AppMeta>()
+	const app = httpApp<{}>().logger(SILENT).metaType<AppMeta>()
 	return app.use(async (ctx, next) => {
 		const res = await next()
 		res.headers.set("x-meta-cache", String((ctx.meta as AppMeta).cacheControl ?? "none"))
@@ -48,7 +48,7 @@ describe("served routes: the handle's own declared meta", () => {
 
 	it("carries security on the docs page as on the document, for both serve functions", async () => {
 		const guarded = () =>
-			honey<{}>()
+			httpApp<{}>()
 				.logger(SILENT)
 				.use(async (ctx, next) => {
 					const res = await next()
@@ -70,7 +70,7 @@ describe("served routes: the handle's own declared meta", () => {
 describe("served routes: the meta type", () => {
 	it("types meta by what the handle declares, minus internal", () => {
 		const app = gateway()
-		const plain = honey<{}>().logger(SILENT)
+		const plain = httpApp<{}>().logger(SILENT)
 		const json = { inline: "{}" }
 		/* declared keys, with their declared types */
 		serveStaticOpenApi(app, { enabled: false, json, meta: { cacheControl: "x", tenant: "org" } })
@@ -83,7 +83,7 @@ describe("served routes: the meta type", () => {
 			serveOpenApi(app, { enabled: false, meta: { tenant: "team" }, title: "T", version: "1" })
 			// @ts-expect-error a served route is internal; no caller lifts that
 			serveManifest(app, { enabled: false, meta: { internal: false } })
-			// @ts-expect-error a handle that declared nothing takes honey's own keys only
+			// @ts-expect-error a handle that declared nothing takes backend's own keys only
 			serveStaticOpenApi(plain, { enabled: false, json, meta: { cacheControl: "x" } })
 		}).not.toThrow()
 	})

@@ -6,12 +6,12 @@
  */
 import type { ErrorFormat } from "../errors/problem-json.ts"
 import type { MetaSpecSource } from "../meta/meta-spec-merge.ts"
-import type { HoneyError } from "../errors/error.ts"
+import type { HttpError } from "../errors/error.ts"
 import type { PayloadErrorFormatter, ErrorFormatter } from "../errors/projector.ts"
 import type { MaybePromise } from "../middleware/middleware.ts"
 import type { RequestLogEntry } from "../telemetry/fields.ts"
-import { createLogger, type Logger, SILENT } from "../telemetry/logger.ts"
-import type { Telemetry } from "../telemetry/request-trace.ts"
+import { createLogger, type BackendLogger, SILENT } from "../telemetry/logger.ts"
+import type { OtelTelemetry } from "../telemetry/request-trace.ts"
 import type { StandardSchemaLike } from "../validation/standard-schema.ts"
 import type { WSAdapter } from "../ws/contract.ts"
 import type { TapFn } from "./tap.ts"
@@ -22,8 +22,8 @@ export type ErrorFactories = Readonly<Record<string, (...args: never[]) => unkno
 /** What the error and miss hooks receive. */
 export type ErrorCtx<TEnv> = {
 	/** The environment bindings of the request. */ env: TEnv
-	/** Builds the answer for a `HoneyError`: the app's format and formatters apply, `errorI18n` does not. */ jsonFromError: (
-		err: HoneyError,
+	/** Builds the answer for a `HttpError`: the app's format and formatters apply, `errorI18n` does not. */ jsonFromError: (
+		err: HttpError,
 	) => Response
 	/** The incoming request. */ req: Request
 }
@@ -52,16 +52,16 @@ export type ErrorI18n<TEnv = unknown> = {
 	 * Returns `error` in `locale`: a copy with its message and field paths translated, or `error` itself when nothing
 	 * translates. If it throws, the failure is logged and the error goes out untranslated.
 	 */
-	translate(error: HoneyError, locale: string): HoneyError
+	translate(error: HttpError, locale: string): HttpError
 }
 
-/** Map a thrown value: a HoneyError replaces the error, a Response answers, nothing falls through. */
+/** Map a thrown value: a HttpError replaces the error, a Response answers, nothing falls through. */
 export type OnErrorFn<TEnv> = (
 	error: unknown,
 	ctx: ErrorCtx<TEnv>,
-) => MaybePromise<HoneyError | Response | undefined | void>
+) => MaybePromise<HttpError | Response | undefined | void>
 
-/** Answers a request whose path exists but not for its method. Honey adds `Allow` to what it returns. */
+/** Answers a request whose path exists but not for its method. Backend adds `Allow` to what it returns. */
 export type OnMethodNotAllowedFn<TEnv> = (
 	ctx: ErrorCtx<TEnv> & {
 		/** The methods the path serves. */ allowed: string[]
@@ -92,16 +92,16 @@ export type AppSettings<TEnv = unknown> = {
 	encodedSlashes: "allow" | "reject"
 	/** The app's error factory; `null` until `errorFactory()` is called. */
 	errorFactory: ErrorFactories | null
-	/** Wire format of error answers: honey's envelope (the default) or RFC 9457 Problem Details. */
+	/** Wire format of error answers: backend's envelope (the default) or RFC 9457 Problem Details. */
 	errorFormat: ErrorFormat
-	/** Shapes the body of every error without a payload schema; the default returns honey's body unchanged. */
+	/** Shapes the body of every error without a payload schema; the default returns backend's body unchanged. */
 	errorFormatter: ErrorFormatter
-	/** translates the answer to an unhandled throw and to an onError HoneyError; `null`: off */
+	/** translates the answer to an unhandled throw and to an onError HttpError; `null`: off */
 	errorI18n: ErrorI18n<TEnv> | null
 	/** the body schema of standard errors, for the OpenAPI document */
 	errorSchema: StandardSchemaLike | null
 	/** where every server-side line goes: the default createLogger(), the app's own, or SILENT */
-	logger: Logger
+	logger: BackendLogger
 	/** the metaSpec policy this app declared, and each mounted sub-app's: merged when a document is built */
 	readonly metaSpec: MetaSpecSource
 	/** Hook that maps a thrown value before it is answered; `null` for none. */
@@ -113,7 +113,7 @@ export type AppSettings<TEnv = unknown> = {
 	/** one info line per request after its body ends; `null`: off */
 	requestLog: RequestLogOptions | null
 	/** spans per request and the error reporter; `null`: off, at the cost of one check */
-	telemetry: Telemetry | null
+	telemetry: OtelTelemetry | null
 	/** URL path prefix removed before routing; `null` for none. */
 	stripPrefix: string | null
 	/** `app.tap()` handlers by key; `null` until one is registered */
@@ -128,7 +128,7 @@ export type AppSettings<TEnv = unknown> = {
 
 /** The default shape, unchanged. Identity, so finalize can tell a formatter was never set. */
 export function defaultErrorFormatter(
-	_error: HoneyError,
+	_error: HttpError,
 	defaultShape: Record<string, unknown>,
 ): Record<string, unknown> {
 	return defaultShape
@@ -152,7 +152,7 @@ export function createSettings<TEnv>(): AppSettings<TEnv> {
 		defaultErrorKeys: new Set(),
 		encodedSlashes: "reject",
 		errorFactory: null,
-		errorFormat: "honey",
+		errorFormat: "backend",
 		errorFormatter: defaultErrorFormatter,
 		errorI18n: null,
 		errorSchema: null,
@@ -180,6 +180,8 @@ export function normalizeStripPrefix(prefix: string): string | null {
 /** Settings that cannot work together, refused before the first request is served. */
 export function assertSettingsAgree(s: AppSettings<unknown>): void {
 	if (s.requestLog !== null && s.logger === SILENT) {
-		throw new Error("honey: requestLog() is on, but logger(false) writes nothing: set a logger, or turn requestLog off")
+		throw new Error(
+			"backend: requestLog() is on, but logger(false) writes nothing: set a logger, or turn requestLog off",
+		)
 	}
 }

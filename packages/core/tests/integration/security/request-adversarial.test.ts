@@ -13,7 +13,7 @@ import { guardNamed } from "../../structure/mutation-harness.ts"
 
 const REPO = resolvePath(import.meta.dirname, "../../../../..")
 
-const mutant = guardNamed(process.env.HONEY_MUTANT)
+const mutant = guardNamed(process.env.BACKEND_MUTANT)
 if (mutant !== undefined) {
 	vi.doMock(resolvePath(REPO, mutant.module), async (importOriginal) => {
 		const original = await importOriginal<Record<string, unknown>>()
@@ -22,7 +22,7 @@ if (mutant !== undefined) {
 }
 
 /* imported after the mock, so a mutant reaches every module that uses it */
-const { honey } = (await import(
+const { httpApp } = (await import(
 	resolvePath(REPO, "packages/core/src/routing/app.ts")
 )) as typeof import("../../../src/routing/app.ts")
 
@@ -42,16 +42,16 @@ describe("v1 adversarial: a generated route tree keeps a leaf's body gate", () =
 	it(
 		"never forwards a media type the route refuses",
 		async () => {
-			const service = honey<{}>()
+			const service = httpApp<{}>()
 			service
 				.post("/items")
 				.input({ json: ANY_VALUE })
 				.handler((c) => c.res.text("ok", "service"))
 			const { routeTree } = (await emittedRouteTree(service.toRouteTree())) as unknown as {
-				routeTree: Parameters<ReturnType<typeof honey>["routeTree"]>[0]
+				routeTree: Parameters<ReturnType<typeof httpApp>["routeTree"]>[0]
 			}
 			const reached: string[] = []
-			const gateway = honey<{}>().routeTree(routeTree)
+			const gateway = httpApp<{}>().routeTree(routeTree)
 			gateway.all("/*").handler((c) => {
 				reached.push(c.req.url)
 				return c.res.text("ok", "forwarded")
@@ -91,7 +91,7 @@ describe("v1 adversarial: a client's user agent stays cheap to read", () => {
 describe("v1 adversarial: concurrent requests share no state", () => {
 	// v0: bc90bcafb2
 	it("fifty requests in flight at once, each awaiting a random delay, each answer its own query", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/test").handler(async (ctx) => {
 			const id = ctx.search.id
 			await new Promise((resolve) => setTimeout(resolve, Math.random() * 5))
@@ -113,7 +113,7 @@ describe("v1 adversarial: a cookie cannot inject a header or an attribute", () =
 	it.each(["invalid;name", "a=b", "x\r\nSet-Cookie: admin=1", "x\nX-Injected: evil"])(
 		"a name like %j is refused: a 500, and no Set-Cookie goes out",
 		async (name) => {
-			const app = honey<{}>().logger(false)
+			const app = httpApp<{}>().logger(false)
 			app.get("/t").handler((ctx) => ctx.res.json("ok", {}, { cookies: { [name]: { value: "bad" } } }))
 			const res = await app.fetch(get("/t"), {})
 			expect([res.status, res.headers.getSetCookie(), res.headers.get("x-injected")]).toEqual([500, [], null])
@@ -121,7 +121,7 @@ describe("v1 adversarial: a cookie cannot inject a header or an attribute", () =
 	)
 
 	it("a value carrying ;, = and CRLF is encoded into the one cookie, never a second attribute or header", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/t").handler((ctx) => ctx.res.json("ok", {}, { cookies: { session: { value: VALUE } } }))
 		const res = await app.fetch(get("/t"), {})
 		const [cookie] = res.headers.getSetCookie()
@@ -149,7 +149,7 @@ describe("v1 adversarial: CRLF in a request header", () => {
 describe("v1 adversarial: oversized and NUL-carrying targets", () => {
 	// v0: 4c3927a6af
 	it("a 10 000-character path misses a literal route cleanly, and a wildcard captures it whole", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/test").handler((ctx) => ctx.res.text("ok", "ok"))
 		app.get("/deep/*rest").handler((ctx) => ctx.res.json("ok", { length: ctx.params.rest.length }))
 		const long = "a".repeat(10_000)
@@ -159,7 +159,7 @@ describe("v1 adversarial: oversized and NUL-carrying targets", () => {
 
 	// v0: 0f174c7aaf
 	it("a thousand-key query is read whole", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/test")
 			.handler((ctx) => ctx.res.json("ok", { keys: Object.keys(ctx.search).length, last: ctx.search.k999 }))
@@ -169,7 +169,7 @@ describe("v1 adversarial: oversized and NUL-carrying targets", () => {
 
 	// v0: 7e60bd3b38
 	it("NUL in a path never reaches the literal route, and a param receives it untruncated", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/test").handler((ctx) => ctx.res.text("ok", "literal"))
 		app.get("/files/:name").handler((ctx) => ctx.res.json("ok", { name: ctx.params.name }))
 		const [literal, param] = [await app.fetch(get("/test%00evil"), {}), await app.fetch(get("/files/a%00b.txt"), {})]
@@ -178,7 +178,7 @@ describe("v1 adversarial: oversized and NUL-carrying targets", () => {
 
 	// v0: 393e8c6507
 	it("NUL in a query value is kept, never a truncation", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/test").handler((ctx) => ctx.res.json("ok", { q: ctx.search.q }))
 		const res = await app.fetch(get("/test?q=hello%00world"), {})
 		expect([res.status, await res.json()]).toEqual([200, { q: "hello\u0000world" }])

@@ -4,17 +4,17 @@
  * handler answers. Also the declaration's runtime shape: the shorthand recorded as its `application/json` form, and a
  * returned body answered at the sole 2xx status. The answer check itself is `#output-check` (output-check.ts).
  */
-import { EK, HoneyError } from "../errors/error.ts"
+import { EK, HttpError } from "../errors/error.ts"
 import { isAnswer, type MaybePromise } from "../middleware/middleware.ts"
 import { isForwarded } from "../response/builder.ts"
 import { parseMediaType } from "../response/media-type.ts"
-import type { HoneyRes } from "../response/response.ts"
+import type { HttpRes } from "../response/response.ts"
 import { codeToStatusKey, type StatusKey, statusKeyToCode } from "../response/status.ts"
 import type { JsonShorthand, OutputSchemas, StatusSchemas } from "../routing/output-types.ts"
 import type { StandardSchemaIssue, StandardSchemaLike, StandardSchemaResult } from "./standard-schema.ts"
 
-function failed(statusKey: string): HoneyError {
-	return new HoneyError({ errorKey: EK.output_validation_failed, status: "internal_server_error", vars: { statusKey } })
+function failed(statusKey: string): HttpError {
+	return new HttpError({ errorKey: EK.output_validation_failed, status: "internal_server_error", vars: { statusKey } })
 }
 
 /** An issue the route expects, which leaves the answer passing: a field its projection cut. */
@@ -74,7 +74,7 @@ export function forwardCheck(schemas: OutputSchemas, errorStatuses: ReadonlySet<
 		if (response.body === null) return response
 		const essence = parseMediaType(response.headers.get("content-type"))?.essence
 		if (essence === undefined || !declared.has(essence))
-			throw new HoneyError({ errorKey: EK.output_content_type_mismatch, status: "internal_server_error" })
+			throw new HttpError({ errorKey: EK.output_content_type_mismatch, status: "internal_server_error" })
 		return response
 	}
 }
@@ -133,7 +133,7 @@ export function answeringBody(
 	const helper = BODY_HELPER[type]
 	const answer = (ctx: object, value: unknown): unknown => {
 		if (value === undefined || isAnswer(value)) return value
-		const res = (ctx as { readonly res: HoneyRes }).res
+		const res = (ctx as { readonly res: HttpRes }).res
 		return helper === undefined
 			? res.binary(key, value as never, { contentType: type })
 			: res[helper](key, value as never)

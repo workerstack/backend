@@ -1,7 +1,7 @@
 /**
  * An operation's responses: each declared answer by status and media type, its redirects and the
  * headers each status declares, then the errors the route may answer in the app's error format.
- * honey's envelope names a status's keys and status as enums; Problem Details (RFC 9457) names the
+ * backend's envelope names a status's keys and status as enums; Problem Details (RFC 9457) names the
  * keys' type URIs. A schema error documents its own body, under JSON, in either format.
  */
 import { compareCodeUnits } from "../schema/canonicalize.ts"
@@ -18,10 +18,10 @@ export type ResponseObject = {
 	description: string
 	headers?: Record<string, HeaderObject>
 	/** set on every response the route's declared errors produce, so a reader tells it from a declared output */
-	"x-honey-error"?: true
+	"x-backend-error"?: true
 }
 
-/** One declared error key as an operation's `x-honey-errors` carries it: its status (null: none) and own schema. */
+/** One declared error key as an operation's `x-backend-errors` carries it: its status (null: none) and own schema. */
 export type DeclaredError = { schema?: JsonSchema; status: number | null }
 
 /** A schema converted for this operation: `hint` names a component it lifts. */
@@ -109,7 +109,7 @@ const FIELD_ERRORS: JsonSchema = {
 	type: "object",
 }
 
-/** honey's envelope, as every standard error answers by default. */
+/** backend's envelope, as every standard error answers by default. */
 export function defaultEnvelope(): JsonSchema {
 	return {
 		properties: {
@@ -144,7 +144,7 @@ function problem(keys: readonly string[], code: number): JsonSchema {
 			instance: { ...STRING },
 			status: { enum: [code], type: "integer" },
 			title: { ...STRING },
-			type: { enum: keys.map((key) => `https://honey.dev/errors/${key}`), type: "string" },
+			type: { enum: keys.map((key) => `https://backend.dev/errors/${key}`), type: "string" },
 		},
 		required: ["detail", "status", "title", "type"],
 		type: "object",
@@ -173,7 +173,7 @@ function declaredErrors(
 /**
  * Add the errors `errorMeta` names to `responses`, one response per status, each status left to an
  * answer the route declares there itself. A key with no status is not documented as a response.
- * Returns every declared key with its status and own schema: the operation's `x-honey-errors`.
+ * Returns every declared key with its status and own schema: the operation's `x-backend-errors`.
  */
 export function addErrorResponses(
 	responses: Record<string, ResponseObject>,
@@ -203,7 +203,7 @@ export function addErrorResponses(
 			const envelope = standard.length > 0 ? [narrowed(settings.errorSchema ?? defaultEnvelope(), standard, code)] : []
 			content["application/json"] = { schema: oneOrOneOf([...envelope, ...custom]) }
 		}
-		responses[String(code)] = { content, description: keys.join(", "), "x-honey-error": true }
+		responses[String(code)] = { content, description: keys.join(", "), "x-backend-error": true }
 	}
 	return declared
 }

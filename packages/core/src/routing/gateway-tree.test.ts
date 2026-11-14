@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import * as z from "zod"
 import { collectRoutes } from "../openapi/collect.ts"
 import { serveOpenApi } from "../openapi/serve.ts"
-import { honey } from "./app.ts"
+import { httpApp } from "./app.ts"
 import { gatewayTree, overlaySchemas } from "./gateway-tree.ts"
 import { createNode, insertRoute, type RouteEntry, type RouteTree } from "./tree.ts"
 import { mergeTree } from "./tree-merge.ts"
@@ -23,7 +23,7 @@ async function call(app: Fetcher, path: string, init?: RequestInit): Promise<[nu
 
 /** a consumer's gateway shape: its own routes and a root /:slug beside the catch-all its downstream routes delegate to. */
 function own(tree?: RouteTree) {
-	const app = tree === undefined ? honey<{}>() : honey<{}>().routeTree(tree)
+	const app = tree === undefined ? httpApp<{}>() : httpApp<{}>().routeTree(tree)
 	app.get("/health").handler((c) => c.res.text("ok", "up"))
 	app.get("/:slug").handler((c) => c.res.text("ok", `slug ${c.params.slug}`))
 	app
@@ -39,7 +39,7 @@ describe("gatewayTree(): what a gateway serves", () => {
 	// v0: 9c2d38b4ed
 	// v0: ccfd3d3c19
 	it("adds the gateway's own routes beside the downstream ones, keeps its root wildcard out, and refuses a shadowing route", async () => {
-		const users = honey<{}>()
+		const users = httpApp<{}>()
 		users.get("/users/list").handler((c) => c.res.text("ok", "remote"))
 		users.get("/users/:id").handler((c) => c.res.text("ok", "remote"))
 		const downstream = mergeTree([users.toRouteTree(), { worker: "users" }])
@@ -57,7 +57,7 @@ describe("gatewayTree(): what a gateway serves", () => {
 			[200, '{"pattern":"/users/:id","worker":"users"}'],
 			404,
 		])
-		const shadow = honey<{}>()
+		const shadow = httpApp<{}>()
 		shadow.get("/users/list").handler((c) => c.res.text("ok", "mine"))
 		expect(() => gatewayTree(shadow, downstream)).toThrow(
 			"Gateway routes are also downstream routes in the merged tree: GET /users/list",
@@ -66,7 +66,7 @@ describe("gatewayTree(): what a gateway serves", () => {
 	})
 
 	it("leaves out the routes the gateway serves about itself (serveOpenApi): each app serving the tree mounts its own", async () => {
-		const users = honey<{}>()
+		const users = httpApp<{}>()
 		users.get("/users/:id").handler((c) => c.res.text("ok", "remote"))
 		const downstream = mergeTree([users.toRouteTree(), { worker: "users" }])
 		const documented = () => serveOpenApi(own(), { title: "gateway", version: "1" })
@@ -90,7 +90,7 @@ describe("overlaySchemas(): a gateway documents its downstream routes' shapes", 
 	it("copies schemas onto registered routes that lack them, keeping their own", () => {
 		const mine = { json: z.object({ mine: z.string() }) }
 		const theirs = { json: z.object({ theirs: z.string() }) }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/a")
 			.input(mine)
@@ -98,7 +98,7 @@ describe("overlaySchemas(): a gateway documents its downstream routes' shapes", 
 		app.post("/b/:id").handler((c) => c.res.text("ok", "b"))
 		app.post("/c").handler((c) => c.res.text("ok", "c"))
 		app.post("/d").handler((c) => c.res.text("ok", "d"))
-		const service = honey<{}>()
+		const service = httpApp<{}>()
 		service
 			.post("/c")
 			.input(theirs)
@@ -125,7 +125,7 @@ describe("overlaySchemas(): a gateway documents its downstream routes' shapes", 
 	})
 	it("copies them onto the loaded leaves a gateway serving its generated tree holds without a record (bit 19 h2)", () => {
 		const theirs = { json: z.object({ theirs: z.string() }) }
-		const service = honey<{}>()
+		const service = httpApp<{}>()
 		service
 			.post("/c")
 			.input(theirs)
@@ -133,7 +133,7 @@ describe("overlaySchemas(): a gateway documents its downstream routes' shapes", 
 		const merged = mergeTree([service.toRouteTree(), { worker: "service" }])
 		/* the generated file carries data only: no live record, no schemas */
 		const written = { ...merged, routes: { "POST /c": { mt: { worker: "service" } } } } as RouteTree
-		const app = honey<{}>().routeTree(written)
+		const app = httpApp<{}>().routeTree(written)
 		app.all("/*").handler((c) => c.res.text("ok", "forwarded"))
 		overlaySchemas(app, merged)
 		const [c] = collectRoutes(app).http

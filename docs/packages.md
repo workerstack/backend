@@ -8,7 +8,7 @@ generator.
 
 | Export                                      | What it holds                                                                                                                                                                        |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@workerstack/backend/http`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                                                                                   |
+| `@workerstack/backend/http`                 | `backend`, `HttpError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                                                                                  |
 | `@workerstack/backend/ws`                   | `ws(app, path)`, a WebSocket route; `workersWebSocket`                                                                                                                               |
 | `@workerstack/backend/http/webhook`         | `webhookContract`, `signWebhook`, `SignedWebhook`, `WebhookContract`, `WebhookEvents`, `WebhookSignOptions`, `SignWebhookOptions`, `WebhookHeaders`                                  |
 | `@workerstack/backend/cron`                 | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`; `workersCron`, `WorkersScheduledController`                                                  |
@@ -54,7 +54,7 @@ generator.
 | `@workerstack/backend/http/request-to-curl` | `requestToCurl`                                                                                                                                                                      |
 | `@workerstack/backend/http/testing`         | `testClient`, an app called in process or over a runtime's `serve`                                                                                                                   |
 | `@workerstack/backend/http/tree`            | the route tree's types                                                                                                                                                               |
-| `@workerstack/backend/plugin`               | `honeyPlugin()`, the Vite plugin that generates the app's artifacts                                                                                                                  |
+| `@workerstack/backend/plugin`               | `backendPlugin()`, the Vite plugin that generates the app's artifacts                                                                                                                |
 | `@workerstack/backend/build`                | `createBuildPlugin`, a production bundle for a deploy target                                                                                                                         |
 
 ## @workerstack/clients

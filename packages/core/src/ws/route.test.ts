@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import type { WSAdapter } from "./contract.ts"
 import { ws } from "./route.ts"
 
@@ -32,7 +32,7 @@ describe("ws(app, path)", () => {
 				ran.push(name)
 				return next()
 			})
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		app.use("/v1/rooms", step("scoped"))
 		const v1 = app.basePath("/v1").use(step("chain"))
 		expect(ws(v1, "/rooms/:id").handler({})).toBe(v1)

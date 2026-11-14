@@ -5,12 +5,12 @@
  * non-Error at load (`new RedirectionError()` as a prototype), and the build dies with "First argument must be an Error
  * object". k-fix's replacer was jiti's Babel, loaded on a cold cache. Any replacer reds a build only on some path, so
  * the trap reports every one, pass or fail: one JSON line per process started and per replacement, with the
- * replacer's stack, appended to HONEY_STACK_HOOK_LOG. A replacement still takes effect, so the build runs as it would.
+ * replacer's stack, appended to BACKEND_STACK_HOOK_LOG. A replacement still takes effect, so the build runs as it would.
  */
 import { appendFileSync } from "node:fs"
 
-const log = process.env.HONEY_STACK_HOOK_LOG
-if (log === undefined || log === "") throw new Error("stack-hook-trap: HONEY_STACK_HOOK_LOG names no file")
+const log = process.env.BACKEND_STACK_HOOK_LOG
+if (log === undefined || log === "") throw new Error("stack-hook-trap: BACKEND_STACK_HOOK_LOG names no file")
 
 const record = (entry: Record<string, unknown>) =>
 	appendFileSync(log, `${JSON.stringify({ argv: process.argv.slice(1), pid: process.pid, ...entry })}\n`)

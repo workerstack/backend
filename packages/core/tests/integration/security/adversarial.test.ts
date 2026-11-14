@@ -11,7 +11,7 @@ import { guardNamed } from "../../structure/mutation-harness.ts"
 
 const REPO = resolve(import.meta.dirname, "../../../../..")
 
-const mutant = guardNamed(process.env.HONEY_MUTANT)
+const mutant = guardNamed(process.env.BACKEND_MUTANT)
 if (mutant !== undefined) {
 	vi.doMock(resolve(REPO, mutant.module), async (importOriginal) => {
 		const original = await importOriginal<Record<string, unknown>>()
@@ -38,7 +38,7 @@ const { createCookieSigner } = (await import(
 
 function filesApp() {
 	return v1
-		.honey<{}>()
+		.httpApp<{}>()
 		.get("/files/:name")
 		.handler((ctx) => ctx.res.json("ok", { name: ctx.params.name }))
 }
@@ -70,7 +70,7 @@ describe("adversarial: scope bypass via path normalization", () => {
 
 /** A sub with a scope on /admin, a wildcard and a catch-all param, mounted under /api. */
 function guardedMount() {
-	const sub = v1.honey<{}>()
+	const sub = v1.httpApp<{}>()
 	sub.use(
 		"/admin",
 		createMiddleware(() => new Response("denied", { status: 401 })),
@@ -78,7 +78,7 @@ function guardedMount() {
 	sub.get("/admin/secret").handler((ctx) => ctx.res.text("ok", "SECRET"))
 	sub.get("/files/*rest").handler((ctx) => ctx.res.text("ok", `file:${ctx.params.rest}`))
 	sub.get("/:slug").handler((ctx) => ctx.res.text("ok", `slug:${ctx.params.slug}`))
-	return v1.honey<{}>().route("/api", sub)
+	return v1.httpApp<{}>().route("/api", sub)
 }
 
 async function answer(
@@ -175,7 +175,7 @@ const HOSTILE = [
 
 /** An app that sets the cookie value it is given, and reads the cookie it is sent. */
 function cookieEcho() {
-	const app = v1.honey<{}>()
+	const app = v1.httpApp<{}>()
 	app.get("/set").handler((ctx) => ctx.res.json("ok", {}, { cookies: { f: { value: ctx.search.v ?? "" } } }))
 	app
 		.get("/read")
@@ -205,7 +205,7 @@ describe("v1 adversarial: cookie codec fuzz", () => {
 
 	it("a header named like Object.prototype members reads as plain cookies and pollutes nothing", async () => {
 		const header = "__proto__=x; constructor=y; toString=z; polluted=1"
-		const app = v1.honey<{}>()
+		const app = v1.httpApp<{}>()
 		app
 			.get("/t")
 			.handler((ctx) => ctx.res.json("ok", { names: Object.keys(ctx.cookies), toString: ctx.cookies.toString ?? null }))
@@ -240,14 +240,14 @@ describe("v1 adversarial: signed-cookie tamper", () => {
 
 describe("v1 adversarial: response splitting", () => {
 	it("a header value carrying CR/LF from a handler: 500, no injected header", async () => {
-		const app = v1.honey<{}>().logger(false)
+		const app = v1.httpApp<{}>().logger(false)
 		app.get("/inject").handler((ctx) => ctx.res.text("ok", "x", { headers: { "x-a": "1\r\nset-cookie: pwned=1" } }))
 		const res = await app.fetch(new Request("http://app.test/inject"), {})
 		expect([res.status, res.headers.get("x-a"), res.headers.has("set-cookie")]).toEqual([500, null, false])
 	})
 
 	it("a CR/LF a middleware edits into the answer's headers is refused: 500, and no header carries it", async () => {
-		const app = v1.honey<{}>().logger(false)
+		const app = v1.httpApp<{}>().logger(false)
 		const echo = createMiddleware(async (ctx: { req: Request }, next) => {
 			const value = new URL(ctx.req.url).searchParams.get("v") ?? ""
 			return withHeaders(await next(), (headers) => headers.set("x-echo", value))
@@ -265,7 +265,7 @@ describe("v1 adversarial: response splitting", () => {
 /** Streaming routes for the memory and injection cases; `seen` records what each producer did. */
 function streamingRoutes() {
 	const seen = { produced: 0, released: false }
-	const app = v1.honey<{}>()
+	const app = v1.httpApp<{}>()
 	app.get("/flood").handler((ctx) =>
 		ctx.res.stream(async (writable, signal) => {
 			signal.addEventListener("abort", () => (seen.released = true))

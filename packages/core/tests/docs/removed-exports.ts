@@ -6,7 +6,7 @@
  * `git show v0.7.3:packages/core/package.json` and each subpath's source at that tag.
  *
  * Why a table and not "name them all": 0.7.3 exported 369 names, a third of them its own internals (an adapter's
- * `WSContextImpl`, the plugin's `ResolvedHoneyConfig`, the tree's `matchRoute`), and naming those in the guide
+ * `WSContextImpl`, the plugin's `ResolvedBackendConfig`, the tree's `matchRoute`), and naming those in the guide
  * would bury the breaks a reader can act on. So each removed name is judged once: `guide` (a name a consumer
  * wrote, which migration.md must name) or `internal` (never a name to write, with the reason). A removal nobody
  * judged reds here, which is what the `LoggerInstance`/`logger` class of miss needed.
@@ -31,7 +31,7 @@ export type Verdict = { readonly kind: "guide" } | { readonly kind: "internal"; 
  * these is judged by its subpath, not one by one: the subpath's own section is where the reader goes.
  */
 export const REMOVED_SUBPATHS: readonly RemovedSubpath[] = [
-	{ covers: "honey-clients generate", subpath: "./cli" },
+	{ covers: "clients generate", subpath: "./cli" },
 	{ covers: "client.safe", subpath: "./client" },
 	{ covers: "client.safe", subpath: "./client/sdk" },
 	{ covers: "@workerstack/clients", subpath: "./codegen" },
@@ -118,9 +118,9 @@ export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
 	CustomErrorFormatter: { kind: "guide" },
 	DefaultMeta: { kind: "guide" },
 	GenerateOptions: { kind: "internal", why: PLUGIN },
-	HoneyGoCliConfig: { kind: "internal", why: PLUGIN },
-	HoneySdkPortsConfig: { kind: "internal", why: PLUGIN },
-	HoneyServeOptions: { kind: "guide" },
+	BackendGoCliConfig: { kind: "internal", why: PLUGIN },
+	BackendSdkPortsConfig: { kind: "internal", why: PLUGIN },
+	BackendServeOptions: { kind: "guide" },
 	HttpMethod: { kind: "internal", why: TREE },
 	InputSchemasDef: { kind: "internal", why: SHAPE },
 	InvalidateCheckConfig: { kind: "internal", why: PLUGIN },
@@ -139,7 +139,7 @@ export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
 	ReadableStreamSchema: { kind: "guide" },
 	RealtimeRouteOpts: { kind: "guide" },
 	ResolvedGoCliConfig: { kind: "internal", why: PLUGIN },
-	ResolvedHoneyConfig: { kind: "internal", why: PLUGIN },
+	ResolvedBackendConfig: { kind: "internal", why: PLUGIN },
 	ResolvedInvalidateCheck: { kind: "internal", why: PLUGIN },
 	ResolvedOpenApiOutput: { kind: "internal", why: PLUGIN },
 	ResolvedSdkPorts: { kind: "internal", why: PLUGIN },
@@ -152,6 +152,7 @@ export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
 		why: "the runtime name the request log records; a server imports its runtime's serve, so an app never names one",
 	},
 	SuccessStatusKey: { kind: "internal", why: SHAPE },
+	Timing: { kind: "guide" },
 	TranslationRegistry: {
 		kind: "internal",
 		why: "the i18n registry core fills; an app passes createErrorTranslator() instead",
@@ -177,7 +178,7 @@ export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
 	generateFromApp: { kind: "internal", why: PLUGIN },
 	generateRouteTree: { kind: "internal", why: PLUGIN },
 	generatedOutputs: { kind: "internal", why: PLUGIN },
-	getLastHoneyConfig: { kind: "internal", why: PLUGIN },
+	getLastBackendConfig: { kind: "internal", why: PLUGIN },
 	hasWsLeaf: { kind: "internal", why: TREE },
 	insertLeaf: { kind: "internal", why: TREE },
 	insertRoute: { kind: "internal", why: TREE },
@@ -194,7 +195,7 @@ export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
 		kind: "internal",
 		why: "the i18n lookup core calls; an app passes createErrorTranslator() instead",
 	},
-	resolveHoneyConfig: { kind: "internal", why: PLUGIN },
+	resolveBackendConfig: { kind: "internal", why: PLUGIN },
 	resolveTranslation: {
 		kind: "internal",
 		why: "the i18n lookup core calls; an app passes createErrorTranslator() instead",

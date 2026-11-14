@@ -6,8 +6,8 @@
  * the background (`waitUntil` where there is one), so it never delays or shapes it; a failing tap is
  * contained (invokeUser) and logged as a warn, "tap failed", never reaching onError.
  */
-import { HoneyError } from "../errors/error.ts"
-import { type HoneyContext, REQUEST, type RequestState, TAPS } from "../context/context.ts"
+import { HttpError } from "../errors/error.ts"
+import { type HttpContext, REQUEST, type RequestState, TAPS } from "../context/context.ts"
 import type { CompiledChain, MaybePromise } from "../middleware/middleware.ts"
 import { invokeUser } from "../realtime/invoke-user.ts"
 import type { AppSettings } from "./settings.ts"
@@ -73,7 +73,7 @@ export function tapsFor(serving: AppSettings<unknown>, own: AppSettings<unknown>
 }
 
 function stateOf(ctx: object): RequestState<unknown> {
-	return (ctx as HoneyContext)[REQUEST]
+	return (ctx as HttpContext)[REQUEST]
 }
 
 /** The route handler, marking the request when it answered (a throw or a rejection marks nothing). */
@@ -92,8 +92,8 @@ export function answering(handler: (ctx: object) => MaybePromise<Response>): (ct
 }
 
 /** Run `fn` for `key` after this turn, contained, in the request's background. */
-function schedule(ctx: HoneyContext, key: string, fn: TapFn, payload: unknown): void {
-	const warn = (error: unknown) => ctx.log.warn({ err: HoneyError.serialize(error), tap: key }, "tap failed")
+function schedule(ctx: HttpContext, key: string, fn: TapFn, payload: unknown): void {
+	const warn = (error: unknown) => ctx.log.warn({ err: HttpError.serialize(error), tap: key }, "tap failed")
 	ctx.background(
 		Promise.resolve().then(() =>
 			invokeUser(() => (fn as (ctx: TapContext, payload: unknown) => unknown)(ctx, payload), {
@@ -105,7 +105,7 @@ function schedule(ctx: HoneyContext, key: string, fn: TapFn, payload: unknown): 
 }
 
 /** The route's meta taps, then its `ctx.tap()` calls, when the handler's answer is what goes out. */
-function fire(ctx: HoneyContext, response: Response, taps: Taps): void {
+function fire(ctx: HttpContext, response: Response, taps: Taps): void {
 	if (stateOf(ctx).answered !== true || ctx.error !== undefined || response.status === 101) return
 	const meta = ctx.meta
 	for (const [key, fn] of taps) {
@@ -124,11 +124,11 @@ export function firing(run: CompiledChain, taps: Taps): CompiledChain {
 		const response = run(ctx)
 		if (response instanceof Promise) {
 			return response.then((settled) => {
-				fire(ctx as HoneyContext, settled, taps)
+				fire(ctx as HttpContext, settled, taps)
 				return settled
 			})
 		}
-		fire(ctx as HoneyContext, response, taps)
+		fire(ctx as HttpContext, response, taps)
 		return response
 	}
 }

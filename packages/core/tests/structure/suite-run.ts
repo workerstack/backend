@@ -58,14 +58,14 @@ function failuresIn(report: JsonReport, unhandled: readonly string[], cwd: strin
 
 /** `vitest run ...args` in `cwd` under `env`, reported by name. A red run always names something. */
 export function runVitest(cwd: string, args: readonly string[], env: NodeJS.ProcessEnv): SuiteRun {
-	const dir = mkdtempSync(join(tmpdir(), "honey-suite-run-"))
+	const dir = mkdtempSync(join(tmpdir(), "backend-suite-run-"))
 	const reportFile = join(dir, "report.json")
 	const errorsFile = join(dir, "errors.json")
 	try {
 		const reporters = ["--reporter=json", `--outputFile.json=${reportFile}`, `--reporter=${REPORTER}`]
 		const run = spawnSync(process.execPath, [VITEST, "run", ...args, ...reporters], {
 			cwd,
-			env: { ...env, HONEY_SUITE_RUN_ERRORS: errorsFile },
+			env: { ...env, BACKEND_SUITE_RUN_ERRORS: errorsFile },
 			stdio: "ignore",
 		})
 		const report = existsSync(reportFile)

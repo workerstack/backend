@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { HoneyRes } from "../response/response.ts"
-import { honey } from "../routing/app.ts"
+import { HttpRes } from "../response/response.ts"
+import { httpApp } from "../routing/app.ts"
 import { bodyKind, headResponse } from "./body-kind.ts"
 
 /** A generator counting how far it was pulled. */
@@ -23,8 +23,8 @@ async function seen(answer: Response | Promise<Response>, names: string[]): Prom
 
 describe("bodyKind: read from how the answer was built, never from its body", () => {
 	// v0: be6ccf73ce
-	it("buffered for a body honey built, stream for one it produces, empty for none", () => {
-		const res = new HoneyRes()
+	it("buffered for a body backend built, stream for one it produces, empty for none", () => {
+		const res = new HttpRes()
 		expect([
 			bodyKind(res.json("ok", {})),
 			bodyKind(res.binary("ok", new Uint8Array(1))),
@@ -36,7 +36,7 @@ describe("bodyKind: read from how the answer was built, never from its body", ()
 		]).toEqual(["buffered", "buffered", "empty", "empty", "stream", "stream", "stream"])
 	})
 
-	it("a response honey did not build is buffered only when it declares its length", () => {
+	it("a response backend did not build is buffered only when it declares its length", () => {
 		expect([
 			bodyKind(new Response("x", { headers: { "content-length": "1" } })),
 			bodyKind(new Response("x", { headers: { "content-length": "1x" } })),
@@ -47,8 +47,8 @@ describe("bodyKind: read from how the answer was built, never from its body", ()
 })
 
 describe("headResponse: the answer GET would send, without its body", () => {
-	it("keeps the status and headers and states the byte length of a body honey built", async () => {
-		const res = new HoneyRes()
+	it("keeps the status and headers and states the byte length of a body backend built", async () => {
+		const res = new HttpRes()
 		const names = ["content-type", "content-length", "x-a"]
 		expect([
 			await seen(headResponse(res.json("created", { name: "é" }, { headers: { "x-a": "1" } })), names),
@@ -70,7 +70,7 @@ describe("headResponse: the answer GET would send, without its body", () => {
 			}),
 		)
 		expect([
-			await seen(headResponse(new HoneyRes().binary("ok", new Uint8Array(4))), ["content-length"]),
+			await seen(headResponse(new HttpRes().binary("ok", new Uint8Array(4))), ["content-length"]),
 			await seen(headResponse(failing), ["content-length"]),
 		]).toEqual([
 			[200, "4", ""],
@@ -80,7 +80,7 @@ describe("headResponse: the answer GET would send, without its body", () => {
 
 	it("cancels a stream unread, so its producer never starts", async () => {
 		const { generator, pulled } = counter()
-		const answer = headResponse(new HoneyRes().generate(generator))
+		const answer = headResponse(new HttpRes().generate(generator))
 		await new Promise((resolve) => setTimeout(resolve, 5))
 		expect([answer.status, answer.body, pulled.count]).toEqual([200, null, 0])
 	})
@@ -93,7 +93,7 @@ describe("HEAD through the app: GET's answer, its body left out", () => {
 	// v0: 56132a5175
 	// v0: 0064d66a63
 	it("a HEAD route, a GET route found statically or by pattern, an ALL route and a child's GET route", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.head("/head").handler((ctx) => ctx.res.json("ok", { items: [1, 2, 3] }))
 		app.get("/static").handler((ctx) => ctx.res.text("ok", "hello"))
 		app.get("/users/:id").handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
@@ -119,7 +119,7 @@ describe("HEAD through the app: GET's answer, its body left out", () => {
 
 describe("HEAD through the app: what it never does", () => {
 	it("an error answer to HEAD carries no body either; a sync answer stays synchronous", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app.get("/t").handler((ctx) => ctx.res.text("ok", "x"))
 		const sync = app.fetch(head("/t"), {})
 		expect([sync instanceof Response, await seen(app.fetch(head("/missing"), {}), ["content-type"])]).toEqual([
@@ -130,7 +130,7 @@ describe("HEAD through the app: what it never does", () => {
 
 	it("a route producing a stream answers HEAD without starting its producer", async () => {
 		const { generator, pulled } = counter()
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/stream").handler((ctx) => ctx.res.generate(generator))
 		const answer = await app.fetch(head("/stream"), {})
 		await new Promise((resolve) => setTimeout(resolve, 5))
@@ -139,7 +139,7 @@ describe("HEAD through the app: what it never does", () => {
 
 	// v0: 4adfce3684
 	it("output validation checks the body GET would send before HEAD leaves it out", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		const out = { "application/json": { ok: z.object({ id: z.number() }) } }
 		app
 			.get("/good")

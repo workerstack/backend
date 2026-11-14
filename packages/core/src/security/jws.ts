@@ -14,7 +14,7 @@ type AlgorithmEntry = {
 	readonly sign: AlgorithmIdentifier | EcdsaParams | RsaPssParams
 }
 
-/** Every algorithm honey signs and verifies, in WebCrypto's terms. */
+/** Every algorithm backend signs and verifies, in WebCrypto's terms. */
 export const ALGORITHMS = {
 	ES256: { import: { name: "ECDSA", namedCurve: "P-256" }, kty: "EC", sign: { hash: "SHA-256", name: "ECDSA" } },
 	ES384: { import: { name: "ECDSA", namedCurve: "P-384" }, kty: "EC", sign: { hash: "SHA-384", name: "ECDSA" } },
@@ -31,14 +31,14 @@ export const ALGORITHMS = {
 	RS512: { import: { hash: "SHA-512", name: "RSASSA-PKCS1-v1_5" }, kty: "RSA", sign: { name: "RSASSA-PKCS1-v1_5" } },
 } as const satisfies Record<string, AlgorithmEntry>
 
-/** A JWS `alg` honey signs and verifies. `none` is not one. */
+/** A JWS `alg` backend signs and verifies. `none` is not one. */
 export type JwsAlgorithm = keyof typeof ALGORITHMS
 
 /** A JWS `alg` verified with a public key: every one but the HMAC family. */
 export type AsymmetricAlgorithm = Exclude<JwsAlgorithm, "HS256" | "HS384" | "HS512">
 
 /** A public JSON Web Key, as a JWKS endpoint serves it. */
-export type Jwk = JsonWebKey & {
+export type JwtJwk = JsonWebKey & {
 	/** The one algorithm this key is for, when the issuer states it. */
 	alg?: string
 	/** The id a token names in its header to pick this key. */
@@ -56,7 +56,7 @@ export type JwtHeader = Record<string, unknown> & {
 const BASE64URL = /^[\w-]*$/
 const BASE64_BLOCK = 4
 
-/** `value` is one of the algorithms honey supports. */
+/** `value` is one of the algorithms backend supports. */
 export function isJwsAlgorithm(value: unknown): value is JwsAlgorithm {
 	return typeof value === "string" && Object.hasOwn(ALGORITHMS, value)
 }
@@ -108,7 +108,7 @@ export function hmacKey(secret: string, alg: JwsAlgorithm): Promise<CryptoKey> {
 }
 
 /** Only the public members: issuers add `use`, `x5c` or a differing `alg`, which `importKey` rejects. */
-function publicMembers(jwk: Jwk, alg: JwsAlgorithm): JsonWebKey {
+function publicMembers(jwk: JwtJwk, alg: JwsAlgorithm): JsonWebKey {
 	const { kty } = ALGORITHMS[alg]
 	if (kty === "RSA") return { e: jwk.e, kty, n: jwk.n }
 	if (kty === "EC") return { crv: jwk.crv, kty, x: jwk.x, y: jwk.y }
@@ -116,6 +116,6 @@ function publicMembers(jwk: Jwk, alg: JwsAlgorithm): JsonWebKey {
 }
 
 /** The verifying key of `jwk` for `alg`. */
-export function publicKey(jwk: Jwk, alg: JwsAlgorithm): Promise<CryptoKey> {
+export function publicKey(jwk: JwtJwk, alg: JwsAlgorithm): Promise<CryptoKey> {
 	return crypto.subtle.importKey("jwk", publicMembers(jwk, alg), ALGORITHMS[alg].import, false, ["verify"])
 }

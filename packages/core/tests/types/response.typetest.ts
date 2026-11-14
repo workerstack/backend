@@ -5,10 +5,10 @@
  * handler that returns a plain Response refused. Checked by typecheck.
  */
 import { describe, expectTypeOf, it } from "vitest"
-import { HoneyRes, type ResponseOptions, type TypedResponse } from "../../src/response/response.ts"
-import { honey } from "../../src/routing/app.ts"
+import { HttpRes, type ResponseOptions, type TypedResponse } from "../../src/response/response.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
-const res = new HoneyRes()
+const res = new HttpRes()
 
 describe("each helper's brand", () => {
 	// v0: 2b0ae6e08f
@@ -68,11 +68,11 @@ describe("what a brand keeps apart", () => {
 
 	// v0: 762541a430
 	it("a handler returns a TypedResponse, never a plain Response", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.get("/test")
 			// @ts-expect-error a plain Response carries no brand
 			.handler(() => new Response("raw"))
-		honey<{}>()
+		httpApp<{}>()
 			.get("/raw")
 			.handler((ctx) => {
 				const answer = ctx.res.raw(new Response("raw"))

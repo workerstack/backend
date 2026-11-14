@@ -5,7 +5,7 @@
  * neither names it nor selects everything. Every other issue, an envelope's included, stays a failure. Reached only
  * through `#output-check`, so a build without the check carries none of this.
  */
-import type { Projection, Selection } from "../routing/output-types.ts"
+import type { HttpProjection, HttpSelection } from "../routing/output-types.ts"
 import type { StandardSchemaIssue } from "./standard-schema.ts"
 
 type Segment = NonNullable<StandardSchemaIssue["path"]>[number]
@@ -20,7 +20,7 @@ function isRow(value: unknown): value is Readonly<Record<string, unknown>> {
 }
 
 /** Whether `select` keeps `key`: a scalar it names (`@key`, a computed field, counts), or a relation it embeds. */
-function keeps(select: Selection, key: string): boolean {
+function keeps(select: HttpSelection, key: string): boolean {
 	return (
 		select.scalars.includes("*") ||
 		select.scalars.includes(key) ||
@@ -30,7 +30,7 @@ function keeps(select: Selection, key: string): boolean {
 }
 
 /** Whether `path` from step `at` is a key `row` lacks and `select` left out, through the relations `select` embeds. */
-function cut(path: readonly PropertyKey[], at: number, row: unknown, select: Selection): boolean {
+function cut(path: readonly PropertyKey[], at: number, row: unknown, select: HttpSelection): boolean {
 	const key = path[at]
 	if (!isRow(row) || typeof key !== "string") return false
 	if (at === path.length - 1) return !Object.hasOwn(row, key) && !keeps(select, key)
@@ -44,7 +44,7 @@ function cut(path: readonly PropertyKey[], at: number, row: unknown, select: Sel
 }
 
 /** Whether `issue`, raised on `data`, is a field `projection` cut from a row. */
-export function projected(issue: StandardSchemaIssue, data: unknown, projection: Projection): boolean {
+export function projected(issue: StandardSchemaIssue, data: unknown, projection: HttpProjection): boolean {
 	const path = (issue.path ?? []).map(keyOf)
 	if (projection.at === undefined) return cut(path, 0, data, projection.select)
 	const rows = isRow(data) ? data[projection.at] : undefined

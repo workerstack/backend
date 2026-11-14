@@ -3,7 +3,7 @@
  * Build tier. Every e2e app is built for every deploy target it declares, on the
  * runtime you pick. A target passes when the build exits 0, emits the artifacts its
  * spec names, stays under its size budget and its runtime's hang guard, and the median of
- * its BUILD_SAMPLES builds over the median of the honey-free reference builds timed around
+ * its BUILD_SAMPLES builds over the median of the backend-free reference builds timed around
  * them (build-window.ts) is within its recorded ceiling (build-gate.ts says how, and why a
  * ratio and a median). Every built cell prints a `REFERENCE build` line, its references'
  * ms, and a `RATIO build` line, each build's ms after builds=; BUILD_MODE=record prints
@@ -58,7 +58,7 @@ const verbose = process.argv.includes("--verbose")
 
 /**
  * Generated files (routes.gen.ts, openapi.gen.json, …) are checked in, and the build
- * re-runs codegen through the app's own honey() plugin, so a build must reproduce them
+ * re-runs codegen through the app's own httpApp() plugin, so a build must reproduce them
  * byte for byte. Off by default: locally you often build with route edits in flight,
  * where a rewrite is the correct outcome. On in CI, where the checkout is clean and a
  * rewrite means the committed file is stale or codegen is not deterministic.
@@ -75,7 +75,7 @@ async function dirtyTrackedFiles(cwd: string): Promise<string[]> {
 		.sort()
 }
 
-const runtimeRaw = arg("--runtime") ?? process.env.HONEY_BUILD_RUNTIME ?? "node"
+const runtimeRaw = arg("--runtime") ?? process.env.BACKEND_BUILD_RUNTIME ?? "node"
 if (runtimeRaw !== "all" && !isRuntimeId(runtimeRaw)) {
 	console.error(`unknown --runtime ${runtimeRaw}. known: ${RUNTIME_IDS.join(" ")} all`)
 	process.exit(1)
@@ -88,7 +88,7 @@ if (targetRaw !== undefined && !isTargetId(targetRaw)) {
 	process.exit(1)
 }
 
-const app = arg("--app") ?? process.env.HONEY_BUILD_APP
+const app = arg("--app") ?? process.env.BACKEND_BUILD_APP
 if (app !== undefined && !knownBuildApps().includes(app)) {
 	console.error(`unknown --app ${app}. known: ${knownBuildApps().join(", ")}`)
 	process.exit(1)
@@ -130,7 +130,7 @@ interface Result {
 	status: Status
 }
 
-const SOURCE_CONDITION = "--conditions=honey-source"
+const SOURCE_CONDITION = "--conditions=backend-source"
 
 function gzipKb(path: string): number {
 	return Math.round(gzipSync(readFileSync(path)).length / 1024)
@@ -141,8 +141,8 @@ async function timedBuild(command: string[], cwd: string) {
 	const started = performance.now()
 	const proc = Bun.spawn(command, {
 		cwd,
-		/* core is read as source in this checkout (R3): every process the build starts, on Node, the honey
-		   generate child the plugin spawns included, resolves it through the honey-source condition */
+		/* core is read as source in this checkout (R3): every process the build starts, on Node, the backend
+		   generate child the plugin spawns included, resolves it through the backend-source condition */
 		env: {
 			...process.env,
 			BUN_OPTIONS: SOURCE_CONDITION,

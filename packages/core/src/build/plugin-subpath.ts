@@ -1,11 +1,11 @@
 /**
- * `@workerstack/backend/plugin`: `honeyPlugin()`, the Vite plugin, and its config types. The generation runner the CLI shares
+ * `@workerstack/backend/plugin`: `backendPlugin()`, the Vite plugin, and its config types. The generation runner the CLI shares
  * with it stays internal.
  */
 export {
-	type HoneyCodegenConfig,
-	type HoneyOpenApiOutputConfig,
-	type HoneyVitePlugin,
-	type HoneyVitePluginConfig,
-	honeyPlugin,
+	type BackendCodegenConfig,
+	type OpenApiOutputConfig,
+	type BackendPlugin,
+	type BackendPluginConfig,
+	backendPlugin,
 } from "./plugin.ts"

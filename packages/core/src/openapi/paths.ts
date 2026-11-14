@@ -2,7 +2,7 @@
  * The document's paths: each collected route as an operation per method under its OpenAPI path.
  * `all()` documents the standard methods its path does not declare itself; an optional param's
  * variants are two paths; a WebSocket route is a GET upgrade. Every operation carries its route
- * id as `x-honey-route`, the key bit 11 joins extracted ctx types on.
+ * id as `x-backend-route`, the key bit 11 joins extracted ctx types on.
  */
 import type { InputEntry, InputSchemas } from "../input/input.ts"
 import type { ParamSchemas } from "../input/params.ts"
@@ -30,7 +30,7 @@ export type PathsContext = {
 	readonly convert: (where: string) => Convert
 	/** the route's policy fields for one method, written first */
 	readonly policy: (route: CollectedRoute | CollectedWsRoute, method: string, kind: "http" | "ws") => Operation
-	/** the route's responses, the errors it declares among them, and every declared error key (`x-honey-errors`) */
+	/** the route's responses, the errors it declares among them, and every declared error key (`x-backend-errors`) */
 	readonly responses: (
 		route: CollectedRoute,
 		convert: Convert,
@@ -61,7 +61,7 @@ function pathParameters(route: CollectedRoute | CollectedWsRoute): Operation[] {
 					name,
 					required: true,
 					schema: { type: "string" },
-					"x-honey-wildcard": true,
+					"x-backend-wildcard": true,
 				}
 			: { in: "path", name, required: true, schema: { type: "string" } },
 	)
@@ -157,11 +157,11 @@ export function buildPaths(
 		const { body, parameters } = inputsOf(route.input, convert, name("request"), pathParameters(route))
 		const { errors, responses } = ctx.responses(route, convert, (code) => name("response", code))
 		for (const method of methods) {
-			const operation: Operation = { ...ctx.policy(route, method.toUpperCase(), "http"), "x-honey-route": route.id }
+			const operation: Operation = { ...ctx.policy(route, method.toUpperCase(), "http"), "x-backend-route": route.id }
 			if (body !== null) operation.requestBody = { content: structuredClone(body), required: true }
 			if (parameters.length > 0) operation.parameters = structuredClone(parameters)
 			operation.responses = structuredClone(responses)
-			if (Object.keys(errors).length > 0) operation["x-honey-errors"] = structuredClone(errors)
+			if (Object.keys(errors).length > 0) operation["x-backend-errors"] = structuredClone(errors)
 			paths[path] ??= {}
 			;(paths[path] as PathItem)[method] = operation
 			operations.push({ method, operation, path, route })
@@ -180,7 +180,7 @@ export function buildPaths(
 		const search = route.input?.search
 		const input = search === undefined ? null : ({ search } as InputSchemas)
 		const { parameters } = inputsOf(input, ctx.convert(`WS ${route.pattern}`), hint, pathParameters(route))
-		const operation: Operation = { "x-websocket": true, ...ctx.policy(route, "WS", "ws"), "x-honey-route": route.id }
+		const operation: Operation = { "x-websocket": true, ...ctx.policy(route, "WS", "ws"), "x-backend-route": route.id }
 		if (parameters.length > 0) operation.parameters = parameters
 		operation.responses = { "101": { description: "WebSocket upgrade" } }
 		paths[path] ??= {}

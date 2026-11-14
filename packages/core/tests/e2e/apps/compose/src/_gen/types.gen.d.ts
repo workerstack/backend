@@ -1,11 +1,11 @@
-import type { HoneyContext, WithOutput, HoneyError } from "@workerstack/backend/http"
+import type { HttpContext, WithOutput, HttpError } from "@workerstack/backend/http"
 
-export type BaseCtx = HoneyContext<{ JWT_SECRET: string; REDIS_URL: string }> & { cache: { get: (_k: string) => null | string; set: (_k: string, _v: string) => void }; session: { orgId: string; permissions: string[]; userId: string } }
+export type BaseCtx = HttpContext<{ JWT_SECRET: string; REDIS_URL: string }> & { cache: { get: (_k: string) => null | string; set: (_k: string, _v: string) => void }; session: { orgId: string; permissions: string[]; userId: string } }
 
 export type RouteSelector = "DELETE /resources/:resourceId" | "GET /account" | "GET /docs" | "GET /feed" | "GET /health" | "GET /resources/:resourceId" | "POST /account/settings" | "POST /resources"
 
 declare module "@workerstack/backend/http" {
-	interface HoneyCodegen {
+	interface HttpCodegen {
 		routeSelector: RouteSelector
 	}
 }
@@ -25,7 +25,7 @@ type Err404NotFound = { error_key: "not_found"; fields: Record<string, { error_k
 export type Routes = {
 	"/account": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/account" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/account" }, never>
 			errors: "expired_token" | "forbidden" | "invalid_token"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null }
 			errorsByStatus: { 401: null; 403: null }
@@ -36,7 +36,7 @@ export type Routes = {
 	}
 	"/account/settings": {
 		post: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { notifications: boolean; theme: "dark" | "light" } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/account/settings" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { notifications: boolean; theme: "dark" | "light" } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/account/settings" }, never>
 			errors: "expired_token" | "forbidden" | "invalid_token"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null }
 			errorsByStatus: { 401: null; 403: null }
@@ -47,7 +47,7 @@ export type Routes = {
 	}
 	"/docs": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/docs" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/docs" }, never>
 			errors: "expired_token" | "invalid_token"
 			errorShapes: { expired_token: null; invalid_token: null }
 			errorsByStatus: { 401: null }
@@ -58,7 +58,7 @@ export type Routes = {
 	}
 	"/feed": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { search: { page: number } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/feed" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { search: { page: number } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/feed" }, never>
 			errors: "expired_token" | "invalid_token"
 			errorShapes: { expired_token: null; invalid_token: null }
 			errorsByStatus: { 401: null }
@@ -69,7 +69,7 @@ export type Routes = {
 	}
 	"/health": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/health" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/health" }, never>
 			errors: "expired_token" | "invalid_token"
 			errorShapes: { expired_token: null; invalid_token: null }
 			errorsByStatus: { 401: null }
@@ -80,7 +80,7 @@ export type Routes = {
 	}
 	"/resources": {
 		post: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { name: string; type: "doc" | "image" | "video" } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; rate_limited: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/resources" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { name: string; type: "doc" | "image" | "video" } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; rate_limited: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/resources" }, never>
 			errors: "expired_token" | "forbidden" | "invalid_token" | "rate_limited"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null; rate_limited: null }
 			errorsByStatus: { 401: null; 403: null; 429: null }
@@ -91,7 +91,7 @@ export type Routes = {
 	}
 	"/resources/:resourceId": {
 		delete: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { resourceId: string }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/resources/:resourceId" }, { "application/json": { no_content: unknown } }>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { resourceId: string }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/resources/:resourceId" }, { "application/json": { no_content: unknown } }>
 			errors: "expired_token" | "forbidden" | "invalid_token" | "not_found"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null; not_found: null }
 			errorsByStatus: { 401: null; 403: null; 404: null }
@@ -100,7 +100,7 @@ export type Routes = {
 			output: { "application/json": { no_content: unknown } }
 		}
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { resourceId: string }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError; not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HoneyError }; readonly meta: Readonly<{}>; readonly routePattern: "/resources/:resourceId" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { resourceId: string }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/resources/:resourceId" }, never>
 			errors: "expired_token" | "forbidden" | "invalid_token" | "not_found"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null; not_found: null }
 			errorsByStatus: { 401: null; 403: null; 404: null }

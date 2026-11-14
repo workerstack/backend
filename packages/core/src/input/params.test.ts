@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import type { HoneyError } from "../errors/error.ts"
-import { honey } from "../routing/app.ts"
+import type { HttpError } from "../errors/error.ts"
+import { httpApp } from "../routing/app.ts"
 import { paramsStep } from "./params.ts"
 
 /** The error `run` throws. */
-function thrown(run: () => unknown): HoneyError {
+function thrown(run: () => unknown): HttpError {
 	try {
 		run()
 	} catch (error) {
-		return error as HoneyError
+		return error as HttpError
 	}
 	throw new Error("did not throw")
 }
@@ -38,7 +38,7 @@ describe("paramsStep: the path params a schema names, validated; the rest string
 		const later = z.string().refine(async (value) => value.startsWith("v"))
 		await expect(paramsStep({ version: later })({ version: "v2" })).resolves.toEqual({ version: "v2" })
 		const error = await (paramsStep({ version: later })({ version: "2" }) as Promise<unknown>).catch((e: unknown) => e)
-		expect((error as HoneyError).fields.version?.[0]?.path).toBe("params.version")
+		expect((error as HttpError).fields.version?.[0]?.path).toBe("params.version")
 	})
 })
 
@@ -46,7 +46,7 @@ describe(".input({ params }): onto ctx.params, checked against the path", () => 
 	const providers = z.enum(["github", "google"])
 
 	it("validates an enum param onto ctx.params, leaves an unlisted one a string, and refuses a bad value", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app
 			.get("/oauth/:provider/:step")
 			.input({ params: { provider: providers } })
@@ -61,7 +61,7 @@ describe(".input({ params }): onto ctx.params, checked against the path", () => 
 	})
 
 	it("waits for an async param schema before the handler, ctx.params holding what it produced", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		const version = z.string().transform(async (value) => Number(value.slice(1)))
 		app
 			.get("/v/:version")
@@ -72,7 +72,7 @@ describe(".input({ params }): onto ctx.params, checked against the path", () => 
 	})
 
 	it("refuses at registration a key the path does not name", () => {
-		const route = honey<{}>().get("/oauth/:provider")
+		const route = httpApp<{}>().get("/oauth/:provider")
 		expect(() => route.input({ params: { provder: providers } } as never)).toThrow(
 			'GET /oauth/:provider: .input() params key "provder" is no param of the path (provider)',
 		)

@@ -3,7 +3,7 @@ import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware, type MiddlewareFn } from "../middleware/middleware.ts"
 import { collectRoutes } from "../openapi/collect.ts"
-import { honey } from "./app.ts"
+import { httpApp } from "./app.ts"
 import { gatewayTree } from "./gateway-tree.ts"
 import { createNode, insertRoute, type RouteEntry, type RouteTree } from "./tree.ts"
 import { mergeTree } from "./tree-merge.ts"
@@ -40,7 +40,7 @@ describe("routeTree(): serving a loaded tree", () => {
 	// v0: 97099ec2ee
 	// v0: b27299f29a
 	it("binds each registered route to its leaf, the registration being the whole record, .on() included", async () => {
-		const app = honey<{}>().metaType<{ fresh?: boolean }>().routeTree(STATIC())
+		const app = httpApp<{}>().metaType<{ fresh?: boolean }>().routeTree(STATIC())
 		app
 			.get("/orgs")
 			.meta({ fresh: true })
@@ -57,7 +57,7 @@ describe("routeTree(): serving a loaded tree", () => {
 			[200, "POST"],
 			[200, "up"],
 		])
-		const multi = honey<{}>().routeTree(
+		const multi = httpApp<{}>().routeTree(
 			treeOf([
 				["GET", "/multi"],
 				["POST", "/multi"],
@@ -84,7 +84,7 @@ describe("routeTree(): a new app, called at any point", () => {
 			res.headers.set("x-scope", "1")
 			return res
 		})
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app.use("/orgs", scope)
 		app
 			.use(tag)
@@ -125,7 +125,7 @@ describe("routeTree(): a new app, called at any point", () => {
 
 describe("routeTree(): a new app, apart from the one it was called on", () => {
 	it("keeps the two apps apart after the call, and a second call serves the new tree", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/orgs").handler((c) => c.res.text("ok", "orgs"))
 		const served = app.routeTree(STATIC())
 		served.onNotFound(() => new Response("served miss", { status: 404 }))
@@ -156,11 +156,11 @@ describe("routeTree(): one loaded tree, many apps", () => {
 	it("freezes the tree it loads and never changes it, so two apps load one tree and serve their own routes", async () => {
 		const tree = treeOf([["GET", "/who", { mt: { a: 1 } }]])
 		const make = (name: string) => {
-			const app = honey<{}>().routeTree(tree)
+			const app = httpApp<{}>().routeTree(tree)
 			app.get("/who").handler((c) => c.res.text("ok", name))
 			return app
 		}
-		const [a, b, none] = [make("A"), make("B"), honey<{}>().routeTree(tree)]
+		const [a, b, none] = [make("A"), make("B"), httpApp<{}>().routeTree(tree)]
 		expect([await call(a, "/who"), await call(b, "/who"), (await call(none, "/who"))[0]]).toEqual([
 			[200, "A"],
 			[200, "B"],
@@ -177,7 +177,7 @@ describe("routeTree(): one loaded tree, many apps", () => {
 describe("routeTree(): leaves nothing serves, and stale trees", () => {
 	// v0: 1de1e2d100
 	it("answers 404 on a leaf nothing serves, yet still documents it", async () => {
-		const app = honey<{}>().routeTree(STATIC())
+		const app = httpApp<{}>().routeTree(STATIC())
 		app.post("/orgs").handler((c) => c.res.text("ok", "made"))
 		expect([(await call(app, "/orgs"))[0], collectRoutes(app).http.map(({ id, meta }) => [id, meta])]).toEqual([
 			404,
@@ -194,7 +194,7 @@ describe("routeTree(): leaves nothing serves, and stale trees", () => {
 	// v0: a414a2c8c8
 	// v0: 761c2524a7
 	it("refuses a stale tree: a route it lacks, an older format, a leaf with no entry", () => {
-		const stale = honey<{}>().routeTree(STATIC())
+		const stale = httpApp<{}>().routeTree(STATIC())
 		stale.get("/new").handler((c) => c.res.text("ok", "new"))
 		expect(() => stale.fetch(new Request("http://x/orgs"), {})).toThrow(
 			"GET /new is registered but missing from the loaded route tree",
@@ -204,10 +204,10 @@ describe("routeTree(): leaves nothing serves, and stale trees", () => {
 			"GET /new, GET /other are registered but missing",
 		)
 		const old = { meta: {}, root: { ...createNode(), m: { GET: { fn: null } } }, routes: {} } as unknown as RouteTree
-		expect(() => honey<{}>().routeTree(old)).toThrow("Run `honey generate`")
+		expect(() => httpApp<{}>().routeTree(old)).toThrow("Run `backend generate`")
 		const orphan = createNode()
 		insertRoute(orphan, "GET", "/x")
-		expect(() => honey<{}>().routeTree({ meta: {}, root: orphan, routes: {} })).toThrow(
+		expect(() => httpApp<{}>().routeTree({ meta: {}, root: orphan, routes: {} })).toThrow(
 			"routeTree(): leaf GET /x has no route entry",
 		)
 	})
@@ -222,14 +222,14 @@ describe("toRouteTree(): a snapshot another app serves", () => {
 	// v0: cfefaa8126
 	// v0: 38e39d817e
 	it("serves every route, status, param, wildcard and pattern exactly as the source does", async () => {
-		const live = honey<{}>()
+		const live = httpApp<{}>()
 		live.get("/users").handler((c) => c.res.text("ok", "list"))
 		live.post("/users").handler((c) => c.res.text("created", "made"))
 		live.get("/users/:id").handler((c) => c.res.text("ok", `${c.routePattern} ${c.params.id}`))
 		live.delete("/u/:id").handler((c) => c.res.text("ok", `del ${c.params.id}`))
 		live.get("/u/me").handler((c) => c.res.text("ok", "me"))
 		live.get("/files/*path").handler((c) => c.res.text("ok", `file ${c.params.path}`))
-		const loaded = honey<{}>().routeTree(live.toRouteTree())
+		const loaded = httpApp<{}>().routeTree(live.toRouteTree())
 		for (const app of [live, loaded]) {
 			expect([
 				await call(app, "/users"),
@@ -247,7 +247,7 @@ describe("toRouteTree(): what a snapshot holds", () => {
 	// v0: 953ed12238
 	it("is a copy: changing it changes nothing in the app, and it records each route's data and live record", () => {
 		const errors = defineErrors({ gone: "gone" })
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app
 			.get("/a")
 			.meta({ summary: "A" })
@@ -271,12 +271,12 @@ describe("toRouteTree(): what a snapshot holds", () => {
 			ctx.req.headers.get("authorization") === "ok" ? next() : new Response("no", { status: 401 }),
 		)
 		const build = (tree?: RouteTree) => {
-			const app = tree === undefined ? honey<{}>() : honey<{}>().routeTree(tree)
+			const app = tree === undefined ? httpApp<{}>() : httpApp<{}>().routeTree(tree)
 			app.use("/admin", deny)
 			app.get("/admin/x").handler((c) => c.res.text("ok", c.routePattern))
 			return app
 		}
-		const carried = honey<{}>().routeTree(build().toRouteTree())
+		const carried = httpApp<{}>().routeTree(build().toRouteTree())
 		for (const app of [build(), build(build().toRouteTree()), carried]) {
 			expect([
 				(await call(app, "/admin/x"))[0],
@@ -289,7 +289,7 @@ describe("toRouteTree(): what a snapshot holds", () => {
 describe("toRouteTree(): what a snapshot knows of errors", () => {
 	it("records each declared key's status key, from the factory the route named, a middleware's own or its app's, none for a key no factory knows, and keeps it as data in a gateway's tree", () => {
 		const named = defineErrors({ teapot: { schema: z.object({ brew: z.string() }), status: "bad_request" } })
-		const app = honey<{}>().errorFactory(defineErrors({ column_name_taken: "conflict" }))
+		const app = httpApp<{}>().errorFactory(defineErrors({ column_name_taken: "conflict" }))
 		const audited = createMiddleware(async (_c, next) => next(), {
 			errors: [defineErrors({ audit_failed: "bad_gateway" }), "audit_failed"],
 		})
@@ -298,7 +298,7 @@ describe("toRouteTree(): what a snapshot knows of errors", () => {
 			.use(audited)
 			.errors("column_name_taken")
 			.handler((c) => c.res.text("ok", "c"))
-		/* timeout() declares its key with no factory of its own; the route's factory carries honey's request_timeout */
+		/* timeout() declares its key with no factory of its own; the route's factory carries backend's request_timeout */
 		app
 			.get("/tea")
 			.use(timeout({ duration: 1000 }))
@@ -313,7 +313,7 @@ describe("toRouteTree(): what a snapshot knows of errors", () => {
 			.use(shed)
 			.handler((c) => c.res.text("ok", "s"))
 		const snap = app.toRouteTree()
-		const gateway = honey<{}>()
+		const gateway = httpApp<{}>()
 		gateway.all("/*").handler((c) => c.res.text("ok", "proxy"))
 		const served = gatewayTree(gateway, snap)
 		expect([
@@ -338,8 +338,8 @@ describe("toRouteTree(): what a snapshot knows of errors", () => {
 })
 
 describe("toRouteTree(): a key no middleware of the route declares", () => {
-	it("records a key the middleware does not declare off the app's factory, though its own carries honey's", () => {
-		const app = honey<{}>().errorFactory(defineErrors({ request_timeout: "request_timeout" }))
+	it("records a key the middleware does not declare off the app's factory, though its own carries backend's", () => {
+		const app = httpApp<{}>().errorFactory(defineErrors({ request_timeout: "request_timeout" }))
 		const audited = createMiddleware(async (_c, next) => next(), {
 			errors: [defineErrors({ audit_failed: "bad_gateway" }), "audit_failed"],
 		})
@@ -365,13 +365,13 @@ describe("toRouteTree(): loading a snapshot beside registrations", () => {
 	// v0: 589f759aaa
 	it("lets a registration replace a snapshot's route, serves through a use() handle, and keeps an SPA fallback", async () => {
 		const errors = defineErrors({ item_not_found: "not_found" })
-		const source = honey<{}>().errorFactory(errors)
+		const source = httpApp<{}>().errorFactory(errors)
 		source
 			.get("/items/:id")
 			.errors("item_not_found")
 			.handler((c) => c.res.text("ok", "v1"))
 		source.get("/*path").handler((c) => c.res.text("ok", `spa ${c.params.path}`))
-		const app = honey<{}>().errorFactory(errors).routeTree(source.toRouteTree())
+		const app = httpApp<{}>().errorFactory(errors).routeTree(source.toRouteTree())
 		const child = app.use(createMiddleware(async (_ctx, next) => next()))
 		app
 			.get("/items/:id")
@@ -388,7 +388,7 @@ describe("toRouteTree(): loading a snapshot beside registrations", () => {
 
 	// v0: 6b3f8bc280
 	it("a middleware's context addition reaches a route bound to a loaded leaf", async () => {
-		const app = honey<{}>().routeTree(STATIC())
+		const app = httpApp<{}>().routeTree(STATIC())
 		app
 			.use(createMiddleware(async (_ctx, next) => next({ db: "connected" })))
 			.get("/orgs")
@@ -400,7 +400,7 @@ describe("toRouteTree(): loading a snapshot beside registrations", () => {
 /** A one-route app per entry: [method, path, answer status, body]. */
 function apps(...routes: readonly (readonly ["GET" | "POST", string, "ok" | "created", string])[]) {
 	return routes.map(([method, path, status, body]) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.on([method], path).handler((c) => c.res.text(status, body))
 		return app
 	})
@@ -422,7 +422,7 @@ describe("mergeTree of snapshots: one app serving several", () => {
 			["GET", "/files/*p", "ok", "file"],
 			["POST", "/files/*p", "created", "up"],
 		)
-		const app = honey<{}>().routeTree(mergeTree(...sources.map((source) => source.toRouteTree())))
+		const app = httpApp<{}>().routeTree(mergeTree(...sources.map((source) => source.toRouteTree())))
 		expect([
 			await call(app, "/users"),
 			await call(app, "/users", { method: "POST" }),
@@ -447,15 +447,15 @@ describe("mergeTree of snapshots: one app serving several", () => {
 
 describe("routeTree(): whose routes and settings the new app carries", () => {
 	it("leaves behind the routes a previous tree carried live, and keeps a mounted app's settings on its routes", async () => {
-		const source = honey<{}>()
+		const source = httpApp<{}>()
 		source.get("/orgs").handler((c) => c.res.text("ok", "source's"))
-		const loaded = honey<{}>().routeTree(source.toRouteTree())
+		const loaded = httpApp<{}>().routeTree(source.toRouteTree())
 		const reloaded = loaded.routeTree(treeOf([["GET", "/orgs"]]))
 		const seen: unknown[] = []
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.tap("audit", (_ctx, payload) => void seen.push(["sub's audit", payload]))
 		sub.get("/sub").handler((c) => (c.tap("audit", 1), c.res.text("ok", "sub")))
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.tap("log", (_ctx, payload) => void seen.push(["app's log", payload]))
 		app.get("/own").handler((c) => (c.tap("log", 2), c.res.text("ok", "own")))
 		app.route(sub)

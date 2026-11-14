@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { remoteJwks, type JwkSource } from "./jwks.ts"
-import type { Jwk } from "./jws.ts"
+import type { JwtJwk } from "./jws.ts"
 import { signJwt, verifyJwt } from "./jwt.ts"
 
 const NOW = 1_900_000_000
@@ -54,7 +54,7 @@ describe("remoteJwks picks a key", () => {
 	it("needs no kid when one key can verify, and refuses to guess among several", async () => {
 		const one = await rsaPair()
 		const two = await rsaPair()
-		let keys: Jwk[] = [one.jwk]
+		let keys: JwtJwk[] = [one.jwk]
 		serve(() => ({ keys }))
 		const token = await signJwt(claims, { alg: "RS256", key: one.privateKey })
 		expect((await verifyJwt(token, issuerOptions(remoteJwks(JWKS_URL)))).success).toBe(true)
@@ -74,7 +74,7 @@ describe("remoteJwks fetches", () => {
 	it("caches, refetches on an unknown kid, and holds the cooldown", async () => {
 		const one = await rsaPair()
 		const two = await rsaPair()
-		let keys: Jwk[] = [{ ...one.jwk, kid: "k1" }]
+		let keys: JwtJwk[] = [{ ...one.jwk, kid: "k1" }]
 		const fetchMock = serve(() => ({ keys }))
 		const options = issuerOptions(remoteJwks(JWKS_URL))
 

@@ -1,9 +1,9 @@
 /**
- * `honeyPlugin()`'s config (bit 19 h2): what it takes, resolved with its defaults (the route tree on, every
+ * `backendPlugin()`'s config (bit 19 h2): what it takes, resolved with its defaults (the route tree on, every
  * other artifact off), and every path a generation writes, which a watcher must never take for an edit. An OpenAPI
  * output writes each of its formats under its path's stem, JSON unless the path is YAML (plan 39 7.4; core's
  * openapi/yaml.ts writes the YAML), and shows the security schemes the codegen declares once that it lists, else
- * the ones its routes name. The SDKs, the CLI and the MCP server package are honey-clients's (Q1), so
+ * the ones its routes name. The SDKs, the CLI and the MCP server package are clients' (Q1), so
  * their keys are refused. Bit 21 e: `mcp` writes the handler an app mounts (`_gen/mcp.gen.ts`, its runtime and SDK in
  * the companion directory named by its stem, `_gen/mcp/`), H24.3.
  */
@@ -16,7 +16,7 @@ import type { OpenApiSanitizeOptions } from "../schema/sanitize-spec.ts"
 export type OpenApiFormat = "json" | "yaml"
 
 /** One OpenAPI document a generation writes. */
-export type HoneyOpenApiOutputConfig = {
+export type OpenApiOutputConfig = {
 	/** The document's `info.description`; left out when unset. */
 	readonly description?: string
 	/** The document's own external docs. */
@@ -35,7 +35,7 @@ export type HoneyOpenApiOutputConfig = {
 	readonly profile?: string
 	/** what the published document leaves out */
 	readonly sanitize?: {
-		/** The `x-*` keys to drop: `true` for every one honey and its generators do not read, or a list of names. */
+		/** The `x-*` keys to drop: `true` for every one backend and its generators do not read, or a list of names. */
 		readonly stripXExtensions?: OpenApiSanitizeOptions["stripXExtensions"]
 	}
 	/**
@@ -54,7 +54,7 @@ export type HoneyOpenApiOutputConfig = {
 }
 
 /** The MCP handler an app mounts with `mcp(app, path, mcpHandler)` from @workerstack/backend/mcp. */
-export type HoneyMcpOutputConfig = {
+export type McpOutputConfig = {
 	/** leave out every route this answers false for; a tool is a route whose meta has `mcp: true` */
 	readonly filterRoutes?: (route: OpenApiRouteInfo) => boolean
 	/** the server's name; by default the first OpenAPI output's title's */
@@ -64,7 +64,7 @@ export type HoneyMcpOutputConfig = {
 }
 
 /** Which artifacts a generation writes. The route tree is on by default; every other one is off until configured. */
-export type HoneyCodegenConfig = {
+export type BackendCodegenConfig = {
 	/**
 	 * The directory a Worker serves as assets, from the project root; default wrangler's `assets.directory`. A named
 	 * OpenAPI document's files are listed under it in `src/_gen/openapi-sources.gen.ts`.
@@ -75,11 +75,11 @@ export type HoneyCodegenConfig = {
 	/** the route manifest; `true` is `src/_gen/manifest.gen.json` */
 	readonly manifest?: boolean | string
 	/** the MCP handler the app mounts; `true` is `src/_gen/mcp.gen.ts` */
-	readonly mcp?: boolean | string | HoneyMcpOutputConfig
+	readonly mcp?: boolean | string | McpOutputConfig
 	/** a gateway's route tree source: a module exporting its services' merged tree */
 	readonly mergeTree?: string
 	/** one document, or several from the same routes */
-	readonly openApi?: HoneyOpenApiOutputConfig | readonly HoneyOpenApiOutputConfig[]
+	readonly openApi?: OpenApiOutputConfig | readonly OpenApiOutputConfig[]
 	/**
 	 * Every security scheme the routes name, keyed by name: each document shows those it lists, or those its routes
 	 * name. A route naming a scheme missing here is an error, or a warning when none are declared.
@@ -99,12 +99,12 @@ export type HoneyCodegenConfig = {
 		  }
 }
 
-/** What `honeyPlugin()` takes: the app module, the artifacts to generate, and the files whose edits regenerate them. */
-export type HoneyVitePluginConfig = {
+/** What `backendPlugin()` takes: the app module, the artifacts to generate, and the files whose edits regenerate them. */
+export type BackendPluginConfig = {
 	/** the module exporting the app (`app`, else the default export) */
 	readonly app?: string
 	/** Which artifacts a generation writes; only the route tree when unset. */
-	readonly codegen?: HoneyCodegenConfig
+	readonly codegen?: BackendCodegenConfig
 	/**
 	 * `true` keeps the answer check in a production build. Every `.output()` route checks what it answers under the dev
 	 * server, in tests and in a development build; a production `vite build` drops the check from each bundle it makes
@@ -115,18 +115,18 @@ export type HoneyVitePluginConfig = {
 	readonly watch?: readonly string[]
 }
 
-export type ResolvedOpenApiOutput = Omit<HoneyOpenApiOutputConfig, "formats" | "path"> & {
+export type ResolvedOpenApiOutput = Omit<OpenApiOutputConfig, "formats" | "path"> & {
 	readonly formats: readonly OpenApiFormat[]
 	readonly path: string
 }
 
-export type ResolvedMcpOutput = Omit<HoneyMcpOutputConfig, "path"> & {
+export type ResolvedMcpOutput = Omit<McpOutputConfig, "path"> & {
 	readonly path: string
 	/** the companion directory's name, the path's stem */
 	readonly dir: string
 }
 
-export type ResolvedHoneyConfig = {
+export type ResolvedBackendConfig = {
 	readonly app: string | undefined
 	readonly codegen: {
 		readonly assetsDir: string | undefined
@@ -149,7 +149,7 @@ const TYPES = "src/_gen/types.gen.d.ts"
 const MCP = "src/_gen/mcp.gen.ts"
 
 /**
- * The files honey-clients's generateMcpHandler writes in the companion directory: its portable runtime and the API's
+ * The files clients' generateMcpHandler writes in the companion directory: its portable runtime and the API's
  * TS SDK (plugin.test holds a generation to exactly these).
  */
 export const MCP_COMPANIONS = [
@@ -162,7 +162,7 @@ export const MCP_COMPANIONS = [
 ] as const
 
 /** `value` as the MCP output: off, or its path (a `.ts` module) and companion directory with its options. */
-type TypesOptions = Extract<HoneyCodegenConfig["types"], object>
+type TypesOptions = Extract<BackendCodegenConfig["types"], object>
 
 /* every key each config object takes, exhaustive by its type: a JS config is not type-checked, and none passes unread */
 const PLUGIN_KEYS = {
@@ -170,7 +170,7 @@ const PLUGIN_KEYS = {
 	codegen: true,
 	outputValidation: true,
 	watch: true,
-} satisfies Record<keyof HoneyVitePluginConfig, true>
+} satisfies Record<keyof BackendPluginConfig, true>
 const CODEGEN_KEYS = {
 	assetsDir: true,
 	invalidate: true,
@@ -181,7 +181,7 @@ const CODEGEN_KEYS = {
 	securitySchemes: true,
 	tree: true,
 	types: true,
-} satisfies Record<keyof HoneyCodegenConfig, true>
+} satisfies Record<keyof BackendCodegenConfig, true>
 const OPENAPI_KEYS = {
 	description: true,
 	externalDocs: true,
@@ -196,15 +196,15 @@ const OPENAPI_KEYS = {
 	tags: true,
 	title: true,
 	version: true,
-} satisfies Record<keyof HoneyOpenApiOutputConfig, true>
+} satisfies Record<keyof OpenApiOutputConfig, true>
 const SANITIZE_KEYS = { stripXExtensions: true } satisfies Record<
-	keyof NonNullable<HoneyOpenApiOutputConfig["sanitize"]>,
+	keyof NonNullable<OpenApiOutputConfig["sanitize"]>,
 	true
 >
-const MCP_KEYS = { filterRoutes: true, name: true, path: true } satisfies Record<keyof HoneyMcpOutputConfig, true>
+const MCP_KEYS = { filterRoutes: true, name: true, path: true } satisfies Record<keyof McpOutputConfig, true>
 const TYPES_KEYS = { baseCtxName: true, path: true } satisfies Record<keyof TypesOptions, true>
 
-const CLIENTS = "the SDKs, the CLI and MCP are honey-clients's: honey-clients generate --app"
+const CLIENTS = "the SDKs, the CLI and MCP are clients': clients generate --app"
 const ONCE = "declare each scheme once in codegen.securitySchemes"
 const SHOWN = "security lists the schemes the document shows"
 /** The keys a release moved, by the object they were in, with where they went. */
@@ -226,7 +226,7 @@ function onlyKnown(value: object, known: object, at: string, kind: string): void
 	throw new Error(moved === undefined ? `${path} is no option` : `${path} moved: ${moved}`)
 }
 
-function mcpOf(value: HoneyCodegenConfig["mcp"]): false | ResolvedMcpOutput {
+function mcpOf(value: BackendCodegenConfig["mcp"]): false | ResolvedMcpOutput {
 	if (value === undefined || value === false) return false
 	if (typeof value === "object") onlyKnown(value, MCP_KEYS, "codegen.mcp", "mcp")
 	const options = typeof value === "object" ? value : { path: typeof value === "string" ? value : undefined }
@@ -246,7 +246,7 @@ const YAML_PATH = /\.ya?ml$/
 
 /** The OpenAPI outputs with their paths and formats; a repeated name, no format, or an undeclared scheme is an error. */
 function openApiOf(
-	outputs: readonly HoneyOpenApiOutputConfig[],
+	outputs: readonly OpenApiOutputConfig[],
 	schemes: Readonly<Record<string, unknown>> | undefined,
 ): ResolvedOpenApiOutput[] {
 	const names = new Set<string>()
@@ -269,7 +269,7 @@ function openApiOf(
 }
 
 /** `raw` with its defaults; a key no option names is an error, and one a release moved names where it went. */
-export function resolveHoneyConfig(raw: HoneyVitePluginConfig): ResolvedHoneyConfig {
+export function resolveBackendConfig(raw: BackendPluginConfig): ResolvedBackendConfig {
 	onlyKnown(raw, PLUGIN_KEYS, "", "plugin")
 	const c = raw.codegen ?? {}
 	onlyKnown(c, CODEGEN_KEYS, "codegen", "codegen")
@@ -284,7 +284,7 @@ export function resolveHoneyConfig(raw: HoneyVitePluginConfig): ResolvedHoneyCon
 			manifest: pathOf(c.manifest, "src/_gen/manifest.gen.json", false),
 			mcp: mcpOf(c.mcp),
 			mergeTree: c.mergeTree,
-			openApi: openApiOf(outputs as readonly HoneyOpenApiOutputConfig[], c.securitySchemes),
+			openApi: openApiOf(outputs as readonly OpenApiOutputConfig[], c.securitySchemes),
 			securitySchemes: c.securitySchemes,
 			tree: pathOf(c.tree, "src/_gen/routes.gen.ts", true),
 			types:
@@ -317,7 +317,7 @@ export const mcpPaths = (mcp: false | ResolvedMcpOutput): string[] =>
 	mcp === false ? [] : [mcp.path, ...MCP_COMPANIONS.map((name) => join(dirname(mcp.path), mcp.dir, name))]
 
 /** Every file a generation writes, absolute, and the directories it creates them in. */
-export function generatedOutputs(config: ResolvedHoneyConfig, root: string): { dirs: string[]; files: string[] } {
+export function generatedOutputs(config: ResolvedBackendConfig, root: string): { dirs: string[]; files: string[] } {
 	const { manifest, mcp, openApi, tree, types } = config.codegen
 	const files = [tree, types === false ? false : types.path, manifest, ...mcpPaths(mcp)]
 		.filter((path): path is string => path !== false)

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest"
 import { createCookieSigner } from "../../src/context/cookie-sign.ts"
 import { type CookieOptions, serializeCookie } from "../../src/context/cookie.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type Fetchable = { fetch: (r: Request, env: never) => Response | Promise<Response> }
 
@@ -36,7 +36,7 @@ const internal = {
 describe("ctx.cookies", () => {
 	// v0: 0d29d15044
 	it("is read from the request once, and is the same object on every access", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/t")
 			.handler((ctx) => ctx.res.json("ok", { same: ctx.cookies === ctx.cookies, session: ctx.cookies.session }))
@@ -51,7 +51,7 @@ describe("ctx.cookies", () => {
 describe("ctx.cookies: a long header", () => {
 	// v0: 84c2d77289
 	it("a hundred cookies are all read", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/t")
 			.handler((ctx) =>
@@ -66,7 +66,7 @@ describe("ctx.cookies: a long header", () => {
 	// v0: 9269971ab8
 	// v0: 9148c1d5fa
 	it("keeps spaces and an empty value; nothing but separators is none; a thousand pairs all", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/t").handler((ctx) => ctx.res.json("ok", { count: Object.keys(ctx.cookies).length, ...ctx.cookies }))
 		const many = Array.from({ length: 1000 }, (_, i) => `k${i}=v${i}`).join("; ")
 		const thousand = (await send(app, "/t", many)).body as Record<string, unknown>
@@ -81,7 +81,7 @@ describe("ctx.cookies: a long header", () => {
 describe("ctx.cookies: names that shadow Object.prototype", () => {
 	it("are read as plain cookies, and nothing else answers to them", async () => {
 		const names = ["__proto__", "constructor", "toString", "hasOwnProperty"]
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/t")
 			.handler((ctx) =>
@@ -106,7 +106,7 @@ describe("cookies on the answer", () => {
 	// v0: 8f7e060744
 	// v0: d52cc14e31
 	it("each cookie becomes its own Set-Cookie header, with its attributes", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/t").handler((ctx) =>
 			ctx.res.json(
 				"ok",
@@ -145,14 +145,14 @@ describe("cookies and error answers", () => {
 		[Infinity, { body: internal, setCookie: [], status: 500 }],
 		[-1, { body: internal, setCookie: [], status: 500 }],
 	])("a cookie with Max-Age %d gives %o", async (maxAge, answer) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/t").handler((ctx) => ctx.res.json("ok", {}, { cookies: { s: { maxAge, value: "x" } } }))
 		expect(await send(app, "/t")).toEqual(answer)
 	})
 
 	// v0: cbe0ffcff7
 	it("the Set-Cookie of a Response onError answers with goes out with it", async () => {
-		const app = honey<{}>().onError(
+		const app = httpApp<{}>().onError(
 			() => new Response("{}", { headers: { "set-cookie": "error_tracked=1; Path=/" }, status: 500 }),
 		)
 		app.get("/t").handler(() => {
@@ -164,7 +164,7 @@ describe("cookies and error answers", () => {
 
 	// v0: 4e6984c802
 	it("a cookie a middleware adds after next() rides the error answer too", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const remember = createMiddleware(async (_ctx, next) => {
 			const res = await next()
 			res.headers.append("set-cookie", serializeCookie("sid", { httpOnly: true, value: "kept" }))
@@ -182,7 +182,7 @@ describe("cookies and error answers", () => {
 
 /** An app that sets `token` from `options` on /set and reports it on /read, through `read`. */
 function roundTripApp(options: CookieOptions, read: (raw: string | undefined) => unknown = (raw) => raw) {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/set").handler((ctx) => ctx.res.json("ok", {}, { cookies: { token: options } }))
 	app.get("/read").handler(async (ctx) => ctx.res.json("ok", { token: await read(ctx.cookies.token) }))
 	return app

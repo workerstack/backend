@@ -7,7 +7,7 @@
  * This exists because a package that ships raw TypeScript inherits the *consumer's* compiler
  * flags. `skipLibCheck` does not help — it covers `.d.ts` only — and there is no per-directory
  * suppression for `.ts` under node_modules, so a consumer cannot opt out of our lint posture.
- * Nothing else in the test matrix can see that: every other tier compiles honey with honey's
+ * Nothing else in the test matrix can see that: every other tier compiles backend with backend's
  * own tsconfig.
  *
  *   bun run packages/core/tests/e2e/run-strict-consumer.ts
@@ -24,7 +24,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, "../../../..")
 const fixture = join(here, "strict-consumer")
 /* outside the repo, so nothing the install lacks resolves from the repo's node_modules */
-const sandbox = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "honey-strict-consumer-"))
+const sandbox = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "backend-strict-consumer-"))
 const keep = process.argv.includes("--keep")
 
 const PKG = "@workerstack/backend"
@@ -94,7 +94,7 @@ if (packed.code !== 0 || !coreTarball.endsWith(".tgz")) {
 	process.exit(1)
 }
 
-/* 2. a consumer that depends on the tarball, not the workspace, and on honey-clients at the version core pins */
+/* 2. a consumer that depends on the tarball, not the workspace, and on clients at the version core pins */
 const consumer = join(sandbox, "consumer")
 mkdirSync(join(consumer, "src"), { recursive: true })
 /* every file the fixture ships, so a new leg needs no change here */
@@ -136,7 +136,7 @@ for (const name of readdirSync(join(fixture, "documents"))) {
 	const emitted = await run(
 		[
 			"node",
-			join("node_modules", ".bin", "honey-clients"),
+			join("node_modules", ".bin", "clients"),
 			"generate",
 			"--spec",
 			join(fixture, "documents", name),
@@ -151,7 +151,7 @@ for (const name of readdirSync(join(fixture, "documents"))) {
 		consumer,
 	)
 	if (emitted.code !== 0) {
-		console.error(`FAIL  honey-clients generate from ${name}`)
+		console.error(`FAIL  clients generate from ${name}`)
 		console.error(emitted.out)
 		if (!keep) rmSync(sandbox, { force: true, recursive: true })
 		process.exit(1)
@@ -193,7 +193,7 @@ if (inGenerated.length > 0) {
 		const file = /^(\S+?)\(/.exec(line.trim())?.[1] ?? "?"
 		byFile.set(file, (byFile.get(file) ?? 0) + 1)
 	}
-	console.log(`FAIL  ${inGenerated.length} diagnostics in the clients honey-clients generated\n`)
+	console.log(`FAIL  ${inGenerated.length} diagnostics in the generated clients\n`)
 	for (const [file, n] of [...byFile].sort((a, b) => b[1] - a[1])) console.log(`  ${String(n).padStart(5)}  ${file}`)
 	console.log("\nfirst few:")
 	for (const line of inGenerated.slice(0, 5)) console.log(`  ${line.trim()}`)
@@ -214,11 +214,11 @@ if (inPackage.length === 0 && inGenerated.length === 0 && inConsumer.length === 
 	await Bun.write(
 		join(consumer, "smoke.ts"),
 		[
-			'import { honey } from "@workerstack/backend/http"',
+			'import { httpApp } from "@workerstack/backend/http"',
 			'import { serveOpenApi } from "@workerstack/backend/http/openapi"',
 			'import { parseUserAgent } from "@workerstack/backend/http/user-agent"',
 			'import * as z from "zod"',
-			"const app = honey<{}>()",
+			"const app = httpApp<{}>()",
 			'app.get("/hi").output({ "application/json": { ok: z.object({ ok: z.boolean() }) } })',
 			'\t.handler((c) => c.res.json("ok", { ok: true }))',
 			'serveOpenApi(app, { title: "T", version: "1" })',
@@ -279,8 +279,8 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	await Bun.write(
 		join(dir, "node-smoke.mjs"),
 		[
-			'import { honey } from "@workerstack/backend/http"',
-			"const app = honey()",
+			'import { httpApp } from "@workerstack/backend/http"',
+			"const app = httpApp()",
 			'app.get("/hi").handler((c) => c.res.text("ok", "hi"))',
 			'const res = await app.fetch(new Request("http://x/hi"), {})',
 			'if (res.status !== 200 || (await res.text()) !== "hi") throw new Error(`route returned ${res.status}`)',
@@ -295,21 +295,21 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	await Bun.write(
 		join(dir, "src", "server-app.ts"),
 		[
-			'import { honey } from "@workerstack/backend/http"',
-			'export const app = honey().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))',
+			'import { httpApp } from "@workerstack/backend/http"',
+			'export const app = httpApp().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))',
 			"export default app",
 		].join("\n"),
 	)
 	await Bun.write(
 		join(dir, "vite.config.ts"),
 		[
-			'import { honeyPlugin } from "@workerstack/backend/plugin"',
-			'export default { plugins: [honeyPlugin({ app: "src/server-app.ts", codegen: { openApi: { title: "T", version: "1" } } })] }',
+			'import { backendPlugin } from "@workerstack/backend/plugin"',
+			'export default { plugins: [backendPlugin({ app: "src/server-app.ts", codegen: { openApi: { title: "T", version: "1" } } })] }',
 		].join("\n"),
 	)
-	const generated = await run(["node", join("node_modules", ".bin", "honey"), "generate"], dir)
+	const generated = await run(["node", join("node_modules", ".bin", "backend"), "generate"], dir)
 	if (generated.code !== 0 || !(await Bun.file(join(dir, "src", "_gen", "routes.gen.ts")).exists())) {
-		return fail("honey generate on Node", generated.out)
+		return fail("backend generate on Node", generated.out)
 	}
 	console.log("cli ok (node)")
 
@@ -329,7 +329,7 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 		["node", join("node_modules", "vite", "bin", "vite.js"), "build", "--config", "vite.build.config.ts"],
 		dir,
 	)
-	if (built.code !== 0) return fail("vite build with the honey plugins on Node", built.out)
+	if (built.code !== 0) return fail("vite build with the backend plugins on Node", built.out)
 
 	/* the built Worker module, called as workerd calls its default export */
 	await Bun.write(

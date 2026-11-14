@@ -1,6 +1,6 @@
 import type { WSAdapter } from "@workerstack/backend/http"
 import type { RouteTree } from "@workerstack/backend/http/tree"
-import { createMiddleware, defineErrors, honey } from "@workerstack/backend/http"
+import { createMiddleware, defineErrors, httpApp } from "@workerstack/backend/http"
 import { streamed } from "@workerstack/backend/http/input"
 import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
@@ -36,7 +36,7 @@ const withAuth = createMiddleware(async (_ctx, next) =>
 export type AppOptions = { routeTree?: RouteTree }
 
 export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
-	const app = options?.routeTree ? honey<Env>().routeTree(options.routeTree) : honey<Env>()
+	const app = options?.routeTree ? httpApp<Env>().routeTree(options.routeTree) : httpApp<Env>()
 	if (wsAdapter) app.wsAdapter(wsAdapter)
 
 	const routed = app
@@ -253,5 +253,5 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 			},
 		})
 
-	return serveManifest(serveOpenApi(routed, { docs: { "/docs": scalar }, title: "Honey Surface", version: "1.0.0" }))
+	return serveManifest(serveOpenApi(routed, { docs: { "/docs": scalar }, title: "Backend Surface", version: "1.0.0" }))
 }

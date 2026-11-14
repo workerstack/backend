@@ -19,7 +19,7 @@ import { cors as corsV1 } from "../../packages/core/src/middleware/cors.ts"
 import { createMiddleware as createV1Middleware } from "../../packages/core/src/middleware/middleware.ts"
 import { requestId as requestIdV1 } from "../../packages/core/src/middleware/request-id.ts"
 import { secureHeaders as secureHeadersV1 } from "../../packages/core/src/middleware/secure-headers.ts"
-import { honey as honeyV1 } from "../../packages/core/src/routing/app.ts"
+import { httpApp as httpAppV1 } from "../../packages/core/src/routing/app.ts"
 import { ceilingsOf, measure, passesOf, report, rowOf, runtime, samplingOf } from "./gate.ts"
 import { median } from "./significance.ts"
 
@@ -28,7 +28,7 @@ const ITERATIONS = Number(process.env.HOTPATH_ITERATIONS ?? 50_000)
 
 type Fetch = (req: Request) => Response | Promise<Response>
 
-/* A minimal standard-schema (no validator dependency): exercises honey's validate plumbing
+/* A minimal standard-schema (no validator dependency): exercises backend's validate plumbing
  * on the input and output paths. `body` reads the request body once; `output` validates from
  * the retained raw JSON (no clone, no tee) — the path bit 08 pins as must-not-regress. */
 const passSchema = {
@@ -43,7 +43,7 @@ const passSchema = {
 /** The same routes as v0's app, for every scenario. */
 function buildV1App() {
 	const pass = createV1Middleware(async (_ctx, next) => next())
-	const app = honeyV1<{}>()
+	const app = httpAppV1<{}>()
 	app.get("/json").handler((ctx) => ctx.res.json("ok", { message: "Hello, World!" }))
 	app.get("/users/:id").handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
 	app
@@ -68,8 +68,8 @@ function buildV1App() {
 		.handler((ctx) => ctx.res.json("ok", { ok: true }))
 	for (let i = 0; i < 300; i++) app.get(`/r${i}/:a/:b`).handler((ctx) => ctx.res.json("ok", { a: ctx.params.a }))
 	app.get("/deep/:a/:b/:c/:d/:e").handler((ctx) => ctx.res.json("ok", { e: ctx.params.e }))
-	/* body and large-response as v0 builds them, with no answer check on either side: honey runs under
-	 * honey-no-output-check (bench:hotpath), as a production build resolves #output-check */
+	/* body and large-response as v0 builds them, with no answer check on either side: backend runs under
+	 * backend-no-output-check (bench:hotpath), as a production build resolves #output-check */
 	app
 		.post("/echo")
 		.input({ json: passSchema })
@@ -130,7 +130,7 @@ type Scenario = {
 	body?: string
 	headers?: Record<string, string>
 	status?: number
-	/* a one-shot body: build a fresh Request each iteration (for honey and raw alike, so the
+	/* a one-shot body: build a fresh Request each iteration (for backend and raw alike, so the
 	 * Request-construction cost is on both sides and the ratio still cancels it) */
 	fresh?: boolean
 }
@@ -170,14 +170,14 @@ function targetFetch(): Fetch {
 	return (req) => app.fetch(req, {})
 }
 
-/* one in-process app per side for every scenario; gate.ts interleaves each sample of honey with one of raw, in passes */
-function scenariosOf(honeyFetch: Fetch, raw: Fetch) {
+/* one in-process app per side for every scenario; gate.ts interleaves each sample of backend with one of raw, in passes */
+function scenariosOf(httpAppFetch: Fetch, raw: Fetch) {
 	return Object.entries(SCENARIOS).map(([name, sc]) => {
 		const url = `http://bench.local${sc.path}`
 		const init: RequestInit = { body: sc.body, headers: sc.headers, method: sc.method }
 		const make: Request | (() => Request) = sc.fresh ? () => new Request(url, init) : new Request(url, init)
 		const status = sc.status ?? 200
-		return { name, raw: () => timePerOp(raw, make, status), v1: () => timePerOp(honeyFetch, make, status) }
+		return { name, raw: () => timePerOp(raw, make, status), v1: () => timePerOp(httpAppFetch, make, status) }
 	})
 }
 
@@ -188,7 +188,7 @@ const { idleMs, measured } = await measure(scenariosOf(targetFetch(), buildRaw()
 const own = ceilingsOf("hotpath")
 const rows = measured.map((m) => ({
 	...rowOf(m.name, m.passes, own?.[m.name]),
-	honey_ns: Math.round(median(m.v1)),
+	backend_ns: Math.round(median(m.v1)),
 	raw_ns: Math.round(median(m.raw)),
 }))
 report(

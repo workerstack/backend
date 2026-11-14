@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { type Honey, honey } from "../routing/app.ts"
+import { type HttpApp, httpApp } from "../routing/app.ts"
 import { cors, type CORSOptions } from "./cors.ts"
 import { ws } from "../ws/route.ts"
 
@@ -7,7 +7,7 @@ const ORIGIN = "https://app.example.com"
 
 /** A GET and POST on /data behind cors(options), and the answer headers that matter for CORS. */
 function corsApp(options?: CORSOptions) {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	const guarded = app.use(cors(options))
 	guarded.get("/data").handler((ctx) => ctx.res.json("ok", { ok: true }))
 	guarded.post("/data").handler((ctx) => ctx.res.json("ok", { posted: true }))
@@ -25,7 +25,7 @@ const preflight = (origin: string, extra: Record<string, string> = {}) =>
 	})
 
 /** The CORS-relevant part of an answer. */
-async function corsOf(app: Honey<{}>, req: Request) {
+async function corsOf(app: HttpApp<{}>, req: Request) {
 	const res = await app.fetch(req, {})
 	const header = (name: string) => res.headers.get(name)
 	return {
@@ -178,7 +178,7 @@ describe("cors(): which preflights it answers", () => {
 	// v0: fb5d34e689
 	it("a preflight for a GET-only or POST-only route is answered by that route's cors; its handler never runs", async () => {
 		let ran = 0
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const guarded = app.use(cors())
 		guarded.get("/get").handler((ctx) => {
 			ran++
@@ -202,15 +202,15 @@ describe("cors(): preflights nothing answers", () => {
 	// v0: cd2b09f179
 	// v0: b6ffcf5f3e
 	it("no cors: the preflight stays 405; an unknown path is answered only by cors every route runs", async () => {
-		const bare = honey<{}>()
+		const bare = httpApp<{}>()
 		bare.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
-		const partial = honey<{}>()
+		const partial = httpApp<{}>()
 		partial
 			.use(cors())
 			.get("/a")
 			.handler((ctx) => ctx.res.text("ok", "a"))
 		partial.get("/b").handler((ctx) => ctx.res.text("ok", "b"))
-		const everywhere = honey<{}>().use(cors())
+		const everywhere = httpApp<{}>().use(cors())
 		everywhere.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		const asking = (path: string) =>
 			request(path, { headers: { "access-control-request-method": "GET", origin: ORIGIN }, method: "OPTIONS" })
@@ -231,12 +231,12 @@ describe("cors(): preflights through mounts, scopes and per-route policies", () 
 	// v0: d0e4f7c9eb
 	// v0: 7e845ebda7
 	it("through a basePath, a mounted child, a scoped cors, and per route: each preflight gets its route's policy", async () => {
-		const child = honey<{}>()
+		const child = httpApp<{}>()
 		child
 			.use(cors())
 			.get("/items/:id")
 			.handler((ctx) => ctx.res.text("ok", ctx.params.id))
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.basePath("/v1").route("/shop", child)
 		app.use("/scoped", cors({ origin: ORIGIN }))
 		app.get("/scoped/x").handler((ctx) => ctx.res.text("ok", "x"))
@@ -317,7 +317,7 @@ describe("cors(): Vary", () => {
 	// v0: 88bbcbf465
 	// v0: 94d068c01a
 	it("joins a handler's own Vary instead of duplicating it", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const guarded = app.use(cors({ origin: ORIGIN }))
 		guarded.get("/a").handler((ctx) => ctx.res.text("ok", "x", { headers: { vary: "Accept-Encoding" } }))
 		guarded.get("/b").handler((ctx) => ctx.res.text("ok", "x", { headers: { vary: "origin" } }))
@@ -334,7 +334,7 @@ describe("cors(): what it leaves alone", () => {
 	// v0: 1bb981b2cd
 	it("a large JSON body and a streamed body come through intact; a HEAD gets its headers (the adapter drops its body)", async () => {
 		const big = { items: Array.from({ length: 2000 }, (_, i) => ({ i, name: `item-${i}` })) }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const guarded = app.basePath("/v1").use(cors())
 		guarded.get("/big").handler((ctx) => ctx.res.json("ok", big))
 		guarded.get("/stream").handler((ctx) =>
@@ -356,7 +356,7 @@ describe("cors(): what it leaves alone", () => {
 	})
 
 	it("a response with immutable headers is copied with its body, status and headers, then given CORS", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(cors())
 			.get("/moved")
@@ -374,7 +374,7 @@ describe("cors(): what it leaves alone", () => {
 		const upgraded = new Response(null)
 		Object.defineProperty(upgraded, "status", { value: 101 })
 		const socket = { close() {}, raw: null, readyState: 1 as const, send() {} }
-		const app = honey<{}>().wsAdapter({ upgrade: () => ({ response: upgraded, socket }) })
+		const app = httpApp<{}>().wsAdapter({ upgrade: () => ({ response: upgraded, socket }) })
 		ws(app.use(cors({ origin: ORIGIN })), "/live").handler({})
 		const res = await app.fetch(
 			request("/live", { headers: { connection: "Upgrade", origin: ORIGIN, upgrade: "websocket" } }),

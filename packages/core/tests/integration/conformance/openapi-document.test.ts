@@ -1,5 +1,5 @@
 /**
- * Every OpenAPI document honey writes is a valid OpenAPI 3.1 document, reads back the same through
+ * Every OpenAPI document backend writes is a valid OpenAPI 3.1 document, reads back the same through
  * a YAML reader, refers only to components it holds, and describes only requests the router
  * serves. ajv, ajv-formats and js-yaml are test-only: the emitter itself stays vendor-free.
  */
@@ -11,7 +11,7 @@ import * as v from "valibot"
 import * as z from "zod"
 import { generateOpenApi } from "../../../src/openapi/generate.ts"
 import { toYaml } from "../../../src/openapi/yaml.ts"
-import { honey } from "../../../src/routing/app.ts"
+import { httpApp } from "../../../src/routing/app.ts"
 import { SILENT } from "../../../src/telemetry/logger.ts"
 import { ws } from "../../../src/ws/route.ts"
 
@@ -24,7 +24,7 @@ type Ajv = {
 	addSchema(schema: unknown): void
 	compile(schema: unknown): ((doc: unknown) => boolean) & { errors?: unknown }
 }
-type Parameter = { in?: string; name?: string; "x-honey-wildcard"?: boolean }
+type Parameter = { in?: string; name?: string; "x-backend-wildcard"?: boolean }
 type Doc = {
 	components?: { schemas?: Record<string, unknown> }
 	paths: Record<string, Record<string, { parameters?: Parameter[]; "x-websocket"?: boolean }>>
@@ -86,7 +86,7 @@ function cornerCases() {
 			return z.array(Category)
 		},
 	})
-	const app = honey<{}>().stripPrefix("/api")
+	const app = httpApp<{}>().stripPrefix("/api")
 	app.get("/").handler((c) => c.res.text("ok", "root"))
 	app
 		.get("/users/:id")
@@ -138,7 +138,7 @@ function cornerCases() {
 
 /** `trailingSlash("enforce")`: the documented paths carry the slash clients send. */
 function trailingSlash() {
-	const app = honey<{}>().trailingSlash("enforce")
+	const app = httpApp<{}>().trailingSlash("enforce")
 	app.get("/items/:id").handler((c) => c.res.text("ok", "ok"))
 	app.post("/items").handler((c) => c.res.text("ok", "ok"))
 	return app
@@ -151,7 +151,7 @@ function sharedNested() {
 		id: z.string(),
 		response: z.object({ signature: z.string() }),
 	})
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app
 		.post("/login")
 		.input({ json: z.object({ response: assertion }) })
@@ -241,7 +241,7 @@ describe("OpenAPI 3.1 conformance: the router serves what the document says", ()
 					/* every template variable is declared, and nothing else is */
 					expect(declared.sort(), `${name}: ${method} ${template}`).toEqual(inTemplate.sort())
 					const url = template.replace(/\{([^}]+)\}/g, (_, param: string) =>
-						op.parameters?.find((p) => p.name === param)?.["x-honey-wildcard"] ? "a/b" : "v1",
+						op.parameters?.find((p) => p.name === param)?.["x-backend-wildcard"] ? "a/b" : "v1",
 					)
 					const headers: Record<string, string> = op["x-websocket"]
 						? { connection: "upgrade", upgrade: "websocket" }

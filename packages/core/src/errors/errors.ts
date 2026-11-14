@@ -1,11 +1,11 @@
 /**
- * `defineErrors`: an app's error vocabulary. Each key becomes a factory that builds a `HoneyError`
+ * `defineErrors`: an app's error vocabulary. Each key becomes a factory that builds a `HttpError`
  * with that key and its status; a key with a schema takes a typed payload instead. `ERROR_META`
  * keeps each key's status and schema for the projector and codegen.
  */
 import type { StatusKey } from "../response/status.ts"
 import type { InferOutput, StandardSchemaLike } from "../validation/standard-schema.ts"
-import { type FieldError, FRAMEWORK_ERRORS, type FrameworkErrors, HoneyError } from "./error.ts"
+import { type FieldError, FRAMEWORK_ERRORS, type FrameworkErrors, HttpError } from "./error.ts"
 
 /** Options a factory for a status-only error accepts. */
 type ErrorFactoryOpts = {
@@ -66,25 +66,25 @@ type ErrorMetaForDef<D extends ErrorDef> = D extends ErrorDefWithSchema
 
 /**
  * Key of the non-enumerable property on a `defineErrors` result that holds each error's status and schema. Read by
- * honey's own error handling and OpenAPI generation.
+ * backend's own error handling and OpenAPI generation.
  */
-export const ERROR_META: unique symbol = /* @__PURE__ */ Symbol.for("honey.error.meta")
+export const ERROR_META: unique symbol = /* @__PURE__ */ Symbol.for("backend.error.meta")
 
 /**
  * The factories `defineErrors` returns for `TMap`: a payload-taking function for each schema error and an
- * options-taking function for each status-only one, each returning a `HoneyError`.
+ * options-taking function for each status-only one, each returning a `HttpError`.
  */
 export type ErrorFactories<TMap extends Record<string, ErrorDef>> = {
 	[K in keyof TMap]: TMap[K] extends ErrorDefWithSchema
-		? (data: InferOutput<TMap[K]["schema"]>, opts?: SchemaErrorOpts) => HoneyError
-		: (opts?: ErrorFactoryOpts) => HoneyError
+		? (data: InferOutput<TMap[K]["schema"]>, opts?: SchemaErrorOpts) => HttpError
+		: (opts?: ErrorFactoryOpts) => HttpError
 } & {
 	readonly [ERROR_META]: { [K in keyof TMap]: ErrorMetaForDef<TMap[K]> }
 }
 
 function standardFactory(errorKey: string, status: StatusKey) {
 	return (opts?: ErrorFactoryOpts) =>
-		new HoneyError({
+		new HttpError({
 			cause: opts?.cause,
 			errorKey,
 			fields: opts?.fields,
@@ -96,16 +96,16 @@ function standardFactory(errorKey: string, status: StatusKey) {
 
 function schemaFactory(errorKey: string, status: StatusKey) {
 	return (data: unknown, opts?: SchemaErrorOpts) =>
-		new HoneyError({ cause: opts?.cause, data, errorKey, headers: opts?.headers, status })
+		new HttpError({ cause: opts?.cause, data, errorKey, headers: opts?.headers, status })
 }
 
-/** The keys honey answers on its own behalf, under the app's own: an app's entry for one of them wins. */
+/** The keys backend answers on its own behalf, under the app's own: an app's entry for one of them wins. */
 export type WithFrameworkErrors<TMap> = Omit<FrameworkErrors, keyof TMap> & TMap
 
 /**
  * Declares an app's errors. `map` gives each error key a status key, or a `{ schema, status }` pair for an error that
- * carries a typed payload. Each key becomes a factory returning a `HoneyError` with that key and status. honey's own
- * keys (`not_found`, `validation_failed`, `malformed_body`…) come with every factory at the status honey answers them
+ * carries a typed payload. Each key becomes a factory returning a `HttpError` with that key and status. backend's own
+ * keys (`not_found`, `validation_failed`, `malformed_body`…) come with every factory at the status backend answers them
  * with, so a route declares and documents them without the app re-declaring them; an entry in `map` replaces one.
  */
 export function defineErrors<const TMap extends Record<string, ErrorDef>>(

@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Honey Gateway (public)",
+    "title": "Backend Gateway (public)",
     "version": "0.0.1"
   },
   "servers": [
@@ -27,7 +27,7 @@
             "title"
           ]
         },
-        "x-honey-route": "GET /articles",
+        "x-backend-route": "GET /articles",
         "parameters": [
           {
             "in": "query",
@@ -54,7 +54,7 @@
     },
     "/articles/meta/": {
       "get": {
-        "x-honey-route": "GET /articles/meta",
+        "x-backend-route": "GET /articles/meta",
         "responses": {
           "200": {
             "description": "Success"
@@ -64,7 +64,7 @@
     },
     "/nl/c/{delivery}/{url}/": {
       "get": {
-        "x-honey-route": "GET /nl/c/:delivery/:url",
+        "x-backend-route": "GET /nl/c/:delivery/:url",
         "parameters": [
           {
             "in": "path",
@@ -92,7 +92,7 @@
     },
     "/ping/": {
       "get": {
-        "x-honey-route": "GET /ping",
+        "x-backend-route": "GET /ping",
         "responses": {
           "200": {
             "description": "Success"
@@ -102,7 +102,7 @@
     },
     "/users/": {
       "get": {
-        "x-honey-route": "GET /users",
+        "x-backend-route": "GET /users",
         "responses": {
           "200": {
             "description": "Success"
@@ -110,7 +110,7 @@
         }
       },
       "post": {
-        "x-honey-route": "POST /users",
+        "x-backend-route": "POST /users",
         "requestBody": {
           "content": {
             "application/json": {
@@ -130,7 +130,7 @@
     },
     "/users/{id}/": {
       "get": {
-        "x-honey-route": "GET /users/:id",
+        "x-backend-route": "GET /users/:id",
         "parameters": [
           {
             "in": "path",
@@ -150,7 +150,7 @@
     },
     "/v1/openapi/spec/": {
       "get": {
-        "x-honey-route": "GET /v1/openapi/spec",
+        "x-backend-route": "GET /v1/openapi/spec",
         "responses": {
           "200": {
             "description": "Success"

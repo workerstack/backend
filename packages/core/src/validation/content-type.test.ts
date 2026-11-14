@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { assertBodySchemaAllowed, assertRequestContentType } from "./content-type.ts"
 
 /** What a route declares, by source. */
@@ -8,11 +8,11 @@ type Declared = Record<string, unknown>
 const schema = { "~standard": { validate: (value: unknown) => ({ value }), vendor: "test", version: 1 as const } }
 
 /** The error `run` throws. */
-function thrown(run: () => unknown): HoneyError {
+function thrown(run: () => unknown): HttpError {
 	try {
 		run()
 	} catch (error) {
-		return error as HoneyError
+		return error as HttpError
 	}
 	throw new Error("did not throw")
 }
@@ -65,7 +65,7 @@ describe("assertRequestContentType: the request's media type against the declare
 		["multipart/mixed; boundary=x", { form: schema }],
 	])("%j where %o is declared is a 415 unsupported_media_type", (type, schemas) => {
 		const error = thrown(() => assertRequestContentType(schemas, type))
-		expect([error instanceof HoneyError, error.status, error.errorKey]).toEqual([true, 415, "unsupported_media_type"])
+		expect([error instanceof HttpError, error.status, error.errorKey]).toEqual([true, 415, "unsupported_media_type"])
 	})
 })
 

@@ -6,10 +6,10 @@ import { createApp } from "../src/app.ts"
 const app = createApp()
 
 async function fetchApp(path: string, init?: RequestInit): Promise<Response> {
-	return app.fetch(new Request(`http://honey.test${path}`, init), {})
+	return app.fetch(new Request(`http://backend.test${path}`, init), {})
 }
 
-describe("e2e defaults consumes honey", () => {
+describe("e2e defaults consumes backend", () => {
 	test("GET /health", async () => {
 		const res = await fetchApp("/health")
 		expect(res.status).toBe(200)
@@ -25,7 +25,7 @@ describe("e2e defaults consumes honey", () => {
 			paths: Record<string, unknown>
 		}
 		expect(spec.openapi).toBe("3.1.0")
-		expect(spec.info.title).toBe("Honey Defaults")
+		expect(spec.info.title).toBe("Backend Defaults")
 		expect(spec.paths["/health"]).toBeDefined()
 		expect(spec.paths["/openapi.json"]).toBeUndefined()
 	})

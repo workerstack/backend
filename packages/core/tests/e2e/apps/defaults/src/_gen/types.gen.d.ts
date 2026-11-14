@@ -1,11 +1,11 @@
-import type { HoneyContext, WithOutput } from "@workerstack/backend/http"
+import type { HttpContext, WithOutput } from "@workerstack/backend/http"
 
-export type BaseCtx = HoneyContext<unknown>
+export type BaseCtx = HttpContext<unknown>
 
 export type RouteSelector = "GET /health" | "GET /users/:id" | "POST /echo"
 
 declare module "@workerstack/backend/http" {
-	interface HoneyCodegen {
+	interface HttpCodegen {
 		routeSelector: RouteSelector
 	}
 }

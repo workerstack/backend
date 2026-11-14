@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type Fetchable = { fetch: (r: Request, env: never, executionCtx?: never) => Response | Promise<Response> }
 type SendOptions = { env?: object; executionCtx?: object; init?: RequestInit }
@@ -33,7 +33,7 @@ describe("ctx.req: the request as sent", () => {
 		["all 0xFF", new Uint8Array(50_000).fill(0xff)],
 		["nulls throughout", bytes(10_000, (i) => (i % 3 === 0 ? 0 : i % 256))],
 	])("a binary body (%s) reaches the handler byte for byte", async (_label, data) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.post("/bin").handler(async (ctx) => {
 			const body = await ctx.req.arrayBuffer()
 			return ctx.res.json("ok", { sha256: await sha256(body), size: body.byteLength })
@@ -52,7 +52,7 @@ describe("ctx.req: the request as sent", () => {
 		["zero-width characters", "POST", "​‌‍⁠"],
 		["no body at all", "GET", ""],
 	] as const)("a text body (%s) reaches the handler and comes back unchanged", async (_label, method, text) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.on([method], "/text").handler(async (ctx) => {
 			const body = await ctx.req.text()
 			return ctx.res.json("ok", { length: body.length, text: body })
@@ -65,7 +65,7 @@ describe("ctx.req: the request as sent", () => {
 describe("ctx.req: a body is read once", () => {
 	// v0: df30aa6018
 	it("a second read of the body rejects, for the handler to catch", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.post("/twice").handler(async (ctx) => {
 			const first = (await ctx.req.json()) as unknown
 			const second = await ctx.req.json().then(
@@ -99,7 +99,7 @@ describe("ctx.path, ctx.routePattern and ctx.params", () => {
 		{ params: {}, path: "/health", pattern: "/health", target: "//health" },
 		{ params: {}, path: "/page", pattern: "/page", target: "/page#section" },
 	])("$target on $pattern: the path as matched, the full pattern, the captured params", async (row) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.basePath(row.base ?? "")
 			.get(row.pattern)
@@ -113,7 +113,7 @@ describe("ctx.headers", () => {
 	// v0: 450b1f20f3
 	// v0: e505b572b9
 	it("ctx.headers is every request header, keyed in lower case", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/h").handler((ctx) => ctx.res.json("ok", { headers: { ...ctx.headers }, mixed: ctx.headers["X-Custom"] }))
 		const init = { headers: { Authorization: "Bearer tok", "X-Custom": "hello" } }
 		expect(await send(app, "/h", { init })).toEqual(
@@ -123,7 +123,7 @@ describe("ctx.headers", () => {
 
 	// v0: 33ce257712
 	it("fifty custom headers are all readable", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/h").handler((ctx) => ctx.res.json("ok", { headers: { ...ctx.headers } }))
 		const sent = Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`x-h${i}`, `v${i}`]))
 		const { headers } = (await send(app, "/h", { init: { headers: sent } })).body as { headers: Record<string, string> }
@@ -137,7 +137,7 @@ describe("each request has its own ctx", () => {
 	// v0: 8e7138fed3
 	// v0: bb001daba7
 	it("concurrent requests each see the env they were given, whatever its keys", async () => {
-		const app = honey<Record<string, string>>()
+		const app = httpApp<Record<string, string>>()
 		app.get("/env").handler(async (ctx) => {
 			await new Promise((resolve) => setTimeout(resolve, Math.random() * 10))
 			return ctx.res.json("ok", { env: { ...ctx.env } })
@@ -152,7 +152,7 @@ describe("each request has its own ctx", () => {
 	// v0: 1a25667625
 	// v0: 90d5fa2c11
 	it("parallel requests each see their own params; a handler's change to them stays in its request", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/users/:id").handler(async (ctx) => {
 			const seen = ctx.params.id
 			if (ctx.search.mutate === "1") ctx.params.id = "hacked"
@@ -189,7 +189,7 @@ const kind = (v: unknown) =>
 	v === null ? "null" : typeof v === "object" ? (v.constructor?.name ?? "Object") : typeof v
 
 /** A route that reports every framework key's kind and the values a request decides. */
-function reportCtx(app: ReturnType<typeof honey<{ DB: string }>>) {
+function reportCtx(app: ReturnType<typeof httpApp<{ DB: string }>>) {
 	app.get("/items/:id").handler((ctx) => {
 		const own = ctx as unknown as Record<string, unknown>
 		const kinds = Object.fromEntries(RESERVED.map((key) => [key, kind(own[key])]))
@@ -214,9 +214,9 @@ describe("framework keys on ctx", () => {
 	// v0: b05747747d
 	it("next() drops every framework key and applies the rest", async () => {
 		const hijack = { ...Object.fromEntries(RESERVED.map((key) => [key, "hijacked"])), req: new Request("http://evil/") }
-		const hijacked = honey<{ DB: string }>()
+		const hijacked = httpApp<{ DB: string }>()
 		reportCtx(hijacked.use(createMiddleware((_ctx, next) => next({ ...hijack, userId: "u-1" }))))
-		const control = honey<{ DB: string }>()
+		const control = httpApp<{ DB: string }>()
 		reportCtx(control.use(createMiddleware((_ctx, next) => next({ userId: "u-1" }))))
 		const target = "/items/42?q=real"
 		const answer = await send(hijacked, target, { env: { DB: "real-db" } })
@@ -246,7 +246,7 @@ describe("app.context(): values every request's ctx carries", () => {
 	// v0: 7eb6038fa2
 	it("reach app middleware, route middleware and the handler, beside additions, env and params, under a basePath", async () => {
 		const seen: unknown[] = []
-		const app = honey<{ SECRET: string }>().context({ db: "sqlite", prefix: "org" })
+		const app = httpApp<{ SECRET: string }>().context({ db: "sqlite", prefix: "org" })
 		app
 			.use(
 				createMiddleware(async (ctx: { db: string }, next) => {
@@ -285,7 +285,7 @@ describe("app.context(): values every request's ctx carries", () => {
 	// v0: 6359961642
 	it("are the same references on every request, never copies", async () => {
 		const shared = { count: 0 }
-		const app = honey<{}>().context({ shared })
+		const app = httpApp<{}>().context({ shared })
 		app.get("/inc").handler((ctx) => {
 			ctx.shared.count++
 			return ctx.res.json("ok", { count: ctx.shared.count, same: ctx.shared === shared })
@@ -298,9 +298,9 @@ describe("app.context(): values every request's ctx carries", () => {
 describe("app.context(): mounts and the framework's keys", () => {
 	// v0: 93f5d173a2
 	it("a mounted sub's routes keep the sub's values, the parent's routes the parent's", async () => {
-		const sub = honey<{}>().context({ shared: "sub", subVal: "from-sub" }).basePath("/sub")
+		const sub = httpApp<{}>().context({ shared: "sub", subVal: "from-sub" }).basePath("/sub")
 		sub.get("/test").handler((ctx) => ctx.res.json("ok", { shared: ctx.shared, sub: ctx.subVal }))
-		const parent = honey<{}>().context({ shared: "parent" })
+		const parent = httpApp<{}>().context({ shared: "parent" })
 		parent.get("/test").handler((ctx) => ctx.res.json("ok", { shared: ctx.shared }))
 		parent.route(sub)
 		expect([(await send(parent, "/test")).body, (await send(parent, "/sub/test")).body]).toEqual([
@@ -312,6 +312,6 @@ describe("app.context(): mounts and the framework's keys", () => {
 	// v0: 329636cf2d
 	// v0: 6ffd201bbd
 	it.each([...RESERVED, "ip", "log", "tap"])("refuse %s, a key the framework owns, at registration", (key) => {
-		expect(() => honey<{}>().context({ [key]: 1 })).toThrow(`context() cannot set reserved key "${key}"`)
+		expect(() => httpApp<{}>().context({ [key]: 1 })).toThrow(`context() cannot set reserved key "${key}"`)
 	})
 })

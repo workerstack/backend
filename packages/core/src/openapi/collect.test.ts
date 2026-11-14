@@ -3,14 +3,14 @@ import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
 import { streamed } from "../input/input.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { createNode, insertRoute } from "../routing/tree.ts"
 import { collectRoutes } from "./collect.ts"
 import { ws } from "../ws/route.ts"
 
 describe("collectRoutes: one record per path a route serves", () => {
 	it("names each route by method and pattern, with its OpenAPI path and params, in registration order", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/users/:id").handler((ctx) => ctx.res.text("ok", "ok"))
 		app.post("/files/*path").handler((ctx) => ctx.res.text("ok", "ok"))
 		app.get("/raw/*").handler((ctx) => ctx.res.text("ok", "ok"))
@@ -26,9 +26,9 @@ describe("collectRoutes: one record per path a route serves", () => {
 	})
 
 	it("serves an optional segment as two paths, and a mounted sub-app under its prefix", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/posts/:id?").handler((ctx) => ctx.res.text("ok", "ok"))
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.get("/me").handler((ctx) => ctx.res.text("ok", "ok"))
 		app.route("/v1", sub)
 		expect(collectRoutes(app).http.map(({ id, path }) => [id, path])).toEqual([
@@ -39,7 +39,7 @@ describe("collectRoutes: one record per path a route serves", () => {
 	})
 
 	it("collects a WebSocket route apart, never as an operation", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		ws(app, "/chat/:room")
 			.input({ search: z.object({ token: z.string() }) })
 			.handler({})
@@ -52,7 +52,7 @@ describe("collectRoutes: one record per path a route serves", () => {
 	})
 
 	it("sees a route registered after an earlier collection", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "ok"))
 		expect(collectRoutes(app).http).toHaveLength(1)
 		app.get("/b").handler((ctx) => ctx.res.text("ok", "ok"))
@@ -67,7 +67,7 @@ describe("collectRoutes: what each route declares", () => {
 
 	it("carries the resolved meta: middleware's, the chain's, the route's; x- extensions and internal as given", () => {
 		const tagged = createMiddleware((_ctx, next) => next({}), { meta: { tags: ["auth"] } })
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(tagged)
 			.meta({ summary: "chain" })
@@ -94,7 +94,7 @@ describe("collectRoutes: what each route declares", () => {
 
 	it("lists the error keys a route may answer, sorted, with the factory they come from", () => {
 		const errors = defineErrors({ conflict: "conflict", gone: "gone", locked: "locked" })
-		const app = honey<{}>().errorFactory(errors).defaultErrors("locked")
+		const app = httpApp<{}>().errorFactory(errors).defaultErrors("locked")
 		app
 			.get("/a")
 			.errors("gone", "conflict")
@@ -103,7 +103,7 @@ describe("collectRoutes: what each route declares", () => {
 			.get("/b")
 			.boundary("gone")
 			.handler((ctx) => ctx.res.text("ok", "ok"))
-		const open = honey<{}>()
+		const open = httpApp<{}>()
 		open.get("/open").handler((ctx) => ctx.res.text("ok", "ok"))
 		const [a, b] = collectRoutes(app).http
 		expect([a?.errorKeys, b?.errorKeys, collectRoutes(open).http[0]?.errorKeys]).toEqual([
@@ -120,7 +120,7 @@ describe("collectRoutes: what each route declares for its body", () => {
 		const json = z.object({ name: z.string() })
 		const body = streamed(z.string())
 		const answer = { "application/json": { ok: z.object({ id: z.string() }) } }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/a")
 			.input({ json, search: z.object({ q: z.string() }) })
@@ -138,7 +138,7 @@ describe("collectRoutes: what each route declares for its body", () => {
 
 const shard = createMiddleware(async (_c, next) => next({}), { meta: { tenant: "project_id" } })
 /** The meta collect resolves for the route at `path`, HTTP or WebSocket. */
-const metaOf = (app: ReturnType<typeof honey<{}>>, path: string) =>
+const metaOf = (app: ReturnType<typeof httpApp<{}>>, path: string) =>
 	[...collectRoutes(app).http, ...collectRoutes(app).ws].find((r) => r.pattern === path)?.meta
 
 describe("collectRoutes: middleware meta reaches every route it runs on", () => {
@@ -146,7 +146,7 @@ describe("collectRoutes: middleware meta reaches every route it runs on", () => 
 	// v0: 03ff4daa83
 
 	it("gives a route-level .use() middleware's meta to that route only, and lets chain .meta() outrank it", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/audited")
 			.use(shard)
@@ -175,7 +175,7 @@ describe("collectRoutes: middleware meta reaches every route it runs on", () => 
 	// v0: 03ff4daa83
 
 	it("back-fills a scoped middleware's meta into routes registered before it, WebSocket ones too, never over explicit meta", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/late/thing").handler((c) => c.res.json("ok", {}))
 		app
 			.get("/late/explicit")
@@ -207,12 +207,12 @@ describe("collectRoutes: each error key's status, for the document", () => {
 	it("reads a key's status from the factory the route named, then a loaded leaf's own app's, then the app's, then the key's suffix", () => {
 		const named = defineErrors({ teapot: { schema: z.object({ brew: z.string() }), status: "bad_request" } })
 		const appErrors = defineErrors({ gone: "gone", locked: "locked" })
-		const worker = honey<{}>().errorFactory(defineErrors({ worker_only: "conflict" }))
+		const worker = httpApp<{}>().errorFactory(defineErrors({ worker_only: "conflict" }))
 		worker
 			.get("/w")
 			.errors("worker_only")
 			.handler((c) => c.res.json("ok", {}))
-		const app = honey<{}>().errorFactory(appErrors)
+		const app = httpApp<{}>().errorFactory(appErrors)
 		app
 			.get("/a")
 			.errors(named, "teapot")
@@ -221,7 +221,7 @@ describe("collectRoutes: each error key's status, for the document", () => {
 			.get("/b")
 			.errors("locked")
 			.handler((c) => c.res.json("ok", {}))
-		const loaded = honey<{}>().errorFactory(appErrors).routeTree(worker.toRouteTree())
+		const loaded = httpApp<{}>().errorFactory(appErrors).routeTree(worker.toRouteTree())
 		const byPattern = Object.fromEntries(
 			[...collectRoutes(app).http, ...collectRoutes(loaded).http].map((r) => [r.pattern, r.errorMeta]),
 		)
@@ -233,7 +233,7 @@ describe("collectRoutes: each error key's status, for the document", () => {
 	})
 
 	it("infers a key's status from its longest status suffix, and names a key nothing resolves unknown at 0", () => {
-		const app = honey<{}>().routeTree({
+		const app = httpApp<{}>().routeTree({
 			meta: {},
 			root: (() => {
 				const root = createNode()
@@ -255,7 +255,7 @@ describe("collectRoutes: a middleware's keys, from the factory it brings", () =>
 		const audit = defineErrors({ audit_failed: "bad_gateway", conflict_seen: "service_unavailable" })
 		const audited = createMiddleware(async (_c, next) => next(), { errors: [audit, "audit_failed"] })
 		const seen = createMiddleware(async (_c, next) => next(), { errors: [audit, "conflict_seen"] })
-		const app = honey<{}>().errorFactory(defineErrors({ conflict_seen: "conflict" }))
+		const app = httpApp<{}>().errorFactory(defineErrors({ conflict_seen: "conflict" }))
 		app.use("/admin", audited)
 		app.get("/admin/x").handler((c) => c.res.text("ok", "x"))
 		app
@@ -268,11 +268,11 @@ describe("collectRoutes: a middleware's keys, from the factory it brings", () =>
 		])
 	})
 
-	it("reads a key the middleware does not declare off the app's factory, though its own carries honey's", () => {
+	it("reads a key the middleware does not declare off the app's factory, though its own carries backend's", () => {
 		const audited = createMiddleware(async (_c, next) => next(), {
 			errors: [defineErrors({ audit_failed: "bad_gateway" }), "audit_failed"],
 		})
-		const app = honey<{}>().errorFactory(defineErrors({ request_timeout: "request_timeout" }))
+		const app = httpApp<{}>().errorFactory(defineErrors({ request_timeout: "request_timeout" }))
 		app
 			.get("/x")
 			.use(audited)

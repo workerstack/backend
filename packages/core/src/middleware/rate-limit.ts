@@ -8,7 +8,7 @@
  * recently used evicted first, so a key spray cannot grow it (H18.8). Behind several instances,
  * pass a shared `store`.
  */
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { withHeaders } from "../response/with-headers.ts"
 import { type MiddlewareFn, namedMiddleware } from "./middleware.ts"
 
@@ -51,7 +51,7 @@ type KeyContext = {
 }
 
 /** Options for `rateLimit`: give `windowMs` (and optionally `maxKeys`) for the built-in store, or your own `store`, not both. */
-export type RateLimitOptions = {
+export type HttpRateLimitOptions = {
 	/** Names the window a request counts against. Default `ctx.ip`; requests with no reported peer all share one window. */
 	key?: (ctx: KeyContext) => string
 	/** Requests per window. */
@@ -132,7 +132,7 @@ function peerKey(ctx: KeyContext): string {
  * `store`. Throws `TypeError` unless `limit` is a positive integer, and for a `windowMs` or `maxKeys`
  * that `memoryRateLimitStore` refuses.
  */
-export function rateLimit(options: RateLimitOptions): MiddlewareFn<KeyContext, {}, "too_many_requests"> {
+export function rateLimit(options: HttpRateLimitOptions): MiddlewareFn<KeyContext, {}, "too_many_requests"> {
 	const { limit } = options
 	if (!(Number.isInteger(limit) && limit > 0)) throw new TypeError("rateLimit: limit must be a positive integer")
 	const store = options.store ?? memoryRateLimitStore(options)
@@ -144,7 +144,7 @@ export function rateLimit(options: RateLimitOptions): MiddlewareFn<KeyContext, {
 		const reset = String(Math.ceil(hit.resetAt / 1000))
 		if (hit.count > limit) {
 			const retryAfter = String(Math.max(0, Math.ceil((hit.resetAt - Date.now()) / 1000)))
-			throw new HoneyError({
+			throw new HttpError({
 				errorKey: "too_many_requests",
 				headers: {
 					"retry-after": retryAfter,

@@ -13,7 +13,7 @@ export type HeaderEdit = {
 }
 
 /* a header name no one sends: writing to immutable Headers throws */
-const PROBE = "x-honey-mutability-probe"
+const PROBE = "x-backend-mutability-probe"
 
 function hasImmutableHeaders(response: Response): boolean {
 	try {
@@ -29,7 +29,7 @@ function hasImmutableHeaders(response: Response): boolean {
 export function withHeaders(response: Response, edit: (headers: HeaderEdit) => void): Response {
 	/* an upgrade belongs to the runtime: rebuilding it throws or drops the socket */
 	if (response.status === 101) return response
-	/* a raw body means honey built it, so its headers are its own: no probe (a native delete per edit) */
+	/* a raw body means backend built it, so its headers are its own: no probe (a native delete per edit) */
 	if (rawBodyOf(response) !== null || !hasImmutableHeaders(response)) {
 		edit(response.headers)
 		return response

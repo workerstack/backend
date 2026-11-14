@@ -3,8 +3,8 @@
  * engine, so an app holds and merges policies without loading it.
  */
 import { GRAPH } from "../routing/app.ts"
-import type { HoneyMeta } from "../routing/app-types.ts"
-import type { HoneyGraph } from "../routing/register.ts"
+import type { HttpMeta } from "../routing/app-types.ts"
+import type { HttpGraph } from "../routing/register.ts"
 import type { StandardSchemaLike } from "../validation/standard-schema.ts"
 
 /** Where a schema entry reads its descriptor. */
@@ -19,7 +19,7 @@ export type MetaSpecSchemaSource =
 /** What a `map` or `expand` is told about the value it turns into operation fields; `TMeta` is the app's route meta. */
 export type MetaSpecContext<TMeta = Record<string, unknown>> = {
 	/** the route's whole meta, keys the policy hides included */
-	readonly meta: Readonly<HoneyMeta<TMeta>>
+	readonly meta: Readonly<HttpMeta<TMeta>>
 	/** the operation's method in uppercase, or `"WS"` for a WebSocket route; an `all()` route is called once per method it documents */
 	readonly method: string
 	/** the route's pattern with parameters as `:name`, such as `/users/:id`; not the OpenAPI `{id}` form */
@@ -134,13 +134,13 @@ export type MetaSpecConfig = Sections<Readonly<Record<string, MetaSpecEntry<neve
 type Defined<T> = Exclude<T, undefined>
 
 /** A policy for an app whose meta is `TMeta`: every key it adds needs an entry, built-ins may have one. */
-export type HoneyMetaSpec<TMeta = unknown> = [TMeta] extends [never]
+export type HttpMetaSpec<TMeta = unknown> = [TMeta] extends [never]
 	? MetaSpecConfig
 	: TMeta extends Record<string, unknown>
 		? Sections<
-				{ readonly [K in Extract<keyof TMeta, keyof HoneyMeta>]?: MetaSpecEntry<Defined<TMeta[K]>, TMeta> } & {
-					/* a symbol key is honey's own marker (the chain-meta phantom), never a key a spec describes */
-					readonly [K in Exclude<keyof TMeta, keyof HoneyMeta | symbol>]-?: MetaSpecEntry<Defined<TMeta[K]>, TMeta>
+				{ readonly [K in Extract<keyof TMeta, keyof HttpMeta>]?: MetaSpecEntry<Defined<TMeta[K]>, TMeta> } & {
+					/* a symbol key is backend's own marker (the chain-meta phantom), never a key a spec describes */
+					readonly [K in Exclude<keyof TMeta, keyof HttpMeta | symbol>]-?: MetaSpecEntry<Defined<TMeta[K]>, TMeta>
 				}
 			>
 		: MetaSpecConfig
@@ -204,6 +204,6 @@ function resolve(source: MetaSpecSource): MetaSpecConfig | null {
 }
 
 /** The policy `app` documents with: its own, with each mounted sub-app's merged in mount order. */
-export function metaSpecOf(app: { readonly [GRAPH]: HoneyGraph }): MetaSpecConfig | null {
+export function metaSpecOf(app: { readonly [GRAPH]: HttpGraph }): MetaSpecConfig | null {
 	return resolve(app[GRAPH].settings.metaSpec)
 }

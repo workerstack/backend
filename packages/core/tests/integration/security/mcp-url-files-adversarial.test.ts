@@ -18,7 +18,7 @@ import { written } from "../../fixture/emitted.ts"
 import { type McpHandler, mcp } from "../../../src/mcp/mount.ts"
 import { urlFiles } from "../../../src/mcp/url-files.ts"
 import { generateOpenApi } from "../../../src/openapi/generate.ts"
-import { honey } from "../../../src/routing/app.ts"
+import { httpApp } from "../../../src/routing/app.ts"
 import { generateMcpHandler } from "@workerstack/clients"
 
 const CSV = "a,b\n1,2\n"
@@ -309,7 +309,7 @@ const TOOL = "post_v1_docs"
 
 /** The app: POST /v1/docs takes a file and a note, answering the file's name, size, type and SHA-256. */
 function docs() {
-	const app = honey()
+	const app = httpApp()
 	app
 		.post("/v1/docs")
 		.meta({ mcp: true })

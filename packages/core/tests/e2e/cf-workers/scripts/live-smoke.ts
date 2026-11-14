@@ -3,17 +3,17 @@
  *   bun run deploy:e2e:cf && bun run test:live:cf
  *
  * Defaults are a real storm, not a handshake. Override with:
- *   HONEY_CF_STORM=20000 HONEY_CF_WS=80 HONEY_CF_CONCURRENCY=400
+ *   BACKEND_CF_STORM=20000 BACKEND_CF_WS=80 BACKEND_CF_CONCURRENCY=400
  */
 import { wsBaseOf } from "../../playwright-app.ts"
 
-const BASE = (process.env.HONEY_CF_LIVE_URL ?? "https://honey-cf-e2e.lovro-zagar5.workers.dev").replace(/\/$/, "")
-const STORM = Number(process.env.HONEY_CF_STORM ?? 8_000)
+const BASE = (process.env.BACKEND_CF_LIVE_URL ?? "https://backend-cf-e2e.lovro-zagar5.workers.dev").replace(/\/$/, "")
+const STORM = Number(process.env.BACKEND_CF_STORM ?? 8_000)
 const SPEC = Math.max(200, Math.floor(STORM / 10))
 const PRE = Math.max(100, Math.floor(STORM / 40))
-const WS_N = Number(process.env.HONEY_CF_WS ?? 80)
-const CONC = Number(process.env.HONEY_CF_CONCURRENCY ?? 250)
-const TIMEOUT = Number(process.env.HONEY_CF_TIMEOUT ?? 8_000)
+const WS_N = Number(process.env.BACKEND_CF_WS ?? 80)
+const CONC = Number(process.env.BACKEND_CF_CONCURRENCY ?? 250)
+const TIMEOUT = Number(process.env.BACKEND_CF_TIMEOUT ?? 8_000)
 
 function fail(msg: string): never {
 	console.error(`live-smoke: ${msg}`)

@@ -37,6 +37,6 @@ export const rule = {
 }
 
 export default {
-	meta: { name: "honey" },
+	meta: { name: "backend" },
 	rules: { "no-console": rule },
 }

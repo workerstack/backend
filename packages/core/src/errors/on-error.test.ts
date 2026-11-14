@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { requestId } from "../middleware/request-id.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import type { OnErrorFn } from "../routing/settings.ts"
 import { createLogger } from "../telemetry/logger.ts"
-import { HoneyError } from "./error.ts"
+import { HttpError } from "./error.ts"
 import { defineErrors } from "./errors.ts"
 import { ws } from "../ws/route.ts"
 
@@ -24,7 +24,7 @@ const get = (path: string, init?: RequestInit) => new Request(`https://app.examp
 /** An app whose GET /boom throws `thrown`, logging to a recording logger. */
 function throwing(thrown: unknown) {
 	const { lines, logger } = recording()
-	const app = honey<{}>().logger(logger)
+	const app = httpApp<{}>().logger(logger)
 	app.get("/boom/:id").handler(() => {
 		throw thrown
 	})
@@ -41,7 +41,7 @@ describe("onError: every thrown error reaches it, no framework answer does", () 
 	// v0: 86bd39b9e3
 	it.each([
 		["an unknown Error", new Error("db down")],
-		["a named 4xx HoneyError", new HoneyError({ errorKey: "slug_taken", status: "conflict" })],
+		["a named 4xx HttpError", new HttpError({ errorKey: "slug_taken", status: "conflict" })],
 		["a thrown string", "plain"],
 	])("%s reaches onError as thrown", async (_name, thrown) => {
 		const seen: unknown[] = []
@@ -56,7 +56,7 @@ describe("onError: every thrown error reaches it, no framework answer does", () 
 		const errors = defineErrors({ api_error: "internal_server_error", item_gone: "gone" })
 		const thrown = errors.item_gone()
 		const seen: unknown[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.errorFactory(errors)
 			.defaultBoundary("api_error")
 			.onError((error) => void seen.push(error))
@@ -75,7 +75,7 @@ describe("onError: every thrown error reaches it, no framework answer does", () 
 		["a path the normalization refuses (400)", get("/a%2Fb"), 400],
 	])("%s never calls onError", async (_name, request, status) => {
 		const onError = vi.fn()
-		const app = honey<{}>().onError(onError).trailingSlash("strip")
+		const app = httpApp<{}>().onError(onError).trailingSlash("strip")
 		app.post("/only-post").handler((ctx) => ctx.res.text("ok", "posted"))
 		app.get("/page").handler((ctx) => ctx.res.text("ok", "page"))
 		ws(app, "/live").handler({})
@@ -97,13 +97,13 @@ describe("onError: what it returns shapes the response", () => {
 	// v0: 5dc0e0637a
 	it.each<[string, OnErrorFn<{}>, [number, string | undefined, string | null, boolean]]>([
 		[
-			"a HoneyError replaces the error, status and headers kept",
-			() => new HoneyError({ errorKey: "slug_taken", headers: { "retry-after": "5" }, status: "conflict" }),
+			"a HttpError replaces the error, status and headers kept",
+			() => new HttpError({ errorKey: "slug_taken", headers: { "retry-after": "5" }, status: "conflict" }),
 			[409, "slug_taken", "5", false],
 		],
 		[
 			"a promise of one is awaited",
-			async () => new HoneyError({ errorKey: "gone", status: "gone" }),
+			async () => new HttpError({ errorKey: "gone", status: "gone" }),
 			[410, "gone", null, false],
 		],
 		["a Response answers as it is", () => new Response("custom", { status: 418 }), [418, undefined, null, false]],
@@ -113,8 +113,8 @@ describe("onError: what it returns shapes the response", () => {
 			[500, "internal_server_error", null, true],
 		],
 		[
-			"a HoneyError with an unknown status key is the internal 500, one onError chose: with a digest",
-			() => new HoneyError({ errorKey: "typed", status: "nope" as never }),
+			"a HttpError with an unknown status key is the internal 500, one onError chose: with a digest",
+			() => new HttpError({ errorKey: "typed", status: "nope" as never }),
 			[500, "internal_server_error", null, true],
 		],
 	])("%s", async (_name, onError, [status, errorKey, retryAfter, digested]) => {
@@ -136,9 +136,9 @@ describe("onError: what it returns shapes the response", () => {
 
 describe("onError: its helpers and its place in the chain", () => {
 	// v0: 6a103313e8
-	it("jsonFromError renders a HoneyError the framework's way", async () => {
+	it("jsonFromError renders a HttpError the framework's way", async () => {
 		const { app } = throwing(new Error("x"))
-		app.onError((_error, ctx) => ctx.jsonFromError(new HoneyError({ errorKey: "teapot", status: "im_a_teapot" })))
+		app.onError((_error, ctx) => ctx.jsonFromError(new HttpError({ errorKey: "teapot", status: "im_a_teapot" })))
 		const res = await app.fetch(get("/boom/1"), {})
 		expect([res.status, ((await res.json()) as { error_key: string }).error_key]).toEqual([418, "teapot"])
 	})
@@ -147,7 +147,7 @@ describe("onError: its helpers and its place in the chain", () => {
 	it("onError's response flows back through the middleware above the throw", async () => {
 		const { lines, logger } = recording()
 		void lines
-		const app = honey<{}>().logger(logger)
+		const app = httpApp<{}>().logger(logger)
 		const stamp = createMiddleware(async (_ctx, next) => {
 			const res = await next()
 			res.headers.set("x-stamped", "yes")
@@ -170,7 +170,7 @@ describe("onError: beside a factory and a formatter", () => {
 	it("a factory error reaches onError once; nothing returned, the app's formatter shapes its answer", async () => {
 		const errors = defineErrors({ not_found: "not_found" })
 		const seen: unknown[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.errorFactory(errors)
 			.onError((error) => void seen.push(error))
 			.defaultErrorFormatter((_error, shape) => ({ ...shape, custom: true }))
@@ -210,10 +210,10 @@ describe("onError: one that fails falls back, and is logged once", () => {
 describe("the default body", () => {
 	it("carries an error's vars, and leaves them out when it has none", async () => {
 		const { app } = throwing(
-			new HoneyError({ errorKey: "quota_exceeded", status: "too_many_requests", vars: { limit: 5, plan: "free" } }),
+			new HttpError({ errorKey: "quota_exceeded", status: "too_many_requests", vars: { limit: 5, plan: "free" } }),
 		)
 		const body = (await (await app.fetch(get("/boom/1"), {})).json()) as Record<string, unknown>
-		const plain = throwing(new HoneyError({ errorKey: "gone", status: "gone" }))
+		const plain = throwing(new HttpError({ errorKey: "gone", status: "gone" }))
 		const plainBody = (await (await plain.app.fetch(get("/boom/1"), {})).json()) as Record<string, unknown>
 		expect([body.vars, "vars" in plainBody]).toEqual([{ limit: 5, plan: "free" }, false])
 	})
@@ -264,14 +264,14 @@ describe("the digest: an unknown error's 500 and its operator line", () => {
 	})
 
 	it("a named 4xx carries no digest and writes no operator line", async () => {
-		const { app, lines } = throwing(new HoneyError({ errorKey: "slug_taken", status: "conflict" }))
+		const { app, lines } = throwing(new HttpError({ errorKey: "slug_taken", status: "conflict" }))
 		const body = (await (await app.fetch(get("/boom/1"), {})).json()) as Record<string, unknown>
 		expect([body.digest, lines]).toEqual([undefined, []])
 	})
 
 	it("an error onError mapped to a 4xx writes no operator line", async () => {
 		const { app, lines } = throwing(new Error("db constraint"))
-		app.onError(() => new HoneyError({ errorKey: "slug_taken", status: "conflict" }))
+		app.onError(() => new HttpError({ errorKey: "slug_taken", status: "conflict" }))
 		await app.fetch(get("/boom/1"), {})
 		expect(lines).toEqual([])
 	})
@@ -280,7 +280,7 @@ describe("the digest: an unknown error's 500 and its operator line", () => {
 /** An app under stripPrefix("/api") with requestId(), whose GET /v1/boom/:id throws `thrown`. */
 function serverErrors(thrown: () => unknown) {
 	const { lines, logger } = recording()
-	const app = honey<{}>().logger(logger).requestLog(true).stripPrefix("/api").use(requestId())
+	const app = httpApp<{}>().logger(logger).requestLog(true).stripPrefix("/api").use(requestId())
 	app.get("/v1/boom/:id").handler(() => {
 		throw thrown()
 	})
@@ -293,7 +293,7 @@ describe("every 5xx: a digest and one operator line", () => {
 	it("a 5xx the app throws on purpose: its digest, and one line with its cause, key, request id, route and path", async () => {
 		const upstream = new Error("connect ECONNREFUSED")
 		const { app, lines } = serverErrors(
-			() => new HoneyError({ cause: upstream, errorKey: "upstream_down", status: "bad_gateway" }),
+			() => new HttpError({ cause: upstream, errorKey: "upstream_down", status: "bad_gateway" }),
 		)
 		const res = await app.fetch(get("/api/v1/boom/7?token=secret"), {})
 		const body = (await res.json()) as Record<string, unknown>
@@ -317,7 +317,7 @@ describe("every 5xx: a digest and one operator line", () => {
 	})
 
 	it("one error instance thrown by two requests at once: each answer's digest is its own line's", async () => {
-		const shared = new HoneyError({ errorKey: "upstream_down", status: "bad_gateway" })
+		const shared = new HttpError({ errorKey: "upstream_down", status: "bad_gateway" })
 		const { app, lines } = serverErrors(() => shared)
 		const bodies = await Promise.all(
 			[1, 2].map(
@@ -334,7 +334,7 @@ describe("every 5xx: a digest and one operator line", () => {
 
 	it("an unknown error onError maps to a 5xx: its digest, and one line naming what was thrown", async () => {
 		const { app, lines } = serverErrors(() => new Error("pool exhausted"))
-		app.onError(() => new HoneyError({ errorKey: "db_unavailable", status: "service_unavailable" }))
+		app.onError(() => new HttpError({ errorKey: "db_unavailable", status: "service_unavailable" }))
 		const body = (await (await app.fetch(get("/api/v1/boom/1"), {})).json()) as Record<string, unknown>
 		expect(errorLines(lines)).toEqual([
 			expect.objectContaining({
@@ -357,7 +357,7 @@ describe("every 5xx: the line's name, and the request line's error key", () => {
 	})
 
 	it("the request line names the error that answered, and a plain answer names none", async () => {
-		const { app, lines } = serverErrors(() => new HoneyError({ errorKey: "slug_taken", status: "conflict" }))
+		const { app, lines } = serverErrors(() => new HttpError({ errorKey: "slug_taken", status: "conflict" }))
 		app.get("/v1/fine").handler((c) => c.res.text("ok", "fine"))
 		await (await app.fetch(get("/api/v1/boom/1"), {})).text()
 		await (await app.fetch(get("/api/v1/fine"), {})).text()
@@ -374,7 +374,7 @@ describe("the default logger: unconfigured errors are not swallowed (H17)", () =
 	it("with no logger set, a production app writes the operator line to stdout", async () => {
 		vi.stubEnv("NODE_ENV", "production")
 		const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/boom").handler(() => {
 			throw new Error("db down")
 		})
@@ -390,7 +390,7 @@ describe("the default logger: unconfigured errors are not swallowed (H17)", () =
 	it("logger(false) writes nothing", async () => {
 		vi.stubEnv("NODE_ENV", "production")
 		const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app.get("/boom").handler(() => {
 			throw new Error("db down")
 		})
@@ -429,7 +429,7 @@ const failures = (lines: Record<string, unknown>[]) =>
 describe("a crashing error formatter is reported, and the client still gets a well-formed error (a7)", () => {
 	// v0: d2fc16c706
 	it("the default formatter: the default shape answers, one line per crash", async () => {
-		const { app, lines } = throwing(new HoneyError({ errorKey: "slug_taken", status: "conflict" }))
+		const { app, lines } = throwing(new HttpError({ errorKey: "slug_taken", status: "conflict" }))
 		app.defaultErrorFormatter(broken)
 		const res = await app.fetch(get("/boom/1"), {})
 		expect([res.status, ((await res.json()) as { error_key: string }).error_key, failures(lines)]).toEqual([
@@ -442,7 +442,7 @@ describe("a crashing error formatter is reported, and the client still gets a we
 	// v0: 7b3cb9fff2
 	it("the payload formatter of a data error: the error's data answers, one line", async () => {
 		const { app, lines } = throwing(
-			new HoneyError({ data: { reason: "kept" }, errorKey: "slug_taken", status: "conflict" }),
+			new HttpError({ data: { reason: "kept" }, errorKey: "slug_taken", status: "conflict" }),
 		)
 		app.payloadErrorFormatter(broken)
 		const res = await app.fetch(get("/boom/1"), {})

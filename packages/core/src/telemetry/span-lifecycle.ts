@@ -8,18 +8,18 @@
  * for the request log and the root span together, and only when one of them is on.
  */
 import { ipOf, type PeerSource } from "../context/peer.ts"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { type RawBody, rawBodyOf } from "../response/builder.ts"
 import type { AppSettings } from "../routing/settings.ts"
 import { pathOf } from "./fields.ts"
 import { requestLine, type Seen } from "./request-log.ts"
-import { NO_LINKS, RequestTrace, type Span, type SpanOptions, type Telemetry } from "./request-trace.ts"
+import { NO_LINKS, RequestTrace, type OtelSpan, type SpanOptions, type OtelTelemetry } from "./request-trace.ts"
 import { inboundTrace } from "./traceparent.ts"
 
 const nothing = (): undefined => undefined
 
 /** The root of a request whose tracer failed to start one: records nothing. */
-const UNRECORDED: Span = /* @__PURE__ */ Object.freeze({
+const UNRECORDED: OtelSpan = /* @__PURE__ */ Object.freeze({
 	addEvent: nothing,
 	end: nothing,
 	isRecording: () => false,
@@ -30,7 +30,7 @@ const UNRECORDED: Span = /* @__PURE__ */ Object.freeze({
 })
 
 /** The root span of `request`, under or linked to its inbound trace as the hop is trusted. */
-export function startTrace(s: AppSettings<unknown>, telemetry: Telemetry, request: Request): RequestTrace {
+export function startTrace(s: AppSettings<unknown>, telemetry: OtelTelemetry, request: Request): RequestTrace {
 	const started = performance.now()
 	const peer: PeerSource = { req: request }
 	const source = {
@@ -40,7 +40,7 @@ export function startTrace(s: AppSettings<unknown>, telemetry: Telemetry, reques
 		req: request,
 	}
 	const inbound = inboundTrace(source, telemetry.trustInbound, (error) =>
-		s.logger.warn({ err: HoneyError.serialize(error) }, "telemetry trust check failed"),
+		s.logger.warn({ err: HttpError.serialize(error) }, "telemetry trust check failed"),
 	)
 	const options: SpanOptions = {
 		attributes: { "http.request.method": request.method, "url.path": pathOf(request.url) },
@@ -52,7 +52,7 @@ export function startTrace(s: AppSettings<unknown>, telemetry: Telemetry, reques
 	try {
 		root = telemetry.tracer.startSpan(request.method, options)
 	} catch (error) {
-		s.logger.warn({ err: HoneyError.serialize(error) }, "telemetry failed")
+		s.logger.warn({ err: HttpError.serialize(error) }, "telemetry failed")
 	}
 	const state = inbound?.continued === true ? inbound.remote.state : undefined
 	return new RequestTrace(s, telemetry.tracer, root, { started, state })

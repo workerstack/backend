@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest"
-import { honey } from "../routing/app.ts"
-import { compileMetaSpec, type HoneyMetaSpec, type MetaSpecConfig } from "./meta-spec.ts"
+import { httpApp } from "../routing/app.ts"
+import { compileMetaSpec, type HttpMetaSpec, type MetaSpecConfig } from "./meta-spec.ts"
 import { mergeMetaSpec, metaSpecOf, resolvedStrictness } from "./meta-spec-merge.ts"
 import { MetaSpecDiagnostics } from "./meta-spec-validate.ts"
 
@@ -94,13 +94,13 @@ describe("app.metaSpec(): the policy an app declares and the ones it mounts", ()
 	// v0: 6784b8254a
 	// v0: 7781260304
 	it("merges every mounted sub-app's policy, whether declared before or after the mount, and leaves the sub's own alone", () => {
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.get("/s").handler((ctx) => ctx.res.text("ok", "ok"))
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.route("/v1", sub)
 		app.metaSpec({ meta: { a: "x-parent" } })
 		sub.metaSpec({ meta: { a: "x-sub", b: "x-b" } })
-		expect([metaSpecOf(app)?.meta, metaSpecOf(sub), metaSpecOf(honey<{}>())]).toEqual([
+		expect([metaSpecOf(app)?.meta, metaSpecOf(sub), metaSpecOf(httpApp<{}>())]).toEqual([
 			{ a: "x-parent", b: "x-b" },
 			{ meta: { a: "x-sub", b: "x-b" } },
 			null,
@@ -109,12 +109,12 @@ describe("app.metaSpec(): the policy an app declares and the ones it mounts", ()
 
 	// v0: c796a9bd41
 	it("refuses a second declaration, and types an entry for every key the app's meta adds", () => {
-		const app = honey<{}>().metaType<{ team: string }>()
+		const app = httpApp<{}>().metaType<{ team: string }>()
 		app.metaSpec({ meta: { team: "x-team" } })
 		expect(() => app.metaSpec({})).toThrow("metaSpec() was already called on this app")
-		expectTypeOf<HoneyMetaSpec<{ summary?: string; team: string }>>().toExtend<{ meta?: { team: unknown } }>()
+		expectTypeOf<HttpMetaSpec<{ summary?: string; team: string }>>().toExtend<{ meta?: { team: unknown } }>()
 		// @ts-expect-error team has no entry
-		const missing: HoneyMetaSpec<{ team: string }> = { meta: {} }
+		const missing: HttpMetaSpec<{ team: string }> = { meta: {} }
 		expect(missing).toEqual({ meta: {} })
 		const config: MetaSpecConfig = { meta: { any: "x-any" } }
 		expect(config.meta).toEqual({ any: "x-any" })

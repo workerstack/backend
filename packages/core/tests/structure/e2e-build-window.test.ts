@@ -1,8 +1,8 @@
 /**
- * When a build-gate cell's honey-free reference is timed (tests/e2e/build-window.ts, bit 21 bref), driven by a fake
+ * When a build-gate cell's backend-free reference is timed (tests/e2e/build-window.ts, bit 21 bref), driven by a fake
  * clock on the two CI jobs that redded unchanged code at 5f2942e: a runner that slowed after the reference was taken
  * (40965667478) and a reference that read fast once (40969532154). Each cell times its reference around its own
- * builds, so both cancel; a slower honey still reds.
+ * builds, so both cancel; a slower backend still reds.
  */
 import { describe, expect, it } from "vitest"
 import * as gate from "../e2e/build-gate.ts"

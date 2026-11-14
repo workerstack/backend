@@ -5,7 +5,7 @@
  * body is limited, extension methods too; a request with no body and no declared length is not.
  * With `rejectUnlisted`, a body whose media type no `limits` key matches answers 415 instead.
  */
-import { EK, HoneyError } from "../errors/error.ts"
+import { EK, HttpError } from "../errors/error.ts"
 import { type MiddlewareFn, namedMiddleware } from "../middleware/middleware.ts"
 import { replaceRequest } from "../context/context.ts"
 import { parseMediaType } from "../response/media-type.ts"
@@ -38,8 +38,8 @@ export type BodyLimitOptions = {
  * but no further than this: past it the body is cancelled, so an endless one cannot hold the socket */
 const DRAIN_LIMIT = 1_048_576
 
-function tooLarge(): HoneyError {
-	return new HoneyError({ errorKey: EK.content_too_large, status: "content_too_large" })
+function tooLarge(): HttpError {
+	return new HttpError({ errorKey: EK.content_too_large, status: "content_too_large" })
 }
 
 /** The cap `limits` lists for `contentType`: its essence's key, else its family's; `undefined` when none matches. */
@@ -134,7 +134,7 @@ export function bodyLimit<const TOptions extends BodyLimitOptions>(
 		if (body === null && declared === null) return next()
 		const listed = listedCap(limits, req.headers.get("content-type"))
 		if (listed === undefined && rejectUnlisted && declared !== 0) {
-			throw new HoneyError({ errorKey: EK.unsupported_media_type, status: "unsupported_media_type" })
+			throw new HttpError({ errorKey: EK.unsupported_media_type, status: "unsupported_media_type" })
 		}
 		const cap = listed ?? maxSize
 		if (declared !== null && declared > cap) throw tooLarge()

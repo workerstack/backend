@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { requestId } from "../../../src/middleware/request-id.ts"
 import { proxy } from "../../../src/proxy/proxy.ts"
 import { realtime } from "../../../src/realtime/realtime.ts"
-import { honey } from "../../../src/routing/app.ts"
+import { httpApp } from "../../../src/routing/app.ts"
 import { type Recorded, recorder } from "../../../src/telemetry/__fixtures__/recording-tracer.ts"
 import { createLogger } from "../../../src/telemetry/logger.ts"
 import type { WSAdapter, WSContext, WSHandler } from "../../../src/ws/contract.ts"
@@ -60,7 +60,7 @@ describe("the app logger reaches the ws and realtime sessions", () => {
 	it("a ws callback that fails with no onError of its own", async () => {
 		const { lines, logger } = recording()
 		const { adapter, handlers, socket } = openingAdapter()
-		const app = honey<{}>().logger(logger).wsAdapter(adapter)
+		const app = httpApp<{}>().logger(logger).wsAdapter(adapter)
 		ws(app, "/live").handler({
 			onMessage: () => {
 				throw new Error("message broke")
@@ -75,7 +75,7 @@ describe("the app logger reaches the ws and realtime sessions", () => {
 	it("a realtime handler that fails with no onError of its own", async () => {
 		const { lines, logger } = recording()
 		const { adapter } = openingAdapter()
-		const app = honey<{}>().logger(logger).wsAdapter(adapter)
+		const app = httpApp<{}>().logger(logger).wsAdapter(adapter)
 		realtime(app, "/rt", {
 			handler: () => {
 				throw new Error("handler broke")
@@ -91,7 +91,7 @@ describe("the app logger reaches the request's producers, background tasks and a
 	// v0: 739857836c
 	it("an SSE or stream producer that fails after its body started", async () => {
 		const { lines, logger } = recording()
-		const app = honey<{}>().logger(logger)
+		const app = httpApp<{}>().logger(logger)
 		app.get("/sse").handler((ctx) =>
 			ctx.res.sse(async (stream) => {
 				await stream.send({ data: "one", event: "m" })
@@ -107,7 +107,7 @@ describe("the app logger reaches the request's producers, background tasks and a
 
 	it("a background task that rejects, where there is no waitUntil", async () => {
 		const { lines, logger } = recording()
-		const app = honey<{}>().logger(logger)
+		const app = httpApp<{}>().logger(logger)
 		app.get("/bg").handler((ctx) => {
 			ctx.background(Promise.reject(new Error("task broke")))
 			return ctx.res.text("ok", "x")
@@ -121,7 +121,7 @@ describe("the app logger reaches the request's producers, background tasks and a
 
 	it("an unfinished builder: the app refuses to serve, the request fails with the refusal and no process warning", async () => {
 		const warning = vi.spyOn(process, "emitWarning")
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app.get("/page").handler((ctx) => ctx.res.text("ok", "x"))
 		/* a builder left without .handler() makes the app refuse to serve */
 		app.get("/unfinished")
@@ -159,7 +159,7 @@ const SERVED = MATRIX.filter((cell) => !(cell.logger === "off" && cell.requestLo
 /** The cell's app, its custom sink, what its onError saw, and the spans its tracer recorded. */
 function configured({ logger, onError, requestLog, tracer, trustInbound }: Cell) {
 	const custom: string[] = []
-	const app = honey<{}>().requestLog(requestLog)
+	const app = httpApp<{}>().requestLog(requestLog)
 	if (logger === "custom")
 		app.logger(createLogger({ format: "json", level: "info", write: (line) => void custom.push(line) }))
 	if (logger === "off") app.logger(false)
@@ -181,11 +181,11 @@ const INBOUND = {
 const PATHS = ["/ok", "/fail", "/stream", "/sse", "/api/up"]
 
 /** The upstream a proxy hop reaches. */
-const upstream = honey<{}>()
+const upstream = httpApp<{}>()
 upstream.all("/*rest").handler((ctx) => ctx.res.text("ok", `upstream ${ctx.path}`))
 
 /** Serve the matrix's five requests: a plain answer, a handler error, a stream, SSE and a proxy hop. */
-async function serveFive(app: ReturnType<typeof honey<{}>>, trustInbound: boolean) {
+async function serveFive(app: ReturnType<typeof httpApp<{}>>, trustInbound: boolean) {
 	const routed = app.use(requestId({ trustInbound }))
 	routed.get("/ok").handler((ctx) => ctx.res.json("ok", { ok: true }))
 	routed.get("/fail").handler(() => {
@@ -253,7 +253,7 @@ const NAME =
 describe("the observability matrix: refused cells", () => {
 	it.each(REFUSED)(`${NAME}: refuses to serve, naming both`, async ({ mode, trustInbound }) => {
 		vi.stubEnv("NODE_ENV", mode)
-		const app = honey<{}>().requestLog(true).logger(false)
+		const app = httpApp<{}>().requestLog(true).logger(false)
 		await expect(async () => serveFive(app, trustInbound)).rejects.toThrow(
 			"requestLog() is on, but logger(false) writes nothing",
 		)
@@ -265,7 +265,7 @@ describe("the observability matrix: logger × onError × requestLog × tracer ×
 	it.each(SERVED)(NAME, async (cell) => {
 		const { logger, onError, requestLog, tracer, trustInbound } = cell
 		vi.stubEnv("NODE_ENV", cell.mode)
-		const baseline = await serveFive(honey<{}>().logger(false), trustInbound)
+		const baseline = await serveFive(httpApp<{}>().logger(false), trustInbound)
 		const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
 		const { app, custom, seen, spans } = configured(cell)
 		const { answers, ids } = await serveFive(app, trustInbound)

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { prettyJson } from "./pretty-json.ts"
 
 const DATA = { items: ["a", "b"], total: 2 }
 
 /** An app answering DATA as JSON, the same as text, and a few bodies prettyJson must leave alone. */
 function makeApp(options?: Parameters<typeof prettyJson>[0]) {
-	const app = honey<{}>().use(prettyJson(options))
+	const app = httpApp<{}>().use(prettyJson(options))
 	app.get("/data").handler((ctx) => ctx.res.json("ok", DATA, { headers: { "x-custom": "yes" } }))
 	app.get("/created").handler((ctx) => ctx.res.json("created", { id: 1 }))
 	app

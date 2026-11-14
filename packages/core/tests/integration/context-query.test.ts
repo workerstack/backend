@@ -3,7 +3,7 @@
  * ctx.headers, are built once per request and have no prototype.
  */
 import { describe, expect, it, vi } from "vitest"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type Fetchable = { fetch: (r: Request, env: never) => Response | Promise<Response> }
 
@@ -16,7 +16,7 @@ const ok = (body: unknown) => ({ body, status: 200 })
 
 /** A route reporting the query as ctx.search and ctx.searchAll see it. */
 function queryApp() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/q").handler((ctx) => ctx.res.json("ok", { search: { ...ctx.search }, searchAll: { ...ctx.searchAll } }))
 	return app
 }
@@ -97,7 +97,7 @@ describe("the query's place: never routed on, parsed once and only when read", (
 			}
 		}
 		const seen: unknown[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/q").handler((ctx) => {
 			seen.push(parses.length)
 			seen.push(ctx.search === ctx.search, ctx.searchAll === ctx.searchAll, parses.length)
@@ -120,7 +120,7 @@ describe("the query's place: never routed on, parsed once and only when read", (
 	// v0: cecf528269
 	it("search and headers are built once, and stay readable after the answer is made", async () => {
 		let after: unknown
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/q").handler((ctx) => {
 			const res = ctx.res.json("ok", { headers: ctx.headers === ctx.headers, search: ctx.search === ctx.search })
 			after = { ...ctx.search }
@@ -137,7 +137,7 @@ describe("records without a prototype", () => {
 	// v0: 22e52939fc
 	// v0: 1b6b4a31fa
 	it("search, searchAll and headers treat prototype names as plain keys", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/q").handler((ctx) =>
 			ctx.res.json("ok", {
 				all: PROTO_KEYS.map((k) => ctx.searchAll[k] ?? null),

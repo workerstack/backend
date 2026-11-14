@@ -7,7 +7,7 @@ import {
 	decodeJwtPayload,
 	importPkcs8,
 	isJwsAlgorithm,
-	type Jwk,
+	type JwtJwk,
 	type JwkSource,
 	type JwsAlgorithm,
 	type JwtClaimOptions,
@@ -48,7 +48,7 @@ async function rsaPair(): Promise<{ jwk: JsonWebKey; privateKey: CryptoKey }> {
 	return { jwk: await crypto.subtle.exportKey("jwk", pair.publicKey), privateKey: pair.privateKey }
 }
 
-const knownAnswerKey = (alg: AsymmetricAlgorithm): Jwk =>
+const knownAnswerKey = (alg: AsymmetricAlgorithm): JwtJwk =>
 	alg.startsWith("RS") || alg.startsWith("PS")
 		? KNOWN_ANSWER.keys.RSA
 		: KNOWN_ANSWER.keys[alg as "EdDSA" | "ES256" | "ES384" | "ES512"]

@@ -1,5 +1,5 @@
 /**
- * The `honey` CLI's argument parsing (bit 19 h1, ported from v0's unit/plugin/cli-args.test.ts): strict, `--k v` and
+ * The `backend` CLI's argument parsing (bit 19 h1, ported from v0's unit/plugin/cli-args.test.ts): strict, `--k v` and
  * `--k=v`, a value flag never taking the next flag, unknown flags and stray arguments refused, booleans bare, `true`
  * or `false`; `--plugin` an integer; init's `--force`.
  */
@@ -15,7 +15,7 @@ function refusal(parse: (argv: string[]) => unknown, argv: string[]): unknown {
 	}
 }
 
-describe("honey generate argument parsing", () => {
+describe("backend generate argument parsing", () => {
 	// v0: 5cf3040bb7
 	it("accepts --k v and --k=v", () => {
 		expect([
@@ -65,7 +65,7 @@ describe("honey generate argument parsing", () => {
 		])
 	})
 
-	it("reads -h and --help as help; the SDK and CLI flags are honey-clients's (Q1)", () => {
+	it("reads -h and --help as help; the SDK and CLI flags are clients' (Q1)", () => {
 		expect([
 			parseGenerateArgs(["-h"]).help,
 			parseGenerateArgs(["--help"]).help,
@@ -75,7 +75,7 @@ describe("honey generate argument parsing", () => {
 	})
 })
 
-describe("honey init argument parsing", () => {
+describe("backend init argument parsing", () => {
 	// v0: 2a36f102fa
 	it("takes --force alone: --workers and the flags that named a company are gone", () => {
 		expect(parseInitFlags(["--force"])).toEqual({ force: true })

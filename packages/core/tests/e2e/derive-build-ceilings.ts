@@ -6,7 +6,7 @@
  *   bun packages/core/tests/e2e/derive-build-ceilings.ts --by-commit <run id>...
  *
  * Reads each run's build and prod e2e jobs' logs through `gh`, takes their `RATIO build` lines, prints one row per job
- * (run, commit, job, the honey-free reference's median) and writes the ceilings: per runtime key and cell, the median
+ * (run, commit, job, the backend-free reference's median) and writes the ceilings: per runtime key and cell, the median
  * and ceilingRule's ceiling (a 2% false-red budget shared by every cell). It refuses fewer than 6 runs.
  * Records from ci.yml dispatched with build_mode=record; a judged run's lines count too.
  *
@@ -92,14 +92,14 @@ function decidedBuilds(): Record<string, Record<string, BuildCeiling>> {
 
 const builds = byCommit ? decidedBuilds() : deriveCeilings(jobs)
 const note =
-	"Per runtime key (Node by major) and e2e build cell: the cell's build time over a honey-free " +
+	"Per runtime key (Node by major) and e2e build cell: the cell's build time over a backend-free " +
 	"reference build's (packages/core/tests/e2e/build-gate.ts), from the RATIO build lines of the build and prod e2e " +
 	`jobs of CI runs ${[...new Set(runs)].sort().join(", ")} (ci.yml dispatched with build_mode=record). ` +
 	"baseline: the median of every job's ratio. ceiling (ceiling-rule.ts ceilingRule): per cell, fit " +
 	"log(ratio) (mean m, sample sd s), sigma_upper = s * sqrt((n-1)/chi2_0.10,n-1) (one-sided 90% upper bound on " +
 	`sigma), z = Phi^-1(1 - 0.02/G) with G = ${Object.values(builds).flatMap(Object.keys).length} cells, ceiling = ` +
 	`max(worst x ${WORST_MARGIN}, exp(m + z*sigma_upper)), so the cells share a 2% per-run false-red budget. A ratio above its ` +
-	"ceiling is REGRESSED. catches: ceiling / baseline. No retry: a red with honey unchanged is answered by a " +
+	"ceiling is REGRESSED. catches: ceiling / baseline. No retry: a red with backend unchanged is answered by a " +
 	"re-record (6+ runs, derived by derive-build-ceilings.ts), never a rerun." +
 	(byCommit
 		? " Derived --by-commit: a cell whose head-commit groups agree (each group's median within the other's range) pools them; any other takes the newest commit's runs alone."

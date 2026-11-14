@@ -6,17 +6,17 @@
  * A handler that returns acks its message, a throw retries it, and `throw deadLetter(reason)` gives
  * up on it. Delivery is at-least-once, so a handler must be safe to run twice.
  */
-import { createLogger, type Logger } from "../telemetry/logger.ts"
+import { createLogger, type BackendLogger } from "../telemetry/logger.ts"
 import type { InferInput, InferOutput, StandardSchemaLike } from "../validation/standard-schema.ts"
 
 /** When a sent message becomes deliverable. */
-export type QueueSendOptions = {
+export type QueueDelayOptions = {
 	/** Seconds to hold the message back. */
 	delaySeconds?: number
 }
 
 /** One message of a raw batch. */
-export type QueueBatchEntry = QueueSendOptions & {
+export type QueueBatchEntry = QueueDelayOptions & {
 	/** The message as it goes on the wire. */
 	body: unknown
 }
@@ -24,7 +24,7 @@ export type QueueBatchEntry = QueueSendOptions & {
 /** Anything messages can be sent to: a Workers Queue binding, or a `QueueStore`. */
 export type QueueTarget = {
 	/** Sends one message. */
-	send(body: unknown, options?: QueueSendOptions): Promise<unknown>
+	send(body: unknown, options?: QueueDelayOptions): Promise<unknown>
 	/** Sends several messages. */
 	sendBatch(messages: readonly QueueBatchEntry[]): Promise<unknown>
 }
@@ -34,7 +34,7 @@ export type QueueSchemas = Readonly<Record<string, StandardSchemaLike>>
 
 /** One message for `sendBatch`, with its type and data. */
 export type QueueEntry<Schemas extends QueueSchemas> = {
-	[Type in keyof Schemas]: QueueSendOptions & {
+	[Type in keyof Schemas]: QueueDelayOptions & {
 		/** The data, as the schema accepts it. */
 		data: InferInput<Schemas[Type]>
 		/** The message type. */
@@ -51,7 +51,7 @@ export type QueueContract<Schemas extends QueueSchemas> = {
 		target: QueueTarget,
 		type: Type,
 		data: InferInput<Schemas[Type]>,
-		options?: QueueSendOptions,
+		options?: QueueDelayOptions,
 	): Promise<void>
 	/** Sends several messages to `target`, and nothing for an empty list. Batches are not split. */
 	sendBatch(target: QueueTarget, messages: readonly QueueEntry<Schemas>[]): Promise<void>
@@ -69,7 +69,7 @@ export type QueueMessageHandle = {
 	 * Delivers the message again, holding it back for `delaySeconds` rounded up and capped at 12 hours.
 	 * The first `ack` or `retry` wins. On the last of `serveQueue`'s `maxAttempts` it dead-letters.
 	 */
-	retry(options?: QueueSendOptions): void
+	retry(options?: QueueDelayOptions): void
 }
 
 /** What a handler receives for one message. */
@@ -81,7 +81,7 @@ export type QueueContext<Env, Data> = {
 	/** The environment the runtime handed over. */
 	env: Env
 	/** The consumer's logger, bound to this message. */
-	log: Logger
+	log: BackendLogger
 	/** The message itself. */
 	message: QueueMessageHandle
 	/** An id for this delivery, for matching its logs. */
@@ -117,8 +117,8 @@ export type QueueLetter = {
 export type QueueConsumerConfig<Env, Schemas extends QueueSchemas> = {
 	/** One handler per message type. */
 	handlers: { [Type in keyof Schemas]: QueueHandler<Env, InferOutput<Schemas[Type]>> }
-	/** Where the consumer logs; default honey's logger. */
-	logger?: Logger
+	/** Where the consumer logs; default backend's logger. */
+	logger?: BackendLogger
 	/**
 	 * Reports a letter: a `deadLetter` throw, the last of `serveQueue`'s `maxAttempts`, a Workers failure on
 	 * the attempt past `workersQueue`'s `maxRetries`, or a message read from one of its `deadLetterQueues`.
@@ -138,7 +138,7 @@ export type QueueConsumer<Env> = {
 	/** Each message type's handler. */
 	readonly handlers: Readonly<Record<string, QueueHandler<Env, never>>>
 	/** Where the consumer logs. */
-	readonly logger: Logger
+	readonly logger: BackendLogger
 	/** Reports a letter. */
 	readonly onDeadLetter: QueueConsumerConfig<Env, QueueSchemas>["onDeadLetter"]
 	/** Seconds to hold a retry back. */
@@ -172,7 +172,7 @@ export function queueMessage<Data>(): StandardSchemaLike & {
 		}
 	}
 } {
-	return { "~standard": { validate: (value) => ({ value }), vendor: "honey", version: 1 } }
+	return { "~standard": { validate: (value) => ({ value }), vendor: "backend", version: 1 } }
 }
 
 /**

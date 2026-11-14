@@ -79,7 +79,7 @@ describe("defineConsumer", () => {
 		expect(() => consume(contract, { handlers, logger: SILENT })).toThrow('"ping"')
 	})
 
-	it("logs through honey's logger when given none", () => {
+	it("logs through backend's logger when given none", () => {
 		const handlers = { email: async () => {}, ping: async () => {} }
 		expect(typeof defineConsumer<{}>()(contract, { handlers }).logger.child).toBe("function")
 	})

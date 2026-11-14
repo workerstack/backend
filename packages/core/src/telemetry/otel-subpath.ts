@@ -1,15 +1,15 @@
 /**
  * `@workerstack/backend/telemetry`: `otelAdapter` and the types of the value `app.telemetry()` carries.
- * A plain subpath for tree-shaking: honey imports no OpenTelemetry package.
+ * A plain subpath for tree-shaking: backend imports no OpenTelemetry package.
  */
 export { type OtelAdapterOptions, type OtelApi, otelAdapter } from "./otel.ts"
 export type {
-	Attributes,
+	OtelAttributes,
 	AttributeValue,
-	Span,
+	OtelSpan,
 	SpanOptions,
-	Telemetry,
+	OtelTelemetry,
 	TelemetryErrorReport,
-	Tracer,
+	OtelTracer,
 } from "./request-trace.ts"
 export type { RemoteContext } from "./traceparent.ts"

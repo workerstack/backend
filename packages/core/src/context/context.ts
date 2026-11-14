@@ -1,19 +1,19 @@
 /**
- * `HoneyContext`: what a handler and its middleware see for one request. Dispatch hands it the
+ * `HttpContext`: what a handler and its middleware see for one request. Dispatch hands it the
  * request state and the route's precomputed info positionally; cookies, headers, the query and
  * the abort signal are read from the request only when first asked for.
  */
-import type { HoneyError } from "../errors/error.ts"
-import { HoneyRes } from "../response/response.ts"
+import type { HttpError } from "../errors/error.ts"
+import { HttpRes } from "../response/response.ts"
 import { searchOfUrl } from "../routing/request-path.ts"
 import { dict } from "../routing/tree.ts"
 import { requestBindings } from "../telemetry/fields.ts"
-import type { Logger } from "../telemetry/logger.ts"
+import type { BackendLogger } from "../telemetry/logger.ts"
 import type { RequestTrace } from "../telemetry/request-trace.ts"
 import { parseCookieHeader } from "./cookie.ts"
 import { ipOf } from "./peer.ts"
 
-/** The runtime's execution context, as far as honey uses it. */
+/** The runtime's execution context, as far as backend uses it. */
 export type ExecutionCtx = {
 	/** Keeps the runtime alive until `p` settles, after the response is sent. */
 	waitUntil?: (p: Promise<unknown>) => void
@@ -26,7 +26,7 @@ export type RequestState<TEnv> = {
 	/** The execution context passed to `app.fetch()`, if any; Workers provide one. */
 	readonly executionCtx: ExecutionCtx | undefined
 	/** the app's logger */
-	readonly logger: Logger
+	readonly logger: BackendLogger
 	/** The normalized request path, as on `ctx.path`. */
 	readonly path: string
 	/** The incoming request. */
@@ -73,23 +73,23 @@ const EMPTY: Readonly<Record<string, never>> = /* @__PURE__ */ Object.freeze({})
 export const NO_ROUTE: RouteInfo = /* @__PURE__ */ Object.freeze({ errors: null, id: "", meta: EMPTY, pattern: "" })
 
 /** The context's slot for its request state: an own symbol key the package does not export, so it is no part of the API. */
-export const REQUEST: unique symbol = /* @__PURE__ */ Symbol("honey.request")
+export const REQUEST: unique symbol = /* @__PURE__ */ Symbol("backend.request")
 
-/** Abort `ctx.signal` from inside honey (a timeout): not exported from the package. */
-export const ABORT_CONTEXT: unique symbol = /* @__PURE__ */ Symbol("honey.abortContext")
+/** Abort `ctx.signal` from inside backend (a timeout): not exported from the package. */
+export const ABORT_CONTEXT: unique symbol = /* @__PURE__ */ Symbol("backend.abortContext")
 
 /** The request's trace when the app has telemetry: read by requestId and proxy, never part of the package API. */
-export const TRACE: unique symbol = /* @__PURE__ */ Symbol("honey.trace")
+export const TRACE: unique symbol = /* @__PURE__ */ Symbol("backend.trace")
 
 /** The taps `ctx.tap()` queued, and whether the route's handler answered: read by routing/tap.ts only. */
-export const TAPS: unique symbol = /* @__PURE__ */ Symbol("honey.taps")
+export const TAPS: unique symbol = /* @__PURE__ */ Symbol("backend.taps")
 
 /**
  * The instance the constructor built, on that instance: a context derived with `Object.create(ctx)`
  * reaches it through its prototype, so its getters read and write the base's private state rather
  * than throwing for the private fields it lacks. Not exported from the package.
  */
-const SELF: unique symbol = /* @__PURE__ */ Symbol("honey.self")
+const SELF: unique symbol = /* @__PURE__ */ Symbol("backend.self")
 
 /** One `ctx.tap(key, payload)` call, waiting for the handler's answer. */
 export type TapCall = {
@@ -140,8 +140,8 @@ export function replaceRequest(ctx: object, req: Request): void {
 }
 
 /** Record the error behind the response on `ctx.error`, read-only for user code. */
-export function setCtxError(ctx: HoneyContext<never> | HoneyContext, error: HoneyError): void {
-	;(ctx as { error: HoneyError | undefined }).error = error
+export function setCtxError(ctx: HttpContext<never> | HttpContext, error: HttpError): void {
+	;(ctx as { error: HttpError | undefined }).error = error
 	ctx[REQUEST].errorKey = error.errorKey
 }
 
@@ -149,7 +149,7 @@ export function setCtxError(ctx: HoneyContext<never> | HoneyContext, error: Hone
  * What a handler and its middleware see for one request: the request and response helpers, the route's params and
  * metadata, the environment, the logger and the abort signal.
  */
-export class HoneyContext<TEnv = Record<string, unknown>> {
+export class HttpContext<TEnv = Record<string, unknown>> {
 	/**
 	 * Keep a promise running past the response. With a `waitUntil` on the execution context (Workers) the runtime holds it
 	 * open and reports a rejection itself. On Bun and Node nothing waits for it, so `close()` or the process exiting can cut
@@ -163,11 +163,11 @@ export class HoneyContext<TEnv = Record<string, unknown>> {
 	readonly env: TEnv
 	/**
 	 * The error behind the response, once a handler or a deeper middleware threw, or returned no `Response`, and the
-	 * `next()` boundary turned that into an error response: the thrown `HoneyError`, what `onError` replaced it with, or the
+	 * `next()` boundary turned that into an error response: the thrown `HttpError`, what `onError` replaced it with, or the
 	 * boundary error or 500 it became. `undefined` while nothing failed, and on a 404, a 405 or an error status a handler
 	 * returned without throwing.
 	 */
-	readonly error: HoneyError | undefined = undefined
+	readonly error: HttpError | undefined = undefined
 	/**
 	 * The error factories this route may use. With no key declared, every key of the app's factory. Once the route, its
 	 * middleware or the app's defaults declare a key, only the declared keys that the factory named by `.errors()` or the
@@ -196,22 +196,22 @@ export class HoneyContext<TEnv = Record<string, unknown>> {
 	/** The incoming request. */
 	readonly req: Request
 	/** Builders for the response: `json`, `text`, `redirect` and the rest; `forward` needs the route's `.output()`. */
-	readonly res: Omit<HoneyRes, "forward">
+	readonly res: Omit<HttpRes, "forward">
 	/** The route's path pattern, for example `/users/:id`; empty when no route serves the request. */
 	readonly routePattern: string
 	readonly [REQUEST]: RequestState<TEnv>
-	readonly [SELF]: HoneyContext<TEnv>
+	readonly [SELF]: HttpContext<TEnv>
 
 	#ac: AbortController | null = null
 	#cookies: Record<string, string> | null = null
 	#headers: Record<string, string> | null = null
-	#log: Logger | null = null
+	#log: BackendLogger | null = null
 	readonly #routeId: string
 	#search: Record<string, string> | null = null
 	#searchAll: Record<string, string[]> | null = null
 	#taps: TapCall[] | null = null
 
-	/** Honey builds one for each request; application code receives the context instead of making one. */
+	/** Backend builds one for each request; application code receives the context instead of making one. */
 	constructor(state: RequestState<TEnv>, route: RouteInfo, params: Record<string, string>) {
 		this.env = state.env
 		this.errors = route.errors ?? EMPTY
@@ -221,7 +221,7 @@ export class HoneyContext<TEnv = Record<string, unknown>> {
 		this.path = state.path
 		this.req = state.req
 		/* the context is the res's link to its request: signal and headers read only when a stream needs them */
-		this.res = new HoneyRes(this)
+		this.res = new HttpRes(this)
 		this.routePattern = route.pattern
 		this.#routeId = route.id
 		this[REQUEST] = state
@@ -252,7 +252,7 @@ export class HoneyContext<TEnv = Record<string, unknown>> {
 	 * when one is set, and the trace's ids when traced. Built once, on first use, so a request id set after that is not on
 	 * it: read `log` after `requestId()` has run.
 	 */
-	get log(): Logger {
+	get log(): BackendLogger {
 		const self = this[SELF]
 		self.#log ??= self[REQUEST].logger.child(
 			requestBindings(self.req.method, self.path, self.#routeId, {

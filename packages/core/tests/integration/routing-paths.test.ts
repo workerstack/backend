@@ -3,15 +3,15 @@
  * the path ctx and scopes see. Every case asserts the whole answer.
  */ import { describe, expect, it } from "vitest"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { type Honey, honey } from "../../src/routing/app.ts"
+import { type HttpApp, httpApp } from "../../src/routing/app.ts"
 import type { HttpMethod } from "../../src/routing/types.ts"
 
-type App = Honey<{}>
+type App = HttpApp<{}>
 type Echo = { method: string; params: Record<string, string>; path: string; pattern: string }
 
 /** An app whose routes answer with the method, params, ctx.path and pattern they saw. */
 function echoApp(routes: ReadonlyArray<readonly [HttpMethod | "ALL", string]>): App {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	for (const [method, pattern] of routes) {
 		app
 			.on([method], pattern)
@@ -38,7 +38,7 @@ const requireAuth = createMiddleware((ctx, next) =>
 )
 
 /** A scope on /admin that wants an authorization header, over a literal and a wildcard route. */
-function guardedApp(app: App = honey<{}>()): App {
+function guardedApp(app: App = httpApp<{}>()): App {
 	app.use("/admin", requireAuth)
 	app.get("/admin/secret").handler((ctx) => ctx.res.json("ok", { path: ctx.path, pattern: ctx.routePattern }))
 	app.get("/files/*rest").handler((ctx) => ctx.res.json("ok", { path: ctx.path, rest: ctx.params.rest }))
@@ -67,7 +67,7 @@ describe("request path normalization: how the path is spelled", () => {
 	// v0: 50a9734c31
 	// v0: 848e7b45f9
 	it("the root route is / however it is registered or requested", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("").handler((ctx) => ctx.res.json("ok", { path: ctx.path, pattern: ctx.routePattern }))
 		for (const url of ["http://localhost", "http://localhost/"]) {
 			expect(await (await app.fetch(new Request(url), {})).json()).toEqual({ path: "/", pattern: "/" })
@@ -108,7 +108,7 @@ describe("request path normalization: dot segments, encoded slashes and scopes",
 		const seen: string[] = []
 		/* the watcher wraps every route, so it would see any request that got past normalization */
 		const watched = guardedApp(
-			honey<{}>().use(
+			httpApp<{}>().use(
 				createMiddleware((ctx, next) => {
 					seen.push((ctx as { path: string }).path)
 					return next()
@@ -137,7 +137,7 @@ describe("request path normalization: ctx.path and patterns", () => {
 		["/api", "admin/x"],
 		["/api", "//admin/x"],
 	])("basePath(%j) + get(%j) is /api/admin/x, guarded by a root scope there", async (base, route) => {
-		const root = honey<{}>()
+		const root = httpApp<{}>()
 		root.use("/api/admin", requireAuth)
 		root
 			.basePath(base)
@@ -154,7 +154,7 @@ describe("request path normalization: ctx.path and patterns", () => {
 	// v0: d85a20b37d
 	// v0: b3d35c3ea8
 	it("ctx.path is the request path and ctx.routePattern the full pattern, basePath included", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/a/b/c/d/e/f/g/h/i/j").handler((ctx) => ctx.res.json("ok", { path: ctx.path, pattern: ctx.routePattern }))
 		app
 			.basePath("/v1")
@@ -173,7 +173,7 @@ describe("request path normalization: ctx.path and patterns", () => {
 
 /** An app behind stripPrefix(`prefix`) whose routes echo what they saw. */
 const stripped = (prefix: string) => {
-	const app = honey<{}>().stripPrefix(prefix)
+	const app = httpApp<{}>().stripPrefix(prefix)
 	for (const pattern of ["/", "/health", "/users", "/other", "/api/deep", "/-docs", "/ary", "/test"])
 		app.get(pattern).handler((ctx) => ctx.res.json("ok", { path: ctx.path, pattern: ctx.routePattern }))
 	return app
@@ -227,7 +227,7 @@ describe("stripPrefix", () => {
 		["/gateway", "/gateway/v1/users"],
 		["", "/v1/users"],
 	])("stripPrefix(%j) runs before basePath: %s reaches /v1/users", async (prefix, target) => {
-		const app = honey<{}>().stripPrefix(prefix)
+		const app = httpApp<{}>().stripPrefix(prefix)
 		app
 			.basePath("/v1")
 			.get("/users")
@@ -259,8 +259,8 @@ describe("trailing-slash redirects: the spelling and the Location", () => {
 	// v0: 0b793c65e5
 	// v0: 5d82f987a3
 	it("strip and enforce answer 308 to the other spelling; the root is never redirected", async () => {
-		const strip = serving(serving(honey<{}>().trailingSlash("strip"), "/users"), "/")
-		const enforce = serving(honey<{}>().trailingSlash("enforce"), "/users/")
+		const strip = serving(serving(httpApp<{}>().trailingSlash("strip"), "/users"), "/")
+		const enforce = serving(httpApp<{}>().trailingSlash("enforce"), "/users/")
 		expect([
 			await answer(strip, "/users/"),
 			await answer(strip, "/users"),
@@ -280,8 +280,8 @@ describe("trailing-slash redirects: the spelling and the Location", () => {
 	// v0: 1727be37b4
 	// v0: 61069fa2f8
 	it("Location is relative to the origin the request came from and keeps the query", async () => {
-		const strip = serving(honey<{}>().trailingSlash("strip"), "/users")
-		const enforce = serving(honey<{}>().trailingSlash("enforce"), "/users/")
+		const strip = serving(httpApp<{}>().trailingSlash("strip"), "/users")
+		const enforce = serving(httpApp<{}>().trailingSlash("enforce"), "/users/")
 		expect([
 			(await answer(strip, "/users/?q=hello&page=2", undefined, "https://api.example.com:8443")).location,
 			(await answer(strip, "/users/?page=2", undefined, "http://internal.host:8080")).location,
@@ -291,7 +291,7 @@ describe("trailing-slash redirects: the spelling and the Location", () => {
 
 	// v0: 66cc284aa5
 	it("never reflects the Host header or answers with a protocol-relative Location", async () => {
-		const app = serving(honey<{}>().trailingSlash("strip"), "/evil.example/x")
+		const app = serving(httpApp<{}>().trailingSlash("strip"), "/evil.example/x")
 		expect(await answer(app, "//evil.example/x/", undefined, "http://attacker.example")).toEqual({
 			body: "",
 			location: "/evil.example/x",
@@ -301,7 +301,7 @@ describe("trailing-slash redirects: the spelling and the Location", () => {
 
 	// v0: e5c86046d1
 	it("HEAD is redirected like GET, without a body", async () => {
-		const app = serving(honey<{}>().trailingSlash("strip"), "/items")
+		const app = serving(httpApp<{}>().trailingSlash("strip"), "/items")
 		expect(await answer(app, "/items/", { method: "HEAD" })).toEqual({ body: "", location: "/items", status: 308 })
 	})
 })
@@ -312,8 +312,8 @@ describe("trailing-slash redirects under a stripped prefix or a basePath", () =>
 	// v0: 95ccdeeb6e
 	// v0: 38b426c677
 	it("keeps the prefix stripPrefix removed, and the redirected spelling then matches", async () => {
-		const strip = serving(honey<{}>().stripPrefix("/api").trailingSlash("strip"), "/health")
-		const enforce = serving(honey<{}>().stripPrefix("/api").trailingSlash("enforce"), "/health/")
+		const strip = serving(httpApp<{}>().stripPrefix("/api").trailingSlash("strip"), "/health")
+		const enforce = serving(httpApp<{}>().stripPrefix("/api").trailingSlash("enforce"), "/health/")
 		expect([
 			await answer(strip, "/api/health/"),
 			await answer(strip, "/api/health"),
@@ -330,7 +330,7 @@ describe("trailing-slash redirects under a stripped prefix or a basePath", () =>
 	// v0: e71ddc88a3
 	// v0: 3526c7a0e4
 	it("keeps the basePath, and the redirected spelling then matches", async () => {
-		const app = honey<{}>().trailingSlash("strip")
+		const app = httpApp<{}>().trailingSlash("strip")
 		app
 			.basePath("/api")
 			.get("/health")

@@ -5,7 +5,7 @@
  * beats ALL. `methodReference` covers methods over plain segments; `pathReference` covers paths a
  * client sends (encoded literals, dot and empty segments, encoded separators) over GET routes.
  */
-import { type Honey, honey } from "../../../src/routing/app.ts"
+import { type HttpApp, httpApp } from "../../../src/routing/app.ts"
 import { expandOptional, parsePattern, type Segment } from "../../../src/routing/pattern.ts"
 import { normalizePath } from "../../../src/routing/request-path.ts"
 import { createNode, insertRoute } from "../../../src/routing/tree.ts"
@@ -87,7 +87,7 @@ export function accepted(candidates: readonly RandomRoute[]): RandomRoute[] {
 }
 
 /** Register `routes` on `app`: each answers with its route id and params. */
-export function register(app: Honey<{}>, routes: readonly RandomRoute[]): void {
+export function register(app: HttpApp<{}>, routes: readonly RandomRoute[]): void {
 	for (const { method, pattern } of routes) {
 		const id = `${method} ${pattern}`
 		const start = method === "ALL" ? app.all(pattern) : app.on([method], pattern)
@@ -202,8 +202,8 @@ export async function observePath(app: Fetcher, target: string): Promise<PathOut
 }
 
 /** A fresh app serving `routes`. */
-export function runtimeApp(routes: readonly RandomRoute[]): Honey<{}> {
-	const app = honey<{}>()
+export function runtimeApp(routes: readonly RandomRoute[]): HttpApp<{}> {
+	const app = httpApp<{}>()
 	register(app, routes)
 	return app
 }

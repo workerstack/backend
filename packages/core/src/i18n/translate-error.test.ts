@@ -56,7 +56,7 @@
 // v0: 8c571d55dd
 // v0: c2b9785752
 import { describe, expect, it } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import type { StatusKey } from "../response/status.ts"
 import { type ErrorTranslations, translateError } from "./error-i18n.ts"
 import recorded from "./translate-error.v0.json" with { type: "json" }
@@ -75,7 +75,7 @@ describe("translateError(): v0's recorded translations, row for row", () => {
 	it.each(recorded as unknown as readonly Row[])(
 		"$case: $error.errorKey in $locale",
 		({ error, locale, out, translations }) => {
-			const thrown = new HoneyError({
+			const thrown = new HttpError({
 				errorKey: error.errorKey,
 				fields: error.fields,
 				status: error.status as StatusKey,

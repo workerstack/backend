@@ -9,7 +9,7 @@
  */
 
 /** A request that knows its peer reports it under this key, allocation-free (`testClient`'s `ip`). */
-export const PEER_ADDRESS: unique symbol = /* @__PURE__ */ Symbol.for("honey.peerAddress")
+export const PEER_ADDRESS: unique symbol = /* @__PURE__ */ Symbol.for("backend.peerAddress")
 
 /** Workers is the one runtime whose edge reports the peer in a header a client cannot send. */
 function onWorkers(): boolean {

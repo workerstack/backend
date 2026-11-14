@@ -1,8 +1,8 @@
-import { honeyPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin"
 
 export default {
 	plugins: [
-		honeyPlugin({
+		backendPlugin({
 			app: "src/gen-app.ts",
 			codegen: {
 				manifest: true,
@@ -10,11 +10,11 @@ export default {
 				mergeTree: "src/route-tree.ts",
 				/* two documents from one metaSpec policy — see src/app.ts */
 				openApi: [
-					{ title: "Honey Gateway", version: "0.0.1" },
+					{ title: "Backend Gateway", version: "0.0.1" },
 					{
 						path: "src/_gen/openapi.public.gen.json",
 						profile: "public",
-						title: "Honey Gateway (public)",
+						title: "Backend Gateway (public)",
 						version: "0.0.1",
 					},
 				],

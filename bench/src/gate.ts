@@ -1,6 +1,6 @@
 /**
  * The ratio gate the five benches share (bit 20 e2, ceilings at e3): each scenario's v1 cost as a ratio to a raw twin
- * doing the same work without honey, both timed in the same process in interleaved samples, so the machine and the
+ * doing the same work without backend, both timed in the same process in interleaved samples, so the machine and the
  * runtime's speed cancel out. The samples come in k passes (PASSES) interleaved across the scenarios, and the median of
  * a scenario's pass medians is judged against its `ceiling` in blueprint/baselines/bench.json, per runtime minor: above
  * it is REGRESSED. The ceilings come from CI's own runs (the worst run plus 35%, or a log-normal tail at a 2% false-red

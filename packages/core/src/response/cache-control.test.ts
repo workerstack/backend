@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { cacheControl, httpDate } from "./cache-control.ts"
 import { etag } from "./etag.ts"
 
@@ -27,7 +27,7 @@ describe("httpDate: an HTTP-date, whole seconds", () => {
 describe("cacheControl: the Cache-Control header", () => {
 	it("writes the directives in one fixed order, built once", async () => {
 		const header = async (options: Parameters<typeof cacheControl>[0]) => {
-			const app = honey<{}>().use(cacheControl(options))
+			const app = httpApp<{}>().use(cacheControl(options))
 			app.get("/t").handler((ctx) => ctx.res.text("ok", "x"))
 			return (await app.fetch(get("/t"), {})).headers.get("cache-control")
 		}
@@ -53,7 +53,7 @@ describe("cacheControl: the Cache-Control header", () => {
 	})
 
 	it("goes on a GET or HEAD answered 2xx that has none; a handler's own, a POST and an error answer are left alone", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.logger(false)
 			.use(cacheControl({ maxAge: 60 }))
 		app.get("/plain").handler((ctx) => ctx.res.json("ok", {}))
@@ -72,7 +72,9 @@ describe("cacheControl: the Cache-Control header", () => {
 
 /** An app whose /doc answers `body`, last modified at MODIFIED, set by the handler or by the option. */
 function modified(by: "handler" | "option") {
-	const app = honey<{}>().use(cacheControl({ lastModified: by === "option" ? () => MODIFIED : undefined, maxAge: 60 }))
+	const app = httpApp<{}>().use(
+		cacheControl({ lastModified: by === "option" ? () => MODIFIED : undefined, maxAge: 60 }),
+	)
 	app
 		.get("/doc")
 		.handler((ctx) =>
@@ -108,7 +110,7 @@ describe("cacheControl: Last-Modified and If-Modified-Since", () => {
 
 	it("an answer modified since, an invalid date, a POST and an answer without Last-Modified are answered whole", async () => {
 		const app = modified("option")
-		const plain = honey<{}>().use(cacheControl({ maxAge: 60 }))
+		const plain = httpApp<{}>().use(cacheControl({ maxAge: 60 }))
 		plain.get("/doc").handler((ctx) => ctx.res.text("ok", "body"))
 		const status = async (target: typeof app, header: string, method = "GET") =>
 			(await target.fetch(get("/doc", { "if-modified-since": header }, method), {})).status
@@ -124,7 +126,7 @@ describe("cacheControl: Last-Modified and If-Modified-Since", () => {
 describe("cacheControl: a stream answer", () => {
 	it("a stream answer not modified since is a 304 too, its body cancelled unread", async () => {
 		let pulled = 0
-		const app = honey<{}>().use(cacheControl({ lastModified: () => MODIFIED, noCache: true }))
+		const app = httpApp<{}>().use(cacheControl({ lastModified: () => MODIFIED, noCache: true }))
 		app.get("/file").handler((ctx) =>
 			ctx.res.generate(
 				(function* () {
@@ -140,7 +142,7 @@ describe("cacheControl: a stream answer", () => {
 
 describe("cacheControl with etag: If-None-Match decides (RFC 9110 §13.1.3)", () => {
 	it("a request carrying both is judged by If-None-Match alone, whatever If-Modified-Since says", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(cacheControl({ lastModified: () => MODIFIED, maxAge: 60 }))
 			.use(etag())
 		app.get("/doc").handler((ctx) => ctx.res.text("ok", "body"))
@@ -154,7 +156,7 @@ describe("cacheControl with etag: If-None-Match decides (RFC 9110 §13.1.3)", ()
 	})
 
 	it("without etag, If-None-Match still turns If-Modified-Since off", async () => {
-		const app = honey<{}>().use(cacheControl({ lastModified: () => MODIFIED, maxAge: 60 }))
+		const app = httpApp<{}>().use(cacheControl({ lastModified: () => MODIFIED, maxAge: 60 }))
 		app.get("/doc").handler((ctx) => ctx.res.text("ok", "body"))
 		const answer = await app.fetch(get("/doc", { "if-modified-since": MODIFIED_TEXT, "if-none-match": '"x"' }), {})
 		expect(answer.status).toBe(200)

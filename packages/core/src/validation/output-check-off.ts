@@ -1,6 +1,6 @@
 /**
- * `#output-check` under the `honey-no-output-check` condition: no route checks what it answers. A Vite production
- * build through `honeyPlugin()` resolves this module. The check every `.output()` route runs on a `forward()`ed answer is no part
+ * `#output-check` under the `backend-no-output-check` condition: no route checks what it answers. A Vite production
+ * build through `backendPlugin()` resolves this module. The check every `.output()` route runs on a `forward()`ed answer is no part
  * of it and stays.
  */
 import type { OutputCheck } from "./validate-output.ts"

@@ -4,7 +4,7 @@
  * whose media type matches none answers 415 before its body is read, and the one that matched is
  * handed on beside the bytes. Size is bodyLimit's or the server's cap, not a knob of its own.
  */
-import { EK, HoneyError } from "../errors/error.ts"
+import { EK, HttpError } from "../errors/error.ts"
 import { parseMediaType } from "../response/media-type.ts"
 
 /** The media types a route takes as a binary body: one, or a list; each `type/subtype` or `type/*`. */
@@ -49,7 +49,7 @@ export function binaryType(ranges: readonly Range[], contentType: string | null)
 	const mt = parseMediaType(contentType)
 	if (mt !== null && ranges.some((r) => ("essence" in r ? r.essence === mt.essence : r.type === mt.type)))
 		return mt.essence
-	throw new HoneyError({ errorKey: EK.unsupported_media_type, status: "unsupported_media_type" })
+	throw new HttpError({ errorKey: EK.unsupported_media_type, status: "unsupported_media_type" })
 }
 
 /** The body read once as bytes, with the media type it was sent as. */

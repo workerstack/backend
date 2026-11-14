@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, openAsBlob, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, it, vi } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { type StaticConfig, staticFiles } from "./static.ts"
 
 type Resolve = StaticConfig<unknown>["resolve"]
@@ -12,7 +12,7 @@ function app(
 	config: Partial<StaticConfig<unknown>> & { resolve: Resolve },
 	encodedSlashes: "allow" | "reject" = "reject",
 ) {
-	const a = honey<{}>()
+	const a = httpApp<{}>()
 	a.encodedSlashes(encodedSlashes)
 	const routes = a.use(staticFiles(config))
 	routes.get("/api/ping").handler((ctx) => ctx.res.text("ok", "pong"))
@@ -201,7 +201,7 @@ describe("staticFiles(): how the path is spelled", () => {
 	// v0: 1f875078db
 	it("is ctx.path, the normalized path the router matched, not the request target", async () => {
 		const resolve = resolver()
-		const a = honey<{}>().stripPrefix("/api")
+		const a = httpApp<{}>().stripPrefix("/api")
 		a.use(staticFiles({ prefix: "/assets", resolve }))
 			.get("/health")
 			.handler((ctx) => ctx.res.text("ok", "up"))
@@ -407,7 +407,7 @@ describe("staticFiles(): a precompressed sibling found or not", () => {
 describe("staticFiles(): from a real directory", () => {
 	// v0: 24c0b79358
 	it("node's fs.openAsBlob as the resolver: a real file is served, and traversal never reaches a file outside the root", async () => {
-		const outside = mkdtempSync(join(tmpdir(), "honey-static-"))
+		const outside = mkdtempSync(join(tmpdir(), "backend-static-"))
 		const root = join(outside, "public")
 		writeFileSync(join(outside, "secret.txt"), "secret")
 		mkdirSync(root)

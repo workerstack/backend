@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest"
 import * as v from "valibot"
 import * as z from "zod"
 import { streamed } from "../input/input.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { SILENT } from "../telemetry/logger.ts"
 import { generateOpenApi } from "./generate.ts"
 import { ws } from "../ws/route.ts"
 
 const INFO = { title: "T", version: "1" }
 type Doc = ReturnType<typeof generateOpenApi>
-type Param = { in: string; name: string; required: boolean; schema: unknown; "x-honey-wildcard"?: true }
+type Param = { in: string; name: string; required: boolean; schema: unknown; "x-backend-wildcard"?: true }
 
 /** Parameters in name order. */
 const byName = (list: Param[]) => list.toSorted((a, b) => (a.name < b.name ? -1 : 1))
@@ -44,11 +44,11 @@ describe("paths: one item per concrete path, its methods inside", () => {
 	// v0: e91110554f
 	// v0: 86316dbd8f
 	it("writes each route's path with {param}, under its method, a mounted route under the handle's base path", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/health").handler((c) => c.res.text("ok", "ok"))
 		app.post("/v1/organizations").handler((c) => c.res.text("ok", "ok"))
 		app.get("/orgs/:orgId/members/:memberId").handler((c) => c.res.text("ok", "ok"))
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.get("/users").handler((c) => c.res.text("ok", "ok"))
 		app.basePath("/v1").route(sub)
 		const doc = generateOpenApi(app, { info: INFO })
@@ -63,7 +63,7 @@ describe("paths: one item per concrete path, its methods inside", () => {
 	// v0: 2c1b71e6c2
 	// v0: fc6222ab83
 	it("documents all() as the standard methods the path does not declare itself, and keeps the slash trailingSlash enforce makes clients send", () => {
-		const app = honey<{}>().trailingSlash("enforce")
+		const app = httpApp<{}>().trailingSlash("enforce")
 		app.get("/upstream/*path").handler((c) => c.res.text("ok", "ok"))
 		app.all("/upstream/*path").handler((c) => c.res.text("ok", "ok"))
 		app.get("/users/:id").handler((c) => c.res.text("ok", "ok"))
@@ -76,13 +76,13 @@ describe("paths: one item per concrete path, its methods inside", () => {
 	})
 
 	it("marks every operation with the route id it came from: all() and an optional param share theirs, each .on() method has its own", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/any").handler((c) => c.res.text("ok", "ok"))
 		app.get("/opt/:id?").handler((c) => c.res.text("ok", "ok"))
 		app.on(["GET", "POST"], "/multi").handler((c) => c.res.text("ok", "ok"))
 		ws(app, "/socket").handler({ onMessage() {} })
 		const doc = generateOpenApi(app, { info: INFO })
-		const route = (path: string, method = "get") => op(doc, path, method)["x-honey-route"]
+		const route = (path: string, method = "get") => op(doc, path, method)["x-backend-route"]
 		expect([
 			route("/any"),
 			route("/any", "delete"),
@@ -101,7 +101,7 @@ describe("path parameters", () => {
 	// v0: 9847df71ef
 	// v0: 5487962aae
 	it("are each in path and required, an optional param's variant without it having none", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/v1/organizations/:orgId").handler((c) => c.res.text("ok", "ok"))
 		app.get("/opt/:id?").handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -115,7 +115,7 @@ describe("path parameters", () => {
 	// v0: cf07eb19e1
 	// v0: 1f452d8cdc
 	it("documents a named and an unnamed wildcard as path parameters, and keeps a hyphenated name whole", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/files/*path").handler((c) => c.res.text("ok", "ok"))
 		app.get("/star/*").handler((c) => c.res.text("ok", "ok"))
 		app.get("/u/:user-id").handler((c) => c.res.text("ok", "ok"))
@@ -125,7 +125,7 @@ describe("path parameters", () => {
 			in: "path",
 			required: true,
 			schema: { type: "string" },
-			"x-honey-wildcard": true,
+			"x-backend-wildcard": true,
 		}
 		expect([
 			Object.keys(doc.paths),
@@ -141,7 +141,7 @@ describe("path parameters", () => {
 	})
 
 	it("takes a param's schema from its declared schema, and documents an undeclared one a string", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/items/:id/:slug")
 			.input({ params: { id: z.string().uuid() } })
@@ -157,7 +157,7 @@ describe("operationIds", () => {
 	// v0: 54d224eee1
 	// v0: 1417ba2705
 	it("suffixes one route's expanded operations by method and variant, a WS route's too, steps past an id taken, and fails when two routes declare one id", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.on(["GET", "POST"], "/multi")
 			.meta({ operationId: "multi" })
@@ -179,7 +179,7 @@ describe("operationIds", () => {
 				([path, method]) => op(doc, path as string, method).operationId,
 			),
 		).toEqual(["multi_get_", "multi_post", "opt", "opt_with_id", "feed", "feed_with_room", "multi_get"])
-		const twice = honey<{}>()
+		const twice = httpApp<{}>()
 		twice
 			.get("/a")
 			.meta({ operationId: "same" })
@@ -198,7 +198,7 @@ describe("request bodies", () => {
 	// v0: c091a16d80
 	// v0: 0a2f64ab66
 	it("documents a json body, required, with its input-side schema and no x-internal property", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/items")
 			.input({ json: z.object({ j: z.number(), trace: z.string().meta({ "x-internal": true }) }) })
@@ -224,7 +224,7 @@ describe("form bodies: urlencoded, and multipart when a part is binary", () => {
 	// v0: 9e9462a7a5
 	// v0: 1499d2378e
 	it("adds multipart for a file or a byte part, unwraps a streamed form, and keeps a scalar-only form urlencoded", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/extract")
 			.input({ form: streamed(z.object({ columns: z.string(), file: z.file() })) })
@@ -266,7 +266,7 @@ describe("form bodies: urlencoded, and multipart when a part is binary", () => {
 
 describe("binary bodies", () => {
 	it("documents each media type a binary body accepts, as any bytes: no schema", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.put("/avatar")
 			.input({ binary: ["image/png", "image/jpeg"] })
@@ -291,7 +291,7 @@ describe("query and header parameters: one per property", () => {
 	// v0: 984a1cf106
 	// v0: f58c5a66c8
 	it("decomposes a search object of any vendor into query parameters, each with its schema and whether it is required", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/zod")
 			.input({ search: z.object({ limit: z.number().optional(), page: z.number() }) })
@@ -320,7 +320,7 @@ describe("query and header parameters: one per property", () => {
 	// v0: eb953ca731
 	// v0: 664d47d84c
 	it("leaves an x-internal search or header field out, and documents headers in header", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/login")
 			.input({
@@ -351,7 +351,7 @@ describe("query parameters: the input side of a search schema", () => {
 	// v0: 0a3eda415f
 	// v0: 15508ec3e4
 	it("documents what a client sends, never a transform's parsed output, and keeps every field beside an unrepresentable one", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/items")
 			.input({ search: ListQuery })
@@ -375,7 +375,7 @@ describe("what an operation leaves out", () => {
 	// v0: 153c34f8c2
 	// v0: 59c978b725
 	it("drops an internal route, its own meta's or its chain's, and never writes a raw invalidate or an invalidate null", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.metaSpec({ meta: {}, strict: "error" })
 		app
 			.get("/health")
@@ -406,7 +406,7 @@ describe("what an operation leaves out", () => {
 
 describe("bodies and parameters whose schema lists no properties", () => {
 	it("keeps a form urlencoded when no part is bytes, and documents a record's search as nothing more", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/form")
 			.input({ form: publishing({ properties: { any: true, tags: { items: { type: "string" }, type: "array" } } }) })

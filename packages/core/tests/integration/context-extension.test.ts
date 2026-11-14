@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type Fetchable = { fetch: (r: Request, env: never, executionCtx?: never) => Response | Promise<Response> }
 type SendOptions = { env?: object; executionCtx?: object; init?: RequestInit }
@@ -24,7 +24,7 @@ describe("ctx.meta", () => {
 	// v0: 388012fbac
 	// v0: 9dfc3446fd
 	it("is the route's meta, frozen, also on a route with an error factory, middleware and declared errors", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.metaType<AppMeta>()
 			.errorFactory(defineErrors({ not_allowed: "forbidden" }))
 			.use(createMiddleware((_ctx, next) => next({ userId: "u-1" })))
@@ -45,7 +45,7 @@ describe("ctx.meta", () => {
 	// v0: c90a72efd3
 	// v0: 5ab1605dec
 	it("an internal route, marked on itself or on its chain, still answers and sees internal: true", async () => {
-		const app = honey<{}>().metaType<AppMeta>()
+		const app = httpApp<{}>().metaType<AppMeta>()
 		app
 			.get("/api/users")
 			.meta({ auth: "public" })
@@ -91,7 +91,7 @@ describe("ctx.background and ctx.executionCtx", () => {
 		["a handler that throws", "/boom", 500],
 		["chain middleware on an unknown path", "/nope", 404],
 	])("work started by %s goes to waitUntil, called on its owner", async (_label, target, status) => {
-		const app = honey<{}>().use(
+		const app = httpApp<{}>().use(
 			createMiddleware((ctx, next) => {
 				ctx.background(Promise.resolve(`mw ${target}`))
 				return next()
@@ -112,7 +112,7 @@ describe("ctx.background and ctx.executionCtx", () => {
 	// v0: 2b0365b6c3
 	it("ctx.executionCtx is the object fetch was given, and undefined without one", async () => {
 		const seen: unknown[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/t").handler((ctx) => {
 			seen.push(ctx.executionCtx)
 			return ctx.res.json("ok", {})
@@ -128,7 +128,7 @@ describe("ctx.background and ctx.executionCtx", () => {
 	// v0: d4bf8a717c
 	it("without an execution context, background work still runs, and its failure leaves the answer alone", async () => {
 		const ran: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/bg").handler((ctx) => {
 			ctx.background(new Promise((resolve) => setTimeout(resolve, 10)).then(() => ran.push("later")))
 			ctx.background(Promise.reject(new Error("bg fail")))

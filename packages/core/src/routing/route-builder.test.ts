@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest"
 import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { GRAPH, honey } from "./app.ts"
+import { GRAPH, httpApp } from "./app.ts"
 import { finalTable } from "./dispatch.ts"
 
 const errors = defineErrors({
@@ -19,7 +19,7 @@ const fetchJson = async (app: { fetch: (r: Request, env: {}) => Response | Promi
 
 describe("RouteBuilder runtime", () => {
 	it("a one-shot method disappears once used", () => {
-		const route = honey<{}>().errorFactory(errors).get("/x").errors("email_taken").meta({ summary: "s" })
+		const route = httpApp<{}>().errorFactory(errors).get("/x").errors("email_taken").meta({ summary: "s" })
 		expectTypeOf(route).not.toHaveProperty("errors")
 		expectTypeOf(route).not.toHaveProperty("meta")
 		expectTypeOf(route).toHaveProperty("use")
@@ -27,7 +27,7 @@ describe("RouteBuilder runtime", () => {
 
 	// v0: 7894f62ae9
 	it("route meta merges over chain meta and dedupes invalidate", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.meta({ summary: "chain", tags: "a" })
 			.get("/m")
@@ -43,7 +43,7 @@ describe("RouteBuilder runtime", () => {
 	})
 
 	it(".on() registers one record per method, sharing the handler", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.on(["GET", "POST"], "/both").handler((ctx) => ctx.res.text("ok", ctx.req.method))
 		expect([...finalTable(app[GRAPH]).plans.keys()]).toEqual(["GET /both", "POST /both"])
 		const res = await app.fetch(new Request("http://localhost/both", { method: "POST" }), {})
@@ -57,7 +57,7 @@ describe("RouteBuilder: every one-shot at once", () => {
 	// v0: 0798132be9
 	it("every one-shot together answers as declared, beside middleware, a declared error and a boundary", async () => {
 		const errs = defineErrors({ internal_server_error: "internal_server_error", not_found: "not_found" })
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.errorFactory(errs)
 			.use(createMiddleware((_ctx, next) => next({ userId: "u-1" })))
 		app
@@ -94,7 +94,7 @@ const fetchOf = (app: { fetch: (r: Request, env: {}) => Response | Promise<Respo
 
 describe("RouteBuilder: the .output() shorthand and a returned body", () => {
 	it("{ ok: schema } is stored as the application/json form, headers and redirect beside it", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/t")
 			.output({ created: true, headers: { created: z.object({ location: z.string() }) }, redirect: { found: true } })
@@ -108,7 +108,7 @@ describe("RouteBuilder: the .output() shorthand and a returned body", () => {
 	})
 
 	it("a returned body answers at the sole 2xx status, through its media type's helper, sync or async", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app
 			.get("/json")
 			.output({ created: z.object({ id: z.string() }), redirect: { see_other: true } })
@@ -138,7 +138,7 @@ describe("RouteBuilder: the .output() shorthand and a returned body", () => {
 	})
 
 	it("an answer still passes as it is, and nothing returned is still the handler's error", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app
 			.get("/answer")
 			.output({ no_content: true })

@@ -4,7 +4,7 @@
  * `routeTree()` like any generated tree.
  */
 import { expandOptional, parsePattern, splitRouteId } from "./pattern.ts"
-import { GRAPH, type HoneyGraph, isServed, type RouteHandler } from "./register.ts"
+import { GRAPH, type HttpGraph, isServed, type RouteHandler } from "./register.ts"
 import { snapshotRouteTree } from "./route-tree.ts"
 import {
 	assertTreeFormat,
@@ -16,7 +16,7 @@ import {
 	type RouteTree,
 } from "./tree.ts"
 
-type App = { readonly [GRAPH]: HoneyGraph }
+type App = { readonly [GRAPH]: HttpGraph }
 
 /** An entry as a generated file carries it: data only, no live record. */
 function dataOf({ h: _live, ...data }: RouteEntry): RouteEntry {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { createComponents } from "./components.ts"
 import { generateOpenApi } from "./generate.ts"
 
@@ -108,7 +108,7 @@ describe("components in the document", () => {
 				return z.array(Category)
 			},
 		})
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/categories")
 			.output({ "application/json": { ok: Category } })

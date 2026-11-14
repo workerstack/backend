@@ -1,5 +1,5 @@
 /**
- * The ICU MessageFormat subset honey speaks: `{var}`, `{var, number}`, `{var, plural, =N{…}
+ * The ICU MessageFormat subset backend speaks: `{var}`, `{var, number}`, `{var, plural, =N{…}
  * category{…} other{…}}` with `#`, and `{var, select, …}`, nested to any depth. A missing var stays
  * the literal `{var}`, unbalanced braces pass through as text, and nothing throws. Branches and vars
  * are looked up as own keys only, so a `constructor` or `__proto__` branch or var is plain data.
@@ -11,7 +11,7 @@
  */
 
 /**
- * The `{var}` names of an ICU message literal, as a vars type (`cause` is HoneyError's own); `{}`
+ * The `{var}` names of an ICU message literal, as a vars type (`cause` is HttpError's own); `{}`
  * when it has none, so `vars` can be left out.
  */
 export type ExtractICUVars<T extends string> = T extends `${string}{${infer Var}}${infer Rest}`

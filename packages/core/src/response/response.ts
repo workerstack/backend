@@ -1,10 +1,10 @@
 /**
- * `HoneyRes`: the `ctx.res` helpers. Each builds a buffered response from a status key, records
+ * `HttpRes`: the `ctx.res` helpers. Each builds a buffered response from a status key, records
  * its raw body for later readers, and types it with a phantom content type and status key.
  */
 import { type CookieOptions, serializeCookie } from "../context/cookie.ts"
 import { generatorStream, type ProducerOptions, producerStream } from "../streaming/producer-stream.ts"
-import type { Logger } from "../telemetry/logger.ts"
+import type { BackendLogger } from "../telemetry/logger.ts"
 import { isProducedStream, rawBodyOf, type RawBody, withForwarded, withProducedBody, withRawBody } from "./builder.ts"
 import { BINARY_HEADERS, type BinaryBody, binaryBytes, binaryHeaders, type BinaryOptions } from "./binary.ts"
 import { SSE_HEADERS, type SSEOptions, type SSEStream, sseBody } from "./sse.ts"
@@ -21,7 +21,7 @@ export type ResponseOptions = {
 /** What `ctx.res` reads from its request, only when a stream needs it: the context itself is one. */
 export type ResLink = {
 	/** Logger that hears a failed stream producer. */
-	readonly log: Logger
+	readonly log: BackendLogger
 	/** The request; its `Last-Event-ID` header seeds `sse()`. */
 	readonly req: Request
 	/** Ends streamed bodies when it aborts. */
@@ -129,7 +129,7 @@ function writableOver(write: (bytes: Uint8Array) => Promise<void>, end: { close(
  * redirect key and a URL; `noContent()`, `stream()`, `generate()` and `sse()` pick their own status; `raw()` passes a
  * native Response through. A status is always a key, never a number, so the answer is the one the document names.
  */
-export class HoneyRes {
+export class HttpRes {
 	readonly #link: ResLink | undefined
 
 	/** `link` is the request a per-request res streams for; a bare res has none (no signal, no Last-Event-ID). */
@@ -244,7 +244,7 @@ export class HoneyRes {
 	 * Return a native Response. `fetch()`, `Fetcher.fetch`, `cache.match`, and `Response.redirect`
 	 * return guarded headers that throw on `set`, which breaks response middleware. Copy status and
 	 * headers into a new Response; the body streams through unread. WebSocket upgrades and responses
-	 * Honey built pass through as-is. A response whose body was already read is a bug, usually one
+	 * Backend built pass through as-is. A response whose body was already read is a bug, usually one
 	 * kept across requests: it throws instead of answering 200 with an unreadable body.
 	 */
 	raw(response: Response): TypedResponse {

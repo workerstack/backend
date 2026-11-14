@@ -8,7 +8,7 @@ import { defaultTextMapGetter, ROOT_CONTEXT, trace } from "@opentelemetry/api"
 import { W3CTraceContextPropagator } from "@opentelemetry/core"
 import { describe, expect, it, vi } from "vitest"
 import { proxy } from "../proxy/proxy.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { type Recorded, recorder } from "./__fixtures__/recording-tracer.ts"
 import { createLogger } from "./logger.ts"
 import { formatTraceparent, inboundTrace, parseTraceparent, parseTracestate } from "./traceparent.ts"
@@ -200,7 +200,7 @@ describe("the trust gate through an app: the root span", () => {
 
 	it("untrusted (the default): a fresh root linked to it", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		await app.fetch(get("/a", { headers: inbound }), {})
 		expect([spans[0]?.parent, spans[0]?.links]).toEqual([
@@ -211,7 +211,7 @@ describe("the trust gate through an app: the root span", () => {
 
 	it("trusted: the root continues it, tracestate included", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry({ ...telemetry, trustInbound: true })
+		const app = httpApp<{}>().telemetry({ ...telemetry, trustInbound: true })
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		await app.fetch(get("/a", { headers: inbound }), {})
 		expect([spans[0]?.parent, spans[0]?.links]).toEqual([
@@ -222,7 +222,7 @@ describe("the trust gate through an app: the root span", () => {
 
 	it("a predicate sees the peer the platform reports (none here)", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry({ ...telemetry, trustInbound: ({ ip }) => ip === null })
+		const app = httpApp<{}>().telemetry({ ...telemetry, trustInbound: ({ ip }) => ip === null })
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		await app.fetch(get("/a", { headers: inbound }), {})
 		expect(spans[0]?.links).toEqual([])
@@ -236,7 +236,7 @@ describe("the trust gate through an app: the root span", () => {
 			write: (line) => lines.push(JSON.parse(line) as Record<string, unknown>),
 		})
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.logger(logger)
 			.telemetry({ ...telemetry, trustInbound: brokenTrust })
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
@@ -249,9 +249,9 @@ describe("the trust gate through an app: the root span", () => {
 })
 
 /** A proxied app whose upstream records the headers it was sent. */
-function proxied(configure: (app: ReturnType<typeof honey<{}>>) => void, requestHeaders?: Record<string, string>) {
+function proxied(configure: (app: ReturnType<typeof httpApp<{}>>) => void, requestHeaders?: Record<string, string>) {
 	const sent: Headers[] = []
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	configure(app)
 	app.all("/api/*rest").handler(
 		proxy({
@@ -326,7 +326,7 @@ describe("outbound: sampling, failure, and telemetry off", () => {
 
 	it("an upstream that fails: the http.proxy span ends ERROR with the failure's type", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry).logger(false)
+		const app = httpApp<{}>().telemetry(telemetry).logger(false)
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: () => {

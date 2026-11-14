@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import type { HoneyError } from "../errors/error.ts"
+import type { HttpError } from "../errors/error.ts"
 import { searchInput } from "./query.ts"
 
 /** ctx.searchAll for `query`: every value per key, in request order, on a record with no prototype. */
@@ -42,11 +42,11 @@ describe("searchInput: the query, validated", () => {
 
 	// v0: 885d0ec225
 	it("a missing required key is a 400 naming search.<name>", () => {
-		let error: HoneyError | undefined
+		let error: HttpError | undefined
 		try {
 			searchInput(z.object({ q: z.string() }), searchAll(""))
 		} catch (thrown) {
-			error = thrown as HoneyError
+			error = thrown as HttpError
 		}
 		expect([error?.status, error?.fields.q?.[0]?.path]).toEqual([400, "search.q"])
 	})

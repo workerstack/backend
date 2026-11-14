@@ -18,10 +18,10 @@
  *   retry's own credential and call: a credential that changed since (say a refreshed OAuth token) no longer matches,
  *   so the call is refused and the client uploads again.
  */
-import type { HoneyContext } from "../context/context.ts"
+import type { HttpContext } from "../context/context.ts"
 import type { TypedResponse } from "../response/response.ts"
 import { joinPatterns, parsePattern } from "../routing/pattern.ts"
-import { assertRouteFree, GRAPH, type HandleView, type HoneyGraph, SERVED, VIEW } from "../routing/register.ts"
+import { assertRouteFree, GRAPH, type HandleView, type HttpGraph, SERVED, VIEW } from "../routing/register.ts"
 import type { McpUploading, McpUploads } from "./mount.ts"
 
 /**
@@ -55,11 +55,11 @@ export type McpUploadsOptions = {
 
 /** The handle the hook registers on, as far as it reads one. */
 type Handle = {
-	readonly [GRAPH]: HoneyGraph
+	readonly [GRAPH]: HttpGraph
 	readonly [VIEW]: HandleView
 	put(path: string): { meta(meta: object): { handler(fn: (ctx: Ctx) => Promise<TypedResponse>): unknown } }
 }
-type Ctx = HoneyContext & { readonly res: { raw(response: Response): TypedResponse } }
+type Ctx = HttpContext & { readonly res: { raw(response: Response): TypedResponse } }
 
 /** A token's fields, in its order; the MAC follows them. */
 type Fields = [id: string, expires: string, size: string, digest: string, principal: string, call: string]

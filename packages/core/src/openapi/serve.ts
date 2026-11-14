@@ -10,7 +10,7 @@
  * itself, so an app that shows none carries neither page, and one that shows one carries only that one.
  * `auth` puts a Basic guard in front of every route the call mounts.
  */
-import { GRAPH, type HoneyGraph } from "../routing/register.ts"
+import { GRAPH, type HttpGraph } from "../routing/register.ts"
 import { type GenerateOpenApiOptions, generateOpenApi } from "./generate.ts"
 import { type GenerateManifestOptions, generateManifest } from "./manifest.ts"
 import {
@@ -37,7 +37,7 @@ export type ServeOpenApiOptions<A = unknown> = Omit<GenerateOpenApiOptions, "inf
 		readonly docs?: DocsPages
 		/** `false` mounts nothing */
 		readonly enabled?: boolean
-		/** every mounted route's meta: honey's keys and the handle's declared ones, under the internal SERVED marking */
+		/** every mounted route's meta: backend's keys and the handle's declared ones, under the internal SERVED marking */
 		readonly meta?: ServedMeta<A>
 		/** the stem the document is served at, `"/openapi"` by default: `.json`, `.yaml` and `.yml` follow */
 		readonly path?: string
@@ -51,14 +51,14 @@ export type ServeOpenApiOptions<A = unknown> = Omit<GenerateOpenApiOptions, "inf
 export type ServeManifestOptions<A = unknown> = Omit<GenerateManifestOptions, "visibility"> & {
 	/** `false` mounts nothing */
 	readonly enabled?: boolean
-	/** the route's meta: honey's keys and the handle's declared ones, under the internal SERVED marking */
+	/** the route's meta: backend's keys and the handle's declared ones, under the internal SERVED marking */
 	readonly meta?: ServedMeta<A>
 	/** `"/manifest.json"` by default */
 	readonly path?: string
 }
 
 /** What `build` gives for the graph's routes as they are, built again only once they change; a throw is kept too. */
-function perEpoch<T>(g: HoneyGraph, build: () => T): () => T {
+function perEpoch<T>(g: HttpGraph, build: () => T): () => T {
 	let cached: { epoch: number; failed: boolean; value: unknown } | null = null
 	return () => {
 		if (cached === null || cached.epoch !== g.epoch) {

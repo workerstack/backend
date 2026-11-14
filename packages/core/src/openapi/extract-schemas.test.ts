@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
 import { streamed } from "../input/input.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import type { ConversionIssue } from "../schema/to-json-schema.ts"
 import { extractSchemas } from "./extract-schemas.ts"
 
@@ -18,7 +18,7 @@ describe("extractSchemas: each route's schemas as JSON Schema", () => {
 	// v0: 9f6ab846cd
 	// v0: c87c554a26
 	it("keys each route by METHOD /pattern, and a route that declares nothing by an empty object", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
 		app.post("/v1/organizations/:orgId").handler((ctx) => ctx.res.text("ok", "ok"))
 		expect(extractSchemas(app)).toEqual({ "GET /health": {}, "POST /v1/organizations/:orgId": {} })
@@ -26,7 +26,7 @@ describe("extractSchemas: each route's schemas as JSON Schema", () => {
 
 	// v0: 379c32b952
 	it("converts each input source on its input side, a streamed() body by the schema it documents", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/items")
 			.input({ json: z.object({ page: z.number().default(1) }), search: z.object({ q: z.string() }) })
@@ -47,7 +47,7 @@ describe("extractSchemas: each route's schemas as JSON Schema", () => {
 		])
 	})
 	it("documents the params a route declares as one object of them, each required, the others left out", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/oauth/:provider/:step")
 			.input({ params: { provider: z.enum(["github", "google"]) } })
@@ -67,7 +67,7 @@ describe("extractSchemas: each route's schemas as JSON Schema", () => {
 describe("extractSchemas: answers and options", () => {
 	// v0: a6253d6a8b
 	it("converts each answer on its output side, by media type then status", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/items")
 			.output({
@@ -89,7 +89,7 @@ describe("extractSchemas: answers and options", () => {
 	it("leaves out a binary body, which names media types and no schema, and passes its options to the conversion", () => {
 		const issues: ConversionIssue[] = []
 		const nobody = { "~standard": { validate: (value: unknown) => ({ value }), vendor: "nobody", version: 1 as const } }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/upload")
 			.input({ binary: "image/png", search: nobody })

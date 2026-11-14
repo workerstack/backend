@@ -107,13 +107,13 @@ jobs:
       - run: bun install --frozen-lockfile
       # backend's own copy of the pinned clients (tests/fixture/mcp-clients), for its mounted-MCP legs
       - name: MCP clients for backend (packages/core/tests/fixture/mcp-clients/client-lock.json)
-        run: P="$(git rev-parse --show-toplevel)/packages/core/tests/fixture/mcp-clients" && D="$HOME/.cache/honey-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
+        run: P="$(git rev-parse --show-toplevel)/packages/core/tests/fixture/mcp-clients" && D="$HOME/.cache/backend-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
       - run: bun run generate
       - if: ${{ !cancelled() }}
         run: bun run test:v1
         env:
           # runtime-bundle's legs build with the pinned Bun (packageManager): a missing one fails instead of skipping
-          HONEY_REQUIRE_TOOLCHAINS: "1"
+          BACKEND_REQUIRE_TOOLCHAINS: "1"
       - if: ${{ !cancelled() }}
         run: bun run test:bench
       - run: bun run test:consumers
@@ -180,7 +180,7 @@ jobs:
         run: grep -m1 "model name" /proc/cpuinfo
       # --check-generated: the checkout is clean here, so a build that rewrites a
       # committed generated file means it is stale or codegen is not deterministic.
-      # each cell's time over a honey-free reference build's, judged against blueprint/baselines/build.json; a
+      # each cell's time over a backend-free reference build's, judged against blueprint/baselines/build.json; a
       # dispatch with build_mode=record prints the RATIO lines its ceilings are derived from (build-gate.ts)
       - run: bun packages/core/tests/e2e/run-build.ts --runtime ${{ matrix.runtime }} --check-generated
         env:
@@ -206,8 +206,8 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
       # packs the real tarball, type-checks a consumer with every strictness flag on, then runs
-      # it on Bun and on plain Node: the core entry, honey generate, and vite build with the
-      # honey plugins. Every other tier runs honey from source, so nothing else can see this.
+      # it on Bun and on plain Node: the core entry, backend generate, and vite build with the
+      # backend plugins. Every other tier runs backend from source, so nothing else can see this.
       - run: bun run test:packaging
 
   e2e:
@@ -236,10 +236,10 @@ jobs:
       - run: bun install --frozen-lockfile
       # backend's own copy of the pinned clients (tests/fixture/mcp-clients), for its mounted-MCP legs
       - name: MCP clients for backend (packages/core/tests/fixture/mcp-clients/client-lock.json)
-        run: P="$(git rev-parse --show-toplevel)/packages/core/tests/fixture/mcp-clients" && D="$HOME/.cache/honey-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
+        run: P="$(git rev-parse --show-toplevel)/packages/core/tests/fixture/mcp-clients" && D="$HOME/.cache/backend-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
       - run: bun run generate
       # a prod cell builds its app through run-build.ts first, under the same build gate as the build job
       - run: bun run ${{ matrix.script }}
         env:
           BUILD_MODE: ${{ inputs.build_mode || 'judge' }}
-          HONEY_REQUIRE_TOOLCHAINS: "1"
+          BACKEND_REQUIRE_TOOLCHAINS: "1"

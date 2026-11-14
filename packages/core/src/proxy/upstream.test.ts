@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { timeout } from "../middleware/timeout.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { proxy, type ProxyConfig } from "./proxy.ts"
 
 type Seen = { init: RequestInit; url: string }
@@ -11,7 +11,7 @@ function proxyApp(
 	extra: Partial<ProxyConfig<unknown>> = {},
 ) {
 	const calls: Seen[] = []
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.all("/api/*rest").handler(
 		proxy({
 			destination: (_ctx, url, init) => {
@@ -143,7 +143,7 @@ describe("proxy: the header timeout", () => {
 	// v0: a786b6a875
 	it("no response headers within the timeout: 504 gateway_timeout, and the upstream call is aborted", async () => {
 		const record = { aborted: false }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(proxy({ destination: hanging(record), timeout: 20 }))
 		const res = await app.fetch(req("/api/x"), {})
 		expect([res.status, ((await res.json()) as { error_key: string }).error_key, record.aborted]).toEqual([
@@ -165,7 +165,7 @@ describe("proxy: the header timeout", () => {
 	it("timeout may be a function of ctx", async () => {
 		const seen: unknown[] = []
 		const record = { aborted: false }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: hanging(record),
@@ -308,7 +308,7 @@ describe("proxy: signals", () => {
 	// v0: 8aa66ae6eb
 	it("ctx.signal (timeout(), a disconnect, shutdown) cancels the upstream call", async () => {
 		const record = { aborted: false }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.all("/api/*rest")
 			.use(timeout({ duration: 20 }))
@@ -349,7 +349,7 @@ describe("proxy: a network failure is a 502", () => {
 
 	// v0: f092b2ffb5
 	it("a real connection refused is a 502", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(proxy({ destination: (_ctx, url, init) => fetch(`http://127.0.0.1:9${url}`, init) }))
 		expect((await app.fetch(req("/api/x"), {})).status).toBe(502)
 	})
@@ -367,7 +367,7 @@ describe("proxy: any other throw is a 500", () => {
 
 	// v0: 8779dcba63
 	it("an invalid upstream URL is the destination's bug: a 500", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(proxy({ destination: (_ctx, url, init) => fetch(`http://[::1${url}`, init) }))
 		expect((await app.fetch(req("/api/x"), {})).status).toBe(500)
 	})
@@ -389,7 +389,7 @@ describe("proxy: any other throw is a 500", () => {
 			controller.abort()
 			throw Object.assign(new TypeError("fetch failed"), { cause: init.signal?.reason })
 		})
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(proxy({ destination }))
 		const res = await app.fetch(req("/api/x", { signal: controller.signal }), {})
 		expect(res.status).not.toBe(502)

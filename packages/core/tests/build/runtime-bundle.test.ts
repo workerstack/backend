@@ -1,7 +1,7 @@
 /**
  * What an app's bundle carries from the installed package (bit 19 i, ported from v0's runtime-bundle.test.ts): the
- * real core tarball, installed beside honey-clients at the version core pins and every build-time package (oxfmt, ts-morph; jiti is core's own
- * dependency), so a leak would be bundled rather than fail to resolve. A bundle of `honey()` leaves out the tooling
+ * real core tarball, installed beside clients at the version core pins and every build-time package (oxfmt, ts-morph; jiti is core's own
+ * dependency), so a leak would be bundled rather than fail to resolve. A bundle of `httpApp()` leaves out the tooling
  * and every optional feature until its subpath is imported; a Worker built by the build plugin carries none of the
  * build-time packages; and a core-only install loads the plugin, failing by name only when it is asked to generate.
  */
@@ -13,7 +13,7 @@ import { pinnedBunVersion, withPinnedBun } from "../fixture/pinned-bun.ts"
 import { CLIENTS, consumer, pack, run, scratch, write } from "./fixture/packed.ts"
 
 /* a bundle's bytes are the Bun's that builds it: the pinned one CI runs, never PATH's (skipped without it, required
- * under HONEY_REQUIRE_TOOLCHAINS) */
+ * under BACKEND_REQUIRE_TOOLCHAINS) */
 const BUN = withPinnedBun()
 
 const files = scratch("runtime-bundle")
@@ -33,7 +33,7 @@ const OPTIONAL_FEATURES: Readonly<Record<string, string>> = {
  * inlined without one)
  */
 const BUILD_TIME: Readonly<Record<string, RegExp>> = {
-	"@workerstack/clients": /honey-clients/,
+	"@workerstack/clients": /@workerstack\/clients/,
 	jiti: /\bjiti\b|createJiti/,
 	oxfmt: /oxfmt/,
 	"ts-morph": /ts-morph/,
@@ -89,11 +89,11 @@ function routeModules(name: string, lines: readonly string[], modules: readonly 
 describe("the runtime bundle of an installed core (bit 19 i)", () => {
 	// v0: 9b6d30d576
 	it.skipIf(!BUN)(
-		`bun ${pinnedBunVersion()} build of honey() leaves out tooling and every optional runtime feature`,
+		`bun ${pinnedBunVersion()} build of httpApp() leaves out tooling and every optional runtime feature`,
 		() => {
 			const entry = [
-				'import { honey } from "@workerstack/backend/http"',
-				'const app = honey().get("/json").handler((ctx) => ctx.res.json("ok", { ok: true }))',
+				'import { httpApp } from "@workerstack/backend/http"',
+				'const app = httpApp().get("/json").handler((ctx) => ctx.res.json("ok", { ok: true }))',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
@@ -122,7 +122,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * with one 400 naming every refused param and an async validator awaited, the registration check that a key is
 			 * a param of the path, and the read that places the values. Locked at 26,500. 5.5 took 8 off (26,428). 5.6
 			 * added 69 (26,497) so routeTree() returns a new app: the settings copy and the replay of every registered
-			 * route onto the tree's graph. 7.1 added 27 (26,496 to 26,523) so honey(preset) starts an app from a preset:
+			 * route onto the tree's graph. 7.1 added 27 (26,496 to 26,523) so httpApp(preset) starts an app from a preset:
 			 * the call through the SEED slot and its symbol; the app's build from the preset lives in preset.ts, out of an
 			 * app that defines none. Locked at 26,600. 5.7 added 180 (26,516 to 26,696) so ctx.res.forward() answers a
 			 * Response whose status is decided elsewhere: the method and its forwarded marker, the check every .output()
@@ -138,7 +138,8 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * 1.3.2.1-motley) gzips the same 27,023 bytes of 26.12.0's measure to 27,094, so a lock is read off CI's Node.
 			 * Plan 53 (D16) took 1,568 off (27,094 to 25,526 on CI's Node 26.13.1): apps run on Workers only, so the
 			 * builder's Node out-headers path, runtime detection and the request log's runtime field are gone. Locked
-			 * at 25,600.
+			 * at 25,600. Plan 55's renames (the brand names out of every export and header) added 7 (25,533). Still
+			 * locked at 25,600.
 			 */
 			const gzipped = gzipSync(js, { level: 9 }).length
 			const builtBy = run(BUN as string, ["--version"], full).out.trim()
@@ -161,12 +162,12 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`a feature is bundled once its entry is imported (bun ${pinnedBunVersion()})`,
 		() => {
 			const entry = [
-				'import { honey } from "@workerstack/backend/http"',
+				'import { httpApp } from "@workerstack/backend/http"',
 				'import { createErrorTranslator } from "@workerstack/backend/http/i18n"',
 				'import { swagger } from "@workerstack/backend/http/openapi/swagger"',
 				'import { proxy } from "@workerstack/backend/http/proxy"',
 				'import { realtime } from "@workerstack/backend/realtime"',
-				"const app = honey()",
+				"const app = httpApp()",
 				'\t.errorI18n(createErrorTranslator({ errors: {}, resolveLocale: () => "en" }))',
 				'\t.get("/docs").handler(swagger({ url: "/openapi.json" }))',
 				'\t.all("/up/*rest").handler(proxy({ destination: (_c, url, init) => fetch(`http://upstream${url}`, init) }))',
@@ -179,37 +180,37 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				.filter(([, marker]) => !js.includes(marker))
 				.map(([name]) => name)
 			const sockets = [
-				'import { honey } from "@workerstack/backend/http"',
+				'import { httpApp } from "@workerstack/backend/http"',
 				'import { ws } from "@workerstack/backend/ws"',
-				"const app = honey()",
+				"const app = httpApp()",
 				'ws(app, "/live").handler({})',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const mounted = [
-				'import { honey } from "@workerstack/backend/http"',
+				'import { httpApp } from "@workerstack/backend/http"',
 				'import { mcp } from "@workerstack/backend/mcp"',
-				"const app = honey()",
+				"const app = httpApp()",
 				'mcp(app, "/mcp", { challenge: "Bearer", fetch: async () => new Response(null), secured: false })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const protectedMount = [
-				'import { honey } from "@workerstack/backend/http"',
+				'import { httpApp } from "@workerstack/backend/http"',
 				'import { mcp } from "@workerstack/backend/mcp"',
 				'import { oauth } from "@workerstack/backend/mcp/oauth"',
-				"const app = honey()",
+				"const app = httpApp()",
 				'const handler = { challenge: "Bearer", fetch: async () => new Response(null), secured: false }',
 				'mcp(app, "/mcp", handler, { authenticate: () => true, oauth: oauth({ authorizationServers: ["https://as.example"] }) })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const filesMount = [
-				'import { honey } from "@workerstack/backend/http"',
+				'import { httpApp } from "@workerstack/backend/http"',
 				'import { mcp } from "@workerstack/backend/mcp"',
 				'import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"',
 				'import { urlFiles } from "@workerstack/backend/mcp/url-files"',
-				"const app = honey()",
+				"const app = httpApp()",
 				'const handler = { challenge: "Bearer", fetch: async () => new Response(null), secured: false }',
 				"const store = memoryUploadStore()",
 				'mcp(app, "/mcp", handler, { uploads: uploads({ secret: "s".repeat(32), store }), urlFiles: urlFiles({ hosts: ["files.example"] }) })',
@@ -241,24 +242,24 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`serveStaticOpenApi carries no generator and no page it was not given (bun ${pinnedBunVersion()})`,
 		() => {
 			const served = [
-				'import { honey } from "@workerstack/backend/http"',
+				'import { httpApp } from "@workerstack/backend/http"',
 				'import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"',
-				'const app = serveStaticOpenApi(honey(), { json: { asset: "/openapi.json" } })',
+				'const app = serveStaticOpenApi(httpApp(), { json: { asset: "/openapi.json" } })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const withPage = [
-				'import { honey } from "@workerstack/backend/http"',
+				'import { httpApp } from "@workerstack/backend/http"',
 				'import { scalar } from "@workerstack/backend/http/openapi/scalar"',
 				'import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"',
-				'const app = serveStaticOpenApi(honey(), { docs: { "/docs": scalar }, json: { asset: "/openapi.json" } })',
+				'const app = serveStaticOpenApi(httpApp(), { docs: { "/docs": scalar }, json: { asset: "/openapi.json" } })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const generated = [
-				'import { honey } from "@workerstack/backend/http"',
+				'import { httpApp } from "@workerstack/backend/http"',
 				'import { serveOpenApi } from "@workerstack/backend/http/openapi"',
-				'const app = serveOpenApi(honey(), { title: "Doc", version: "1.0.0" })',
+				'const app = serveOpenApi(httpApp(), { title: "Doc", version: "1.0.0" })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
@@ -272,12 +273,13 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * runtime, 103 for the docs map's two refusals and the guarded branch in answering and mountAll. The
 			 * guard itself is basic()'s, so none of it is here. Locked at 27,800. Plan 39 5.6 added 74 (27,752 to
 			 * 27,826): routeTree()'s settings copy and route replay, as in the minimal bundle. Locked at 27,900. 7.1
-			 * added 18 (27,823 to 27,841): honey(preset)'s call through the SEED slot. 5.7 added 199 (27,836 to
+			 * added 18 (27,823 to 27,841): httpApp(preset)'s call through the SEED slot. 5.7 added 199 (27,836 to
 			 * 28,035): ctx.res.forward() and its check, and json and sse taking a stream, as in the minimal bundle.
 			 * Locked at 28,100. Plan 48 added 341 (28,035 to 28,376): .output()'s projection and its check, as in the
 			 * minimal bundle. Locked at 28,500: CI's Node
 			 * 26.13.0 gzips it to 28,441. Plan 53 (D16) took 1,575 off (28,441 to 26,866 on CI's Node 26.13.1): the
-			 * Node and Bun runtime paths, as in the minimal bundle. Locked at 26,900.
+			 * Node and Bun runtime paths, as in the minimal bundle. Locked at 26,900. Plan 55's renames added 6
+			 * (26,872). Still locked at 26,900.
 			 */
 			const gzipped = gzipSync(bunBundle("static-doc", served), { level: 9 }).length
 			expect(
@@ -294,7 +296,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 	)
 
 	it.skipIf(!BUN)(
-		`a sender of webhooks alone carries none of honey()'s router (bun ${pinnedBunVersion()})`,
+		`a sender of webhooks alone carries none of httpApp()'s router (bun ${pinnedBunVersion()})`,
 		() => {
 			const sender = [
 				'import { signWebhook, webhookContract } from "@workerstack/backend/http/webhook"',
@@ -307,8 +309,8 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				"",
 			]
 			const router = [
-				'import { honey } from "@workerstack/backend/http"',
-				'const app = honey().get("/json").handler((ctx) => ctx.res.json("ok", { ok: true }))',
+				'import { httpApp } from "@workerstack/backend/http"',
+				'const app = httpApp().get("/json").handler((ctx) => ctx.res.json("ok", { ok: true }))',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
@@ -327,7 +329,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 	)
 
 	it.skipIf(!BUN)(
-		`basic() and credentialsMatch alone carry none of honey()'s router or the generator (bun ${pinnedBunVersion()})`,
+		`basic() and credentialsMatch alone carry none of httpApp()'s router or the generator (bun ${pinnedBunVersion()})`,
 		() => {
 			const guard = [
 				'import { basic, credentialsMatch } from "@workerstack/backend/http/openapi/auth"',
@@ -346,16 +348,16 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		60_000,
 	)
 
-	it("a Worker built by the build plugin carries none of ts-morph, oxfmt, jiti or honey-clients", async () => {
+	it("a Worker built by the build plugin carries none of ts-morph, oxfmt, jiti or clients", async () => {
 		write(full, {
 			"src/worker-app.ts": [
-				'import { honey } from "@workerstack/backend/http"',
+				'import { httpApp } from "@workerstack/backend/http"',
 				'import { serveOpenApi } from "@workerstack/backend/http/openapi"',
 				'import { realtime } from "@workerstack/backend/realtime"',
 				'import { workersWebSocket } from "@workerstack/backend/ws"',
 				"",
 				"export const app = serveOpenApi(",
-				'\thoney().wsAdapter(workersWebSocket()).get("/health").handler((ctx) => ctx.res.text("ok", "ok")),',
+				'\thttpApp().wsAdapter(workersWebSocket()).get("/health").handler((ctx) => ctx.res.text("ok", "ok")),',
 				'\t{ title: "Worker", version: "1.0.0" },',
 				")",
 				'realtime(app, "/live", { handler: () => {} })',
@@ -386,22 +388,22 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		expect([leaked, bundled.includes("realtime limits.")]).toEqual([[], true])
 	}, 90_000)
 
-	it("a core-only install loads the plugin, and only a generation names the missing honey-clients", () => {
+	it("a core-only install loads the plugin, and only a generation names the missing clients", () => {
 		const dir = consumer(join(files.out, "core-only"), { "@workerstack/backend": `file:${tarball}` })
 		write(dir, {
 			"plugin.mjs": [
-				'import { honeyPlugin } from "@workerstack/backend/plugin"',
-				'console.log([honeyPlugin({ app: "src/app.ts" })].flat().map((plugin) => plugin.name).join())',
+				'import { backendPlugin } from "@workerstack/backend/plugin"',
+				'console.log([backendPlugin({ app: "src/app.ts" })].flat().map((plugin) => plugin.name).join())',
 				"",
 			].join("\n"),
 			"src/app.ts":
-				'import { honey } from "@workerstack/backend/http"\nexport const app = honey().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))\n',
+				'import { httpApp } from "@workerstack/backend/http"\nexport const app = httpApp().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))\n',
 		})
 		const loaded = run("node", ["plugin.mjs"], dir)
-		const generated = run("node", ["node_modules/.bin/honey", "generate", "--app", "src/app.ts", "--tree"], dir)
+		const generated = run("node", ["node_modules/.bin/backend", "generate", "--app", "src/app.ts", "--tree"], dir)
 		expect(
 			[loaded.out.trim(), generated.code, generated.out.includes("needs @workerstack/clients")],
 			generated.out,
-		).toEqual(["honey", 1, true])
+		).toEqual(["backend", 1, true])
 	}, 60_000)
 })

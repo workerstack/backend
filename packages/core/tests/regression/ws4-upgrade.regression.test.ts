@@ -3,7 +3,7 @@
  * an app answers a request carrying `Upgrade` with, and the origin policy of a WebSocket upgrade.
  */
 import { describe, expect, it } from "vitest"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import type { WSAdapter } from "../../src/ws/contract.ts"
 import { ws } from "../../src/ws/route.ts"
 
@@ -13,7 +13,7 @@ describe("WS5: what an app answers an upgrade request with", () => {
 	// regression: H5
 	// v0: e3e55cc30a
 	it("H5: an SSE route reached with `Upgrade: x` streams instead of buffering forever", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/events").handler((ctx) =>
 			ctx.res.sse(async (stream) => {
 				await stream.send({ data: "event 0", event: "message" })
@@ -34,7 +34,7 @@ describe("WS5: what an app answers an upgrade request with", () => {
 	// regression: H6
 	// v0: 9c345a8fc5
 	it("H6: a non-WebSocket upgrade keeps the route's status, headers and content type", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/plain").handler((ctx) => ctx.res.text("ok", "hello world", { headers: { "x-custom": "1" } }))
 		const res = await app.fetch(new Request("http://localhost/plain", { headers: upgrading("h2c") }), {})
 		expect([
@@ -59,7 +59,7 @@ describe("WS5: a WebSocket upgrade keeps the origin policy", () => {
 				return { response, socket: { close() {}, raw: null, readyState: 1, send() {} } }
 			},
 		}
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		let opened = false
 		ws(app, "/ws-echo").handler({ onOpen: () => void (opened = true) })
 		const res = await app.fetch(

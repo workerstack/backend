@@ -41,7 +41,7 @@ function subpaths(consumer: string): string[] {
 }
 
 /**
- * Every shake failure of the honey installed in `consumer`, one line each naming the subpath, the bundler and what it
+ * Every shake failure of the backend installed in `consumer`, one line each naming the subpath, the bundler and what it
  * kept; [] when every subpath, imported and unused, bundles to nothing.
  */
 export async function treeShake(consumer: string): Promise<string[]> {

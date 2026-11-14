@@ -1,6 +1,6 @@
 import type { WSAdapter } from "@workerstack/backend/http"
 import type { RouteTree } from "@workerstack/backend/http/tree"
-import { createMiddleware, honey } from "@workerstack/backend/http"
+import { createMiddleware, httpApp } from "@workerstack/backend/http"
 import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
 import { swagger } from "@workerstack/backend/http/openapi/swagger"
 import { proxy } from "@workerstack/backend/http/proxy"
@@ -84,7 +84,7 @@ const shard = createMiddleware(async (_ctx, next) => next({ shard: "s1" }), { me
 export type AppOptions = { routeTree?: RouteTree | null }
 
 export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
-	const base = honey().stripPrefix("/app").trailingSlash("enforce").metaType<GatewayMeta>()
+	const base = httpApp().stripPrefix("/app").trailingSlash("enforce").metaType<GatewayMeta>()
 	const tree = options?.routeTree === undefined ? generatedTree : options.routeTree
 	const app = tree === null ? base : base.routeTree(tree)
 	if (wsAdapter) app.wsAdapter(wsAdapter)
@@ -184,5 +184,5 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		}),
 	)
 
-	return serveManifest(serveOpenApi(app, { docs: { "/docs": swagger }, title: "Honey Gateway", version: "0.0.1" }))
+	return serveManifest(serveOpenApi(app, { docs: { "/docs": swagger }, title: "Backend Gateway", version: "0.0.1" }))
 }

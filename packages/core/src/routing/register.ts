@@ -6,7 +6,7 @@
 import { ERROR_META, type ErrorMetaEntry } from "../errors/errors.ts"
 import type { ErrorFactoryRecord } from "../errors/projector.ts"
 import type { InputSchemas, InputStep } from "../input/input.ts"
-import type { OutputSchemas, Projection } from "./output-types.ts"
+import type { OutputSchemas, HttpProjection } from "./output-types.ts"
 import type { MaybePromise, RuntimeMiddleware } from "../middleware/middleware.ts"
 import type { FinalizeHooks, FinalTable } from "./finalize.ts"
 import { describeMw, errorFactoryOf, errorsOf, scopeGuard } from "./middleware-chain.ts"
@@ -26,20 +26,20 @@ import { type AppSettings, createSettings, type ErrorFactories } from "./setting
 import { cloneTree, createNode, insertLeaf, type RouteEntry, type TreeNode } from "./tree.ts"
 
 /** An app's graph slot: not exported from the package; finalize readers (tests, codegen) reach the graph through it. */
-export const GRAPH: unique symbol = /* @__PURE__ */ Symbol("honey.graph")
+export const GRAPH: unique symbol = /* @__PURE__ */ Symbol("backend.graph")
 
 /** A handle's view slot: what a handle-level helper (serving a document) reads its basePath off. */
-export const VIEW: unique symbol = /* @__PURE__ */ Symbol("honey.view")
+export const VIEW: unique symbol = /* @__PURE__ */ Symbol("backend.view")
 
-/** A preset's seed slot: what `honey(preset)` copies, read without importing the preset module. */
-export const SEED: unique symbol = /* @__PURE__ */ Symbol("honey.seed")
+/** A preset's seed slot: what `httpApp(preset)` copies, read without importing the preset module. */
+export const SEED: unique symbol = /* @__PURE__ */ Symbol("backend.seed")
 
 /**
  * The meta marker of a route an app serves about itself (its document, docs page or manifest).
  * Such a route belongs to the app that registered it: mounting another app copies none of its
  * served routes, a route tree leaves them out, and an app loaded from a tree registers its own.
  */
-export const SERVED: unique symbol = /* @__PURE__ */ Symbol.for("honey.served")
+export const SERVED: unique symbol = /* @__PURE__ */ Symbol.for("backend.served")
 
 /** A registered route: what it was registered with, before finalize resolves it against the graph. */
 export type RouteHandler = RouteRecord & {
@@ -62,7 +62,7 @@ export type RouteHandler = RouteRecord & {
 	/** what `.output()` declares, checked at finalize when the app's mode is on; `null` without it */
 	readonly out: OutputSchemas | null
 	/** `.output()`'s projection: the selection a request's answer is cut to; `null` without it */
-	readonly op: ((ctx: object) => Projection | null) | null
+	readonly op: ((ctx: object) => HttpProjection | null) | null
 	/** the settings of the app the route was registered on */
 	readonly own: AppSettings<unknown>
 	/** route-level boundary key (`.boundary()`) */
@@ -103,7 +103,7 @@ export type ScopedEntry = {
 /**
  * Everything one app registers: its routes, middleware chains, scopes and settings. Handles derived from one app share it.
  */
-export type HoneyGraph = {
+export type HttpGraph = {
 	/** root wildcards a loaded app registered outside its tree: what its unserved leaves delegate to */
 	readonly catchAll: Map<RouteId, RouteHandler>
 	/** every `use(mw)` handle; one that never registers a route is reported at finalize */
@@ -154,7 +154,7 @@ export const ROOT_VIEW: HandleView = /* @__PURE__ */ Object.freeze({
 	node: null,
 })
 
-export function createGraph(): HoneyGraph {
+export function createGraph(): HttpGraph {
 	return {
 		catchAll: new Map(),
 		chains: [],
@@ -182,14 +182,14 @@ export function markUsed(node: ChainNode | null): void {
 }
 
 /** A new `use(mw)` node under `parent`. */
-export function addChain(g: HoneyGraph, parent: ChainNode | null, mw: RuntimeMiddleware): ChainNode {
+export function addChain(g: HttpGraph, parent: ChainNode | null, mw: RuntimeMiddleware): ChainNode {
 	const node: ChainNode = { mw, parent, used: false }
 	g.chains.push(node)
 	return node
 }
 
 /** Throw the duplicate-route error when `g` already has a route at `method` and `segments`. */
-export function assertRouteFree(g: HoneyGraph, method: string, segments: readonly Segment[]): RouteId {
+export function assertRouteFree(g: HttpGraph, method: string, segments: readonly Segment[]): RouteId {
 	const id = routeId(method, canonical(segments))
 	if (g.records.get(id)?.lt === undefined && (g.records.has(id) || g.catchAll.has(id))) {
 		throw new Error(`Duplicate route: ${id}`)
@@ -203,7 +203,7 @@ export function isServed(r: { readonly xm: Readonly<Record<string, unknown>> | n
 }
 
 /** Register one route at every leaf its pattern occupies (an optional last param places two). */
-export function addRoute(g: HoneyGraph, method: string, segments: readonly Segment[], source: RouteSource): RouteId {
+export function addRoute(g: HttpGraph, method: string, segments: readonly Segment[], source: RouteSource): RouteId {
 	const id = assertRouteFree(g, method, segments)
 	const record = { ...source, id, mt: null, rp: canonical(segments), sg: segments }
 	g.epoch++
@@ -223,7 +223,7 @@ export function addRoute(g: HoneyGraph, method: string, segments: readonly Segme
 }
 
 /** Guard every request path under `path` (rebased on `basePath`) with `mw`, whichever handle registered the route. */
-export function addScope(g: HoneyGraph, basePath: string, path: string, mw: RuntimeMiddleware): void {
+export function addScope(g: HttpGraph, basePath: string, path: string, mw: RuntimeMiddleware): void {
 	const prefix = joinPatterns(basePath, normalizePattern(path))
 	const segs = parsePattern(prefix)
 	g.scoped.push({ guard: scopeGuard(segs, mw), mw, prefix, segs })
@@ -231,25 +231,25 @@ export function addScope(g: HoneyGraph, basePath: string, path: string, mw: Runt
 }
 
 /** A builder registered or was abandoned on purpose: no longer pending. */
-export function settle(g: HoneyGraph, pending: PendingRoute, node: ChainNode | null): void {
+export function settle(g: HttpGraph, pending: PendingRoute, node: ChainNode | null): void {
 	g.pending.delete(pending)
 	markUsed(node)
 }
 
 /** `use(mw)` handles that never registered, mounted or served, and builders without `.handler()`. */
-export function assertNothingDiscarded(g: HoneyGraph): void {
+export function assertNothingDiscarded(g: HttpGraph): void {
 	const problems: string[] = []
 	for (const node of g.chains) {
 		if (node.used) continue
 		problems.push(
 			`app.use(${describeMw(node.mw)}) returned a handle that never registers a route, so the middleware runs nowhere. ` +
 				"use() does not change the handle it is called on: keep the returned value and register routes on it " +
-				"(`const authed = app.use(auth); authed.get(...)`), or chain it (`honey().use(mw).get(...)`).",
+				"(`const authed = app.use(auth); authed.get(...)`), or chain it (`httpApp().use(mw).get(...)`).",
 		)
 	}
 	for (const p of g.pending)
 		problems.push(`${p.id} was declared but never got a .handler(), so the route is not registered.`)
-	if (problems.length > 0) throw new Error(`honey: ${problems.join("\n  ")}`)
+	if (problems.length > 0) throw new Error(`backend: ${problems.join("\n  ")}`)
 }
 
 /**
@@ -258,7 +258,7 @@ export function assertNothingDiscarded(g: HoneyGraph): void {
  * reference, so routes the sub registers later stay its own; each record keeps the settings of the
  * app it was registered on. The sub's scopes guard the paths it brought.
  */
-export function mount(g: HoneyGraph, view: HandleView, sub: HoneyGraph): void {
+export function mount(g: HttpGraph, view: HandleView, sub: HttpGraph): void {
 	if (sub === g) return
 	assertNothingDiscarded(sub)
 	const base = view.basePath
@@ -303,7 +303,7 @@ export function statusKeysOf(
 
 /**
  * What a middleware chain's factories say of the keys each middleware declares, the first in run order winning. A
- * key it does not declare is never read off its factory, which carries honey's own keys at honey's statuses.
+ * key it does not declare is never read off its factory, which carries backend's own keys at backend's statuses.
  */
 export function chainErrorMeta(chain: readonly RuntimeMiddleware[]): ErrorFactoryRecord {
 	const meta: Record<string, ErrorMetaEntry> = Object.create(null)

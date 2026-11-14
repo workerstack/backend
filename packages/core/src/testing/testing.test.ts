@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { type TestClient, testClient } from "./testing.ts"
 
 type Echo = { body: string; contentType: string | null; method: string; search: string; header: string | null }
 
 /** An app that answers every method on `/echo` with what it received, and on `/peer` with `ctx.ip`. */
 function echoApp() {
-	const app = honey<{ tenant: string }>()
+	const app = httpApp<{ tenant: string }>()
 	app.all("/echo").handler(async (ctx) => {
 		const url = new URL(ctx.req.url)
 		const echo: Echo = {
@@ -103,7 +103,7 @@ describe("testClient: what a request carries", () => {
 	// v0: 860d0750c5
 	// v0: 1d520006b8
 	it("sends form as multipart/form-data, each entry a field the app parses", async () => {
-		const app = honey()
+		const app = httpApp()
 		app.post("/form").handler(async (ctx) => ctx.res.json("ok", Object.fromEntries(await ctx.req.formData())))
 		const c = testClient(app, { env: {} })
 		const response = await c.post("/form", { form: { a: "1", name: "ada" } })
@@ -142,7 +142,7 @@ describe("testClient: what a request carries", () => {
 
 /** An app whose `/set` answers the Set-Cookie lines in `?c=` (repeatable) and whose `/seen` echoes the Cookie header. */
 function cookieApp() {
-	const app = honey()
+	const app = httpApp()
 	app.get("/set").handler((ctx) => {
 		const lines = new URL(ctx.req.url).searchParams.getAll("c")
 		return ctx.res.raw(new Response("set", { headers: lines.map((line) => ["set-cookie", line]) }))
@@ -210,7 +210,7 @@ describe("testClient: a workflow across requests", () => {
 	// v0: 794130ef3d
 	// v0: 947be001a8
 	it("signs in, keeps the session cookie, creates, lists, deletes and sees the 401 once signed out", async () => {
-		const app = honey()
+		const app = httpApp()
 		const items = new Map<string, string>()
 		app.post("/login").handler((ctx) => ctx.res.json("ok", {}, { cookies: { sid: { path: "/", value: "s1" } } }))
 		app

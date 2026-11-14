@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import type { RouteTree } from "../routing/tree.ts"
 import { SILENT } from "../telemetry/logger.ts"
 import { generateOpenApi } from "./generate.ts"
@@ -24,7 +24,7 @@ const json = async (app: App, path: string) => (await (await get(app, path)).jso
 const text = async (app: App, path: string) => (await get(app, path)).text()
 /** Health and the users routes. */
 function users() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/health").handler((c) => c.res.text("ok", "ok"))
 	app.get("/users").handler((c) => c.res.json("ok", []))
 	app.get("/users/:id").handler((c) => c.res.json("ok", {}))
@@ -33,7 +33,7 @@ function users() {
 
 /** GET /users serving its document and docs, loaded from `tree` when given one. */
 function usersServing(tree?: RouteTree) {
-	const app = tree === undefined ? honey<{}>() : honey<{}>().routeTree(tree)
+	const app = tree === undefined ? httpApp<{}>() : httpApp<{}>().routeTree(tree)
 	app.get("/users").handler((c) => c.res.json("ok", []))
 	return serveOpenApi(app, { docs: { "/docs": scalar }, title: "T", version: "1" })
 }
@@ -76,7 +76,7 @@ describe("serveOpenApi: where it serves, and what", () => {
 	// v0: 26ef508dca
 	// v0: 6b8c24e9ee
 	it("serves under the handle's basePath and its own stem, filtered, its options kept out of info", async () => {
-		const app = honey<{}>().metaType<{ auth?: string }>()
+		const app = httpApp<{}>().metaType<{ auth?: string }>()
 		app.get("/public").handler((c) => c.res.text("ok", "ok"))
 		app
 			.get("/dashboard")
@@ -134,7 +134,7 @@ describe("serveOpenApi: the routes it mounts are internal", () => {
 	it("never runs the invalidate check, and documents a schema no converter can describe with a warning", async () => {
 		const warnings: string[] = []
 		const logger = { ...SILENT, warn: (first: unknown) => void warnings.push(String(first)) }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.post("/tables").handler((c) => c.res.text("ok", "ok"))
 		app.get("/tables").handler((c) => c.res.text("ok", "ok"))
 		const broken = {
@@ -158,7 +158,7 @@ describe("serveOpenApi: built once per route change", () => {
 	// v0: e46580ce46
 	// v0: 2b491c0f59
 	it("generates and serializes once per format until a route changes, then rebuilds both", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/a").handler((c) => c.res.text("ok", "a"))
 		let generations = 0
 		serveOpenApi(app, {
@@ -219,7 +219,7 @@ describe("serveOpenApi: a failed build", () => {
 describe("serveOpenApi: an output key that names no status (bit 21 f2)", () => {
 	it("answers the document 500, logging the refusal that names the route, its failed build kept", async () => {
 		const logged: unknown[] = []
-		const app = honey<{}>().logger({ ...SILENT, error: (fields: unknown) => void logged.push(fields) })
+		const app = httpApp<{}>().logger({ ...SILENT, error: (fields: unknown) => void logged.push(fields) })
 		app
 			.get("/bad")
 			.output({ "application/json": { orders: z.string() } } as unknown as { no_content: true })
@@ -303,9 +303,9 @@ describe("serveOpenApi: the docs UI", () => {
 	// v0: 8333ad60e0
 	// v0: d3c0fb55b5
 	it("points each page at the URL the browser sees: stripped prefix, then basePath, then the stem", async () => {
-		const based = honey<{}>()
+		const based = httpApp<{}>()
 		serveOpenApi(based.basePath("/api"), { docs: { "/reference": scalar }, title: "T", version: "1" })
-		const stripped = honey<{}>().stripPrefix("/edge")
+		const stripped = httpApp<{}>().stripPrefix("/edge")
 		serveOpenApi(stripped.basePath("/v1"), { docs: { "/docs": scalar }, title: "T", version: "1" })
 		expect([
 			await text(based, "/api/reference"),
@@ -341,13 +341,13 @@ describe("serveOpenApi: docs maps each path to its page", () => {
 	})
 
 	it("mounts no page when another path of the call is taken, a path twice, or a parameterized one", async () => {
-		const taken = honey<{}>()
+		const taken = httpApp<{}>()
 		taken.get("/swagger").handler((c) => c.res.text("ok", "mine"))
-		const serving = (app: ReturnType<typeof honey<{}>>, docs: Readonly<Record<string, DocsPage>>) => () =>
+		const serving = (app: ReturnType<typeof httpApp<{}>>, docs: Readonly<Record<string, DocsPage>>) => () =>
 			serveOpenApi(app, { docs, title: "T", version: "1" })
 		expect(serving(taken, { "/scalar": scalar, "/swagger": swagger })).toThrow("Duplicate route: GET /swagger")
-		expect(serving(honey<{}>(), { "/openapi.json": scalar })).toThrow("Duplicate route: GET /openapi.json")
-		expect(serving(honey<{}>(), { "/:page": scalar })).toThrow("cannot serve at /:page: a served path is fixed")
+		expect(serving(httpApp<{}>(), { "/openapi.json": scalar })).toThrow("Duplicate route: GET /openapi.json")
+		expect(serving(httpApp<{}>(), { "/:page": scalar })).toThrow("cannot serve at /:page: a served path is fixed")
 		expect([(await get(taken, "/scalar")).status, (await get(taken, "/openapi.json")).status]).toEqual([404, 404])
 	})
 })
@@ -359,7 +359,7 @@ describe("serveManifest: the published manifest", () => {
 	// v0: ca95a7d053
 	// v0: ac1b3f50b9
 	it("serves the published manifest under the handle's basePath or at its own path, refreshed after a new route", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/health").handler((c) => c.res.text("ok", "ok"))
 		app
 			.get("/hidden")
@@ -398,10 +398,10 @@ describe("serving across composed apps (F15)", () => {
 	it.each(["gateway-first", "sub-first"])(
 		"keeps a sub's served routes with the sub: the gateway serves its own (%s)",
 		async (order) => {
-			const sub = honey<{}>()
+			const sub = httpApp<{}>()
 			sub.get("/users").handler((c) => c.res.text("ok", "users"))
 			serveManifest(serveOpenApi(sub, { docs: { "/docs": scalar }, title: "Sub", version: "1" }))
-			const gateway = honey<{}>()
+			const gateway = httpApp<{}>()
 			gateway.get("/health").handler((c) => c.res.text("ok", "ok"))
 			if (order === "gateway-first")
 				serveOpenApi(gateway, { docs: { "/docs": swagger }, title: "Gateway", version: "1" })
@@ -424,7 +424,7 @@ describe("serving across composed and loaded apps (F15)", () => {
 	// v0: d2293e2891
 	it("mounts two serving apps without a collision, and leaves served routes out of a snapshot an app loads and serves again", async () => {
 		const a = serveOpenApi(users(), { docs: { "/docs": scalar }, title: "A", version: "1" })
-		const b = honey<{}>()
+		const b = httpApp<{}>()
 		b.get("/b").handler((c) => c.res.text("ok", "b"))
 		serveOpenApi(b, { docs: { "/docs": scalar }, title: "B", version: "1" })
 		a.route(b)
@@ -445,7 +445,7 @@ describe("serving across composed and loaded apps (F15)", () => {
 	it("documents a scoped middleware's keys on the routes it covers only, a served route among them still answering", async () => {
 		const errors = defineErrors({ blocked: "forbidden", teapot: "bad_request" })
 		const block = createMiddleware(async (_c, next) => next(), { errors: [errors, "blocked"] })
-		const app = honey<{}>().errorFactory(errors).defaultErrors("teapot")
+		const app = httpApp<{}>().errorFactory(errors).defaultErrors("teapot")
 		serveOpenApi(app, { title: "t", version: "1" })
 		app.use("/openapi.json", block)
 		app.use("/admin", block)

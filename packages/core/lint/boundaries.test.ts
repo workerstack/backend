@@ -7,12 +7,12 @@ const rule = plugin.rules.boundaries
 const NODE = "node builtins are for build-time code only"
 const ADAPTER = "only the Workers adapter may import the Workers adapter"
 const ESCAPE = "an import stays inside its package's src (no repo path outside it, no sibling package)"
-const TS_MORPH = "ts-morph is honey-clients's dependency, not core's"
-const CLIENTS = "core reaches honey-clients from build/ only"
-const CLIENTS_STATIC = "core imports honey-clients through import() only: it is an optional peer"
+const TS_MORPH = "ts-morph is clients' dependency, not core's"
+const CLIENTS = "core reaches clients from build/ only"
+const CLIENTS_STATIC = "core imports clients through import() only: it is an optional peer"
 const global = (name: string) => `${name} is not available here (00-rules environments)`
 
-describe("honey/boundaries: imports", () => {
+describe("backend/boundaries: imports", () => {
 	it("keeps node builtins in build-time code", () => {
 		const fixture = {
 			"packages/core/src/routing/app.ts": 'import { readFileSync } from "node:fs"\nimport path from "path"\n',
@@ -56,8 +56,8 @@ describe("honey/boundaries: imports", () => {
 	})
 })
 
-describe("honey/boundaries: packages", () => {
-	it("pins honey-clients to build/, and keeps ts-morph out of core", () => {
+describe("backend/boundaries: packages", () => {
+	it("pins clients to build/, and keeps ts-morph out of core", () => {
 		const fixture = {
 			"packages/core/src/build/types.ts": 'import { Project } from "ts-morph"\n',
 			"packages/core/src/openapi/document.ts": 'import { generate } from "@workerstack/clients"\n',
@@ -80,7 +80,7 @@ describe("honey/boundaries: packages", () => {
 	})
 })
 
-describe("honey/boundaries: runtime globals", () => {
+describe("backend/boundaries: runtime globals", () => {
 	it("keeps Node globals in build-time code and WebSocketPair in the Workers adapter", () => {
 		const fixture = {
 			"packages/core/src/routing/app.ts": [
@@ -116,7 +116,7 @@ describe("honey/boundaries: runtime globals", () => {
 		expect(reportsOf(rule, fixture)).toEqual([])
 	})
 
-	it("fails oxlint through the honey plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
+	it("fails oxlint through the backend plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
 		const fixture = {
 			"packages/core/src/routing/app.ts": 'import { readFileSync } from "node:fs"\n',
 			"packages/core/src/build/plugin.ts": 'import { readFileSync } from "node:fs"\n',

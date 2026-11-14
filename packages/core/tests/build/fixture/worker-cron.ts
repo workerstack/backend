@@ -4,11 +4,11 @@
  */
 import { defineCron } from "../../../src/cron/define.ts"
 import { workersCron } from "../../../src/cron/workers.ts"
-import { honey } from "../../../src/routing/app.ts"
+import { httpApp } from "../../../src/routing/app.ts"
 
 const ran: string[] = []
 
-export const app = honey<{}>()
+export const app = httpApp<{}>()
 	.get("/ran")
 	.handler((ctx) => ctx.res.text("ok", ran.join(",")))
 

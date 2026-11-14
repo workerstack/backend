@@ -2,7 +2,7 @@
  * Signed cookie values: HMAC-SHA256 over WebCrypto, verified in constant time by
  * `crypto.subtle.verify`. Key rotation is a secret list: the first signs, any verifies.
  *
- * The format is `<value>.~<sig>`, the HMAC of `"honey-cookie-v2\0" + name + "\0" + value`. The
+ * The format is `<value>.~<sig>`, the HMAC of `"backend-cookie-v2\0" + name + "\0" + value`. The
  * cookie name is bound into the MAC, so a signature cannot be replayed under another cookie that
  * shares the secret. The unbound v1 format (`<value>.<sig>`, the HMAC of the value alone) is gone:
  * it never verifies.
@@ -12,7 +12,7 @@
 const encoder = /* @__PURE__ */ new TextEncoder()
 
 const V2_MARKER = "~"
-const V2_DOMAIN = "honey-cookie-v2\0"
+const V2_DOMAIN = "backend-cookie-v2\0"
 /* an HMAC-SHA256 tag is 32 bytes: 43 base64url characters, no padding */
 const SIG_RE = /^[A-Za-z0-9_-]{43}$/
 

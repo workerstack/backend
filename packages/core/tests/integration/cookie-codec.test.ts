@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest"
 import { type CookieOptions, serializeCookie } from "../../src/context/cookie.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type Attributes = Omit<CookieOptions, "value">
 
@@ -184,7 +184,7 @@ describe("the Cookie request header", () => {
 		["msg=hello%20world%21", { msg: "hello world!" }],
 		["b=%ZZbad; c=abc%ZZdef; d=hello%ZZworld; e=abc%", { b: "%ZZbad", c: "abc%ZZdef", d: "hello%ZZworld", e: "abc%" }],
 	])("%j is read as %j", async (header, cookies) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/read").handler((ctx) => ctx.res.json("ok", { ...ctx.cookies }))
 		const res = await app.fetch(new Request("http://localhost/read", { headers: { cookie: header } }), {})
 		expect([res.status, await res.json()]).toEqual([200, cookies])

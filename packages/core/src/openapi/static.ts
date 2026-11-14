@@ -5,10 +5,10 @@
  * nothing more. Each route is a plain internal GET on the handle, marked SERVED, so the document never
  * documents its own endpoints. A document is loaded once per process or isolate, concurrent first requests
  * sharing that one load, and a load that failed is not kept, so the next request tries again. Nothing parses
- * the document: it is a build artifact or an upstream's responsibility, and honey's own content-type is sent
+ * the document: it is a build artifact or an upstream's responsibility, and backend's own content-type is sent
  * whatever the upstream said. `auth` puts a Basic guard in front of every route the call mounts.
  */
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import {
 	answering,
 	artifact,
@@ -75,7 +75,7 @@ export type ServeStaticOpenApiOptions<A = unknown> = ServedAccess<true> & {
 	readonly json: JsonSource
 	/** the whole path of the JSON route, in place of `${path}.json` */
 	readonly jsonPath?: string
-	/** every mounted route's meta: honey's keys and the handle's declared ones, under the internal SERVED marking */
+	/** every mounted route's meta: backend's keys and the handle's declared ones, under the internal SERVED marking */
 	readonly meta?: ServedMeta<A>
 	/** the stem the document is served at, `"/openapi"` by default */
 	readonly path?: string
@@ -89,7 +89,7 @@ type Loaded = { readonly etag?: string; readonly text: string }
 
 /** A failure the app's own error boundary answers, with the standard envelope for `statusKey`. */
 const failed = (statusKey: "bad_gateway" | "internal_server_error", cause: unknown) =>
-	new HoneyError({ cause, errorKey: statusKey, status: statusKey })
+	new HttpError({ cause, errorKey: statusKey, status: statusKey })
 
 /** `binding`'s own `fetch`, or the 500 that names the binding nothing bound. */
 function bound(env: unknown, binding: string): (input: URL) => Promise<Response> {

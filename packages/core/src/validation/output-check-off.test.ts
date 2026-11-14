@@ -1,12 +1,12 @@
 /**
- * The no-op `#output-check`, what the `honey-no-output-check` condition resolves (a Vite production build through
- * honeyPlugin(), or `--conditions=honey-no-output-check`): this file runs the app as such a build does, with
+ * The no-op `#output-check`, what the `backend-no-output-check` condition resolves (a Vite production build through
+ * backendPlugin(), or `--conditions=backend-no-output-check`): this file runs the app as such a build does, with
  * `#output-check` swapped for it. The check on a forwarded answer is no part of it and stays.
  */
 import { describe, expect, expectTypeOf, it, vi } from "vitest"
 import * as z from "zod"
-import type { HoneyRes } from "../response/response.ts"
-import { honey } from "../routing/app.ts"
+import type { HttpRes } from "../response/response.ts"
+import { httpApp } from "../routing/app.ts"
 import type * as real from "./output-check.ts"
 import { outputCheck } from "./output-check-off.ts"
 
@@ -25,7 +25,7 @@ describe("output-check-off: what a build that drops the check runs", () => {
 	// v0: e79f1ac117
 	// v0: 5ca558cfea
 	it("lets a mismatched answer through as its handler built it; a forwarded undeclared status is still the 500", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app
 			.get("/bad")
 			.output({ "application/json": { ok: z.object({ id: z.string() }) } })
@@ -34,7 +34,7 @@ describe("output-check-off: what a build that drops the check runs", () => {
 			.get("/html")
 			.output({ "text/plain": { ok: true } })
 			.handler(
-				(ctx) => (ctx.res as HoneyRes).raw(new Response("<p>", { headers: { "content-type": "text/html" } })) as never,
+				(ctx) => (ctx.res as HttpRes).raw(new Response("<p>", { headers: { "content-type": "text/html" } })) as never,
 			)
 		app
 			.get("/forwarded")
@@ -55,7 +55,7 @@ describe("output-check-off: what a build that drops the check runs", () => {
 	})
 
 	it("adds nothing: an answer breaking its declared headers is not checked, and stays synchronous", () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app
 			.get("/t")
 			.output({ "application/json": { ok: z.object({}) }, headers: { ok: z.object({ etag: z.string() }) } })

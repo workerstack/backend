@@ -7,7 +7,7 @@
 import { describe, expectTypeOf, it } from "vitest"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import type { TapContext } from "../../src/routing/tap.ts"
 
 type AppTaps = {
@@ -20,7 +20,7 @@ describe("ctx.tap(): keys and payloads from .taps<T>()", () => {
 	// v0: 0f942cb812
 	// v0: e52161eadf
 	it("a declared key takes its exact payload; any other key, shape or extra field is an error", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.taps<AppTaps>()
 			.get("/t")
 			.handler((c) => {
@@ -44,7 +44,7 @@ describe("ctx.tap(): keys and payloads from .taps<T>()", () => {
 	// v0: 931239c157
 	// v0: bc13d010d8
 	it("without .taps(), any key and any payload; it returns nothing either way", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.get("/t")
 			.handler((c) => {
 				c.tap("anything", { any: "payload" })
@@ -58,7 +58,7 @@ describe("ctx.tap(): keys and payloads from .taps<T>()", () => {
 describe("app.tap(): the handler", () => {
 	// v0: 9c2d380a3c
 	it("gets its key's payload", () => {
-		const app = honey<{}>().taps<AppTaps>()
+		const app = httpApp<{}>().taps<AppTaps>()
 		app.tap("audit", (_ctx, payload) => {
 			expectTypeOf(payload).toEqualTypeOf<{ action: string; actor_id: string }>()
 		})
@@ -71,7 +71,7 @@ describe("app.tap(): the handler", () => {
 	// v0: b5c3db911c
 	it("gets a TapContext over the app's env: the request, no res and no tap", () => {
 		type Env = { DB_URL: string; SECRET: string }
-		honey<Env>()
+		httpApp<Env>()
 			.taps<AppTaps>()
 			.tap("audit", (ctx) => {
 				expectTypeOf(ctx).toEqualTypeOf<TapContext<Env>>()
@@ -90,7 +90,7 @@ describe("app.tap(): the handler", () => {
 	// v0: 9f5d7cad5f
 	// v0: d63932cc79
 	it("may return nothing or a promise, and app.tap() returns the handle", () => {
-		const app = honey<{}>().taps<AppTaps>()
+		const app = httpApp<{}>().taps<AppTaps>()
 		const chained = app.tap("audit", () => {}).tap("webhook", async () => {})
 		expectTypeOf(chained).toEqualTypeOf(app)
 	})
@@ -100,7 +100,7 @@ describe("route meta: tap keys with their payloads", () => {
 	// v0: fe9637b053
 	// v0: 0012d0d7c2
 	it("a tap key in meta must carry its payload's shape; every tap key is optional there", () => {
-		const app = honey<{}>().taps<AppTaps>()
+		const app = httpApp<{}>().taps<AppTaps>()
 		app
 			.get("/a")
 			.meta({ audit: { action: "create", actor_id: "usr_1" } })
@@ -128,7 +128,7 @@ describe("route meta: tap keys with their payloads", () => {
 	// v0: d7ec11758e
 	it("beside a .metaType<T>() declaration, before or after it: both reach the handler's meta", () => {
 		type RouteMeta = { operationId: string; security: string }
-		honey<{}>()
+		httpApp<{}>()
 			.metaType<RouteMeta>()
 			.taps<AppTaps>()
 			.get("/a")
@@ -139,7 +139,7 @@ describe("route meta: tap keys with their payloads", () => {
 				>()
 				return c.res.json("ok", {})
 			})
-		honey<{}>()
+		httpApp<{}>()
 			.taps<AppTaps>()
 			.metaType<RouteMeta>()
 			.get("/b")
@@ -158,7 +158,7 @@ describe("ctx.tap() keeps its keys through every handle", () => {
 	// v0: 4b7706da43
 	it("basePath, use, errorFactory and context all keep the declared taps", () => {
 		const errors = defineErrors({ a: "bad_request", b: "not_found" })
-		const app = honey<{}>().taps<AppTaps>()
+		const app = httpApp<{}>().taps<AppTaps>()
 		app
 			.basePath("/api/v1")
 			.get("/t")
@@ -205,9 +205,9 @@ describe("ctx.tap() keeps its keys through every handle", () => {
 describe("ctx.tap() beside a mounted sub-app", () => {
 	// v0: f0e7d816a5
 	it("a parent that mounted a sub keeps its own taps", () => {
-		const child = honey<{}>()
+		const child = httpApp<{}>()
 		child.get("/child").handler((c) => c.res.json("ok", {}))
-		const parent = honey<{}>().taps<AppTaps>()
+		const parent = httpApp<{}>().taps<AppTaps>()
 		parent.route(child)
 		parent.get("/parent").handler((c) => {
 			c.tap("audit", { action: "test", actor_id: "sys" })
@@ -229,7 +229,7 @@ describe("payload shapes", () => {
 			batch: { ids: string[]; operation: string }
 			event: { id: string; type: "created" } | { reason: string; type: "deleted" }
 		}
-		const app = honey<{}>().taps<Taps>()
+		const app = httpApp<{}>().taps<Taps>()
 		app.get("/t").handler((c) => {
 			c.tap("audit", { action: "create", metadata: { ip: "1.2.3.4", ua: "chrome" } })
 			c.tap("event", { id: "1", type: "created" })
@@ -243,7 +243,7 @@ describe("payload shapes", () => {
 	// v0: d33ab29fdf
 	// v0: 1ca342352b
 	it("one key or many: each is its own, and nothing else is a key", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.taps<{ a: { x: number }; b: { y: string }; c: { z: boolean }; d: { w: null } }>()
 			.get("/t")
 			.handler((c) => {
@@ -254,7 +254,7 @@ describe("payload shapes", () => {
 				c.tap("e", {})
 				return c.res.json("ok", {})
 			})
-		honey<{}>()
+		httpApp<{}>()
 			.taps<{ log: { message: string } }>()
 			.get("/t")
 			.handler((c) => {
@@ -267,8 +267,8 @@ describe("payload shapes", () => {
 
 	// v0: 35707c9e48
 	it("$taps carries what .taps<T>() declared, and {} without it", () => {
-		expectTypeOf<ReturnType<typeof honey<{}>>["$taps"]>().toEqualTypeOf<{}>()
-		const app = honey<{}>().taps<AppTaps>()
+		expectTypeOf<ReturnType<typeof httpApp<{}>>["$taps"]>().toEqualTypeOf<{}>()
+		const app = httpApp<{}>().taps<AppTaps>()
 		expectTypeOf<(typeof app)["$taps"]>().toEqualTypeOf<AppTaps>()
 	})
 })

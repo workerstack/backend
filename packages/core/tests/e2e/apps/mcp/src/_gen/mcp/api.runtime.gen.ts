@@ -219,7 +219,7 @@ export function connectionErrors(fetch: typeof globalThis.fetch): typeof globalT
 /**
  * Client-side path templates. Two spellings are accepted, segment by segment:
  *
- * - Honey route patterns: `:name` (or `:name?`) takes a whole segment, `*name` (or `*`) takes the
+ * - Backend route patterns: `:name` (or `:name?`) takes a whole segment, `*name` (or `*`) takes the
  *   rest of the path. Names follow the router grammar, so `:user-id` is one parameter.
  * - OpenAPI templates: `{name}` anywhere inside a segment (`/ops/{id}:cancel`).
  *
@@ -480,7 +480,7 @@ export function newClientRequestId(): string {
 		}
 		return out
 	}
-	throw new Error("honey: no crypto.randomUUID or crypto.getRandomValues in this runtime")
+	throw new Error("httpsdk: no crypto.randomUUID or crypto.getRandomValues in this runtime")
 }
 
 function isFileLike(v: unknown): boolean {
@@ -1292,11 +1292,11 @@ type Prepared = { body: BodyInit | undefined; headers: Headers; url: URL }
 export type Call = { method: string; opts: RequestOptions; path: string; refreshes?: false | undefined }
 
 /** The realtime loop's refresh key, exported by the SDK under no name. */
-export const REFRESH_AUTH: unique symbol = /* @__PURE__ */ Symbol("honey.refreshAuth")
+export const REFRESH_AUTH: unique symbol = /* @__PURE__ */ Symbol("http.refreshAuth")
 
 /** The send and the config, for the stream functions beside the client. */
-export const SEND: unique symbol = /* @__PURE__ */ Symbol("honey.send")
-export const CONFIG: unique symbol = /* @__PURE__ */ Symbol("honey.config")
+export const SEND: unique symbol = /* @__PURE__ */ Symbol("http.send")
+export const CONFIG: unique symbol = /* @__PURE__ */ Symbol("http.config")
 
 /** One operation of a generated SDK: the call, how it is read, and its stale view for the hooks. */
 export type Operation = Call & {
@@ -1730,7 +1730,7 @@ export type ServiceEntry = {
 	realtime?: boolean
 	/** an event stream; `"json"` when its events carry JSON `data` the client parses */
 	sse?: boolean | "json"
-	/** the param that spans segments (`x-honey-wildcard`) */
+	/** the param that spans segments (`x-backend-wildcard`) */
 	wildcard?: string
 	ws?: boolean
 	/** how a stream, WebSocket or realtime operation is called; a REST one has none */

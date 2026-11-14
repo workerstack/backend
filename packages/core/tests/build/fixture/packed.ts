@@ -32,7 +32,7 @@ function must(what: string, result: Run): void {
 
 /** A scratch directory for one test file, outside the repo; `done()` removes it. */
 export function scratch(name: string): { done: () => void; out: string } {
-	const out = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), `honey-${name}-`))
+	const out = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), `backend-${name}-`))
 	return { done: () => rmSync(out, { force: true, recursive: true }), out }
 }
 
@@ -55,7 +55,7 @@ export function consumer(
 	links: readonly string[] = [],
 ): string {
 	mkdirSync(dir, { recursive: true })
-	const manifest = { dependencies, name: "honey-consumer", private: true, type: "module", version: "0.0.0" }
+	const manifest = { dependencies, name: "backend-consumer", private: true, type: "module", version: "0.0.0" }
 	writeFileSync(join(dir, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`)
 	must("npm install", run("npm", ["install", "--no-audit", "--no-fund", "--prefer-offline", "--silent"], dir))
 	for (const name of links) {

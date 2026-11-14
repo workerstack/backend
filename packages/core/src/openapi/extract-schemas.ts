@@ -6,7 +6,7 @@ import type { InputEntry } from "../input/input.ts"
 import type { ParamSchemas } from "../input/params.ts"
 import type { GRAPH } from "../routing/app.ts"
 import type { StatusSchemas } from "../routing/output-types.ts"
-import type { HoneyGraph } from "../routing/register.ts"
+import type { HttpGraph } from "../routing/register.ts"
 import { type JsonSchema, type JsonSchemaOptions, jsonSchemaOf } from "../schema/to-json-schema.ts"
 import { collectRoutes } from "./collect.ts"
 
@@ -41,7 +41,7 @@ export function inputSourceSchema(
 
 /** Every route's schemas, keyed `METHOD /pattern`; a route that declares none has `{}`. */
 export function extractSchemas(
-	app: { readonly [GRAPH]: HoneyGraph },
+	app: { readonly [GRAPH]: HttpGraph },
 	options: JsonSchemaOptions = {},
 ): Record<string, RouteSchemas> {
 	const out: Record<string, RouteSchemas> = {}

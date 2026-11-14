@@ -1,5 +1,5 @@
 /**
- * HoneyRes, the ctx.res helpers, outside any request: each body helper's status, content type and
+ * HttpRes, the ctx.res helpers, outside any request: each body helper's status, content type and
  * body; options (headers, cookies, status) on every helper; noContent and redirect; raw(); the Node
  * path that skips the native Response; and the raw-body record. Cookie serialization rules are
  * pinned in tests/integration/cookie-codec.test.ts.
@@ -7,22 +7,22 @@
 import { describe, expect, it } from "vitest"
 import { rawBodyOf } from "./builder.ts"
 import { SILENT } from "../telemetry/logger.ts"
-import { HoneyRes, type ResLink, type ResponseOptions } from "./response.ts"
+import { HttpRes, type ResLink, type ResponseOptions } from "./response.ts"
 
-const res = new HoneyRes()
+const res = new HttpRes()
 
 /** Every body helper: what it is called with, its content type, and the body it writes. */
 const HELPERS = [
-	["json", (r: HoneyRes, o?: ResponseOptions) => r.json("ok", { id: 1 }, o), "application/json", '{"id":1}'],
-	["text", (r: HoneyRes, o?: ResponseOptions) => r.text("ok", "hello", o), "text/plain; charset=utf-8", "hello"],
+	["json", (r: HttpRes, o?: ResponseOptions) => r.json("ok", { id: 1 }, o), "application/json", '{"id":1}'],
+	["text", (r: HttpRes, o?: ResponseOptions) => r.text("ok", "hello", o), "text/plain; charset=utf-8", "hello"],
 	[
 		"html",
-		(r: HoneyRes, o?: ResponseOptions) => r.html("ok", "<h1>hi</h1>", o),
+		(r: HttpRes, o?: ResponseOptions) => r.html("ok", "<h1>hi</h1>", o),
 		"text/html; charset=utf-8",
 		"<h1>hi</h1>",
 	],
-	["xml", (r: HoneyRes, o?: ResponseOptions) => r.xml("ok", "<root/>", o), "application/xml", "<root/>"],
-	["csv", (r: HoneyRes, o?: ResponseOptions) => r.csv("ok", "a,b\n1,2", o), "text/csv; charset=utf-8", "a,b\n1,2"],
+	["xml", (r: HttpRes, o?: ResponseOptions) => r.xml("ok", "<root/>", o), "application/xml", "<root/>"],
+	["csv", (r: HttpRes, o?: ResponseOptions) => r.csv("ok", "a,b\n1,2", o), "text/csv; charset=utf-8", "a,b\n1,2"],
 ] as const
 
 describe("body helpers", () => {
@@ -45,7 +45,7 @@ describe("body helpers", () => {
 	it.each(HELPERS)(
 		"%s answers 200 with its content type and body, with no request in sight",
 		async (_n, call, type, body) => {
-			const response = call(new HoneyRes())
+			const response = call(new HttpRes())
 			expect(response).toBeInstanceOf(Response)
 			expect([response.status, Object.fromEntries(response.headers), await response.text()]).toEqual([
 				200,
@@ -82,7 +82,7 @@ describe("body helpers", () => {
 describe("body helpers: the options' content type, and json's serialization", () => {
 	// v0: 9122573f2c
 	it("a content type in the options replaces the helper's own", () => {
-		const helper = new HoneyRes()
+		const helper = new HttpRes()
 		const response = helper.json("ok", { data: 1 }, { headers: { "Content-Type": "application/json; charset=utf-8" } })
 		expect([...response.headers]).toEqual([["content-type", "application/json; charset=utf-8"]])
 	})
@@ -250,7 +250,7 @@ describe("raw()", () => {
 
 	// v0: a7371abdfc
 	// v0: a7f88979aa
-	it("returns a WebSocket upgrade, or a response Honey built, unchanged", () => {
+	it("returns a WebSocket upgrade, or a response Backend built, unchanged", () => {
 		const upgrade = new Response(null, { status: 200 })
 		Object.defineProperty(upgrade, "status", { value: 101 })
 		expect(res.raw(upgrade)).toBe(upgrade)
@@ -260,7 +260,7 @@ describe("raw()", () => {
 })
 
 describe("raw(): a body already read", () => {
-	it("is refused, on a plain response and one Honey built, naming the fix", async () => {
+	it("is refused, on a plain response and one Backend built, naming the fix", async () => {
 		const plain = new Response("cached")
 		const built = res.json("ok", { cached: true })
 		for (const used of [plain, built]) {
@@ -433,7 +433,7 @@ describe("ctx.res linked to its request", () => {
 	it("sse() resumes from the Last-Event-ID header; an explicit lastEventId wins; a bare res has none", async () => {
 		const seen: unknown[] = []
 		const record = async (stream: { lastEventId: string | undefined }) => void seen.push(stream.lastEventId)
-		const linked = new HoneyRes(link({ "last-event-id": "41" }))
+		const linked = new HttpRes(link({ "last-event-id": "41" }))
 		await linked.sse(record).text()
 		await linked.sse(record, { lastEventId: "7" }).text()
 		await res.sse(record).text()
@@ -443,7 +443,7 @@ describe("ctx.res linked to its request", () => {
 	// v0: 1c5f096151
 	it("every producer ends when the request's signal aborts", async () => {
 		const request = link()
-		const linked = new HoneyRes(request)
+		const linked = new HttpRes(request)
 		const bodies = [
 			linked.sse((stream) => new Promise((resolve) => stream.signal.addEventListener("abort", () => resolve()))),
 			linked.stream((_writable, signal) => new Promise((resolve) => signal.addEventListener("abort", () => resolve()))),

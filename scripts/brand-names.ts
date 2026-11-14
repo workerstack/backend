@@ -5,7 +5,8 @@
 // A brand counts as a segment of a name, never inside an ordinary word: lowercase `honey` needs a non-lowercase
 // letter on each side, `Honey` a non-uppercase letter before and a non-lowercase letter after, `HONEY` a non-letter
 // on each side. So `honey-source`, `honey_sdk`, `isHoneyError` and `HONEY_X` count; `honeypot`, `Honeydew`,
-// `honeycomb` and `HONEYCOMB` do not. ALLOW then drops whole tokens that pass that rule and are still not the brand.
+// `honeycomb` and `HONEYCOMB` do not. ALLOW then drops whole tokens that pass that rule and are still not the brand,
+// and the names of the history files that keep it (`migrating-from-honey` in a link, `no-honey` in a files.tsv path).
 //
 // History is the record of the old names and keeps them: changelogs, migration docs, the maps a rename ran from,
 // `blueprint/**`, each `no-<brand>` test, the exports a past release shipped, this module and the rename tools, and
@@ -14,10 +15,21 @@
 
 export const ALLOW: Record<string, readonly string[]> = {
 	comb: ["combobox", "Combobox", "combination", "combine"],
-	honey: ["honeymoon", "Honeydew", "honeypot", "honeybadger", "HoneyBadger"],
+	honey: ["honeymoon", "Honeydew", "honeypot", "honeybadger", "HoneyBadger", "migrating-from-honey", "no-honey"],
 }
 
-const TOKEN_CHAR = /[A-Za-z0-9_$-]/
+/** A character of a whole token: what a brand segment's token runs over, and what ALLOW matches whole. */
+export const TOKEN_CHAR = /[A-Za-z0-9_$-]/
+
+/** Whether `text[start, end)` sits inside a token some brand's ALLOW list keeps, so a rename leaves it. */
+export function allowedAt(text: string, from: number, to: number): boolean {
+	let start = from
+	let end = to
+	while (start > 0 && TOKEN_CHAR.test(text.charAt(start - 1))) start--
+	while (end < text.length && TOKEN_CHAR.test(text.charAt(end))) end++
+	const token = text.slice(start, end)
+	return Object.values(ALLOW).some((words) => words.includes(token))
+}
 
 function segmentPattern(brand: string): RegExp {
 	const lower = brand.toLowerCase()

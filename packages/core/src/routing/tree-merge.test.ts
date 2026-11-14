@@ -119,7 +119,7 @@ describe("mergeTree", () => {
 	})
 
 	it("refuses a tree from an older format and a route id seen twice", () => {
-		expect(() => mergeTree({ meta: {}, root: null, routes: {} } as never)).toThrow(/older honey/)
+		expect(() => mergeTree({ meta: {}, root: null, routes: {} } as never)).toThrow(/older backend/)
 		const one = treeOf([["GET", "/a"]])
 		const other: RouteTree = { meta: {}, root: createNode(), routes: { "GET /a": {} } }
 		expect(() => mergeTree(one, other)).toThrow("Merge conflict: duplicate GET /a")

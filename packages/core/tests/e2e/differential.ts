@@ -60,7 +60,7 @@ async function snapshot(app: Fetcher, probe: Probe): Promise<string> {
 	let res: Response
 	try {
 		res = await app.fetch(
-			new Request(`http://honey.test${probe.path}`, {
+			new Request(`http://backend.test${probe.path}`, {
 				body: probe.body,
 				headers: probe.headers,
 				method: probe.method,

@@ -49,7 +49,7 @@ const authorizations = []
 const provider = {
 	get redirectUrl() { return ${JSON.stringify(REDIRECT_URI)} },
 	get clientMetadata() {
-		return { client_name: "honey-oauth", grant_types: ["authorization_code"], redirect_uris: [${JSON.stringify(REDIRECT_URI)}], response_types: ["code"], token_endpoint_auth_method: "none" }
+		return { client_name: "backend-oauth", grant_types: ["authorization_code"], redirect_uris: [${JSON.stringify(REDIRECT_URI)}], response_types: ["code"], token_endpoint_auth_method: "none" }
 	},
 	clientInformation: () => ({ client_id: ${JSON.stringify(CLIENT_ID)} }),
 	tokens: () => tokens,
@@ -64,7 +64,7 @@ const provider = {
 	saveDiscoveryState: (saved) => void (discovery = saved),
 }
 const out = { authorizations }
-const opened = () => [new StreamableHTTPClientTransport(endpoint, { authProvider: provider }), new Client({ name: "honey-oauth", version: "1.0.0" }, ${CLIENTS[client].options})]
+const opened = () => [new StreamableHTTPClientTransport(endpoint, { authProvider: provider }), new Client({ name: "backend-oauth", version: "1.0.0" }, ${CLIENTS[client].options})]
 /* an authorization the client started: finish it with the callback, then run again */
 const authorized = async (transport, run) => {
 	try {
@@ -141,8 +141,8 @@ describe.skipIf(!withClients())("the mounted resource server under the official 
 			expect([saw, authSteps(world.log.slice(from))]).toEqual([
 				{
 					authorizations: ["orders:read", "orders:read orders:write"],
-					created: expect.objectContaining({ _meta: { "honey/status": 201 }, structuredContent: { created: "o-2" } }),
-					read: expect.objectContaining({ _meta: { "honey/status": 200 }, structuredContent: { orders: ["o-1"] } }),
+					created: expect.objectContaining({ _meta: { "backend/status": 201 }, structuredContent: { created: "o-2" } }),
+					read: expect.objectContaining({ _meta: { "backend/status": 200 }, structuredContent: { orders: ["o-1"] } }),
 					tools: ["get_orders", "post_orders"],
 				},
 				[

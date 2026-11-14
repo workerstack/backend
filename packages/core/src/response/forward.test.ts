@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { rangeResponse } from "./range.ts"
 
 const get = (path: string, headers: Record<string, string> = {}) => new Request(`http://localhost${path}`, { headers })
@@ -27,7 +27,7 @@ async function seen(answer: Response | Promise<Response>): Promise<[number, stri
 }
 
 describe("ctx.res.forward(): a Response whose status is decided elsewhere, checked against the declaration", () => {
-	const app = honey<{}>().logger(false)
+	const app = httpApp<{}>().logger(false)
 	const bytes = new TextEncoder().encode("0123456789")
 	app
 		.get("/file")
@@ -72,7 +72,7 @@ describe("ctx.res.forward(): a Response whose status is decided elsewhere, check
 
 describe("ctx.res.forward(): any declared status, its body unread", () => {
 	it("a forwarded redirect answers at a declared redirect key; a status with no key is refused by its code", async () => {
-		const routes = honey<{}>().logger(false)
+		const routes = httpApp<{}>().logger(false)
 		routes
 			.get("/moved")
 			.output({ "text/plain": { ok: true }, redirect: { found: true } })
@@ -92,7 +92,7 @@ describe("ctx.res.forward(): any declared status, its body unread", () => {
 	})
 
 	it("its body is not validated, though answers are checked: only its status and media type are", async () => {
-		const routes = honey<{}>().logger(false)
+		const routes = httpApp<{}>().logger(false)
 		routes
 			.get("/upstream")
 			.output({ ok: z.object({ id: z.string() }) })
@@ -103,7 +103,7 @@ describe("ctx.res.forward(): any declared status, its body unread", () => {
 
 describe("ctx.res.forward(): an upstream error answer passes at a status the route's errors carry", () => {
 	const errors = defineErrors({ thing_gone: "gone", thing_missing: "not_found" })
-	const app = honey<{}>().logger(false).errorFactory(errors)
+	const app = httpApp<{}>().logger(false).errorFactory(errors)
 	const row = z.object({ id: z.string() })
 	app
 		.get("/declared/:status")
@@ -139,7 +139,7 @@ describe("ctx.res.forward(): an error answer goes out as the upstream gave it", 
 	const errors = defineErrors({ thing_missing: "not_found" })
 
 	it("passes an error answer as the upstream gave it: its media type need be declared nowhere, its body is unread", async () => {
-		const csv = honey<{}>().logger(false).errorFactory(errors)
+		const csv = httpApp<{}>().logger(false).errorFactory(errors)
 		csv
 			.get("/export")
 			.output({ "text/csv": { ok: true } })
@@ -150,7 +150,7 @@ describe("ctx.res.forward(): an error answer goes out as the upstream gave it", 
 
 	it("passes a range response's 416 at the key a route-named factory declares (docs/capabilities/range.md)", async () => {
 		const rangeErrors = defineErrors({ range_unsatisfiable: "range_not_satisfiable" })
-		const media = honey<{}>().logger(false)
+		const media = httpApp<{}>().logger(false)
 		media
 			.get("/video")
 			.output({ "video/mp4": { ok: true, partial_content: true } })
@@ -167,7 +167,7 @@ describe("ctx.res.forward(): an error answer goes out as the upstream gave it", 
 })
 
 describe("an encoded stream under a declared media type: sse() and json() take one as it comes", () => {
-	const app = honey<{}>().logger(false)
+	const app = httpApp<{}>().logger(false)
 	app
 		.get("/events")
 		.output({ "text/event-stream": { ok: z.string() } })

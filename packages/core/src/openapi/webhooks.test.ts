@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { webhookContract, type WebhookEvents } from "../security/webhook.ts"
 import { generateOpenApi } from "./generate.ts"
 
@@ -9,7 +9,7 @@ type Doc = ReturnType<typeof generateOpenApi>
 
 /** A document of one route and the webhook contract of `events`, or none. */
 function documented(events: WebhookEvents | undefined): Doc {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/a").handler((c) => c.res.text("ok", "ok"))
 	return generateOpenApi(app, { info: INFO, webhooks: events === undefined ? undefined : webhookContract(events) })
 }
@@ -39,7 +39,7 @@ describe("webhooks: each event of the contract documented as one Standard Webhoo
 		expect([
 			Object.keys(doc),
 			Object.keys(doc.webhooks?.["batch.complete"] ?? {}),
-			operation["x-honey-webhook"],
+			operation["x-backend-webhook"],
 			operation.parameters,
 			(operation.requestBody as { required: boolean }).required,
 			Object.keys(content),

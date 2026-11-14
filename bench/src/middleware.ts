@@ -24,7 +24,7 @@ import { requestId as requestIdV1 } from "../../packages/core/src/middleware/req
 import { secureHeaders as secureHeadersV1 } from "../../packages/core/src/middleware/secure-headers.ts"
 import { serverTiming as serverTimingV1 } from "../../packages/core/src/middleware/server-timing.ts"
 import { timeout as timeoutV1 } from "../../packages/core/src/middleware/timeout.ts"
-import { honey as honeyV1 } from "../../packages/core/src/routing/app.ts"
+import { httpApp as httpAppV1 } from "../../packages/core/src/routing/app.ts"
 import { judge, median } from "./significance.ts"
 
 const BASELINE_FILE = new URL("../../blueprint/baselines/middleware.json", import.meta.url)
@@ -34,7 +34,7 @@ const ITERATIONS = Number(process.env.MIDDLEWARE_ITERATIONS ?? 20_000)
 /* gzip of a 4 KiB answer costs ~20x a plain one: fewer iterations keep a sample near the others' length */
 const GZIP_ITERATIONS = Math.max(1, Math.round(ITERATIONS / 20))
 const PEER = "203.0.113.7"
-const PEER_ADDRESS = Symbol.for("honey.peerAddress")
+const PEER_ADDRESS = Symbol.for("backend.peerAddress")
 
 type FetchApp = { fetch(request: Request, env: {}): Response | Promise<Response> }
 type Builder = { use(mw: unknown): Builder; get(path: string): Route; post(path: string): Route }
@@ -62,7 +62,7 @@ function app(make: () => unknown, middleware: readonly unknown[], body: unknown 
 	return root as unknown as FetchApp
 }
 
-const v1 = () => honeyV1<{}>()
+const v1 = () => httpAppV1<{}>()
 
 /** The eight middlewares v0 also had, each on its working path; csrf's is a same-origin POST. */
 const EIGHT = {

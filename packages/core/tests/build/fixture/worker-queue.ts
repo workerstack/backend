@@ -6,7 +6,7 @@
  */
 import { defineConsumer, queueContract, queueMessage, type QueueTarget } from "../../../src/queue/define.ts"
 import { workersQueue } from "../../../src/queue/workers.ts"
-import { honey } from "../../../src/routing/app.ts"
+import { httpApp } from "../../../src/routing/app.ts"
 
 type Env = { readonly JOBS: QueueTarget }
 
@@ -26,7 +26,7 @@ const consumer = defineConsumer<Env>()(jobs, {
 	retryDelay: () => 0,
 })
 
-export const app = honey<Env>()
+export const app = httpApp<Env>()
 	.get("/send")
 	.handler(async (ctx) => {
 		await jobs.sendBatch(ctx.env.JOBS, [

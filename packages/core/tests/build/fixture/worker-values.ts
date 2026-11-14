@@ -3,7 +3,7 @@
  * object, a string and a function, as an ordinary app module does (`export const config = {…}`). `/count` answers
  * through the object, `/config` reads the plain values, so the Worker serves only if workerd loaded the module.
  */
-import { honey } from "../../../src/routing/app.ts"
+import { httpApp } from "../../../src/routing/app.ts"
 
 type Storage = { get(key: string): Promise<number | undefined>; put(key: string, value: number): Promise<void> }
 type Namespace = { idFromName(name: string): unknown; get(id: unknown): { fetch(url: string): Promise<Response> } }
@@ -12,7 +12,7 @@ type Namespace = { idFromName(name: string): unknown; get(id: unknown): { fetch(
 export const config = { region: "eu", retries: 2 }
 
 /** A label, a string export. */
-export const LABEL = "honey-build-values"
+export const LABEL = "backend-build-values"
 
 /** A helper the app module exports for its tests. */
 export function describe(): string {
@@ -34,7 +34,7 @@ export class Counter {
 	}
 }
 
-export const app = honey<{ readonly COUNTER: Namespace }>()
+export const app = httpApp<{ readonly COUNTER: Namespace }>()
 	.get("/count")
 	.handler(async (ctx) =>
 		ctx.res.raw(await ctx.env.COUNTER.get(ctx.env.COUNTER.idFromName("one")).fetch("https://counter/")),

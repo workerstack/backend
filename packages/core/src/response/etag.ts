@@ -1,6 +1,6 @@
 /**
- * `etag()`: a validator for every GET or HEAD answered 200 with a body honey can hash, and the 304
- * a matching `If-None-Match` earns (RFC 9110 §8.8.3, §13.1.2). A body honey built is hashed from
+ * `etag()`: a validator for every GET or HEAD answered 200 with a body backend can hash, and the 304
+ * a matching `If-None-Match` earns (RFC 9110 §8.8.3, §13.1.2). A body backend built is hashed from
  * the raw body it kept and handed on unread; a foreign body of declared length is read and
  * rebuilt; a stream is never buffered (it may never end). A validator the handler set is never
  * replaced.
@@ -51,14 +51,14 @@ export function ifNoneMatchHits(header: string | null, current: string): boolean
 
 /**
  * `response` as a 304: its headers kept (validators, Cache-Control, Vary among them), no body. A
- * body honey did not keep is cancelled unread, so a producer never starts.
+ * body backend did not keep is cancelled unread, so a producer never starts.
  */
 export function notModified(response: Response): Response {
 	discardBody(response)
 	return replaceResponse(response, { body: null, status: 304 })
 }
 
-/** The bytes to hash, read from the raw body honey kept or from a foreign body of declared length. */
+/** The bytes to hash, read from the raw body backend kept or from a foreign body of declared length. */
 async function bytesOf(response: Response): Promise<{ bytes: Uint8Array<ArrayBuffer>; read: boolean }> {
 	const raw = rawBodyOf(response)
 	if (raw === null) return { bytes: new Uint8Array(await response.arrayBuffer()), read: true }

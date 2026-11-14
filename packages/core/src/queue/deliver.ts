@@ -3,18 +3,18 @@
  * reach a handler, who settles a message, how long a retry waits, and what a letter holds. Each
  * runtime supplies a `Delivery` saying what settling means there.
  */
-import type { Logger } from "../telemetry/logger.ts"
+import type { BackendLogger } from "../telemetry/logger.ts"
 import {
 	QueueBodyError,
 	type QueueConsumer,
 	QueueDeadLetter,
 	type QueueLetter,
 	type QueueMessageHandle,
-	type QueueSendOptions,
+	type QueueDelayOptions,
 } from "./define.ts"
 
 /** A retry, with why. */
-export type DeliveryRetry = QueueSendOptions & {
+export type DeliveryRetry = QueueDelayOptions & {
 	/** Why it retries, which becomes a letter's reason if it was the last attempt. */
 	reason: string
 }
@@ -50,7 +50,7 @@ const envelopeType = (body: unknown): string | undefined => {
 	return typeof type === "string" ? type : undefined
 }
 
-const delayOption = (seconds: number | undefined): QueueSendOptions => {
+const delayOption = (seconds: number | undefined): QueueDelayOptions => {
 	const valid = seconds !== undefined && Number.isFinite(seconds) && seconds > 0
 	return valid ? { delaySeconds: Math.min(Math.ceil(seconds), MAX_DELAY_SECONDS) } : {}
 }
@@ -59,8 +59,8 @@ const delayFor = <Env>(
 	consumer: QueueConsumer<Env>,
 	error: unknown,
 	fallback: number | undefined,
-	log: Logger,
-): QueueSendOptions => {
+	log: BackendLogger,
+): QueueDelayOptions => {
 	try {
 		if (consumer.retryDelay === undefined) return delayOption(fallback)
 		const answer = consumer.retryDelay(error)

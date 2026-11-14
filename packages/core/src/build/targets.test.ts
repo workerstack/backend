@@ -7,15 +7,15 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
-import { type BuildTarget, createBuildPlugin, type HoneyBuildConfig } from "./targets.ts"
+import { type BuildTarget, createBuildPlugin, type BuildConfig } from "./targets.ts"
 
 const APP = { entry: "src/app.ts", export: "app" }
 
-const plugin = (overrides?: Partial<HoneyBuildConfig>) => createBuildPlugin({ target: "workers", ...overrides }, APP)
+const plugin = (overrides?: Partial<BuildConfig>) => createBuildPlugin({ target: "workers", ...overrides }, APP)
 
 /** The entry module the plugin answers for its virtual id. */
 const entryOf = async (built: ReturnType<typeof createBuildPlugin>) =>
-	((await built.load.call(context([]), "\0virtual:honey-build-entry")) as { code: string } | undefined)?.code ?? ""
+	((await built.load.call(context([]), "\0virtual:backend-build-entry")) as { code: string } | undefined)?.code ?? ""
 
 /** A build's context whose app entry exports `exports`, or that resolves no entry at all. */
 function context(exports: readonly string[], resolved = true) {
@@ -30,7 +30,7 @@ const workerOf = async (exports: readonly string[], app = APP) =>
 	(
 		(await createBuildPlugin({ target: "workers" }, app).load.call(
 			context(exports),
-			"\0virtual:honey-build-entry",
+			"\0virtual:backend-build-entry",
 		)) as {
 			code: string
 		}
@@ -50,8 +50,8 @@ const configOf = (built: ReturnType<typeof createBuildPlugin>) => built.config()
 
 describe("the build plugin's identity and virtual entry (bit 19 h2)", () => {
 	// v0: fc4b7f62c0
-	it("has name honey:build", () => {
-		expect(plugin().name).toBe("honey:build")
+	it("has name backend:build", () => {
+		expect(plugin().name).toBe("backend:build")
 	})
 
 	// v0: db1b9397b6
@@ -60,8 +60,8 @@ describe("the build plugin's identity and virtual entry (bit 19 h2)", () => {
 	})
 
 	// v0: 74e64e5f9a
-	it("resolves virtual:honey-build-entry", () => {
-		expect(plugin().resolveId("virtual:honey-build-entry")).toBe("\0virtual:honey-build-entry")
+	it("resolves virtual:backend-build-entry", () => {
+		expect(plugin().resolveId("virtual:backend-build-entry")).toBe("\0virtual:backend-build-entry")
 	})
 
 	// v0: b28cd2009c
@@ -71,7 +71,7 @@ describe("the build plugin's identity and virtual entry (bit 19 h2)", () => {
 
 	// v0: b0b0937126
 	it("loads entry code with moduleType js", async () => {
-		const loaded = (await plugin().load.call(context([]), "\0virtual:honey-build-entry")) as
+		const loaded = (await plugin().load.call(context([]), "\0virtual:backend-build-entry")) as
 			| { code: string; moduleType: string }
 			| undefined
 		expect([loaded?.moduleType, Boolean(loaded?.code)]).toEqual(["js", true])
@@ -84,7 +84,7 @@ describe("the build plugin's identity and virtual entry (bit 19 h2)", () => {
 
 	it("refuses a target it does not build (H15)", () => {
 		const refused = (target: string) => () => createBuildPlugin({ target: target as BuildTarget }, APP)
-		expect(refused("lambda")).toThrow('honey build: unknown target "lambda"; expected workers')
+		expect(refused("lambda")).toThrow('backend build: unknown target "lambda"; expected workers')
 		expect(refused("node")).toThrow('unknown target "node"; expected workers')
 		expect(refused("bun")).toThrow('unknown target "bun"; expected workers')
 		expect(refused("toString")).toThrow('unknown target "toString"')
@@ -134,7 +134,7 @@ describe("the build plugin's Vite config (bit 19 h2)", () => {
 
 	// v0: a8e8fac3ee
 	it("sets rolldown input to virtual entry", () => {
-		expect(configOf(plugin()).build.rolldownOptions.input).toBe("virtual:honey-build-entry")
+		expect(configOf(plugin()).build.rolldownOptions.input).toBe("virtual:backend-build-entry")
 	})
 
 	// v0: 4be4036e68
@@ -176,7 +176,7 @@ describe("the build entry as a Worker (bit 19 h2)", () => {
 })
 
 describe("a Worker's named exports (bit 21 h)", () => {
-	it("passes every named export of the app's entry through, beside honey's default fetch, the app itself not", async () => {
+	it("passes every named export of the app's entry through, beside backend's default fetch, the app itself not", async () => {
 		const entry = await workerOf(["app", "McpUploads", "Jobs", "with-dash"])
 		expect([
 			entry.includes('export { named0 as McpUploads, named1 as Jobs, named2 as "with-dash" }'),
@@ -207,23 +207,23 @@ describe("a Worker's named exports (bit 21 h)", () => {
 		]).toEqual([true, true, true, true])
 	})
 
-	it("refuses an entry exporting a default beside its named app: a Worker's default is honey's fetch", async () => {
+	it("refuses an entry exporting a default beside its named app: a Worker's default is backend's fetch", async () => {
 		await expect(workerOf(["app", "default", "McpUploads"])).rejects.toThrow(
-			"honey build: src/app.ts exports a default beside its app \"app\": a Worker's default export is honey's fetch handler, so the entry's own default would be lost; drop it, or export the app as the default",
+			"backend build: src/app.ts exports a default beside its app \"app\": a Worker's default export is backend's fetch handler, so the entry's own default would be lost; drop it, or export the app as the default",
 		)
 	})
 
 	it("passes nothing on from an entry the build reports no exports for (an external module's are null)", async () => {
 		const built = createBuildPlugin({ target: "workers" }, APP)
 		const external = { ...context([]), resolve: async () => ({ id: "/elsewhere/app.ts" }) }
-		const entry = (await built.load.call(external, "\0virtual:honey-build-entry")) as { code: string }
+		const entry = (await built.load.call(external, "\0virtual:backend-build-entry")) as { code: string }
 		expect(entry.code.includes("export {")).toBe(false)
 	})
 
 	it("refuses an app entry the build cannot resolve", async () => {
 		const built = createBuildPlugin({ target: "workers" }, APP)
-		await expect(built.load.call(context([], false), "\0virtual:honey-build-entry")).rejects.toThrow(
-			"honey build: cannot resolve the app entry ./src/app.ts",
+		await expect(built.load.call(context([], false), "\0virtual:backend-build-entry")).rejects.toThrow(
+			"backend build: cannot resolve the app entry ./src/app.ts",
 		)
 	})
 })
@@ -231,7 +231,7 @@ describe("a Worker's named exports (bit 21 h)", () => {
 describe("a Worker's scheduled and queue handlers", () => {
 	/* the emitted module, run for real against an app entry written as `source` */
 	const worker = async (exports: readonly string[], source: string) => {
-		const dir = mkdtempSync(join(tmpdir(), "honey-worker-entry-"))
+		const dir = mkdtempSync(join(tmpdir(), "backend-worker-entry-"))
 		const code = (await workerOf(exports)).replaceAll("./src/app.ts", "./app.mjs")
 		writeFileSync(join(dir, "app.mjs"), `export const app = { fetch: () => "served" }\n${source}`)
 		writeFileSync(join(dir, "worker.mjs"), code)

@@ -20,7 +20,7 @@ let tarball = ""
 let app = ""
 
 const APP = [
-	'import { createMiddleware, defineErrors, honey } from "@workerstack/backend/http"',
+	'import { createMiddleware, defineErrors, httpApp } from "@workerstack/backend/http"',
 	'import { cors } from "@workerstack/backend/http/cors"',
 	'import { serveOpenApi } from "@workerstack/backend/http/openapi"',
 	'import { requestId } from "@workerstack/backend/http/request-id"',
@@ -29,7 +29,7 @@ const APP = [
 	'const errors = defineErrors({ item_not_found: "not_found" })',
 	"",
 	"export const app = serveOpenApi(",
-	"\thoney<{}>()",
+	"\thttpApp<{}>()",
 	"\t\t.errorFactory(errors)",
 	"\t\t.use(requestId())",
 	'\t\t.use(cors({ origin: "http://app.test" }))',
@@ -122,11 +122,11 @@ describe.sequential("the tarball, installed (bit 19 i)", () => {
 		},
 	)
 
-	it("publishes no honey-source condition, which names the src/ a tarball does not ship", () => {
+	it("publishes no backend-source condition, which names the src/ a tarball does not ship", () => {
 		/* a process that sets the condition (the bin's Bun hand-off, an app's generate) resolves an installed package
-		 * through it, so a published honey-source sends that process to a missing file */
+		 * through it, so a published backend-source sends that process to a missing file */
 		const published = readFileSync(join(app, "node_modules/@workerstack/backend/package.json"), "utf8")
-		expect(JSON.stringify(JSON.parse(published))).not.toContain('"honey-source"')
+		expect(JSON.stringify(JSON.parse(published))).not.toContain('"backend-source"')
 	})
 
 	it("carries bin/, dist/, the README and the license but no source, and every export's files", () => {
@@ -141,10 +141,10 @@ describe.sequential("the tarball, installed (bit 19 i)", () => {
 		expect([readdirSync(root).sort(), missing]).toEqual([["LICENSE", "README.md", "bin", "dist", "package.json"], []])
 	})
 
-	it("honey generate in the install writes the app's artifacts through the tarball's dist/build/artifacts", () => {
+	it("backend generate in the install writes the app's artifacts through the tarball's dist/build/artifacts", () => {
 		const generated = run(
 			"node",
-			["node_modules/.bin/honey", "generate", "--app", "src/app.ts", "--tree", "--types"],
+			["node_modules/.bin/backend", "generate", "--app", "src/app.ts", "--tree", "--types"],
 			app,
 		)
 		const tree = join(app, "src/_gen/routes.gen.ts")
@@ -156,16 +156,16 @@ describe.sequential("the tarball, installed (bit 19 i)", () => {
 
 	/* Vite's own Node chunk makes follow-redirects' errors with a non-Error captureStackTrace at load: on Bun, once jiti's
 	 * Babel has hooked Error.prepareStackTrace, that throws "First argument must be an Error object" (bit 20 k-fix) */
-	it("honey generate on Bun in the install, a cold jiti cache, reads a config importing vite, a throwing one once", () => {
+	it("backend generate on Bun in the install, a cold jiti cache, reads a config importing vite, a throwing one once", () => {
 		const cold = join(files.out, "cold-tmp")
 		mkdirSync(cold)
 		const generate = () =>
-			run("bun", ["node_modules/.bin/honey", "generate"], app, { HONEY_NO_BUN_HANDOFF: "1", TMPDIR: cold })
+			run("bun", ["node_modules/.bin/backend", "generate"], app, { BACKEND_NO_BUN_HANDOFF: "1", TMPDIR: cold })
 		const log = join(app, "evaluations.log")
 		try {
 			write(app, {
 				"vite.config.ts":
-					'import { defaultClientConditions } from "vite"\nimport { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { resolve: { conditions: [...defaultClientConditions] }, plugins: [honeyPlugin({ app: "src/app.ts" })] }\n',
+					'import { defaultClientConditions } from "vite"\nimport { backendPlugin } from "@workerstack/backend/plugin"\nexport default { resolve: { conditions: [...defaultClientConditions] }, plugins: [backendPlugin({ app: "src/app.ts" })] }\n',
 			})
 			const read = generate()
 			write(app, {
@@ -178,7 +178,7 @@ describe.sequential("the tarball, installed (bit 19 i)", () => {
 				thrown.code,
 				thrown.out.split("\n")[0],
 				readFileSync(log, "utf8"),
-			]).toEqual([0, "honey: generated", 1, "honey: generation failed: boom at load", "x"])
+			]).toEqual([0, "backend: generated", 1, "backend: generation failed: boom at load", "x"])
 		} finally {
 			rmSync(join(app, "vite.config.ts"), { force: true })
 			rmSync(log, { force: true })
@@ -196,19 +196,19 @@ describe.sequential("the tarball, installed (bit 19 i)", () => {
 		60_000,
 	)
 
-	it("type-checks against every core subpath with honey-clients, an optional peer, not installed", () => {
+	it("type-checks against every core subpath with clients, an optional peer, not installed", () => {
 		const dir = consumer(join(files.out, "core-only"), { "@workerstack/backend": `file:${tarball}` }, ["@types/node"])
 		expect(strictCheck(dir, "Bundler", "ESNext")).toEqual([48, 0, ""])
 	}, 60_000)
 })
 
-/* the honey bin's own file in a package laid out as an install (no tsconfig.json) or a checkout, each entry marked */
+/* the backend bin's own file in a package laid out as an install (no tsconfig.json) or a checkout, each entry marked */
 let layouts = 0
 function binLayout(checkout: boolean): string {
-	const dir = join(files.out, `bin-honey-${checkout ? "checkout" : "install"}-${++layouts}`)
+	const dir = join(files.out, `bin-backend-${checkout ? "checkout" : "install"}-${++layouts}`)
 	const main = (from: string) => `export function main() {\n\tconsole.log(${JSON.stringify(from)})\n\treturn 0\n}\n`
 	write(dir, {
-		"bin/honey.js": readFileSync(join(CORE, "bin/honey.js"), "utf8"),
+		"bin/backend.js": readFileSync(join(CORE, "bin/backend.js"), "utf8"),
 		"dist/build/cli.js": main("dist"),
 		"package.json": '{ "type": "module" }\n',
 		"src/build/cli.ts": main("source").replace("main()", "main(): number"),
@@ -221,10 +221,10 @@ function binLayout(checkout: boolean): string {
 
 /* as a user starts it: not a child of `bun run`, which would hand over to Bun */
 function runBin(runtime: string, dir: string): string {
-	return run(runtime, [join(dir, "bin/honey.js")], dir, { npm_config_user_agent: "", npm_execpath: "" }).out.trim()
+	return run(runtime, [join(dir, "bin/backend.js")], dir, { npm_config_user_agent: "", npm_execpath: "" }).out.trim()
 }
 
-describe("the shipped honey bin picks what it runs (bit 19 i)", () => {
+describe("the shipped backend bin picks what it runs (bit 19 i)", () => {
 	// v0: 4982f5f697
 	it(
 		"on Node in a repository checkout runs the source, never a possibly stale dist/",

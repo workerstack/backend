@@ -5,7 +5,7 @@ import { written } from "../../tests/fixture/emitted.ts"
 import { generateMcpHandler } from "@workerstack/clients"
 import { callWithUploads, fileInput } from "../../tests/integration/mcp-files/client.ts"
 import { generateOpenApi } from "../openapi/generate.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { type McpHandler, mcp } from "./mount.ts"
 import { memoryUploadStore, type UploadStore, uploads } from "./uploads.ts"
 
@@ -14,7 +14,7 @@ const BYTES = new TextEncoder().encode("rows,1\n")
 
 /** An app with one file tool, `file_save`, needing no credential. */
 const app = () =>
-	honey()
+	httpApp()
 		.post("/files")
 		.meta({ mcp: true, operationId: "file.save" })
 		.input({ form: z.object({ file: z.file() }) })
@@ -60,7 +60,7 @@ describe("uploads(options) refusals", () => {
 
 describe("uploads(options) targets and caps", () => {
 	it("puts targets under the public path (stripPrefix, basePath) at the configured origin, and caps a file's size", async () => {
-		const at = honey().stripPrefix("/api").basePath("/v1")
+		const at = httpApp().stripPrefix("/api").basePath("/v1")
 		const served = mcp(
 			at
 				.post("/files")

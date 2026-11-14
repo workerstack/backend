@@ -20,7 +20,7 @@ import {
 	missingInvalidateReport,
 } from "../routing/invalidate-check.ts"
 import type { StatusSchemas } from "../routing/output-types.ts"
-import type { HoneyGraph } from "../routing/register.ts"
+import type { HttpGraph } from "../routing/register.ts"
 import { deduplicateSchemas, type SchemaSpec } from "../schema/slots.ts"
 import {
 	type ConversionIssue,
@@ -43,7 +43,7 @@ export type { OpenApiDocument, OpenApiInfo } from "./document.ts"
 export type { OpenApiServer, OpenApiServerVariable } from "./servers.ts"
 export type { OpenApiExternalDocs, OpenApiTag } from "./tags.ts"
 
-/** What `filterRoutes` is shown of a route: its resolved meta, its method and its honey pattern. */
+/** What `filterRoutes` is shown of a route: its resolved meta, its method and its backend pattern. */
 export type OpenApiRouteInfo = {
 	/** the route's whole meta, before the metaSpec filters any key */
 	readonly meta: Readonly<Record<string, unknown>>
@@ -55,7 +55,7 @@ export type OpenApiRouteInfo = {
 
 /** What `generateOpenApi` takes besides the app: the document's info, and how it converts, filters and reports. */
 export type GenerateOpenApiOptions = {
-	/** the converters honey cannot import itself: `effect`, without which an Effect schema comes out as `{}` */
+	/** the converters backend cannot import itself: `effect`, without which an Effect schema comes out as `{}` */
 	readonly converters?: JsonSchemaOptions["converters"]
 	/** the document's own external docs */
 	readonly externalDocs?: OpenApiExternalDocs
@@ -85,7 +85,7 @@ export type GenerateOpenApiOptions = {
 }
 
 /** Any app or handle that holds a route graph. */
-type App = { readonly [GRAPH]: HoneyGraph }
+type App = { readonly [GRAPH]: HttpGraph }
 
 /** What a conversion issue reports, and how loudly. */
 function issueOf(
@@ -224,7 +224,7 @@ function check(
 			)
 		}
 	}
-	for (const { code, message } of diagnostics.throwIfErrors()) logger.warn(`[honey:openapi] ${code}: ${message}`)
+	for (const { code, message } of diagnostics.throwIfErrors()) logger.warn(`[backend:openapi] ${code}: ${message}`)
 	const missing = missingInvalidateReport(emitted, options.invalidate)
 	if (missing !== null && level === "error") throw new Error(missing)
 	if (missing !== null) logger.warn(missing)

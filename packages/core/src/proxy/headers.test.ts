@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { PEER_ADDRESS } from "../context/peer.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { proxy, type ProxyConfig } from "./proxy.ts"
 
 type Seen = { headers: Record<string, string>; init: RequestInit; url: string }
@@ -11,7 +11,7 @@ function proxyApp(
 	extra: Partial<ProxyConfig<unknown>> = {},
 ) {
 	const calls: Seen[] = []
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.all("/api/*rest").handler(
 		proxy({
 			destination: (_ctx, url, init) => {

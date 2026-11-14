@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { generateOpenApi } from "./generate.ts"
 import { ws } from "../ws/route.ts"
 
 const INFO = { title: "Test API", version: "1.0" }
 
 function app() {
-	const a = honey<{}>()
+	const a = httpApp<{}>()
 	a.get("/health").handler((c) => c.res.text("ok", "ok"))
 	a.get("/users").handler((c) => c.res.json("ok", []))
 	a.post("/users")
@@ -18,7 +18,7 @@ function app() {
 }
 
 /** Register GET `path` on `target`, answering an object with one `name` key. */
-const register = (target: ReturnType<typeof honey<{}>>, [path, name]: [string, string]) =>
+const register = (target: ReturnType<typeof httpApp<{}>>, [path, name]: [string, string]) =>
 	target
 		.get(path)
 		.output({ "application/json": { ok: z.object({ [name]: z.string() }) } })
@@ -50,14 +50,14 @@ describe("the document: OpenAPI 3.1, assembled", () => {
 	// v0: 2f97e7d2b5
 
 	it("leaves components out when there is nothing to put in it", () => {
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 		a.get("/health").handler((c) => c.res.text("ok", "ok"))
 		expect(generateOpenApi(a, { info: INFO })).not.toHaveProperty("components")
 	})
 
 	// v0: 2fe4516509
 	it("passes x-realtime, x-websocket and x-mcp through to the operation", () => {
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 		a.get("/live")
 			.meta({ extensions: { "x-realtime": true }, mcp: true })
 			.handler((c) => c.res.text("ok", "ok"))
@@ -73,8 +73,8 @@ describe("the document: OpenAPI 3.1, assembled", () => {
 
 describe("the document: OpenAPI 3.1, assembled", () => {
 	it("is the same bytes on every run and whatever order the routes were registered in", () => {
-		const forward = honey<{}>()
-		const backward = honey<{}>()
+		const forward = httpApp<{}>()
+		const backward = httpApp<{}>()
 		const routes: [string, string][] = [
 			["/b", "B"],
 			["/a", "A"],

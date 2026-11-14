@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
-import { SILENT, type Logger } from "../telemetry/logger.ts"
+import { httpApp } from "../routing/app.ts"
+import { SILENT, type BackendLogger } from "../telemetry/logger.ts"
 import { generateOpenApi } from "./generate.ts"
 
 const INFO = { title: "T", version: "1" }
 
 /** A logger that keeps each warning's message. */
-function recording(): { logger: Logger; warnings: string[] } {
+function recording(): { logger: BackendLogger; warnings: string[] } {
 	const warnings: string[] = []
 	const warn = (first: unknown, second?: unknown) =>
 		void warnings.push(String(typeof first === "string" ? first : second))
@@ -15,7 +15,7 @@ function recording(): { logger: Logger; warnings: string[] } {
 
 /** Routes tagged Users, then Orders and Users, then Admin, and one untagged. */
 function tagged() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app
 		.get("/users")
 		.meta({ operationId: "listUsers", tags: "Users" })
@@ -34,7 +34,7 @@ function tagged() {
 
 describe("tags: the ones operations name, declared ones in their declared order, then first-seen", () => {
 	it("lists each tag an operation names once, first-seen, and none for an untagged document", () => {
-		const bare = honey<{}>()
+		const bare = httpApp<{}>()
 		bare.get("/a").handler((c) => c.res.text("ok", "ok"))
 		expect([generateOpenApi(tagged(), { info: INFO }).tags, generateOpenApi(bare, { info: INFO }).tags]).toEqual([
 			[{ name: "Users" }, { name: "Orders" }, { name: "Admin" }],
@@ -67,7 +67,7 @@ describe("tags: the ones operations name, declared ones in their declared order,
 				},
 				{ name: "Orders" },
 			],
-			[expect.stringMatching(/\[honey:openapi\] UNUSED_TAG: tag "Billing" is declared but no operation names it/)],
+			[expect.stringMatching(/\[backend:openapi\] UNUSED_TAG: tag "Billing" is declared but no operation names it/)],
 		])
 	})
 

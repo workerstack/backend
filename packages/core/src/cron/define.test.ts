@@ -4,7 +4,7 @@ import { defineCron } from "./define.ts"
 type Env = { readonly name: string }
 
 describe("defineCron", () => {
-	it("logs through honey's logger when given none", () => {
+	it("logs through backend's logger when given none", () => {
 		const cron = defineCron<Env>({ schedules: { "* * * * *": { job: async () => {} } } })
 		expect(typeof cron.logger.child).toBe("function")
 	})

@@ -1,5 +1,5 @@
 /**
- * honeyPlugin(), the Vite plugin (bit 19 h2): one plugin named honey carrying its config for `honey generate`; the virtual
+ * backendPlugin(), the Vite plugin (bit 19 h2): one plugin named backend carrying its config for `backend generate`; the virtual
  * route tree (JavaScript, in a real dev server too), manifest and document; a generation at build start (one across
  * Vite's environments), and on a watched save in dev (one per save across environments, never for a generated file
  * or a temp file, the route tree joining HMR); with a config file, each generation a child that sees edited imports.
@@ -8,10 +8,10 @@ import { existsSync, readFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { appSource, type Project, project } from "./__fixtures__/project.ts"
-import type { HoneyVitePluginConfig } from "./config.ts"
+import type { BackendPluginConfig } from "./config.ts"
 import { defaultClientConditions, defaultServerConditions } from "vite"
 import {
-	honeyPlugin,
+	backendPlugin,
 	NO_OUTPUT_CHECK,
 	oncePerKey,
 	SAVES_REMEMBERED,
@@ -20,7 +20,7 @@ import {
 } from "./plugin.ts"
 
 const SLOW = 60_000
-const ROUTES = "\0virtual:honey/routes"
+const ROUTES = "\0virtual:backend/routes"
 const projects: Project[] = []
 afterEach(() => {
 	for (const made of projects.splice(0)) made.done()
@@ -33,9 +33,9 @@ function fresh(files: Record<string, string> = {}): Project {
 	return made
 }
 
-/** The plugin honeyPlugin() returns, resolved at `root` as Vite resolves it. */
-function pluginAt(config: HoneyVitePluginConfig, root?: string) {
-	const [plugin] = honeyPlugin(config)
+/** The plugin backendPlugin() returns, resolved at `root` as Vite resolves it. */
+function pluginAt(config: BackendPluginConfig, root?: string) {
+	const [plugin] = backendPlugin(config)
 	if (root !== undefined) plugin.configResolved({ root })
 	return plugin
 }
@@ -53,14 +53,14 @@ function counted(made: Project): () => number {
 const graph = (found: unknown) => ({ moduleGraph: { getModuleById: vi.fn(() => found) } })
 const tree = (dir: string) => readFileSync(join(dir, "src/_gen/routes.gen.ts"), "utf8")
 
-describe("honeyPlugin() (bit 19 h2)", () => {
+describe("backendPlugin() (bit 19 h2)", () => {
 	// v0: 82d46bf4d5
 	// v0: 6c71b279c9
 	// v0: a242b669a8
-	it("is one plugin named honey that carries its config for honey generate", () => {
+	it("is one plugin named backend that carries its config for backend generate", () => {
 		const config = { app: "src/app.ts" }
-		const plugins = honeyPlugin(config)
-		expect([plugins.length, plugins[0].name, plugins[0].api.honeyConfig]).toEqual([1, "honey", config])
+		const plugins = backendPlugin(config)
+		expect([plugins.length, plugins[0].name, plugins[0].api.backendConfig]).toEqual([1, "backend", config])
 	})
 
 	// v0: dccdaa093c
@@ -68,10 +68,10 @@ describe("honeyPlugin() (bit 19 h2)", () => {
 	it("resolves the route tree always, and the manifest and document only when configured", () => {
 		const on = pluginAt({ app: "src/app.ts", codegen: { manifest: true, openApi: { title: "T", version: "1" } } })
 		const off = pluginAt({ app: "src/app.ts" })
-		const ids = ["virtual:honey/routes", "virtual:honey/manifest", "virtual:honey/openapi", "./other"]
+		const ids = ["virtual:backend/routes", "virtual:backend/manifest", "virtual:backend/openapi", "./other"]
 		expect([ids.map((id) => on.resolveId(id)), ids.map((id) => off.resolveId(id))]).toEqual([
-			["\0virtual:honey/routes", "\0virtual:honey/manifest", "\0virtual:honey/openapi", undefined],
-			["\0virtual:honey/routes", undefined, undefined, undefined],
+			["\0virtual:backend/routes", "\0virtual:backend/manifest", "\0virtual:backend/openapi", undefined],
+			["\0virtual:backend/routes", undefined, undefined, undefined],
 		])
 	})
 
@@ -89,21 +89,21 @@ describe("honeyPlugin() (bit 19 h2)", () => {
 			expect([routes?.moduleType, routes?.code.includes("GET /health")]).toEqual(["js", true])
 			/* JavaScript, not the TypeScript the tree codegen writes to disk */
 			expect(routes?.code).not.toMatch(/import type|: TreeNode|as unknown as/)
-			const manifest = await plugin.load("\0virtual:honey/manifest")
-			const document = await plugin.load("\0virtual:honey/openapi")
+			const manifest = await plugin.load("\0virtual:backend/manifest")
+			const document = await plugin.load("\0virtual:backend/openapi")
 			expect([manifest?.code.startsWith("export default {"), document?.code.includes('"title":"T"')]).toEqual([
 				true,
 				true,
 			])
 			expect(await plugin.load("./other.ts")).toBeUndefined()
-			expect(await pluginAt({ app: "src/app.ts" }, dir).load("\0virtual:honey/openapi")).toBeUndefined()
-			expect(await pluginAt({ app: "src/app.ts" }, dir).load("\0virtual:honey/manifest")).toBeUndefined()
+			expect(await pluginAt({ app: "src/app.ts" }, dir).load("\0virtual:backend/openapi")).toBeUndefined()
+			expect(await pluginAt({ app: "src/app.ts" }, dir).load("\0virtual:backend/manifest")).toBeUndefined()
 		},
 		SLOW,
 	)
 })
 
-describe("honeyPlugin() (bit 19 h2), continued (2)", () => {
+describe("backendPlugin() (bit 19 h2), continued (2)", () => {
 	// v0: add50a69c3
 	it(
 		"builds the virtual document with its output's profile",
@@ -114,7 +114,7 @@ describe("honeyPlugin() (bit 19 h2), continued (2)", () => {
 				dir,
 			)
 			/* an unknown profile is refused, which proves the profile reached generateOpenApi */
-			await expect(plugin.load("\0virtual:honey/openapi")).rejects.toThrow(/profile/i)
+			await expect(plugin.load("\0virtual:backend/openapi")).rejects.toThrow(/profile/i)
 		},
 		SLOW,
 	)
@@ -128,12 +128,12 @@ describe("honeyPlugin() (bit 19 h2), continued (2)", () => {
 			const server = await createServer({
 				configFile: false,
 				logLevel: "silent",
-				plugins: honeyPlugin({ app: "src/app.ts", codegen: { tree: false } }),
+				plugins: backendPlugin({ app: "src/app.ts", codegen: { tree: false } }),
 				root: dir,
 				server: { middlewareMode: true, ws: false },
 			})
 			try {
-				const mod = (await server.ssrLoadModule("virtual:honey/routes")) as { routeTree?: { routes: object } }
+				const mod = (await server.ssrLoadModule("virtual:backend/routes")) as { routeTree?: { routes: object } }
 				expect(Object.keys(mod.routeTree?.routes ?? {})).toEqual(["GET /health", "POST /items"])
 			} finally {
 				await server.close()
@@ -143,7 +143,7 @@ describe("honeyPlugin() (bit 19 h2), continued (2)", () => {
 	)
 })
 
-describe("honeyPlugin() at build start (bit 19 h2)", () => {
+describe("backendPlugin() at build start (bit 19 h2)", () => {
 	// v0: 0bc0d6a701
 	// v0: e459c5305b
 	// v0: d27db436ac
@@ -198,7 +198,7 @@ describe("honeyPlugin() at build start (bit 19 h2)", () => {
 	)
 })
 
-describe("honeyPlugin() at build start (bit 19 h2), continued (2)", () => {
+describe("backendPlugin() at build start (bit 19 h2), continued (2)", () => {
 	// v0: 56527a95bd
 	it(
 		"runs one generation when Vite starts two environments back to back, and anew on a later build",
@@ -220,12 +220,12 @@ describe("honeyPlugin() at build start (bit 19 h2), continued (2)", () => {
 		async () => {
 			const made = fresh({
 				"src/app.ts":
-					'import { honey } from "@workerstack/backend/http"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
+					'import { httpApp } from "@workerstack/backend/http"\nimport { path } from "./routes.ts"\nexport const app = httpApp().get(path).handler((c) => c.res.text("ok", "ok"))\n',
 				"src/routes.ts": 'export const path = "/first"\n',
 				"vite.config.ts":
-					'import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin({ app: "src/app.ts", codegen: { tree: "src/_gen/routes.gen.ts" } })] }\n',
+					'import { backendPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [backendPlugin({ app: "src/app.ts", codegen: { tree: "src/_gen/routes.gen.ts" } })] }\n',
 			})
-			const [plugin] = honeyPlugin({ app: "src/app.ts" })
+			const [plugin] = backendPlugin({ app: "src/app.ts" })
 			const configFile = join(made.dir, "vite.config.ts")
 			plugin.configResolved({ command: "build", configFile, plugins: [{ name: "other" }, plugin], root: made.dir })
 			await plugin.buildStart()
@@ -241,15 +241,15 @@ describe("honeyPlugin() at build start (bit 19 h2), continued (2)", () => {
 		"fails a build start whose child generation fails, naming how it ended",
 		async () => {
 			const made = fresh({ "vite.config.ts": "export default { plugins: [] }\n" })
-			const [plugin] = honeyPlugin({ app: "src/app.ts" })
+			const [plugin] = backendPlugin({ app: "src/app.ts" })
 			plugin.configResolved({ configFile: join(made.dir, "vite.config.ts"), plugins: [plugin], root: made.dir })
-			await expect(plugin.buildStart()).rejects.toThrow("honey generate failed (exit 1)")
+			await expect(plugin.buildStart()).rejects.toThrow("backend generate failed (exit 1)")
 		},
 		SLOW,
 	)
 })
 
-describe("honeyPlugin() on a save in dev (bit 19 h2)", () => {
+describe("backendPlugin() on a save in dev (bit 19 h2)", () => {
 	// v0: 88cc84efdc
 	it(
 		"regenerates on a watched save and lets HMR go on, the route tree joining the update",
@@ -300,7 +300,7 @@ describe("honeyPlugin() on a save in dev (bit 19 h2)", () => {
 	)
 })
 
-describe("honeyPlugin() on a save in dev (bit 19 h2), continued (2)", () => {
+describe("backendPlugin() on a save in dev (bit 19 h2), continued (2)", () => {
 	// v0: 28ce361b76
 	// v0: 82f8d40099
 	// v0: 1257be6d78
@@ -338,7 +338,7 @@ describe("honeyPlugin() on a save in dev (bit 19 h2), continued (2)", () => {
 			})
 			expect([result, String(stderr.mock.calls[0]?.[0])]).toEqual([
 				undefined,
-				`honey: generation failed: Error: Expected a honey app as the app or default export of ${join(made.dir, "src/app.ts")}\n`,
+				`backend: generation failed: Error: Expected a backend app as the app or default export of ${join(made.dir, "src/app.ts")}\n`,
 			])
 			stderr.mockRestore()
 			rmSync(join(made.dir, "src/app.ts"))
@@ -347,7 +347,7 @@ describe("honeyPlugin() on a save in dev (bit 19 h2), continued (2)", () => {
 	)
 })
 
-describe("honeyPlugin() under load (bit 19 h2)", () => {
+describe("backendPlugin() under load (bit 19 h2)", () => {
 	it(
 		"queues one generation behind a running one, every save meanwhile joining it",
 		async () => {
@@ -380,9 +380,9 @@ describe("honeyPlugin() under load (bit 19 h2)", () => {
 			const made = fresh({
 				"src/app.ts": appSource(),
 				"vite.config.ts":
-					'import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default ({ mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: mode === "staging" } })] })\n',
+					'import { backendPlugin } from "@workerstack/backend/plugin"\nexport default ({ mode }) => ({ plugins: [backendPlugin({ app: "src/app.ts", codegen: { manifest: mode === "staging" } })] })\n',
 			})
-			const [plugin] = honeyPlugin({ app: "src/app.ts" })
+			const [plugin] = backendPlugin({ app: "src/app.ts" })
 			plugin.configResolved({
 				command: "serve",
 				configFile: join(made.dir, "vite.config.ts"),
@@ -397,7 +397,7 @@ describe("honeyPlugin() under load (bit 19 h2)", () => {
 	)
 })
 
-describe("honeyPlugin() under load (bit 19 h2), continued (2)", () => {
+describe("backendPlugin() under load (bit 19 h2), continued (2)", () => {
 	it("serves the route tree as TypeScript when Vite or its transform is not there", async () => {
 		const code = "const a: number = 1\n"
 		const missing = await toJavaScript(code, () => Promise.reject(new Error("no vite")))
@@ -409,7 +409,7 @@ describe("honeyPlugin() under load (bit 19 h2), continued (2)", () => {
 	})
 })
 
-describe("honeyPlugin() under load, failing (bit 19 h2)", () => {
+describe("backendPlugin() under load, failing (bit 19 h2)", () => {
 	it(
 		"runs the generation queued behind a failed one, each failure reported",
 		async () => {
@@ -421,7 +421,7 @@ describe("honeyPlugin() under load, failing (bit 19 h2)", () => {
 			await Promise.all([save(1), save(2)])
 			const reports = stderr.mock.calls
 				.map(([chunk]) => String(chunk))
-				.filter((line) => line.startsWith("honey: generation failed"))
+				.filter((line) => line.startsWith("backend: generation failed"))
 			stderr.mockRestore()
 			expect(reports).toHaveLength(2)
 		},
@@ -434,9 +434,9 @@ describe("honeyPlugin() under load, failing (bit 19 h2)", () => {
 			const made = fresh({
 				"src/app.ts": appSource(),
 				"vite.config.ts":
-					'import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default ({ mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: mode === "development" } })] })\n',
+					'import { backendPlugin } from "@workerstack/backend/plugin"\nexport default ({ mode }) => ({ plugins: [backendPlugin({ app: "src/app.ts", codegen: { manifest: mode === "development" } })] })\n',
 			})
-			const [plugin] = honeyPlugin({ app: "src/app.ts" })
+			const [plugin] = backendPlugin({ app: "src/app.ts" })
 			plugin.configResolved({
 				command: "serve",
 				configFile: join(made.dir, "vite.config.ts"),
@@ -450,7 +450,7 @@ describe("honeyPlugin() under load, failing (bit 19 h2)", () => {
 	)
 })
 
-describe("honeyPlugin() and the output check (plan 40)", () => {
+describe("backendPlugin() and the output check (plan 40)", () => {
 	afterEach(() => {
 		vi.unstubAllEnvs()
 	})
@@ -459,7 +459,7 @@ describe("honeyPlugin() and the output check (plan 40)", () => {
 		const build = { command: "build" } as const
 		expect(
 			await Promise.all([
-				withoutOutputCheck("ssr", { resolve: { conditions: ["honey-source", "workerd"] } }, build),
+				withoutOutputCheck("ssr", { resolve: { conditions: ["backend-source", "workerd"] } }, build),
 				withoutOutputCheck("client", {}, build),
 				withoutOutputCheck("ssr", {}, build),
 				withoutOutputCheck("worker", { consumer: "client" }, build),
@@ -475,8 +475,8 @@ describe("honeyPlugin() and the output check (plan 40)", () => {
 	})
 
 	it("drops the check in a production build only: never under serve, a development build, or outputValidation: true", async () => {
-		const [plugin] = honeyPlugin({ app: "src/app.ts" })
-		const [kept] = honeyPlugin({ app: "src/app.ts", outputValidation: true })
+		const [plugin] = backendPlugin({ app: "src/app.ts" })
+		const [kept] = backendPlugin({ app: "src/app.ts", outputValidation: true })
 		const env = { resolve: { conditions: ["workerd"] } }
 		vi.stubEnv("NODE_ENV", "development")
 		const development = await plugin.configEnvironment("ssr", env, { command: "build" })
@@ -490,7 +490,7 @@ describe("honeyPlugin() and the output check (plan 40)", () => {
 	})
 
 	it("refuses a build that dropped the check once Vite resolves it as development (a .env file's NODE_ENV)", async () => {
-		const [plugin] = honeyPlugin({ app: "src/app.ts" })
+		const [plugin] = backendPlugin({ app: "src/app.ts" })
 		vi.stubEnv("NODE_ENV", "production")
 		await plugin.configEnvironment("client", {}, { command: "build" })
 		expect(() => plugin.configResolved({ isProduction: false, root: process.cwd() })).toThrow(

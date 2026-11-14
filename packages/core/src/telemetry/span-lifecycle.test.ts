@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { cors } from "../middleware/cors.ts"
 import { createMiddleware, namedMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { recorder } from "./__fixtures__/recording-tracer.ts"
 import { createLogger } from "./logger.ts"
 import { ws } from "../ws/route.ts"
@@ -29,7 +29,7 @@ describe("the root ends exactly once, on every exit", () => {
 	// v0: 672a1487ea
 	it("handler, 404, 405, 308, preflight, 426, short-circuit, a throw and a bad target", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.telemetry(telemetry)
 			.trailingSlash("strip")
 			.use(
@@ -88,7 +88,7 @@ describe("the root on a miss", () => {
 	// v0: ff844f5914
 	it("a 404 and a 405 are events on the root, the 405 naming what is allowed", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		app.put("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		await app.fetch(get("/b"), {})
@@ -105,7 +105,7 @@ describe("the root beside background work and scoped handles", () => {
 	it("beside ctx.background on waitUntil: the background task reaches waitUntil and the root still ends", async () => {
 		const { spans, telemetry } = recorder()
 		const waitUntil = vi.fn()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/bg").handler((ctx) => {
 			ctx.background(Promise.resolve("done"))
 			return ctx.res.text("ok", "bg")
@@ -117,7 +117,7 @@ describe("the root beside background work and scoped handles", () => {
 	// v0: c62fe89aaa
 	it("a handle from use() keeps the app's telemetry", async () => {
 		const { spans, telemetry } = recorder()
-		const scoped = honey<{}>().telemetry(telemetry).use(named("scoped"))
+		const scoped = httpApp<{}>().telemetry(telemetry).use(named("scoped"))
 		scoped.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		await scoped.fetch(get("/a"), {})
 		expect(spans.map((s) => s.name)).toEqual(["GET /a", "middleware.scoped", "http.handler"])
@@ -145,7 +145,7 @@ function source(chunks: string[]) {
 describe("the root ends with the body, not the headers", () => {
 	it("a streamed body: open while it is read, ended with its size once read to the end", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/s").handler(() => new Response(source(["ab", "cde"]).stream) as never)
 		const res = await app.fetch(get("/s"), {})
 		const atHeaders = spans[0]?.ended
@@ -154,13 +154,13 @@ describe("the root ends with the body, not the headers", () => {
 			atHeaders,
 			spans[0]?.ended,
 			spans[0]?.attributes["http.response.body.size"],
-			spans[0]?.attributes["honey.outcome"],
+			spans[0]?.attributes["backend.outcome"],
 		]).toEqual([0, 1, 5, undefined])
 	})
 
 	it("a cancelled body: the root ends aborted, its status left unset", async () => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/s").handler(() => new Response(source(["ab", "cde"]).stream) as never)
 		const res = await app.fetch(get("/s"), {})
 		const reader = (res.body as ReadableStream<Uint8Array>).getReader()
@@ -168,7 +168,7 @@ describe("the root ends with the body, not the headers", () => {
 		await reader.cancel("client left")
 		expect([
 			spans[0]?.ended,
-			spans[0]?.attributes["honey.outcome"],
+			spans[0]?.attributes["backend.outcome"],
 			spans[0]?.attributes["http.response.body.size"],
 			spans[0]?.status,
 		]).toEqual([1, "aborted", 2, undefined])
@@ -180,7 +180,7 @@ describe("the root ends with the body, not the headers", () => {
 		["a HEAD", "HEAD", (ctx: { res: { text(k: "ok", b: string): Response } }) => ctx.res.text("ok", "abc"), undefined],
 	])("%s ends it at once", async (_name, method, handler, size) => {
 		const { spans, telemetry } = recorder()
-		const app = honey<{}>().telemetry(telemetry)
+		const app = httpApp<{}>().telemetry(telemetry)
 		app.get("/x").handler(handler as never)
 		await app.fetch(get("/x", { method }), {})
 		expect([spans[0]?.ended, spans[0]?.attributes["http.response.body.size"]]).toEqual([1, size])
@@ -191,7 +191,7 @@ describe("the root ends with the body, not the headers", () => {
 		const upgraded = new Response(null)
 		Object.defineProperty(upgraded, "status", { value: 101 })
 		const socket = { close() {}, raw: null, readyState: 1 as const, send() {} }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.telemetry(telemetry)
 			.wsAdapter({ upgrade: () => ({ response: upgraded, socket }) })
 		ws(app, "/live").handler({})
@@ -208,9 +208,9 @@ describe("one body observer for the request log and the root", () => {
 			level: "info",
 			write: (line) => lines.push(JSON.parse(line) as Record<string, unknown>),
 		})
-		const pullsWith = async (configure: (app: ReturnType<typeof honey<{}>>) => void) => {
+		const pullsWith = async (configure: (app: ReturnType<typeof httpApp<{}>>) => void) => {
 			const body = source(["ab", "cde"])
-			const app = honey<{}>().logger(logger)
+			const app = httpApp<{}>().logger(logger)
 			configure(app)
 			app.get("/s").handler(() => new Response(body.stream) as never)
 			const reader = ((await app.fetch(get("/s"), {})).body as ReadableStream<Uint8Array>).getReader()
@@ -236,7 +236,7 @@ describe("the root when routing itself throws", () => {
 	])("%s: the root ends failed and the throw goes on", async (_name, recording) => {
 		const { spans, telemetry } = recorder({ recording })
 		/* a request log with nowhere to write cannot finalize: the first request throws */
-		const app = honey<{}>().telemetry(telemetry).requestLog(true).logger(false)
+		const app = httpApp<{}>().telemetry(telemetry).requestLog(true).logger(false)
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		expect(() => app.fetch(get("/a"), {})).toThrow("requestLog() is on")
 		expect([spans[0]?.ended, spans[0]?.status, spans[0]?.attributes["exception.type"]]).toEqual(

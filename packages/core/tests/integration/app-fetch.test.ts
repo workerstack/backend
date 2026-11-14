@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type App = { fetch(request: Request, env: {}): Response | Promise<Response> }
 
@@ -17,7 +17,7 @@ async function send(app: App, path: string, init?: RequestInit) {
 
 /** An app echoing what it reads: text, bytes, or the stream itself. */
 function echoApp() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.post("/text").handler(async (ctx) => ctx.res.text("ok", await ctx.req.text()))
 	app
 		.post("/stream")
@@ -46,7 +46,7 @@ describe("bodies, both ways", () => {
 
 	// v0: d4d03b69ba
 	it("OPTIONS and DELETE carry a body like POST", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.options("/x").handler(async (ctx) => ctx.res.text("ok", `options:${await ctx.req.text()}`))
 		app.delete("/x").handler(async (ctx) => ctx.res.text("ok", `delete:${await ctx.req.text()}`))
 		const answers = await Promise.all([
@@ -63,7 +63,7 @@ describe("answers: bodies, redirects and cookies", () => {
 	// v0: c1b2030271
 	// v0: a1380035f9
 	it("text, a redirect with cookies, and json with cookies, headers and a custom status", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/text").handler((ctx) => ctx.res.text("ok", "plain"))
 		app.get("/go").handler((ctx) => ctx.res.redirect("found", "/there", { cookies: { s: { value: "1" } } }))
 		app
@@ -87,7 +87,7 @@ describe("answers: bodies, redirects and cookies", () => {
 
 	// v0: a3bd349391
 	it("a trailing-slash redirect is a 308 with a relative Location", async () => {
-		const app = honey<{}>().trailingSlash("strip")
+		const app = httpApp<{}>().trailingSlash("strip")
 		app.get("/users").handler((ctx) => ctx.res.json("ok", { users: [] }))
 		const res = await send(app, "/users/", { redirect: "manual" })
 		expect([res.status, res.headers.get("location")]).toEqual([308, "/users"])
@@ -100,7 +100,7 @@ describe("answers: bodies, redirects and cookies", () => {
 	// v0: 2cf4b77ec2
 	// v0: afdb9eb301
 	it("every cookie is its own Set-Cookie entry; other headers stay single", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/").handler((ctx) =>
 			ctx.res.text("ok", "x", {
 				cookies: { a: { value: "1" }, b: { httpOnly: true, value: "2" } },
@@ -123,7 +123,7 @@ const tag = (name: string) =>
 describe("answers: HEAD and middleware", () => {
 	// v0: b02c133215
 	it("an unknown path is 404; a known path with another method is 405 with Allow", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 		const [missing, wrong] = await Promise.all([send(app, "/nope"), send(app, "/x", { method: "POST" })])
 		expect([missing.status, wrong.status, wrong.headers.get("allow")]).toEqual([404, 405, "GET"])
@@ -131,7 +131,7 @@ describe("answers: HEAD and middleware", () => {
 
 	// v0: adf3f8f66b
 	it("HEAD answers GET's headers and no body", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/").handler((ctx) => ctx.res.json("ok", { a: 1 }))
 		const res = await send(app, "/", { method: "HEAD" })
 		expect([res.status, res.headers.get("content-type")?.includes("application/json"), await res.text()]).toEqual([
@@ -145,7 +145,7 @@ describe("answers: HEAD and middleware", () => {
 	// v0: 4cffdc3207
 	// v0: 6d3883e8c6
 	it("headers middleware adds after next() reach the answer, with a sync handler", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(tag("a"))
 			.use(tag("b"))
@@ -162,7 +162,7 @@ describe("the client that leaves", () => {
 		const reasons: unknown[] = []
 		let arrived!: () => void
 		const started = new Promise<void>((resolve) => (arrived = resolve))
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/").handler(
 			(ctx) =>
 				new Promise((resolve) => {
@@ -187,7 +187,7 @@ const errors = defineErrors({ teapot: "bad_request" })
 
 /** Per-request context from middleware, bodies of several kinds, and typed errors, on one app. */
 function busyApp() {
-	const app = honey<{}>().errorFactory(errors)
+	const app = httpApp<{}>().errorFactory(errors)
 	app
 		.use(createMiddleware((ctx, next) => next({ requestId: ctx.req.headers.get("x-id") })))
 		.post("/echo")
@@ -249,7 +249,7 @@ describe("many requests at once stay apart", () => {
 	// v0: f2aee336b7
 	// v0: 326d31ba20
 	it("handler errors one after another leave the app answering", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app.get("/boom").handler(() => {
 			throw new Error("boom")
 		})
@@ -261,7 +261,7 @@ describe("many requests at once stay apart", () => {
 
 	// v0: 6332b0e78e
 	it("a wrong method under a basePath answers 405 with Allow", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const api = app.basePath("/api/v1")
 		api.get("/users").handler((ctx) => ctx.res.json("ok", { users: [] }))
 		api.post("/users").handler((ctx) => ctx.res.json("created", { id: 1 }))
@@ -274,7 +274,7 @@ describe("many requests at once stay apart", () => {
 function streamingApp() {
 	const release = Promise.withResolvers<void>()
 	const seen = { produced: 0 }
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/large").handler((ctx) =>
 		ctx.res.generate(
 			(function* () {

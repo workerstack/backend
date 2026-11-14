@@ -9,7 +9,7 @@ import { guardNamed } from "../../structure/mutation-harness.ts"
 
 const REPO = resolvePath(import.meta.dirname, "../../../../..")
 
-const mutant = guardNamed(process.env.HONEY_MUTANT)
+const mutant = guardNamed(process.env.BACKEND_MUTANT)
 if (mutant !== undefined) {
 	vi.doMock(resolvePath(REPO, mutant.module), async (importOriginal) => {
 		const original = await importOriginal<Record<string, unknown>>()

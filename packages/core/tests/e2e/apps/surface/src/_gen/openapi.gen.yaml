@@ -1,11 +1,11 @@
 openapi: "3.1.0"
 info:
-  title: Honey Surface
+  title: Backend Surface
   version: "1.0.0"
 paths:
   /in/all/{resourceId}:
     put:
-      x-honey-route: "PUT /in/all/:resourceId"
+      x-backend-route: "PUT /in/all/:resourceId"
       requestBody:
         content:
           application/json:
@@ -46,22 +46,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /in/cookies:
     get:
-      x-honey-route: GET /in/cookies
+      x-backend-route: GET /in/cookies
       parameters:
         - in: cookie
           name: locale
@@ -86,22 +86,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /in/file:
     post:
-      x-honey-route: POST /in/file
+      x-backend-route: POST /in/file
       requestBody:
         content:
           multipart/form-data:
@@ -124,15 +124,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -142,7 +142,7 @@ paths:
       tags:
         - input
       operationId: input.createForm
-      x-honey-route: POST /in/form
+      x-backend-route: POST /in/form
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -162,22 +162,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /in/headers:
     get:
-      x-honey-route: GET /in/headers
+      x-backend-route: GET /in/headers
       parameters:
         - in: header
           name: x-api-key
@@ -202,15 +202,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -220,7 +220,7 @@ paths:
       tags:
         - input
       operationId: input.createJson
-      x-honey-route: POST /in/json
+      x-backend-route: POST /in/json
       requestBody:
         content:
           application/json:
@@ -240,15 +240,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -258,7 +258,7 @@ paths:
       tags:
         - input
       operationId: input.none
-      x-honey-route: GET /in/none
+      x-backend-route: GET /in/none
       responses:
         "200":
           description: ok
@@ -272,22 +272,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /in/params/{orgId}/members/{memberId}:
     get:
-      x-honey-route: "GET /in/params/:orgId/members/:memberId"
+      x-backend-route: "GET /in/params/:orgId/members/:memberId"
       parameters:
         - in: path
           name: orgId
@@ -314,15 +314,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -332,7 +332,7 @@ paths:
       tags:
         - input
       operationId: input.search
-      x-honey-route: GET /in/search
+      x-backend-route: GET /in/search
       parameters:
         - in: query
           name: limit
@@ -362,15 +362,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -380,7 +380,7 @@ paths:
       tags:
         - methods
       operationId: resources.list
-      x-honey-route: GET /methods/resource
+      x-backend-route: GET /methods/resource
       responses:
         "200":
           description: ok
@@ -394,15 +394,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -411,7 +411,7 @@ paths:
       tags:
         - methods
       operationId: resources.create
-      x-honey-route: POST /methods/resource
+      x-backend-route: POST /methods/resource
       requestBody:
         content:
           application/json:
@@ -431,15 +431,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -449,7 +449,7 @@ paths:
       tags:
         - methods
       operationId: resources.update
-      x-honey-route: "PUT /methods/resource/:id"
+      x-backend-route: "PUT /methods/resource/:id"
       requestBody:
         content:
           application/json:
@@ -476,15 +476,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -493,7 +493,7 @@ paths:
       tags:
         - methods
       operationId: resources.patch
-      x-honey-route: "PATCH /methods/resource/:id"
+      x-backend-route: "PATCH /methods/resource/:id"
       requestBody:
         content:
           application/json:
@@ -520,15 +520,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -537,7 +537,7 @@ paths:
       tags:
         - methods
       operationId: resources.delete
-      x-honey-route: "DELETE /methods/resource/:id"
+      x-backend-route: "DELETE /methods/resource/:id"
       parameters:
         - in: path
           name: id
@@ -551,22 +551,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /out/binary:
     get:
-      x-honey-route: GET /out/binary
+      x-backend-route: GET /out/binary
       responses:
         "200":
           description: ok
@@ -580,22 +580,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /out/csv:
     get:
-      x-honey-route: GET /out/csv
+      x-backend-route: GET /out/csv
       responses:
         "200":
           description: ok
@@ -609,22 +609,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /out/html:
     get:
-      x-honey-route: GET /out/html
+      x-backend-route: GET /out/html
       responses:
         "200":
           description: ok
@@ -638,22 +638,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /out/multi-status:
     post:
-      x-honey-route: POST /out/multi-status
+      x-backend-route: POST /out/multi-status
       requestBody:
         content:
           application/json:
@@ -673,21 +673,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
+          x-backend-error: true
         "409":
           description: conflict
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/CreateOutMultiStatuResponse409"
-      x-honey-errors:
+      x-backend-errors:
         conflict:
           status: 409
         unauthorized:
@@ -696,7 +696,7 @@ paths:
           status: 400
   /out/no-content/{id}:
     delete:
-      x-honey-route: "DELETE /out/no-content/:id"
+      x-backend-route: "DELETE /out/no-content/:id"
       parameters:
         - in: path
           name: id
@@ -710,22 +710,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
+          x-backend-error: true
         "404":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeleteOutNoContentResponse404"
           description: not_found
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         not_found:
           status: 404
         unauthorized:
@@ -734,7 +734,7 @@ paths:
           status: 400
   /out/sse:
     get:
-      x-honey-route: GET /out/sse
+      x-backend-route: GET /out/sse
       responses:
         "200":
           description: ok
@@ -748,22 +748,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /out/text:
     get:
-      x-honey-route: GET /out/text
+      x-backend-route: GET /out/text
       responses:
         "200":
           description: ok
@@ -777,22 +777,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /out/xml:
     get:
-      x-honey-route: GET /out/xml
+      x-backend-route: GET /out/xml
       responses:
         "200":
           description: ok
@@ -806,22 +806,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /rs/upload:
     post:
-      x-honey-route: POST /rs/upload
+      x-backend-route: POST /rs/upload
       requestBody:
         content:
           application/json:
@@ -841,22 +841,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /status/accepted:
     post:
-      x-honey-route: POST /status/accepted
+      x-backend-route: POST /status/accepted
       requestBody:
         content:
           application/json:
@@ -876,22 +876,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /status/created:
     post:
-      x-honey-route: POST /status/created
+      x-backend-route: POST /status/created
       requestBody:
         content:
           application/json:
@@ -911,22 +911,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /status/no-content:
     delete:
-      x-honey-route: DELETE /status/no-content
+      x-backend-route: DELETE /status/no-content
       responses:
         "400":
           content:
@@ -934,22 +934,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /status/ok:
     get:
-      x-honey-route: GET /status/ok
+      x-backend-route: GET /status/ok
       responses:
         "200":
           description: ok
@@ -963,22 +963,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
           status: 400
   /stream/filtered:
     get:
-      x-honey-route: GET /stream/filtered
+      x-backend-route: GET /stream/filtered
       parameters:
         - in: query
           name: channel
@@ -1003,15 +1003,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Err400ValidationError"
           description: validation_error
-          x-honey-error: true
+          x-backend-error: true
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Err401Unauthorized"
           description: unauthorized
-          x-honey-error: true
-      x-honey-errors:
+          x-backend-error: true
+      x-backend-errors:
         unauthorized:
           status: 401
         validation_error:
@@ -1022,7 +1022,7 @@ paths:
       tags:
         - websocket
       operationId: ws.chat
-      x-honey-route: "WS /ws/chat/:channelId"
+      x-backend-route: "WS /ws/chat/:channelId"
       parameters:
         - in: path
           name: channelId
@@ -1038,7 +1038,7 @@ paths:
       tags:
         - websocket
       operationId: ws.echo
-      x-honey-route: WS /ws/echo
+      x-backend-route: WS /ws/echo
       responses:
         "101":
           description: WebSocket upgrade
@@ -1048,7 +1048,7 @@ paths:
       tags:
         - websocket
       operationId: ws.reconnect
-      x-honey-route: WS /ws/reconnect
+      x-backend-route: WS /ws/reconnect
       responses:
         "101":
           description: WebSocket upgrade
@@ -1058,7 +1058,7 @@ paths:
       tags:
         - websocket
       operationId: ws.joinRoom
-      x-honey-route: WS /ws/room
+      x-backend-route: WS /ws/room
       parameters:
         - in: query
           name: roomId

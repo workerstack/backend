@@ -5,7 +5,7 @@ import { generateMcpHandler } from "@workerstack/clients"
 import { bodyLimit } from "../input/body-limit.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { generateOpenApi } from "../openapi/generate.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { type McpHandler, mcp } from "./mount.ts"
 
 const KEY = "ApiKey ak_1"
@@ -19,7 +19,7 @@ type Env = { readonly REGION?: string }
 /** A shop: `orders.create` requires `ApiKey ak_1` (401 with its challenge otherwise); each request it saw, recorded. */
 function shop(secured = true) {
 	const seen: { authorization: string | null; region: string | null; trace: string | null; url: string }[] = []
-	const app = honey<Env>()
+	const app = httpApp<Env>()
 	app
 		.post("/v1/orders")
 		.meta({ mcp: true, ...(secured ? { security: [{ apiKey: [] }] } : {}) })
@@ -104,7 +104,7 @@ describe("mcp(app, path, handler) auth (bit 21 e, R4), continued (2)", () => {
 		expect([handler.secured, called.status, called.result?._meta, seen.map((each) => each.region)]).toEqual([
 			false,
 			200,
-			{ "honey/status": 200 },
+			{ "backend/status": 200 },
 			["eu"],
 		])
 	})
@@ -117,7 +117,7 @@ describe("mcp(app, path, handler) auth (bit 21 e, R4), continued (2)", () => {
 		)
 		expect([called.status, called.result?._meta, seen]).toEqual([
 			200,
-			{ "honey/status": 200 },
+			{ "backend/status": 200 },
 			[{ authorization: KEY, region: "eu", trace: null, url: "https://shop.example/v1/orders" }],
 		])
 	})
@@ -275,7 +275,7 @@ describe("@workerstack/backend/mcp (bit 21 e, R8)", () => {
 	it("ships mcp from its own subpath, never the root, so an app serving no MCP bundles none of it", async () => {
 		const root = await import("../index.ts")
 		const { exports } = (await import("../../package.json", { with: { type: "json" } })).default
-		expect([Object.keys(root).filter((name) => /mcp/i.test(name)), exports["./mcp"]["honey-source"]]).toEqual([
+		expect([Object.keys(root).filter((name) => /mcp/i.test(name)), exports["./mcp"]["backend-source"]]).toEqual([
 			[],
 			"./src/mcp/mount.ts",
 		])

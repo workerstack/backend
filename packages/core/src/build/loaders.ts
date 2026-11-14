@@ -1,5 +1,5 @@
 /**
- * The build tooling's loaders: user modules (the Vite config, the app) through jiti on Node, so `honey generate`
+ * The build tooling's loaders: user modules (the Vite config, the app) through jiti on Node, so `backend generate`
  * reads a TypeScript config on plain Node (H70b), and through Bun's own import on Bun; and Effect's JSON Schema converter, when effect is
  * installed, for the documents core generates (core never imports a validator, F2).
  */
@@ -80,9 +80,9 @@ export function findViteConfig(cwd: string): string | undefined {
 export type ViteConfigEnv = { command: "build" | "serve"; mode: string }
 
 /**
- * The config each `honeyPlugin()` in a Vite config file carries, in plugin order: a function-form config is called
+ * The config each `backendPlugin()` in a Vite config file carries, in plugin order: a function-form config is called
  * with `env`, and nested and promised plugin arrays flatten as Vite flattens them. Read off the plugin object (its
- * name `honey`, its `api.honeyConfig`), so it holds across module instances and runtimes.
+ * name `backend`, its `api.backendConfig`), so it holds across module instances and runtimes.
  */
 export async function loadPluginConfigs<T>(configPath: string, load: ModuleLoader, env: ViteConfigEnv): Promise<T[]> {
 	const mod = await load(configPath)
@@ -92,8 +92,8 @@ export async function loadPluginConfigs<T>(configPath: string, load: ModuleLoade
 	}
 	const plugins = await flattened((await config) as { plugins?: unknown } | null | undefined)
 	return plugins.flatMap((plugin) => {
-		const p = plugin as { api?: { honeyConfig?: T }; name?: unknown } | null
-		return p?.name === "honey" && p.api?.honeyConfig !== undefined ? [p.api.honeyConfig] : []
+		const p = plugin as { api?: { backendConfig?: T }; name?: unknown } | null
+		return p?.name === "backend" && p.api?.backendConfig !== undefined ? [p.api.backendConfig] : []
 	})
 }
 

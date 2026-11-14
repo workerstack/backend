@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { requestId } from "../middleware/request-id.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { createLogger } from "../telemetry/logger.ts"
 import { buildCurlLogData, type CurlLogData, curlLogger, type CurlLoggerOptions } from "./curl-logger.ts"
 
@@ -9,7 +9,7 @@ import { buildCurlLogData, type CurlLogData, curlLogger, type CurlLoggerOptions 
 function app(options: CurlLoggerOptions = {}) {
 	const logged: CurlLogData[] = []
 	const lines: Record<string, unknown>[] = []
-	const a = honey<{}>()
+	const a = httpApp<{}>()
 	a.logger(
 		createLogger({
 			format: "json",
@@ -195,7 +195,7 @@ describe("curlLogger(): where the line goes", () => {
 	// v0: 8b70f1e9cf
 	it("a log hook gets the structured record, with the request id", async () => {
 		const logged: CurlLogData[] = []
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 		a.use(requestId({ generate: () => "req-123" }))
 			.use(curlLogger({ log: (data) => logged.push(data) }))
 			.get("/users")
@@ -216,7 +216,7 @@ describe("curlLogger(): where the line goes", () => {
 
 	// v0: 15e08b8108
 	it("by default, the app's logger: one info line, the request's bindings on it", async () => {
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 		const lines: Record<string, unknown>[] = []
 		a.logger(
 			createLogger({
@@ -264,7 +264,7 @@ describe("curlLogger(): never breaks the request", () => {
 	it("a throw below it is the boundary's 500; no rejection floats", async () => {
 		const floating = vi.fn()
 		process.on("unhandledRejection", floating)
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 		a.use(curlLogger({ body: true, log: () => {} }))
 			.use(
 				createMiddleware(() => {

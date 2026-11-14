@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type Fetchable = { fetch: (r: Request, env: never) => Response | Promise<Response> }
 
@@ -23,12 +23,12 @@ describe("the route model under mounts and scopes", () => {
 	// regression: M mergeInto shares nodes
 	// v0: 727a04589c
 	it("M-mergeInto: two parents mounting one sub do not share routes or bypass scoped middleware", async () => {
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.get("/api/users").handler((ctx) => ctx.res.text("ok", "sub"))
-		const p1 = honey<{}>()
+		const p1 = httpApp<{}>()
 		p1.use("/api/admin", deny)
 		p1.route(sub)
-		const p2 = honey<{}>()
+		const p2 = httpApp<{}>()
 		p2.route(sub)
 		p1.get("/api/admin").handler((ctx) => ctx.res.text("ok", "p1"))
 		expect(await send(p1, "/api/admin")).toEqual(denied)
@@ -39,7 +39,7 @@ describe("the route model under mounts and scopes", () => {
 	// regression: M route/basePath normalization vs scopes
 	// v0: d950b79ac5
 	it("M-normalize: non-normalized route and basePath strings are still covered by their scope", async () => {
-		const root = honey<{}>()
+		const root = httpApp<{}>()
 		root.use("/api/admin", deny)
 		root
 			.basePath("/api/")

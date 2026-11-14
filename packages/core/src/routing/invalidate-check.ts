@@ -6,7 +6,7 @@
  * mutation with no `invalidate` produces clients that refresh nothing after the call.
  *
  * It warns and never blocks by default: plenty of mutations correctly invalidate nothing (login,
- * logout, webhook receipt) and plenty of honey users never generate an SDK. A rule that fails the
+ * logout, webhook receipt) and plenty of backend users never generate an SDK. A rule that fails the
  * build teaches people to paste the shortest token that makes it pass. This module only decides;
  * the OpenAPI emitter throws or logs the report.
  */
@@ -19,7 +19,7 @@ export type InvalidateCheckConfig =
 	| {
 			/**
 			 * Operation extension naming the entity an operation touches, e.g. `"x-entity"`. A mutation and
-			 * a read carrying the same value is a sharper signal than path shape. honey does not own the
+			 * a read carrying the same value is a sharper signal than path shape. backend does not own the
 			 * key's name; the app says which one it uses.
 			 */
 			entityKey?: string
@@ -146,7 +146,7 @@ export function missingInvalidateReport(
 		.map((f) => `  ${f.method.padEnd(width)} ${f.path} → ${f.affects.join(", ")}`)
 	const more = findings.length > shown.length ? `\n  … and ${findings.length - shown.length} more` : ""
 	return (
-		`[honey:invalidate] ${findings.length} mutation(s) declare no \`invalidate\`, but the document has ` +
+		`[backend:invalidate] ${findings.length} mutation(s) declare no \`invalidate\`, but the document has ` +
 		"read routes they plausibly affect.\nGenerated SDK clients refresh nothing after these calls.\n" +
 		`${shown.join("\n")}${more}\n` +
 		"Declare the routes each one refreshes, or `invalidate: null` to record that it refreshes nothing."

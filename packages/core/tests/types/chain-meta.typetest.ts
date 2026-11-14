@@ -7,12 +7,12 @@
 import { describe, expectTypeOf, it } from "vitest"
 import type { InferMeta, InferRoutes } from "../../src/routing/app-types.ts"
 import type { ChainSupplied } from "../../src/routing/meta-types.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type AppMeta = { tenant?: "organization" | "project"; worker: "extract" }
 
 describe("a declared meta type, its defaults set by a second call", () => {
-	const app = honey<{}>().metaType<AppMeta>().meta({ worker: "extract" })
+	const app = httpApp<{}>().metaType<AppMeta>().meta({ worker: "extract" })
 
 	it("lets a route omit the keys the chain set", () => {
 		app
@@ -57,7 +57,7 @@ describe("a declared meta type, its defaults set by a second call", () => {
 
 describe("a key no chain value sets", () => {
 	it("stays required on the route when another key was defaulted", () => {
-		const defaulted = honey<{}>().metaType<AppMeta>().meta({ tenant: "project" })
+		const defaulted = httpApp<{}>().metaType<AppMeta>().meta({ tenant: "project" })
 		expectTypeOf<ChainSupplied<InferMeta<typeof defaulted>>>().toExtend<{ worker: "extract" }>()
 		defaulted
 			.get("/tables")
@@ -67,7 +67,7 @@ describe("a key no chain value sets", () => {
 	})
 
 	it("stays required when the handle sets no default at all", () => {
-		const declared = honey<{}>().metaType<AppMeta>()
+		const declared = httpApp<{}>().metaType<AppMeta>()
 		expectTypeOf<ChainSupplied<InferMeta<typeof declared>>>().toExtend<{ worker: "extract" }>()
 		declared
 			.get("/tables")
@@ -81,7 +81,7 @@ describe("metaType<T>() declares, meta(values) sets", () => {
 	type Wide = { tenant?: string; worker?: string }
 
 	it("keeps a value's literal type without `as const`: `internal: true` stays true, so its routes leave the map", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.metaType<Wide>()
 			.meta({ internal: true, worker: "extract" })
 			.get("/hidden")
@@ -90,7 +90,7 @@ describe("metaType<T>() declares, meta(values) sets", () => {
 	})
 
 	it("declares the type alone, the handle otherwise unchanged", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		expectTypeOf<InferMeta<ReturnType<typeof app.metaType<AppMeta>>>>().toEqualTypeOf<AppMeta>()
 		// @ts-expect-error meta() takes values only; the type goes through metaType<T>()
 		app.meta()
@@ -99,7 +99,7 @@ describe("metaType<T>() declares, meta(values) sets", () => {
 
 describe("a meta type inferred from the chain's values", () => {
 	it("lets a route omit them and still refuses an unknown key", () => {
-		const app = honey<{}>().meta({ tenant: "project" as const, worker: "extract" as const })
+		const app = httpApp<{}>().meta({ tenant: "project" as const, worker: "extract" as const })
 		app
 			.get("/a")
 			.meta({ summary: "A" })

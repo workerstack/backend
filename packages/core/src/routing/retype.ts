@@ -2,9 +2,9 @@
  * How a settings call retypes the handle or preset it returns (plan 39 7.1): the same setter on an app and on a preset
  * changes the same type parameter, and keeps every other. Type-only.
  */
-import type { Honey } from "./app.ts"
+import type { HttpApp } from "./app.ts"
 import type { ScopedMwEntry } from "./app-types.ts"
-import type { Preset } from "./preset.ts"
+import type { HttpPreset } from "./preset.ts"
 
 /** What a settings call changes in a handle's or a preset's type: `defaults` joins its default error keys, the rest replace. */
 export type Retype = {
@@ -37,7 +37,7 @@ type Slot<C, K extends keyof Retype, T> = K extends keyof C ? C[K] : T
 
 /** `H`, an app handle or a preset, with the slots `C` names changed and every other type parameter kept. */
 export type Retyped<H, C extends Retype> =
-	H extends Honey<
+	H extends HttpApp<
 		infer TEnv,
 		infer TCtx,
 		infer TRoutes,
@@ -48,7 +48,7 @@ export type Retyped<H, C extends Retype> =
 		infer TTaps extends Record<string, unknown>,
 		infer TScoped extends readonly ScopedMwEntry[]
 	>
-		? Honey<
+		? HttpApp<
 				TEnv,
 				Slot<C, "ctx", TCtx>,
 				TRoutes,
@@ -59,7 +59,7 @@ export type Retyped<H, C extends Retype> =
 				Extract<Slot<C, "taps", TTaps>, Record<string, unknown>>,
 				TScoped
 			>
-		: H extends Preset<
+		: H extends HttpPreset<
 					infer TEnv,
 					infer TCtx,
 					infer TMeta,
@@ -67,7 +67,7 @@ export type Retyped<H, C extends Retype> =
 					infer TDefaults extends string,
 					infer TTaps extends Record<string, unknown>
 			  >
-			? Preset<
+			? HttpPreset<
 					TEnv,
 					Slot<C, "ctx", TCtx>,
 					Slot<C, "meta", TMeta>,

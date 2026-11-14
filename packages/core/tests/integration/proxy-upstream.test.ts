@@ -5,7 +5,7 @@
  */
 import { gzipSync } from "node:zlib"
 import { describe, expect, it } from "vitest"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import { proxy, type ProxyConfig } from "../../src/proxy/proxy.ts"
 
 type Dest = (request: Request, signal: AbortSignal | null | undefined) => Response | Promise<Response>
@@ -22,7 +22,7 @@ async function decodeLikeFetch(response: Response): Promise<Response> {
 
 /** `/up/*` proxied to `dest`, which sees what the proxy forwards as a Request. */
 function proxied(dest: Dest, extra: Partial<ProxyConfig<unknown>> = {}) {
-	const app = honey<{}>().logger(false)
+	const app = httpApp<{}>().logger(false)
 	app.all("/up/*rest").handler(
 		proxy({
 			destination: async (_ctx, url, init) =>

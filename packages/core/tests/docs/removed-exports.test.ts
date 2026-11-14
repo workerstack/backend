@@ -22,23 +22,29 @@ const REPO = resolve(import.meta.dirname, "../../../..")
 const CORE = join(REPO, "packages/core")
 const GUIDE = "docs/migration.md"
 
-type Exports = Record<string, { "honey-source"?: string } | string>
+type Exports = Record<string, { "backend-source"?: string } | string>
 
-/** Each subpath 1.0 exports from source, read through its `honey-source` condition. */
+/** Each subpath 1.0 exports from source, read through its `backend-source` condition. */
 function liveSources(): Record<string, string> {
 	const manifest = JSON.parse(readFileSync(join(CORE, "package.json"), "utf8")) as { exports: Exports }
 	const out: Record<string, string> = {}
 	for (const [subpath, target] of Object.entries(manifest.exports)) {
-		const source = typeof target === "object" ? target["honey-source"] : undefined
+		const source = typeof target === "object" ? target["backend-source"] : undefined
 		if (source !== undefined) out[subpath] = readFileSync(join(CORE, source), "utf8")
 	}
 	return out
 }
 
-const baseline = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v073-exports.json"), "utf8")) as Record<
+const renames = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v073-renames.json"), "utf8")) as Record<
 	string,
-	string[]
+	string
 >
+const renamed = (name: string): string => renames[name] ?? name
+const baseline = Object.fromEntries(
+	Object.entries(
+		JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v073-exports.json"), "utf8")) as Record<string, string[]>,
+	).map(([subpath, names]) => [subpath, names.map(renamed)]),
+)
 const sources = liveSources()
 const live = surfaceOf(sources)
 const snapshot = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/exports.json"), "utf8")) as Record<
@@ -46,7 +52,16 @@ const snapshot = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/exports
 	string[]
 >
 const gone = removed(baseline, live, MOVED_SUBPATHS)
-const guide = readFileSync(join(REPO, GUIDE), "utf8")
+/* the guide is history and keeps 0.7.3's spelling; read it as the renames spell the names today */
+const guide = readFileSync(join(REPO, GUIDE), "utf8").replace(
+	new RegExp(
+		`(?<![\\w$])(?:${Object.keys(renames)
+			.sort((a, b) => b.length - a.length)
+			.join("|")})(?![\\w$])`,
+		"g",
+	),
+	renamed,
+)
 /** whether `text` names the identifier `name`, whole-token (a phrase is looked for as written) */
 const names = (text: string) => (name: string) =>
 	/^[A-Za-z_$][\w$]*$/.test(name) ? new RegExp(`\\b${name.replace(/\$/g, "\\$")}\\b`).test(text) : text.includes(name)
@@ -58,15 +73,15 @@ describe("exportedNames", () => {
 			'export type { LogData, LoggerInstance as Logger } from "./logger.ts"',
 			"export const SILENT = 1",
 			"export function nodeEnv() {}",
-			"export class Honey {}",
+			"export class HttpApp {}",
 			"export type LogLevel = string",
-			"export interface HoneyCodegen {}",
+			"export interface HttpCodegen {}",
 			"const hidden = 2",
 			"export default hidden",
 		].join("\n")
 		expect([...exportedNames(source)].sort()).toEqual([
-			"Honey",
-			"HoneyCodegen",
+			"HttpApp",
+			"HttpCodegen",
 			"LogData",
 			"LogLevel",
 			"Logger",
@@ -80,18 +95,18 @@ describe("exportedNames", () => {
 
 describe("removed", () => {
 	it("separates a subpath that went whole from a name a kept subpath lost", () => {
-		const old = { ".": ["honey", "trustProxy"], "./trust": ["trustProxy"] }
-		const now = { ".": new Set(["honey"]) }
+		const old = { ".": ["backend", "trustProxy"], "./trust": ["trustProxy"] }
+		const now = { ".": new Set(["backend"]) }
 		expect(removed(old, now, new Map())).toEqual({ names: ["trustProxy"], subpaths: ["./trust"] })
 	})
 
 	it("looks a moved subpath's names up at its new subpath, and does not call the move a removal", () => {
-		const old = { ".": ["honey", "trustProxy"], "./cors": ["cors"] }
+		const old = { ".": ["backend", "trustProxy"], "./cors": ["cors"] }
 		const moved = new Map([
 			[".", "./http"],
 			["./cors", "./http/cors"],
 		])
-		const now = { "./http": new Set(["honey"]), "./http/cors": new Set(["cors"]) }
+		const now = { "./http": new Set(["backend"]), "./http/cors": new Set(["cors"]) }
 		expect(removed(old, now, moved)).toEqual({ names: ["trustProxy"], subpaths: [] })
 	})
 

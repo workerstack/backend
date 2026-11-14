@@ -2,16 +2,16 @@
  * Path params through `app.fetch`: what a pattern captures (names, decoding, literals that are not
  * params, wildcards and optional params). Every case asserts the whole answer.
  */ import { describe, expect, it } from "vitest"
-import { type Honey, honey } from "../../src/routing/app.ts"
+import { type HttpApp, httpApp } from "../../src/routing/app.ts"
 import { normalizePattern, parsePattern } from "../../src/routing/pattern.ts"
 import type { HttpMethod } from "../../src/routing/types.ts"
 
-type App = Honey<{}>
+type App = HttpApp<{}>
 type Echo = { method: string; params: Record<string, string>; path: string; pattern: string }
 
 /** An app whose routes answer with the method, params, ctx.path and pattern they saw. */
 function echoApp(routes: ReadonlyArray<readonly [HttpMethod | "ALL", string]>): App {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	for (const [method, pattern] of routes) {
 		app
 			.on([method], pattern)

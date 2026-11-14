@@ -9,10 +9,10 @@ SDK speaks the same protocol.
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { realtime } from "@workerstack/backend/realtime"
 
-const app = honey()
+const app = httpApp()
 
 const prices = realtime(app, "/prices", {
 	namespace: "prices",

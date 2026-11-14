@@ -6,7 +6,7 @@
  * slash, `//` and `\` collapsed, encoded separators refused with a 400 before any handler runs, so
  * neither `base + url` nor `new URL(url, base)` can leave the upstream's origin (SSRF).
  */
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 
 /* bodies up to this size with a declared length are forwarded as bytes; larger or unsized ones stream */
 const MAX_BUFFERED_BODY_BYTES = 1024 * 1024
@@ -75,10 +75,10 @@ export async function within(call: Call, answer: () => Promise<Response> | Respo
 	} catch (error) {
 		/* ours, or the destination's own AbortSignal.timeout() */
 		if (timedOut || (error instanceof DOMException && error.name === "TimeoutError")) {
-			throw new HoneyError({ cause: error, errorKey: "gateway_timeout", status: "gateway_timeout" })
+			throw new HttpError({ cause: error, errorKey: "gateway_timeout", status: "gateway_timeout" })
 		}
 		if (!call.client.aborted && isUpstreamFailure(error)) {
-			throw new HoneyError({ cause: error, errorKey: "bad_gateway", status: "bad_gateway" })
+			throw new HttpError({ cause: error, errorKey: "bad_gateway", status: "bad_gateway" })
 		}
 		throw error
 	} finally {

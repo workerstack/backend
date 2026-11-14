@@ -5,8 +5,8 @@
 import { describe, expect, it, vi } from "vitest"
 import * as vb from "valibot"
 import * as z from "zod"
-import { HoneyRes } from "../response/response.ts"
-import { honey } from "../routing/app.ts"
+import { HttpRes } from "../response/response.ts"
+import { httpApp } from "../routing/app.ts"
 import { createNode, insertRoute } from "../routing/tree.ts"
 import type { StandardSchemaLike } from "./standard-schema.ts"
 import { compileOutput, outputCheck } from "./output-check.ts"
@@ -29,7 +29,7 @@ describe("compileOutput: answers it lets through unread", () => {
 	})
 
 	it("passes a forwarded answer unread, whatever its media type: forwardCheck judges it", () => {
-		const forwarded = new HoneyRes().forward(
+		const forwarded = new HttpRes().forward(
 			new Response("<p>", { headers: { "content-type": "text/html" }, status: 404 }),
 		)
 		expect(compileOutput(failing, null)(forwarded, {})).toBe(forwarded)
@@ -38,7 +38,7 @@ describe("compileOutput: answers it lets through unread", () => {
 	it("checks the declared headers first: an async header check makes the answer a promise", async () => {
 		const later = vi.fn(async () => undefined)
 		const check = compileOutput({ "application/json": { ok: schemaOf() } }, later)
-		const response = new HoneyRes().json("ok", {})
+		const response = new HttpRes().json("ok", {})
 		const answered = check(response, {})
 		expect([answered instanceof Promise, await answered, later.mock.calls]).toEqual([true, response, [[response]]])
 	})
@@ -51,9 +51,9 @@ describe("outputCheck: a route's whole check, its declared headers compiled in",
 			headers: { ok: z.object({ etag: z.string() }) },
 		})
 		const refused = await Promise.resolve()
-			.then(() => check?.(new HoneyRes().json("ok", {}), {}))
+			.then(() => check?.(new HttpRes().json("ok", {}), {}))
 			.catch((error: unknown) => (error as { errorKey: string }).errorKey)
-		const tagged = new HoneyRes().json("ok", {}, { headers: { etag: '"v1"' } as never })
+		const tagged = new HttpRes().json("ok", {}, { headers: { etag: '"v1"' } as never })
 		expect([refused, check?.(tagged, {})]).toEqual(["output_validation_failed", tagged])
 	})
 })
@@ -68,7 +68,7 @@ const projection = (ctx: { input: { search: { select?: string | undefined } } })
 		: { at: "items", select: { relations: {}, scalars: ctx.input.search.select.split(",") } }
 const cutRow = { items: [{ id: "a" }], next: null }
 const ok = [200, JSON.stringify(cutRow)]
-const appOf = () => honey<{}>().logger(false)
+const appOf = () => httpApp<{}>().logger(false)
 
 /** A route at `path` answering `body` under `schema`, projected by `?select`. */
 function listing(
@@ -135,7 +135,7 @@ describe("a route's projection, across validators", () => {
 })
 
 describe("a route's projection, across the ways an answer is served", () => {
-	it("holds behind a declared header check, and for a body honey did not build", async () => {
+	it("holds behind a declared header check, and for a body backend did not build", async () => {
 		const app = appOf()
 		app
 			.get("/h")
@@ -148,7 +148,7 @@ describe("a route's projection, across the ways an answer is served", () => {
 			.output({ ok: page }, { projection })
 			.handler(
 				(ctx) =>
-					(ctx.res as unknown as HoneyRes).raw(
+					(ctx.res as unknown as HttpRes).raw(
 						new Response(JSON.stringify(cutRow), { headers: { "content-type": "application/json" } }),
 					) as never,
 			)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { createLogger } from "../telemetry/logger.ts"
 import { type InboundTrust, requestId, type RequestIdOptions } from "./request-id.ts"
 
@@ -7,7 +7,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** GET /t behind requestId(options), answering with the id the handler saw. */
 function app(options?: RequestIdOptions) {
-	const a = honey<{}>()
+	const a = httpApp<{}>()
 	a.use(requestId(options))
 		.get("/t")
 		.handler((ctx) => ctx.res.json("ok", { seen: ctx.requestId }))
@@ -89,7 +89,7 @@ describe("requestId(): trustInbound reuses a valid inbound id (b1)", () => {
 describe("requestId(): everywhere the request goes", () => {
 	it("echoed on an error answer, and bound into ctx.log and the request log", async () => {
 		const lines: Record<string, unknown>[] = []
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 			.logger(
 				createLogger({
 					format: "json",

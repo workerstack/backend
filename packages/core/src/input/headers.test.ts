@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import type { HoneyError } from "../errors/error.ts"
+import type { HttpError } from "../errors/error.ts"
 import { headersInput } from "./headers.ts"
 
 /** ctx.headers for `init`: lowercased names, Fetch-joined values. */
 const headersOf = (init: HeadersInit) => Object.fromEntries(new Headers(init))
 
 /** The error `run` throws. */
-function thrown(run: () => unknown): HoneyError {
+function thrown(run: () => unknown): HttpError {
 	try {
 		run()
 	} catch (error) {
-		return error as HoneyError
+		return error as HttpError
 	}
 	throw new Error("did not throw")
 }

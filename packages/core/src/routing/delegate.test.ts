@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { proxy } from "../proxy/proxy.ts"
 import type { StandardSchemaLike } from "../validation/standard-schema.ts"
-import { honey } from "./app.ts"
+import { httpApp } from "./app.ts"
 import { createNode, insertRoute, insertWsRoute, type RouteEntry, type RouteTree } from "./tree.ts"
 
 function treeOf(routes: readonly (readonly [string, string, RouteEntry?])[]): RouteTree {
@@ -21,7 +21,7 @@ async function call(app: Fetcher, path: string, init?: RequestInit): Promise<[nu
 
 /** A gateway serving `tree` through a catch-all that answers with what it was delegated. */
 function gateway(tree: RouteTree) {
-	const app = honey<{}>().routeTree(tree)
+	const app = httpApp<{}>().routeTree(tree)
 	app.all("/*").handler((c) => c.res.json("ok", { meta: c.meta, params: c.params, pattern: c.routePattern }))
 	return app
 }
@@ -49,7 +49,7 @@ describe("delegation: a leaf nothing serves goes to the app's catch-all", () => 
 
 	// v0: a8e03f60b0
 	it("a proxy({ destination }) catch-all reads the leaf's meta at runtime", async () => {
-		const app = honey<{}>().routeTree(TREE())
+		const app = httpApp<{}>().routeTree(TREE())
 		app.all("*").handler(proxy({ destination: (c) => new Response(String(c.meta.auth)) }))
 		expect(await call(app, "/orgs")).toEqual([200, "required"])
 	})
@@ -59,7 +59,7 @@ describe("delegation: a leaf nothing serves goes to the app's catch-all", () => 
 	// v0: ddc57889a9
 	// v0: f499098c4e
 	it("lets a local route win, answers 404 off the tree for GET and HEAD, and 405 for a method the leaf lacks", async () => {
-		const app = honey<{}>().routeTree(TREE())
+		const app = httpApp<{}>().routeTree(TREE())
 		app.get("/orgs").handler((c) => c.res.text("ok", "local"))
 		app.all("*").handler((c) => c.res.text("ok", "catch-all"))
 		expect([
@@ -68,7 +68,7 @@ describe("delegation: a leaf nothing serves goes to the app's catch-all", () => 
 			(await call(app, "/unknown"))[0],
 			(await call(app, "/unknown", { method: "HEAD" }))[0],
 			(await call(app, "/orgs", { method: "DELETE" }))[0],
-			(await call(honey<{}>().routeTree(TREE()), "/unknown"))[0],
+			(await call(httpApp<{}>().routeTree(TREE()), "/unknown"))[0],
 		]).toEqual([[200, "local"], [200, "catch-all"], 404, 404, 405, 404])
 	})
 })
@@ -86,7 +86,7 @@ describe("delegation: middleware, scopes, taps and the catch-all itself", () => 
 			["GET", "/admin/users", { mt: { audit: "admin" } }],
 			["GET", "/public", { mt: { audit: "public" } }],
 		])
-		const app = honey<{}>().routeTree(tree)
+		const app = httpApp<{}>().routeTree(tree)
 		app.tap("audit", (_ctx, value) => void seen.push(value))
 		app.use("/admin", deny)
 		app
@@ -101,7 +101,7 @@ describe("delegation: middleware, scopes, taps and the catch-all itself", () => 
 	// v0: 3b4eaa9ff1
 	// v0: 2424b76a7f
 	it("finds the catch-all by registration, not by a literal /*, and calls a catch-all with nothing to delegate stale", async () => {
-		const live = honey<{}>().metaType<{ worker?: string }>()
+		const live = httpApp<{}>().metaType<{ worker?: string }>()
 		live
 			.get("/svc/x")
 			.meta({ worker: "svc" })
@@ -112,14 +112,14 @@ describe("delegation: middleware, scopes, taps and the catch-all itself", () => 
 			...rest,
 			routes: Object.fromEntries(Object.entries(routes).map(([id, { h: _h, ...data }]) => [id, data])),
 		}
-		const gw = honey<{}>().routeTree(generated)
+		const gw = httpApp<{}>().routeTree(generated)
 		gw.get("/:slug").handler((c) => c.res.text("ok", `slug ${c.params.slug}`))
 		gw.all("/*").handler((c) => c.res.json("ok", c.meta))
 		expect([await call(gw, "/about"), await call(gw, "/svc/x")]).toEqual([
 			[200, "slug about"],
 			[200, '{"worker":"svc"}'],
 		])
-		const stale = honey<{}>().routeTree(treeOf([["GET", "/a"]]))
+		const stale = httpApp<{}>().routeTree(treeOf([["GET", "/a"]]))
 		stale.get("/a").handler((c) => c.res.text("ok", "a"))
 		stale.all("/*").handler((c) => c.res.text("ok", "spa"))
 		expect(() => stale.fetch(new Request("http://x/a"), {})).toThrow(
@@ -140,7 +140,7 @@ function proxied() {
 		["POST", "/items/:id/restore", { iv: { params: { id: PASS } } }],
 		["GET", "/items"],
 	])
-	const app = honey<{}>().routeTree(tree)
+	const app = httpApp<{}>().routeTree(tree)
 	const waiting = createMiddleware<{ req: Request }>(async (ctx, next) =>
 		ctx.req.headers.get("x-wait") === "1" ? new Response("waited") : next(),
 	)
@@ -185,7 +185,7 @@ describe("delegation: a leaf's declared body media type is checked before anythi
 
 	// v0: dc076737af
 	it("leaves a registered route's own input step to refuse the media type", async () => {
-		const app = honey<{}>().routeTree(treeOf([["POST", "/items"]]))
+		const app = httpApp<{}>().routeTree(treeOf([["POST", "/items"]]))
 		app
 			.post("/items")
 			.input({ json: PASS })
@@ -218,16 +218,16 @@ describe("delegation: types", () => {
 	// v0: b55bcc034b
 	// v0: 8909d51c36
 	it("types the catch-all's ctx.meta from the app's meta, proxy destination included", () => {
-		const app = honey<{}>().metaType<AppMeta>().routeTree(TREE())
+		const app = httpApp<{}>().metaType<AppMeta>().routeTree(TREE())
 		app.all("*").handler((c) => {
 			expectTypeOf(c.meta.worker).toEqualTypeOf<string>()
 			return c.res.text("ok", c.meta.auth)
 		})
-		honey<{}>()
+		httpApp<{}>()
 			.metaType<AppMeta>()
 			.all("*")
 			.handler(proxy({ destination: (c) => new Response(c.meta.worker) }))
-		honey<{}>()
+		httpApp<{}>()
 			.metaType<{ auth: string }>()
 			.get("/t")
 			.meta({ auth: "jwt" })

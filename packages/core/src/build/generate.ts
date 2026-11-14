@@ -1,8 +1,8 @@
 /**
  * One generation (bit 19 h2): the app's artifacts made inside its module graph (artifacts.ts, loaded through the
  * loader that imports the app, from the app's own @workerstack/backend) and each written only when it changed, through
- * honey-clients's write.ts (Q1).
- * honey-clients is an optional peer, imported on demand (Q2), so a missing one is a named error only when a
+ * clients' write.ts (Q1).
+ * clients is an optional peer, imported on demand (Q2), so a missing one is a named error only when a
  * generation runs. The OpenAPI sources module (plan 39 7.5) reads the config alone, so it is written first, before
  * the app that may import it loads.
  */
@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import type * as Artifacts from "./artifacts.ts"
 import { ARTIFACTS, type Clients, type Report } from "./artifacts.ts"
-import { OPENAPI_SOURCES, type ResolvedHoneyConfig } from "./config.ts"
+import { OPENAPI_SOURCES, type ResolvedBackendConfig } from "./config.ts"
 import { createModuleLoader, type ModuleLoader } from "./loaders.ts"
 import { openApiSourcesOf } from "./openapi-sources.ts"
 
@@ -19,13 +19,13 @@ export type { Report } from "./artifacts.ts"
 const CLIENTS = "@workerstack/clients"
 const CORE = "@workerstack/backend"
 
-/** honey-clients, or a named error when it is not installed. */
+/** clients, or a named error when it is not installed. */
 export async function loadClients(load = () => import("@workerstack/clients")): Promise<Clients> {
 	try {
 		return await load()
 	} catch (error) {
 		if ((error as { code?: string }).code !== "ERR_MODULE_NOT_FOUND" || !String(error).includes(CLIENTS)) throw error
-		throw new Error(`honey: generating the app's artifacts needs ${CLIENTS}: add it to your devDependencies`, {
+		throw new Error(`backend: generating the app's artifacts needs ${CLIENTS}: add it to your devDependencies`, {
 			cause: error,
 		})
 	}
@@ -69,14 +69,14 @@ export async function inAppGraph(
 
 /** Every artifact `config` asks for, written under `root`; the files it rewrote. */
 export async function generateAndWrite(
-	config: ResolvedHoneyConfig,
+	config: ResolvedBackendConfig,
 	root: string,
 	options: { load?: ModuleLoader; report?: Report } = {},
 ): Promise<string[]> {
 	const { manifest, mcp, openApi, tree, types } = config.codegen
 	if (tree === false && manifest === false && openApi.length === 0 && types === false && mcp === false) return []
 	const codegen = await loadClients()
-	const report = options.report ?? ((message) => void process.stderr.write(`honey: ${message}\n`))
+	const report = options.report ?? ((message) => void process.stderr.write(`backend: ${message}\n`))
 	const run = { codegen, report, root }
 	const written: string[] = []
 	/* the sources module reads the config alone: written before the app loads, since the app may import it */

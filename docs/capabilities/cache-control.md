@@ -8,11 +8,11 @@ Pair it with `etag()` from `@workerstack/backend/http/etag` for revalidation wit
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { cacheControl } from "@workerstack/backend/http/cache-control"
 import { etag } from "@workerstack/backend/http/etag"
 
-const app = honey()
+const app = httpApp()
 	.use(etag())
 	.use(cacheControl({ public: true, maxAge: 60, staleWhileRevalidate: 300 }))
 

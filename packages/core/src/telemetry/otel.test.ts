@@ -14,7 +14,7 @@ import {
 } from "@opentelemetry/sdk-trace-base"
 import { afterEach, describe, expect, it } from "vitest"
 import { createMiddleware, namedMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { otelAdapter } from "./otel.ts"
 
 /** A context manager over a plain stack: enough for the synchronous `with` the adapter's run() makes. */
@@ -76,7 +76,7 @@ describe("otelAdapter: the tree a request exports", () => {
 	// v0: 2bf0a86e51
 	it("a SERVER root named by its route, middleware and handler INTERNAL spans under it, one trace", async () => {
 		const exporter = exporting()
-		const app = honey<{}>().telemetry(otelAdapter(api))
+		const app = httpApp<{}>().telemetry(otelAdapter(api))
 		app
 			.use(
 				namedMiddleware(
@@ -103,7 +103,7 @@ describe("otelAdapter: the tree a request exports", () => {
 			1,
 			2,
 			{
-				"honey.route_id": "GET /users/:id",
+				"backend.route_id": "GET /users/:id",
 				"http.request.method": "GET",
 				"http.response.body.size": 1,
 				"http.response.status_code": 200,
@@ -116,7 +116,7 @@ describe("otelAdapter: the tree a request exports", () => {
 
 	it("the handler's span is active inside it: the app's own spans nest under it", async () => {
 		const exporter = exporting()
-		const app = honey<{}>().telemetry(otelAdapter(api))
+		const app = httpApp<{}>().telemetry(otelAdapter(api))
 		app.get("/q").handler((ctx) => {
 			api.trace.getTracer("app").startSpan("db.query").end()
 			return ctx.res.text("ok", "q")
@@ -133,7 +133,7 @@ describe("otelAdapter: the tree a request exports", () => {
 describe("otelAdapter: errors, sampling and taps", () => {
 	it("an error: the root ERROR on the 5xx, http.error under the handler, no exception event or message", async () => {
 		const exporter = exporting()
-		const app = honey<{}>().telemetry(otelAdapter(api)).logger(false)
+		const app = httpApp<{}>().telemetry(otelAdapter(api)).logger(false)
 		app.get("/boom").handler(() => {
 			throw new RangeError("user said 42")
 		})
@@ -147,8 +147,8 @@ describe("otelAdapter: errors, sampling and taps", () => {
 				api.SpanStatusCode.ERROR,
 				{
 					"exception.type": "RangeError",
-					"honey.digest": expect.stringMatching(/^[0-9a-f]{16}$/),
-					"honey.error_key": "internal_server_error",
+					"backend.digest": expect.stringMatching(/^[0-9a-f]{16}$/),
+					"backend.error_key": "internal_server_error",
 					"http.response.status_code": 500,
 				},
 			],
@@ -158,7 +158,7 @@ describe("otelAdapter: errors, sampling and taps", () => {
 
 	it("a sampler that drops the trace: nothing exported, the answer unchanged", async () => {
 		const exporter = exporting(new AlwaysOffSampler())
-		const app = honey<{}>().telemetry(otelAdapter(api))
+		const app = httpApp<{}>().telemetry(otelAdapter(api))
 		app
 			.use(
 				namedMiddleware(
@@ -176,7 +176,7 @@ describe("otelAdapter: errors, sampling and taps", () => {
 	it("taps fire beside the spans, and get none of their own", async () => {
 		const exporter = exporting()
 		const received: unknown[] = []
-		const app = honey<{}>().telemetry(otelAdapter(api))
+		const app = httpApp<{}>().telemetry(otelAdapter(api))
 		app.tap("audit", (_ctx, payload) => void received.push(payload))
 		app.get("/t").handler((ctx) => {
 			ctx.tap("audit", { action: "read" })
@@ -200,7 +200,7 @@ describe("otelAdapter: the inbound trace", () => {
 
 	it("trusted: the root continues it, as a remote parent with its tracestate", async () => {
 		const exporter = exporting()
-		const app = honey<{}>().telemetry(otelAdapter(api, { trustInbound: true }))
+		const app = httpApp<{}>().telemetry(otelAdapter(api, { trustInbound: true }))
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		await (await app.fetch(get("/a", { headers }), {})).text()
 		const root = rootSpan(exporter.getFinishedSpans())
@@ -217,7 +217,7 @@ describe("otelAdapter: the inbound trace", () => {
 
 	it("untrusted (the default): a new trace, linked to the inbound one", async () => {
 		const exporter = exporting()
-		const app = honey<{}>().telemetry(otelAdapter(api))
+		const app = httpApp<{}>().telemetry(otelAdapter(api))
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		await (await app.fetch(get("/a", { headers }), {})).text()
 		const root = rootSpan(exporter.getFinishedSpans())
@@ -247,7 +247,7 @@ describe("otelAdapter: the value", () => {
 
 	it("its tracestate edits like W3C says: a set key moves to the front, at most 32 members", async () => {
 		const exporter = exporting()
-		const app = honey<{}>().telemetry(otelAdapter(api, { trustInbound: true }))
+		const app = httpApp<{}>().telemetry(otelAdapter(api, { trustInbound: true }))
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		const members = Array.from({ length: 32 }, (_, i) => `k${i}=v${i}`).join(",")
 		const traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"

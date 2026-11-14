@@ -3,6 +3,239 @@
 backend began as `@lovrozagar/honey`. This page maps every name and import path that changed since, newest first.
 Each table also drives the rename codemod, so a project can apply it in one run (see [Upgrade](#upgrade)).
 
+## 1.0.0-rc.26: names
+
+backend dropped its honey name. The HTTP app is `httpApp()` and its type `HttpApp`, the rest of the HTTP surface takes `Http`, a name that covers the whole package takes `Backend`, and a name that lives in one subpath loses the brand and keeps that subpath's word. The bin is `backend`. Longest rows come first, so a name is read in its own row before the bare word is: `honey` and `Honey` alone map to `backend` and `Backend`, except in the app factory forms under Exports. The wire names, the `backend-source` condition and the generated SDK names change together with `@workerstack/clients` 1.0.0-rc.27, so upgrade both at once and regenerate.
+
+### Exports
+
+| Before                     | After                   |
+| -------------------------- | ----------------------- |
+| `HoneyOpenApiOutputConfig` | `OpenApiOutputConfig`   |
+| `HoneyVitePluginConfig`    | `BackendPluginConfig`   |
+| `HoneyMcpOutputConfig`     | `McpOutputConfig`       |
+| `HoneySdkPortsConfig`      | `BackendSdkPortsConfig` |
+| `ResolvedHoneyConfig`      | `ResolvedBackendConfig` |
+| `getLastHoneyConfig`       | `getLastBackendConfig`  |
+| `HoneyCodegenConfig`       | `BackendCodegenConfig`  |
+| `resolveHoneyConfig`       | `resolveBackendConfig`  |
+| `HoneyErrorOptions`        | `HttpErrorOptions`      |
+| `HoneyBuildConfig`         | `BuildConfig`           |
+| `HoneyBuildPlugin`         | `BuildPlugin`           |
+| `HoneyGoCliConfig`         | `BackendGoCliConfig`    |
+| `instanceof Honey`         | `instanceof HttpApp`    |
+| `HoneyOutHeaders`          | `HttpOutHeaders`        |
+| `HoneyVitePlugin`          | `BackendPlugin`         |
+| `AnyHoneyHandle`           | `AnyHttpApp`            |
+| `HoneyMetaSpec`            | `HttpMetaSpec`          |
+| `isHoneyPlugin`            | `isBackendPlugin`       |
+| `asHoneyError`             | `asHttpError`           |
+| `HoneyCodegen`             | `HttpCodegen`           |
+| `HoneyContext`             | `HttpContext`           |
+| `honeyVersion`             | `backendVersion`        |
+| `typeof honey`             | `typeof httpApp`        |
+| `class Honey`              | `class HttpApp`         |
+| `honeyConfig`              | `backendConfig`         |
+| `honeyPlugin`              | `backendPlugin`         |
+| `HoneyStream`              | `HttpStream`            |
+| `honeyError`               | `httpError`             |
+| `HoneyError`               | `HttpError`             |
+| `honeyFetch`               | `httpAppFetch`          |
+| `HoneyGraph`               | `HttpGraph`             |
+| `HoneyArgs`                | `HttpArgs`              |
+| `HoneyCall`                | `HttpCall`              |
+| `honeyFree`                | `backendFree`           |
+| `HoneyMeta`                | `HttpMeta`              |
+| `HoneySafe`                | `HttpSafe`              |
+| `HoneySide`                | `BackendSide`           |
+| `new Honey`                | `new HttpApp`           |
+| `honey as`                 | `httpApp as`            |
+| `honey_ns`                 | `backend_ns`            |
+| `honeyCtx`                 | `httpCtx`               |
+| `HoneyCtx`                 | `HttpCtx`               |
+| `honeyDir`                 | `backendDir`            |
+| `HoneyRes`                 | `HttpRes`               |
+| `honey }`                  | `httpApp }`             |
+| `Honey }`                  | `HttpApp }`             |
+| `honeyV1`                  | `httpAppV1`             |
+| `honey,`                   | `httpApp,`              |
+| `Honey,`                   | `HttpApp,`              |
+| `honey(`                   | `httpApp(`              |
+| `honey<`                   | `httpApp<`              |
+| `Honey<`                   | `HttpApp<`              |
+
+### Removed with `@workerstack/backend/node`
+
+These names went with the Node serve entry; nothing replaces them, because apps now run on Cloudflare Workers only:
+
+| Removed             | Use instead                |
+| ------------------- | -------------------------- |
+| `HoneyServer`       | nothing; deploy to Workers |
+| `HoneyServeOptions` | nothing; deploy to Workers |
+| `startHoneyServer`  | nothing; deploy to Workers |
+
+### CLI and bins
+
+| Before                       | After                                                 |
+| ---------------------------- | ----------------------------------------------------- |
+| `npx honey-clients generate` | `npx --package @workerstack/clients clients generate` |
+| `packages/core/bin/honey.js` | `packages/core/bin/backend.js`                        |
+| `honey-clients's`            | `clients'`                                            |
+| `npx honey init`             | `npx --package @workerstack/backend backend init`     |
+| `honey-clients`              | `clients`                                             |
+| `bin/honey.js`               | `bin/backend.js`                                      |
+| `honey.js`                   | `backend.js`                                          |
+
+### Environment
+
+| Before                     | After                        |
+| -------------------------- | ---------------------------- |
+| `HONEY_REQUIRE_FORMATTERS` | `BACKEND_REQUIRE_FORMATTERS` |
+| `HONEY_REQUIRE_TOOLCHAINS` | `BACKEND_REQUIRE_TOOLCHAINS` |
+| `HONEY_CODEGEN_TEST_MARK`  | `BACKEND_CODEGEN_TEST_MARK`  |
+| `HONEY_SUITE_RUN_ERRORS`   | `BACKEND_SUITE_RUN_ERRORS`   |
+| `HONEY_CF_CONCURRENCY`     | `BACKEND_CF_CONCURRENCY`     |
+| `HONEY_NO_BUN_HANDOFF`     | `BACKEND_NO_BUN_HANDOFF`     |
+| `HONEY_REQUIRE_PYTHON`     | `BACKEND_REQUIRE_PYTHON`     |
+| `HONEY_STACK_HOOK_LOG`     | `BACKEND_STACK_HOOK_LOG`     |
+| `HONEY_BUILD_RUNTIME`      | `BACKEND_BUILD_RUNTIME`      |
+| `HONEY_BUILD_TARGET`       | `BACKEND_BUILD_TARGET`       |
+| `HONEY_REQUIRE_RUST`       | `BACKEND_REQUIRE_RUST`       |
+| `HONEY_VITE_COMMAND`       | `BACKEND_VITE_COMMAND`       |
+| `HONEY_BUN_HANDOFF`        | `BACKEND_BUN_HANDOFF`        |
+| `HONEY_CF_LIVE_URL`        | `BACKEND_CF_LIVE_URL`        |
+| `HONEY_WATCH_CHILD`        | `BACKEND_WATCH_CHILD`        |
+| `HONEY_CF_TIMEOUT`         | `BACKEND_CF_TIMEOUT`         |
+| `HONEY_E2E_RECORD`         | `BACKEND_E2E_RECORD`         |
+| `HONEY_PINNED_BUN`         | `BACKEND_PINNED_BUN`         |
+| `HONEY_REQUIRE_GO`         | `BACKEND_REQUIRE_GO`         |
+| `HONEY_BUILD_APP`          | `BACKEND_BUILD_APP`          |
+| `HONEY_E2E_REUSE`          | `BACKEND_E2E_REUSE`          |
+| `HONEY_FUZZ_RUNS`          | `BACKEND_FUZZ_RUNS`          |
+| `HONEY_FUZZ_SEED`          | `BACKEND_FUZZ_SEED`          |
+| `HONEY_VITE_MODE`          | `BACKEND_VITE_MODE`          |
+| `HONEY_CF_STORM`           | `BACKEND_CF_STORM`           |
+| `HONEY_REQUIRE_`           | `BACKEND_REQUIRE_`           |
+| `HONEY_E2E_APP`            | `BACKEND_E2E_APP`            |
+| `HONEY_E2E_ENV`            | `BACKEND_E2E_ENV`            |
+| `IMPORTS_HONEY`            | `IMPORTS_BACKEND`            |
+| `HONEY_BUNDLE`             | `BACKEND_BUNDLE`             |
+| `HONEY_CF_PRE`             | `BACKEND_CF_PRE`             |
+| `HONEY_CF_URL`             | `BACKEND_CF_URL`             |
+| `HONEY_HEADER`             | `BACKEND_HEADER`             |
+| `HONEY_MUTANT`             | `BACKEND_MUTANT`             |
+| `HONEY_CF_WS`              | `BACKEND_CF_WS`              |
+| `HONEY_*`                  | `BACKEND_*`                  |
+
+### Wire names and span attributes
+
+| Before                     | After                        |
+| -------------------------- | ---------------------------- |
+| `x-honey-mutability-probe` | `x-backend-mutability-probe` |
+| `honey.request_id`         | `backend.request_id`         |
+| `x-honey-wildcard`         | `x-backend-wildcard`         |
+| `honey.error_key`          | `backend.error_key`          |
+| `x-honey-version`          | `x-backend-version`          |
+| `x-honey-webhook`          | `x-backend-webhook`          |
+| `honey.route_id`           | `backend.route_id`           |
+| `x-honey-errors`           | `x-backend-errors`           |
+| `honey.outcome`            | `backend.outcome`            |
+| `x-honey-debug`            | `x-backend-debug`            |
+| `x-honey-error`            | `x-backend-error`            |
+| `x-honey-route`            | `x-backend-route`            |
+| `X-HONEY-TRACE`            | `X-BACKEND-TRACE`            |
+| `honey.digest`             | `backend.digest`             |
+| `Honey-Mode`               | `Backend-Mode`               |
+| `x-honey-`                 | `x-backend-`                 |
+
+### Build names
+
+| Before                  | After                     |
+| ----------------------- | ------------------------- |
+| `honey-no-output-check` | `backend-no-output-check` |
+| `honey-build-entry`     | `backend-build-entry`     |
+| `honey-source`          | `backend-source`          |
+| `honey-tmp`             | `backend-tmp`             |
+
+### Private workspace and proof Worker names
+
+| Before              | After                 |
+| ------------------- | --------------------- |
+| `honey-e2e-kitchen` | `backend-e2e-kitchen` |
+| `honey-cf-e2e-mcp`  | `backend-cf-e2e-mcp`  |
+| `honey-monorepo`    | `backend-monorepo`    |
+| `honey-cf-e2e`      | `backend-cf-e2e`      |
+| `honey-e2e-$`       | `backend-e2e-$`       |
+| `honey-e2e`         | `backend-e2e`         |
+| `@honey/*`          | `@backend/*`          |
+
+### Fixture and test names
+
+| Before                               | After                                  |
+| ------------------------------------ | -------------------------------------- |
+| `the-build-plugin-and-the-honey-cli` | `the-build-plugin-and-the-backend-cli` |
+| `honey: no crypto.randomUUID`        | `httpsdk: no crypto.randomUUID`        |
+| `honey-build-object-fixture`         | `backend-build-object-fixture`         |
+| `honey-build-values-fixture`         | `backend-build-values-fixture`         |
+| `honey-build-queue-fixture`          | `backend-build-queue-fixture`          |
+| `honey-build-cron-fixture`           | `backend-build-cron-fixture`           |
+| `Code generated by honey`            | `Code generated by clients`            |
+| `honey-strict-consumer-`             | `backend-strict-consumer-`             |
+| `Symbol("honey.config")`             | `Symbol("http.config")`                |
+| `Honey route patterns`               | `HttpApp route patterns`               |
+| `honey-release-check-`               | `backend-release-check-`               |
+| `no-such-module-honey`               | `no-such-module-backend`               |
+| `honey-build-fixture`                | `backend-build-fixture`                |
+| `honey-release-wait-`                | `backend-release-wait-`                |
+| `honey-worker-entry-`                | `backend-worker-entry-`                |
+| `honey-build-values`                 | `backend-build-values`                 |
+| `honey-conformance`                  | `backend-conformance`                  |
+| `honey-mcp-clients`                  | `backend-mcp-clients`                  |
+| `honey-no-codegen-`                  | `backend-no-codegen-`                  |
+| `honey.refreshAuth`                  | `http.refreshAuth`                     |
+| `honey-changelog-`                   | `backend-changelog-`                   |
+| `honey-namespaced`                   | `backend-namespaced`                   |
+| `honey-suite-run-`                   | `backend-suite-run-`                   |
+| `honey-cookie-v2`                    | `backend-cookie-v2`                    |
+| `honey-consumer`                     | `backend-consumer`                     |
+| `honey-surface-`                     | `backend-surface-`                     |
+| `honey-plugin-`                      | `backend-plugin-`                      |
+| `honey-static-`                      | `backend-static-`                      |
+| `honey-client`                       | `backend-client`                       |
+| `bin-honey-$`                        | `bin-backend-$`                        |
+| `honey-bare-`                        | `backend-bare-`                        |
+| `honey-built`                        | `backend-built`                        |
+| `honey-check`                        | `backend-check`                        |
+| `honey-init-`                        | `backend-init-`                        |
+| `honey-lint-`                        | `backend-lint-`                        |
+| `honey-named`                        | `backend-named`                        |
+| `honey-oauth`                        | `backend-oauth`                        |
+| `honey-side-`                        | `backend-side-`                        |
+| `honey-bun-`                         | `backend-bun-`                         |
+| `honey-free`                         | `backend-free`                         |
+| `honey-pre-`                         | `backend-pre-`                         |
+| `honey.send`                         | `http.send`                            |
+| `honey-app`                          | `backend-app`                          |
+| `honey-mcp`                          | `backend-mcp`                          |
+| `\thoney(`                           | `\thttpApp(`                           |
+| `\thoney<`                           | `\thttpApp<`                           |
+| `honey://`                           | `mcp://`                               |
+| `honey-$`                            | `backend-$`                            |
+| `honey-`                             | `backend-`                             |
+
+### File paths
+
+| Before                                                                       | After                                                                          |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `packages/core/tests/e2e/apps/kitchen/src/_gen/sdk/ts/.honey-generated.json` | `packages/core/tests/e2e/apps/kitchen/src/_gen/sdk/ts/.clients-generated.json` |
+
+### The bare word
+
+| Before  | After     |
+| ------- | --------- |
+| `honey` | `backend` |
+| `Honey` | `Backend` |
+
 ## 1.0.0-rc.26: exports laid out by surface
 
 The package has no root entry any more. A surface is a top-level subpath, and that surface's Workers binding sits in

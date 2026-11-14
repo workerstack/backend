@@ -1,6 +1,6 @@
 /**
  * A live app's tree through gen's `generateRouteTree` and back: `app.toRouteTree()` → the emitted
- * `routes.gen.ts`, imported → `honey().routeTree(module.routeTree)` plus the same registrations,
+ * `routes.gen.ts`, imported → `httpApp().routeTree(module.routeTree)` plus the same registrations,
  * which must serve exactly as the live app does. Gen is imported by path, test-only; calling it
  * on `toRouteTree()` typechecks core's `RouteTree` against gen's restatement of it (the drift guard).
  */
@@ -13,7 +13,7 @@ import { createMiddleware } from "../../src/middleware/middleware.ts"
 import { generateOpenApi } from "../../src/openapi/generate.ts"
 import { generateManifest } from "../../src/openapi/manifest.ts"
 import { serveOpenApi } from "../../src/openapi/serve.ts"
-import { type Honey, honey } from "../../src/routing/app.ts"
+import { type HttpApp, httpApp } from "../../src/routing/app.ts"
 import type { RouteEntry, RouteTree } from "../../src/routing/tree.ts"
 import {
 	accepted,
@@ -34,7 +34,7 @@ import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 import { caseLabel, rng, runs } from "./security/rng.ts"
 import { ws } from "../../src/ws/route.ts"
 
-type App = Honey<{}>
+type App = HttpApp<{}>
 
 type Loaded = {
 	readonly meta?: Readonly<Record<string, unknown>>
@@ -60,7 +60,7 @@ async function call(app: Fetcher, path: string, init?: RequestInit): Promise<[nu
 
 /** The statuses a gateway that serves `tree` and registers nothing documents for `GET /door`. */
 function doorStatuses(tree: RouteTree): string[] {
-	const doc = generateOpenApi(honey<{}>().routeTree(tree), { info: { title: "T", version: "1" } })
+	const doc = generateOpenApi(httpApp<{}>().routeTree(tree), { info: { title: "T", version: "1" } })
 	const paths = doc.paths as Record<string, { get: { responses: Record<string, unknown> } }>
 	return Object.keys(paths["/door"]?.get.responses ?? {})
 }
@@ -72,7 +72,7 @@ const deny = createMiddleware(async () => new Response("denied", { status: 401 }
 const maker =
 	(routes: (app: App) => void) =>
 	(tree?: RouteTree): App => {
-		const app = tree ? honey<{}>().routeTree(tree) : honey<{}>()
+		const app = tree ? httpApp<{}>().routeTree(tree) : httpApp<{}>()
 		routes(app)
 		return app
 	}
@@ -110,7 +110,7 @@ const guardedApp = maker((app) => {
 })
 
 const mountingApp = maker((app) => {
-	const sub = honey<{}>()
+	const sub = httpApp<{}>()
 	sub.get("/sub/a").handler((c) => c.res.text("ok", "sub a"))
 	app.get("/root").handler((c) => c.res.text("ok", "root"))
 	app.route(sub)
@@ -233,7 +233,7 @@ describe("route-tree emit: a booted app keeps the live app's scopes and mounts",
 
 describe("route-tree emit: a ws route through generation (bit 19 i2)", () => {
 	it("places a ws route under its base path in the tree, gen's module and the document; the manifest stays HTTP-only", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/health").handler((c) => c.res.text("ok", "ok"))
 		ws(app.basePath("/v1"), "/rooms/:id").handler({})
 		const module = await emitted(app)
@@ -265,7 +265,7 @@ describe("route-tree emit: no schema data in the module", () => {
 		const listQuery = z
 			.object({ cursor: z.string().optional(), limit: z.string() })
 			.transform((q) => ({ ...q, limit: Number(q.limit) }))
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/multi")
 			.meta({ summary: "multi" })
@@ -300,7 +300,7 @@ describe("route-tree emit: no schema data in the module", () => {
 
 /** A service declaring each body kind; only its tree crosses to the gateway. */
 function bodyService(): App {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app
 		.post("/json")
 		.input({ json: z.object({ a: z.number() }) })
@@ -326,8 +326,8 @@ function bodyService(): App {
 }
 
 /** A gateway booted from the module emitted for `bodyService`, echoing what its catch-all receives. */
-async function bodyGateway(): Promise<Honey<{}>> {
-	const gateway = honey<{}>().routeTree((await emitted(bodyService())).routeTree)
+async function bodyGateway(): Promise<HttpApp<{}>> {
+	const gateway = httpApp<{}>().routeTree((await emitted(bodyService())).routeTree)
 	gateway.all("/*").handler(async (c) => c.res.text("ok", `reached ${await c.req.text()}`))
 	return gateway
 }
@@ -413,7 +413,7 @@ describe("route-tree emit: route data the module carries", () => {
 		const shard = createMiddleware(async (_c, next) => next({ marker: "middleware-body-marker" }), {
 			meta: { tenant: "project_id" },
 		})
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(shard)
 			.get("/a")
@@ -423,7 +423,7 @@ describe("route-tree emit: route data the module carries", () => {
 	})
 
 	it("carries each error key's status, so a gateway serving the tree documents it with no factory", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/door")
 			.errors(defineErrors({ locked: "conflict" }), "locked")
@@ -448,7 +448,7 @@ describe("route-tree emit: property, emitted ≡ runtime ≡ reference", () => {
 			const apps: [string, Fetcher][] = [["runtime", runtimeApp(routes)]]
 			/* the emitted module is the expensive mode: every fourth round */
 			if (round % 4 === 0) {
-				const hydrated = honey<{}>().routeTree((await emitted(runtimeApp(routes))).routeTree)
+				const hydrated = httpApp<{}>().routeTree((await emitted(runtimeApp(routes))).routeTree)
 				register(hydrated, routes)
 				apps.push(["emitted", hydrated])
 			}
@@ -470,7 +470,7 @@ describe("route-tree emit: property, emitted ≡ runtime ≡ reference", () => {
 			const routes = accepted(Array.from({ length: 2 + r.int(7) }, () => randomPathRoute(r)))
 			const apps: [string, Fetcher][] = [["runtime", runtimeApp(routes)]]
 			if (round % 4 === 0) {
-				const hydrated = honey<{}>().routeTree((await emitted(runtimeApp(routes))).routeTree)
+				const hydrated = httpApp<{}>().routeTree((await emitted(runtimeApp(routes))).routeTree)
 				register(hydrated, routes)
 				apps.push(["emitted", hydrated])
 			}

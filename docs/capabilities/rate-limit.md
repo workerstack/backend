@@ -9,10 +9,10 @@ instances, pass a shared `store`. A custom `key` limits by user or API key inste
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { rateLimit } from "@workerstack/backend/http/rate-limit"
 
-const app = honey().use(rateLimit({ limit: 60, windowMs: 60_000 }))
+const app = httpApp().use(rateLimit({ limit: 60, windowMs: 60_000 }))
 
 app.get("/search").handler((ctx) => ctx.res.json("ok", { results: [] }))
 ```

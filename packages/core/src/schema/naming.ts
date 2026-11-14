@@ -99,7 +99,7 @@ export function nestedSchemaName(owner: string, fieldPath: readonly string[]): s
 
 type Properties = Readonly<Record<string, JsonSchema | undefined>>
 
-/** Whether `schema` is honey's error body: `error_key`, `status`, and a `success` that can only be false. */
+/** Whether `schema` is backend's error body: `error_key`, `status`, and a `success` that can only be false. */
 export function isErrorEnvelope(schema: JsonSchema): boolean {
 	const properties = schema.properties as Properties | undefined
 	if (properties?.error_key === undefined || properties.status === undefined) return false

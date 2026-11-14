@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { createCookieSigner } from "./cookie-sign.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 
 const secret = "test-secret-key-at-least-32-chars-long"
 const oldSecret = "old-secret-key-for-rotation-purposes"
@@ -174,7 +174,7 @@ describe("signed cookie HTTP round trip", () => {
 	// v0: da277b4ba2
 	it("Set-Cookie then Cookie header verifies", async () => {
 		const sid = signer(["prove-proveSecret-key"])
-		const app = honey()
+		const app = httpApp()
 			.post("/login")
 			.handler(async (ctx) => {
 				const token = await sid.sign("user-42")
