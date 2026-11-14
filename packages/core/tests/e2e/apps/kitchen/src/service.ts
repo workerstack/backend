@@ -1,9 +1,8 @@
-import type { AppCtx } from "./context"
+import type { OperationCtx } from "@workerstack/backend/http"
 
-type HelloGetCtx = AppCtx & { input: { search: { q: string } } }
-
+/** A service outside the app module, typed by the route's operationId rather than by `typeof app`. */
 export const Service = {
-	list(ctx: HelloGetCtx) {
+	list(ctx: OperationCtx<"hello.list">) {
 		ctx.db.query(`WHERE q = ${ctx.input.search.q}`)
 		return ctx.input.search.q
 	},

@@ -1,12 +1,14 @@
-import type { HttpContext, WithOutput } from "@workerstack/backend/http"
+import type { HttpContext, WithOutput, HttpMeta } from "@workerstack/backend/http"
 
 export type BaseCtx = HttpContext<unknown>
 
-export type RouteSelector = "GET /health" | "GET /users/:id" | "POST /echo"
-
 declare module "@workerstack/backend/http" {
 	interface HttpCodegen {
-		routeSelector: RouteSelector
+		operationId: {
+			"echo.create": { kind: "http"; ctx: Routes["/echo"]["post"]["ctx"] }
+			"health.list": { kind: "http"; ctx: Routes["/health"]["get"]["ctx"] }
+			"users.retrieve": { kind: "http"; ctx: Routes["/users/:id"]["get"]["ctx"] }
+		}
 	}
 }
 
@@ -15,7 +17,7 @@ type CreateEchoResponse201 = string
 export type Routes = {
 	"/echo": {
 		post: {
-			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<{ operationId: "echo.create" }>; readonly routePattern: "/echo" }, { "application/json": { created: CreateEchoResponse201 } }>
+			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/echo" }, { "application/json": { created: CreateEchoResponse201 } }>
 			errors: never
 			input: {}
 			meta: { operationId: "echo.create" }
@@ -24,7 +26,7 @@ export type Routes = {
 	}
 	"/health": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<{ operationId: "health.list" }>; readonly routePattern: "/health" }, never>
+			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/health" }, never>
 			errors: never
 			input: {}
 			meta: { operationId: "health.list" }
@@ -33,7 +35,7 @@ export type Routes = {
 	}
 	"/users/:id": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly params: { id: string }; readonly meta: Readonly<{ operationId: "users.retrieve" }>; readonly routePattern: "/users/:id" }, never>
+			ctx: WithOutput<BaseCtx & { readonly params: { id: string }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/users/:id" }, never>
 			errors: never
 			input: {}
 			meta: { operationId: "users.retrieve" }
@@ -41,8 +43,6 @@ export type Routes = {
 		}
 	}
 }
-
-export type RouteCtx<TPath extends keyof Routes, TMethod extends keyof Routes[TPath] & string> = Routes[TPath][TMethod] extends { ctx: infer T } ? T : never
 
 export type RouteInput<TPath extends keyof Routes, TMethod extends keyof Routes[TPath] & string> = Routes[TPath][TMethod] extends { input: infer T } ? T : never
 

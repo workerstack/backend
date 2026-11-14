@@ -27,8 +27,6 @@ export abstract class SettingsChain<TEnv> {
 	declare readonly $errorFactory: unknown
 	/** The route meta type declared with `metaType<T>()`; `never` until then. Type only. */
 	declare readonly $meta: unknown
-	/** Always `{}`: a tap is no part of the app's type. Type only, read by the pinned clients extractor. */
-	declare readonly $taps: {}
 	protected readonly settings: AppSettings<TEnv>
 
 	/** Takes the settings object shared by every handle of one app. */

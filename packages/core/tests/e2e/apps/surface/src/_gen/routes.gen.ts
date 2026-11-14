@@ -126,9 +126,6 @@ export type MetaShape = {
 	tags?: ["input"] | ["methods"] | ["websocket"]
 } & Record<string, unknown>
 
-
-export type RouteSelector = typeof P21 | typeof P16 | typeof P25 | typeof P4 | typeof P3 | typeof P6 | typeof P5 | typeof P2 | typeof P17 | typeof P13 | typeof P11 | typeof P10 | typeof P14 | typeof P9 | typeof P12 | typeof P22 | typeof P26 | typeof P20 | typeof P7 | typeof P1 | typeof P0 | typeof P18 | typeof P15 | typeof P27 | typeof P24 | typeof P23 | typeof P8 | typeof P19
-
 export const meta: Record<string, MetaShape> = S({
 	[P0]: M0,
 	[P1]: M1,

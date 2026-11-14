@@ -2,11 +2,18 @@ import type { HttpContext, WithOutput, HttpMeta } from "@workerstack/backend/htt
 
 export type BaseCtx = HttpContext<unknown>
 
-export type RouteSelector = "GET /articles" | "GET /articles/meta" | "GET /nl/c/:delivery/:url" | "GET /ping" | "GET /users" | "GET /users/:id" | "GET /v1/openapi/spec" | "POST /users"
-
 declare module "@workerstack/backend/http" {
 	interface HttpCodegen {
-		routeSelector: RouteSelector
+		operationId: {
+			"articles.list": { kind: "http"; ctx: Routes["/articles"]["get"]["ctx"] }
+			"articles.meta.list": { kind: "http"; ctx: Routes["/articles/meta"]["get"]["ctx"] }
+			"nl.c.retrieve": { kind: "http"; ctx: Routes["/nl/c/:delivery/:url"]["get"]["ctx"] }
+			"ping.list": { kind: "http"; ctx: Routes["/ping"]["get"]["ctx"] }
+			"users.create": { kind: "http"; ctx: Routes["/users"]["post"]["ctx"] }
+			"users.list": { kind: "http"; ctx: Routes["/users"]["get"]["ctx"] }
+			"users.retrieve": { kind: "http"; ctx: Routes["/users/:id"]["get"]["ctx"] }
+			"v1.openapi.spec.list": { kind: "http"; ctx: Routes["/v1/openapi/spec"]["get"]["ctx"] }
+		}
 	}
 }
 
@@ -17,7 +24,7 @@ type ListArticlesResponse200 = { articles: { id: string; title: string }[]; coun
 export type Routes = {
 	"/articles": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly input: { search: { cursor?: string } }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/articles" }, { "application/json": { ok: ListArticlesResponse200 } }>
+			ctx: WithOutput<BaseCtx & { shard: string } & { readonly input: { search: { cursor?: string } }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/articles" }, { "application/json": { ok: ListArticlesResponse200 } }>
 			errors: never
 			input: { search: { cursor?: string } }
 			meta: { tenant: "project_id"; operationId: "articles.list"; permissions: ["articles.read"]; summary: "List articles"; worker: "origin" }
@@ -26,7 +33,7 @@ export type Routes = {
 	}
 	"/articles/meta": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/articles/meta" }, never>
+			ctx: WithOutput<BaseCtx & { shard: string } & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/articles/meta" }, never>
 			errors: never
 			input: {}
 			meta: { tenant: "project_id"; operationId: "articles.meta.list" }
@@ -60,9 +67,9 @@ export type Routes = {
 			output: {}
 		}
 		post: {
-			ctx: WithOutput<BaseCtx & { readonly input: { json: CreateUserRequest }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/users" }, never>
+			ctx: WithOutput<BaseCtx & { readonly input: { json: { name: string } }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/users" }, never>
 			errors: never
-			input: { json: CreateUserRequest }
+			input: { json: { name: string } }
 			meta: { operationId: "users.create"; worker: "origin" }
 			output: {}
 		}
@@ -86,8 +93,6 @@ export type Routes = {
 		}
 	}
 }
-
-export type RouteCtx<TPath extends keyof Routes, TMethod extends keyof Routes[TPath] & string> = Routes[TPath][TMethod] extends { ctx: infer T } ? T : never
 
 export type RouteInput<TPath extends keyof Routes, TMethod extends keyof Routes[TPath] & string> = Routes[TPath][TMethod] extends { input: infer T } ? T : never
 

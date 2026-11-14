@@ -10,7 +10,7 @@ import type { HttpContext } from "../../src/context/context.ts"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
 import { httpApp } from "../../src/routing/app.ts"
-import type { HttpMeta, InferCtx, InferRouteCtx } from "../../src/routing/app-types.ts"
+import type { HttpMeta, InferCtx, InferRoutes } from "../../src/routing/app-types.ts"
 import type {
 	HttpOperationId,
 	HttpOperationIdOf,
@@ -48,8 +48,8 @@ const groupB = httpApp<{}>()
 	.handler((c) => c.res.json("created", { id: "b-1" }))
 const app = httpApp<{}>().route(groupA).route(groupB)
 
-type CtxA = InferRouteCtx<typeof app, "/a", "get">
-type CtxB = InferRouteCtx<typeof app, "/b", "post">
+type CtxA = InferRoutes<typeof app>["/a"]["get"]["ctx"]
+type CtxB = InferRoutes<typeof app>["/b"]["post"]["ctx"]
 type CtxLive = WSRouteCtx<InferCtx<typeof app>, "/live/:room">
 
 /** The slot as the clients emitter fills it. */

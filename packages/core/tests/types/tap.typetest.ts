@@ -274,10 +274,4 @@ describe("payload shapes", () => {
 				return c.res.json("ok", {})
 			})
 	})
-
-	it("$taps stays {}: a tap is no part of the app's type", () => {
-		expectTypeOf<ReturnType<typeof httpApp<{}>>["$taps"]>().toEqualTypeOf<{}>()
-		const app = httpApp<{}>().tap(audit)
-		expectTypeOf<(typeof app)["$taps"]>().toEqualTypeOf<{}>()
-	})
 })

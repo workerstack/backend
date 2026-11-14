@@ -8,6 +8,38 @@ test.describe("health", () => {
 	})
 })
 
+test.describe("hello: two .route() groups sharing one step typed by both ids", () => {
+	/* each leg is one request against the worker: a hang fails fast instead of eating the suite's budget */
+	test.describe.configure({ timeout: 15_000 })
+
+	test("GET /api/hello → 200, greeted through the step's c.with db", async ({ request }) => {
+		const res = await request.get("/api/hello?q=ada")
+		expect([res.status(), await res.json()]).toEqual([200, { greeting: "hello ada (audited)", q: "ada" }])
+	})
+
+	test("POST /api/hello → 200, greeted by the x-greeter group's middleware", async ({ request }) => {
+		const res = await request.post("/api/hello", { data: { name: "ada" }, headers: { "x-greeter": "bob" } })
+		expect([res.status(), await res.json()]).toEqual([
+			200,
+			{ by: "bob", created: "ada", greeting: "hello ada (audited)" },
+		])
+	})
+
+	test("a refused name and a POST without x-greeter → 403 greeting_refused in kitchen's envelope", async ({
+		request,
+	}) => {
+		const refused = async (res: { json(): Promise<unknown>; status(): number }) => {
+			const body = (await res.json()) as { error_key: string; request_id: string }
+			return [res.status(), body.error_key, body.request_id]
+		}
+		const expected = [403, "greeting_refused", "e2e-req-001"]
+		expect([
+			await refused(await request.get("/api/hello?q=nobody")),
+			await refused(await request.post("/api/hello", { data: { name: "ada" } })),
+		]).toEqual([expected, expected])
+	})
+})
+
 test.describe("CORS", () => {
 	test("preflight from an allowed origin → echoes it (credentials + allow-list)", async ({ request }) => {
 		const res = await request.fetch("/api/echo", {

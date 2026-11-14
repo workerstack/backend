@@ -2,7 +2,7 @@
  * `.input()` as typed: ctx.input carries each declared source as its schema produced it, beside
  * what middleware and context() add; a streamed() body is left off it, and no other source takes
  * streamed(); json and form are exclusive; a ws route takes the non-body
- * sources only; and the route map and InferRouteCtx carry the input. Checked by typecheck.
+ * sources only; and the route map carries the input. Checked by typecheck.
  */
 import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
@@ -16,7 +16,7 @@ import {
 } from "../../src/input/input.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
 import { httpApp } from "../../src/routing/app.ts"
-import type { InferRouteCtx, InferRouteInput, InferRoutes } from "../../src/routing/app-types.ts"
+import type { InferRouteInput, InferRoutes } from "../../src/routing/app-types.ts"
 import type { InferOutput, StandardSchemaLike } from "../../src/validation/standard-schema.ts"
 import type { NormalizedIssue } from "../../src/validation/validate-input.ts"
 import { ws } from "../../src/ws/route.ts"
@@ -354,7 +354,7 @@ describe("ws .input(): the non-body sources only", () => {
 	})
 })
 
-describe("the route map and InferRouteCtx carry the input", () => {
+describe("the route map carries the input", () => {
 	// v0: 3d10541706
 	// v0: f51c6362b8
 	// v0: 33e035d172
@@ -363,7 +363,7 @@ describe("the route map and InferRouteCtx carry the input", () => {
 	// v0: 8e529bc027
 	// v0: 5446e8b926
 	// v0: 2135b4ce73
-	it("$routes keeps each route; InferRouteCtx and InferRouteInput carry its validated input beside middleware", () => {
+	it("$routes keeps each route; its ctx and InferRouteInput carry its validated input beside middleware", () => {
 		const app = httpApp<{}>()
 			.use(withDb)
 			.use(withAuth)
@@ -374,7 +374,7 @@ describe("the route map and InferRouteCtx carry the input", () => {
 			.handler((ctx) => ctx.res.json("created", { name: ctx.input.json.name }))
 		expectTypeOf<InferRoutes<typeof app>>().toHaveProperty("/users/:id")
 		expectTypeOf<InferRoutes<typeof app>>().toHaveProperty("/users")
-		expectTypeOf<InferRouteCtx<typeof app, "/users", "post">>().toMatchTypeOf<{
+		expectTypeOf<InferRoutes<typeof app>["/users"]["post"]["ctx"]>().toMatchTypeOf<{
 			db: { query: (sql: string) => string[] }
 			input: { json: { name: string }; search: { limit: number } }
 			userId: string

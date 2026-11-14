@@ -2,11 +2,42 @@ import type { HttpContext, WithOutput, HttpError, HttpMeta } from "@workerstack/
 
 export type BaseCtx = HttpContext<{ API_KEY: string; DATABASE_URL: string }> & { logger: { info: (_msg: string) => void }; user: { id: string; role: "admin" | "member" } }
 
-export type RouteSelector = "DELETE /methods/resource/:id" | "DELETE /out/no-content/:id" | "DELETE /status/no-content" | "GET /in/cookies" | "GET /in/headers" | "GET /in/none" | "GET /in/params/:orgId/members/:memberId" | "GET /in/search" | "GET /methods/resource" | "GET /out/binary" | "GET /out/csv" | "GET /out/html" | "GET /out/sse" | "GET /out/text" | "GET /out/xml" | "GET /status/ok" | "GET /stream/filtered" | "PATCH /methods/resource/:id" | "POST /in/file" | "POST /in/form" | "POST /in/json" | "POST /methods/resource" | "POST /out/multi-status" | "POST /rs/upload" | "POST /status/accepted" | "POST /status/created" | "PUT /in/all/:resourceId" | "PUT /methods/resource/:id"
-
 declare module "@workerstack/backend/http" {
 	interface HttpCodegen {
-		routeSelector: RouteSelector
+		operationId: {
+			"in.all.replace": { kind: "http"; ctx: Routes["/in/all/:resourceId"]["put"]["ctx"] }
+			"in.cookies.list": { kind: "http"; ctx: Routes["/in/cookies"]["get"]["ctx"] }
+			"in.file.create": { kind: "http"; ctx: Routes["/in/file"]["post"]["ctx"] }
+			"in.headers.list": { kind: "http"; ctx: Routes["/in/headers"]["get"]["ctx"] }
+			"in.params.members.retrieve": { kind: "http"; ctx: Routes["/in/params/:orgId/members/:memberId"]["get"]["ctx"] }
+			"input.createForm": { kind: "http"; ctx: Routes["/in/form"]["post"]["ctx"] }
+			"input.createJson": { kind: "http"; ctx: Routes["/in/json"]["post"]["ctx"] }
+			"input.none": { kind: "http"; ctx: Routes["/in/none"]["get"]["ctx"] }
+			"input.search": { kind: "http"; ctx: Routes["/in/search"]["get"]["ctx"] }
+			"out.binary.list": { kind: "http"; ctx: Routes["/out/binary"]["get"]["ctx"] }
+			"out.csv.list": { kind: "http"; ctx: Routes["/out/csv"]["get"]["ctx"] }
+			"out.html.list": { kind: "http"; ctx: Routes["/out/html"]["get"]["ctx"] }
+			"out.multiStatus.create": { kind: "http"; ctx: Routes["/out/multi-status"]["post"]["ctx"] }
+			"out.noContent.delete": { kind: "http"; ctx: Routes["/out/no-content/:id"]["delete"]["ctx"] }
+			"out.sse.list": { kind: "http"; ctx: Routes["/out/sse"]["get"]["ctx"] }
+			"out.text.list": { kind: "http"; ctx: Routes["/out/text"]["get"]["ctx"] }
+			"out.xml.list": { kind: "http"; ctx: Routes["/out/xml"]["get"]["ctx"] }
+			"resources.create": { kind: "http"; ctx: Routes["/methods/resource"]["post"]["ctx"] }
+			"resources.delete": { kind: "http"; ctx: Routes["/methods/resource/:id"]["delete"]["ctx"] }
+			"resources.list": { kind: "http"; ctx: Routes["/methods/resource"]["get"]["ctx"] }
+			"resources.patch": { kind: "http"; ctx: Routes["/methods/resource/:id"]["patch"]["ctx"] }
+			"resources.update": { kind: "http"; ctx: Routes["/methods/resource/:id"]["put"]["ctx"] }
+			"rs.upload.create": { kind: "http"; ctx: Routes["/rs/upload"]["post"]["ctx"] }
+			"status.accepted.create": { kind: "http"; ctx: Routes["/status/accepted"]["post"]["ctx"] }
+			"status.created.create": { kind: "http"; ctx: Routes["/status/created"]["post"]["ctx"] }
+			"status.noContent.delete": { kind: "http"; ctx: Routes["/status/no-content"]["delete"]["ctx"] }
+			"status.ok.list": { kind: "http"; ctx: Routes["/status/ok"]["get"]["ctx"] }
+			"stream.filtered.list": { kind: "http"; ctx: Routes["/stream/filtered"]["get"]["ctx"] }
+			"ws.chat": { kind: "ws"; ctx: BaseCtx & { readonly params: { channelId: string } } }
+			"ws.echo": { kind: "ws"; ctx: BaseCtx }
+			"ws.joinRoom": { kind: "ws"; ctx: BaseCtx & { readonly input: { search: { roomId: string } } } }
+			"ws.reconnect": { kind: "ws"; ctx: BaseCtx }
+		}
 	}
 }
 
@@ -376,8 +407,6 @@ export type Routes = {
 		}
 	}
 }
-
-export type RouteCtx<TPath extends keyof Routes, TMethod extends keyof Routes[TPath] & string> = Routes[TPath][TMethod] extends { ctx: infer T } ? T : never
 
 export type RouteInput<TPath extends keyof Routes, TMethod extends keyof Routes[TPath] & string> = Routes[TPath][TMethod] extends { input: infer T } ? T : never
 

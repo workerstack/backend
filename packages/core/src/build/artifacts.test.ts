@@ -159,6 +159,16 @@ const WITH_SECURED = [
 	'\t.handler((c) => c.res.text("ok", "s"))',
 ]
 
+/* a route registered with a trailing slash and a mount joining two slashes, each adding to the ctx: the router serves
+   both at the canonical pattern, so the extractor must key them there */
+const WITH_UNCANONICAL = [
+	'\t.get("/slashed/")',
+	'\t.meta({ operationId: "slashed.list" })',
+	"\t.use(createMiddleware((_c, next) => next({ slashed: 1 })))",
+	'\t.handler((c) => c.res.text("ok", "s"))',
+	'app.route("/joined/", httpApp().use(createMiddleware((_c, next) => next({ joined: 1 }))).get("/x").meta({ operationId: "joined.list" }).handler((c) => c.res.text("ok", "j")))',
+]
+
 const WITH_SOCKET = ['import { ws } from "@workerstack/backend/ws"', 'ws(app, "/live").handler({})']
 
 describe("artifactsOf (bit 19 h2)", () => {
@@ -197,11 +207,20 @@ describe("artifactsOf (bit 19 h2)", () => {
 				(JSON.parse(files["a.json"] as string) as { info: unknown }).info,
 				(files["b.yaml"] as string).split("\n").slice(1, 4),
 			]).toEqual([{ title: "A", version: "2" }, ["info:", "  title: B", '  version: "3"']])
-			expect(files["src/_gen/types.gen.d.ts"]).toContain('export type RouteSelector = "GET /health" | "POST /items"')
+			expect(files["src/_gen/types.gen.d.ts"]).toContain(
+				[
+					"\t\toperationId: {",
+					'\t\t\t"health.list": { kind: "http"; ctx: Routes["/health"]["get"]["ctx"] }',
+					'\t\t\t"items.create": { kind: "http"; ctx: Routes["/items"]["post"]["ctx"] }',
+					"\t\t}",
+				].join("\n"),
+			)
 		},
 		SLOW,
 	)
+})
 
+describe("artifactsOf (bit 19 h2): types alone", () => {
 	it(
 		"builds types alone from a bare info, and reports what the types cannot join",
 		async () => {
@@ -211,6 +230,32 @@ describe("artifactsOf (bit 19 h2)", () => {
 				["src/_gen/types.gen.d.ts"],
 				[
 					"GET /hidden: extracted ctx additions match no documented operation (internal and filtered routes are not documented); not typed",
+				],
+			])
+		},
+		SLOW,
+	)
+
+	it(
+		"types a route at the router's canonical id, a trailing slash and a doubled one at a mount dropped",
+		async () => {
+			const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_UNCANONICAL }) })
+			const { files, reports } = await artifacts({ app: "src/app.ts", codegen: { tree: false, types: true } }, dir)
+			const types = files["src/_gen/types.gen.d.ts"] as string
+			/* each at its canonical id; the mounted one keeps the base's routePattern (clients 0ac97e7) */
+			expect([
+				reports,
+				types.match(/"(slashed|joined)\.list": [^\n]*/g),
+				types.match(/ctx: WithOutput<BaseCtx & \{ (slashed|joined): number \}[^\n]*/g),
+			]).toEqual([
+				[],
+				[
+					'"joined.list": { kind: "http"; ctx: Routes["/joined/x"]["get"]["ctx"] }',
+					'"slashed.list": { kind: "http"; ctx: Routes["/slashed"]["get"]["ctx"] }',
+				],
+				[
+					"ctx: WithOutput<BaseCtx & { joined: number } & { readonly meta: Readonly<Partial<HttpMeta>> }, never>",
+					'ctx: WithOutput<BaseCtx & { slashed: number } & { readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/slashed" }, never>',
 				],
 			])
 		},
@@ -244,7 +289,9 @@ describe("artifactsOf (bit 19 h2), continued (2)", () => {
 		async () => {
 			const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_SECURED }) })
 			const { files } = await artifacts({ app: "src/app.ts", codegen: { tree: false, types: true } }, dir)
-			expect(files["src/_gen/types.gen.d.ts"]).toContain('"GET /secured"')
+			expect(files["src/_gen/types.gen.d.ts"]).toContain(
+				'"secured.list": { kind: "http"; ctx: Routes["/secured"]["get"]["ctx"] }',
+			)
 		},
 		SLOW,
 	)

@@ -352,10 +352,6 @@ type RouteLookup<T, TPath extends string, TMethod extends string> =
 /** The route meta an app declared with `metaType<T>()`, chain values left out; `never` when it declared none. */
 export type InferMeta<T> = T extends { readonly $meta: infer M } ? DeclaredMeta<M> : never
 
-/** The handler context type of one route. */
-export type InferRouteCtx<T, TPath extends InferRoutePaths<T>, TMethod extends InferRouteMethods<T, TPath>> =
-	RouteLookup<T, TPath, TMethod> extends { ctx: infer C } ? C : never
-
 /** What one route's handler reads as `ctx.input`; `{}` for a route without `.input()`. */
 export type InferRouteInput<T, TPath extends InferRoutePaths<T>, TMethod extends InferRouteMethods<T, TPath>> =
 	RouteLookup<T, TPath, TMethod> extends { input: infer I } ? I : never

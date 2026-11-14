@@ -33,8 +33,6 @@ export class HttpPreset<
 	declare readonly $errorFactory: TErrorFactory
 	/** The route meta type declared with `metaType<T>()`; `never` until then. Type only. */
 	declare readonly $meta: TMeta
-	/** Always `{}`: a tap is no part of the app's type. Type only, read by the pinned clients extractor. */
-	declare readonly $taps: {}
 	readonly #chain: readonly RuntimeMiddleware[]
 
 	/** Without arguments, an empty preset, as `definePreset()` makes; the arguments are for the ones `use()` derives. */

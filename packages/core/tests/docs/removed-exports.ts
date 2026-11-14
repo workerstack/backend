@@ -122,6 +122,7 @@ export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
 	BackendSdkPortsConfig: { kind: "internal", why: PLUGIN },
 	BackendServeOptions: { kind: "guide" },
 	HttpMethod: { kind: "internal", why: TREE },
+	InferRouteCtx: { kind: "guide" },
 	InputSchemasDef: { kind: "internal", why: SHAPE },
 	InvalidateCheckConfig: { kind: "internal", why: PLUGIN },
 	InvalidateCheckLevel: { kind: "internal", why: PLUGIN },

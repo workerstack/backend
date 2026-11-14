@@ -11,6 +11,7 @@ import { realtime } from "@workerstack/backend/realtime"
 import { ws } from "@workerstack/backend/ws"
 import { requestId } from "@workerstack/backend/http/request-id"
 import * as z from "zod"
+import { helloRoutes } from "./app2.ts"
 import { events } from "./events.ts"
 import { WEBHOOK_SECRET } from "./webhook-secret.ts"
 
@@ -128,6 +129,11 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	void typeChecks
 
 	/* ---- routes ---- */
+
+	/* hello: two groups, mounted under one prefix on the bare root, which their own chain already covers (context.ts),
+	   sharing a step typed by both ids (app2.ts) */
+	const hello = helloRoutes()
+	root.route("/hello", hello.list).route("/hello", hello.create)
 
 	/* health — no auth */
 	corsed

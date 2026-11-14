@@ -19,7 +19,6 @@ import type {
 	InferErrorFactory,
 	InferMeta,
 	InferMethods,
-	InferRouteCtx,
 	InferRouteErrors,
 	InferRouteInput,
 	InferRouteMeta,
@@ -213,18 +212,18 @@ describe("methods, paths and a route's ctx", () => {
 	// v0: 0fc57e8be4
 	// v0: 1a7aaf5581
 	// v0: a836b6bac8
-	it("InferRouteCtx is a registered route's full ctx, and only a registered route's", () => {
+	it("a registered route's ctx in the route map is its full ctx, and only a registered route has one", () => {
 		const app = httpApp<TestEnv>()
 			.use(withDb)
 			.use(withAuth)
 			.get("/orgs/:orgId")
 			.handler((ctx) => ctx.res.json("ok", { orgs: ctx.db.query("SELECT 1") }))
-		type Ctx = InferRouteCtx<typeof app, "/orgs/:orgId", "get">
+		type Ctx = InferRoutes<typeof app>["/orgs/:orgId"]["get"]["ctx"]
 		expectTypeOf<Ctx>().toMatchTypeOf<DbCtx & AuthCtx & { readonly params: { orgId: string } }>()
 		// @ts-expect-error "/nope" is not a registered path
-		expectTypeOf<InferRouteCtx<typeof app, "/nope", "get">>().not.toBeNever()
+		expectTypeOf<InferRoutes<typeof app>["/nope"]["get"]["ctx"]>().not.toBeNever()
 		// @ts-expect-error "post" is not registered for /orgs/:orgId
-		expectTypeOf<InferRouteCtx<typeof app, "/orgs/:orgId", "post">>().not.toBeNever()
+		expectTypeOf<InferRoutes<typeof app>["/orgs/:orgId"]["post"]["ctx"]>().not.toBeNever()
 	})
 })
 
@@ -421,15 +420,15 @@ describe("every Infer* over a get and a post on one path, without .meta()", () =
 	// v0: 85b230d75c
 	// v0: 41047b2bd0
 	// v0: 2ab53d3ca1
-	it("the per-route Infer* types: input, output, ctx, and an empty meta for a route without one", () => {
+	it("the per-route Infer* types and the route map: input, output, ctx, and an empty meta for a route without one", () => {
 		expectTypeOf<InferRouteInput<typeof app, "/hello", "get">>().toEqualTypeOf<{ readonly search: { q: string } }>()
 		expectTypeOf<InferRouteInput<typeof app, "/hello", "post">>().toEqualTypeOf<{ readonly json: { q: string } }>()
 		expectTypeOf<InferRouteOutput<typeof app, "/hello", "get">["application/json"]>().toHaveProperty("ok")
-		expectTypeOf<InferRouteCtx<typeof app, "/hello", "get">>().toMatchTypeOf<{
+		expectTypeOf<InferRoutes<typeof app>["/hello"]["get"]["ctx"]>().toMatchTypeOf<{
 			db: { query: (sql: string) => unknown[] }
 			input: { search: { q: string } }
 		}>()
-		expectTypeOf<InferRouteCtx<typeof app, "/hello", "post">>().toMatchTypeOf<{
+		expectTypeOf<InferRoutes<typeof app>["/hello"]["post"]["ctx"]>().toMatchTypeOf<{
 			db: { query: (sql: string) => unknown[] }
 			input: { json: { q: string } }
 		}>()

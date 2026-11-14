@@ -1,14 +1,36 @@
-import type { HttpContext, WithOutput, HttpError } from "@workerstack/backend/http"
+import type { HttpContext, WithOutput, HttpError, HttpMeta } from "@workerstack/backend/http"
 
 export type BaseCtx = HttpContext<Record<string, unknown>> & { requestId: string }
 
-export type RouteSelector = "ALL /api/echo" | "DELETE /api/v1/organizations/:orgId" | "GET /api" | "GET /api/boundary/custom" | "GET /api/boundary/default" | "GET /api/events" | "GET /api/events-live" | "GET /api/health" | "GET /api/v1/organizations" | "GET /api/v1/organizations/:orgId" | "POST /api/realtime/broadcast/:topic" | "POST /api/v1/organizations"
-
 declare module "@workerstack/backend/http" {
 	interface HttpCodegen {
-		routeSelector: RouteSelector
+		operationId: {
+			"boundary.custom.list": { kind: "http"; ctx: Routes["/api/boundary/custom"]["get"]["ctx"] }
+			"boundary.default.list": { kind: "http"; ctx: Routes["/api/boundary/default"]["get"]["ctx"] }
+			"echo": { kind: "http"; ctx: Routes["/api/echo"]["all"]["ctx"] }
+			"echoWs.connect": { kind: "ws"; ctx: BaseCtx }
+			"events.list": { kind: "http"; ctx: Routes["/api/events"]["get"]["ctx"] }
+			"eventsLive.list": { kind: "http"; ctx: Routes["/api/events-live"]["get"]["ctx"] }
+			"health.check": { kind: "http"; ctx: Routes["/api/health"]["get"]["ctx"] }
+			"hello.create": { kind: "http"; ctx: Routes["/api/hello"]["post"]["ctx"] }
+			"hello.list": { kind: "http"; ctx: Routes["/api/hello"]["get"]["ctx"] }
+			"organizations.create": { kind: "http"; ctx: Routes["/api/v1/organizations"]["post"]["ctx"] }
+			"organizations.delete": { kind: "http"; ctx: Routes["/api/v1/organizations/:orgId"]["delete"]["ctx"] }
+			"organizations.list": { kind: "http"; ctx: Routes["/api/v1/organizations"]["get"]["ctx"] }
+			"organizations.retrieve": { kind: "http"; ctx: Routes["/api/v1/organizations/:orgId"]["get"]["ctx"] }
+			"realtime.broadcast.create": { kind: "http"; ctx: Routes["/api/realtime/broadcast/:topic"]["post"]["ctx"] }
+			"realtime.chat.connect": { kind: "ws"; ctx: BaseCtx & { readonly params: { roomId: string } } }
+			"realtime.echo.connect": { kind: "ws"; ctx: BaseCtx }
+			"reconnectWs.connect": { kind: "ws"; ctx: BaseCtx }
+			"root.list": { kind: "http"; ctx: Routes["/api"]["get"]["ctx"] }
+			"v1.socket.connect": { kind: "ws"; ctx: BaseCtx }
+		}
 	}
 }
+
+type CreateApiHelloRequest = { name: string }
+
+type CreateApiHelloResponse200 = { by: string; created: string; greeting: string }
 
 type CreateApiV1OrganizationResponse409 = { error_key: "org_slug_taken"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 409; status_key: string; success: false; vars?: Record<string, number | string> }
 
@@ -16,18 +38,22 @@ type Err400InvalidInput = { error_key: "invalid_input"; fields: Record<string, {
 
 type Err401Unauthorized = { error_key: "unauthorized"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 401; status_key: string; success: false; vars?: Record<string, number | string> }
 
+type Err403GreetingRefused = { error_key: "greeting_refused"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 403; status_key: string; success: false; vars?: Record<string, number | string> }
+
 type Err403OrgLimitReached = { error_key: "org_limit_reached"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 403; status_key: string; success: false; vars?: Record<string, number | string> }
 
 type Err500ApiError = { error_key: "api_error"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 500; status_key: string; success: false; vars?: Record<string, number | string> }
 
 type ListApiEventsResponse200 = string
 
+type ListApiHelloResponse200 = { greeting: string; q: string }
+
 type ListApiResponse200 = { id: string }
 
 export type Routes = {
 	"/api": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { search: { id: string } }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_input: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "root.list"; description: "Test route"; summary: "Root test route"; tags: ["test"] }>; readonly routePattern: "/api" }, { "application/json": { ok: ListApiResponse200 } }>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { search: { id: string } }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_input: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api" }, { "application/json": { ok: ListApiResponse200 } }>
 			errors: "api_error" | "invalid_input" | "unauthorized"
 			errorShapes: { api_error: null; invalid_input: null; unauthorized: null }
 			errorsByStatus: { 400: null; 401: null; 500: null }
@@ -38,7 +64,7 @@ export type Routes = {
 	}
 	"/api/boundary/custom": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; org_limit_reached: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "boundary.custom.list" }>; readonly routePattern: "/api/boundary/custom" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; org_limit_reached: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/boundary/custom" }, never>
 			errors: "api_error" | "org_limit_reached" | "unauthorized"
 			errorShapes: { api_error: null; org_limit_reached: null; unauthorized: null }
 			errorsByStatus: { 401: null; 403: null; 500: null }
@@ -49,7 +75,7 @@ export type Routes = {
 	}
 	"/api/boundary/default": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "boundary.default.list" }>; readonly routePattern: "/api/boundary/default" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/boundary/default" }, never>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
@@ -60,7 +86,7 @@ export type Routes = {
 	}
 	"/api/echo": {
 		all: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "echo" }>; readonly routePattern: "/api/echo" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/echo" }, never>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
@@ -71,7 +97,7 @@ export type Routes = {
 	}
 	"/api/events": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "events.list" }>; readonly routePattern: "/api/events" }, { "text/event-stream": { ok: ListApiEventsResponse200 } }>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/events" }, { "text/event-stream": { ok: ListApiEventsResponse200 } }>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
@@ -82,7 +108,7 @@ export type Routes = {
 	}
 	"/api/events-live": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "eventsLive.list" }>; readonly routePattern: "/api/events-live" }, { "text/event-stream": { ok: ListApiEventsResponse200 } }>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/events-live" }, { "text/event-stream": { ok: ListApiEventsResponse200 } }>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
@@ -93,7 +119,7 @@ export type Routes = {
 	}
 	"/api/health": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "health.check" }>; readonly routePattern: "/api/health" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/health" }, never>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
@@ -102,9 +128,29 @@ export type Routes = {
 			output: {}
 		}
 	}
+	"/api/hello": {
+		get: {
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { query: (sql: string) => unknown[] } } & { readonly input: { search: { q: string } }; readonly errors: { greeting_refused: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>> }, { "application/json": { ok: ListApiHelloResponse200 } }>
+			errors: "greeting_refused"
+			errorShapes: { greeting_refused: null }
+			errorsByStatus: { 403: null }
+			input: { search: { q: string } }
+			meta: { operationId: "hello.list" }
+			output: { "application/json": { ok: ListApiHelloResponse200 } }
+		}
+		post: {
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { query: (sql: string) => unknown[] }; greeter: string } & { readonly input: { json: { name: string } }; readonly errors: { greeting_refused: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>> }, { "application/json": { ok: CreateApiHelloResponse200 } }>
+			errors: "greeting_refused"
+			errorShapes: { greeting_refused: null }
+			errorsByStatus: { 403: null }
+			input: { json: { name: string } }
+			meta: { invalidate: ["hello.list"]; operationId: "hello.create" }
+			output: { "application/json": { ok: CreateApiHelloResponse200 } }
+		}
+	}
 	"/api/realtime/broadcast/:topic": {
 		post: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { topic: string }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "realtime.broadcast.create" }>; readonly routePattern: "/api/realtime/broadcast/:topic" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { topic: string }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/realtime/broadcast/:topic" }, never>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
@@ -115,7 +161,7 @@ export type Routes = {
 	}
 	"/api/v1/organizations": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "organizations.list" }>; readonly routePattern: "/api/v1/organizations" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/v1/organizations" }, never>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
@@ -124,7 +170,7 @@ export type Routes = {
 			output: {}
 		}
 		post: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_input: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; org_limit_reached: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; org_slug_taken: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "organizations.create" }>; readonly routePattern: "/api/v1/organizations" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_input: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; org_limit_reached: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; org_slug_taken: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/v1/organizations" }, never>
 			errors: "api_error" | "invalid_input" | "org_limit_reached" | "org_slug_taken" | "unauthorized"
 			errorShapes: { api_error: null; invalid_input: null; org_limit_reached: null; org_slug_taken: null; unauthorized: null }
 			errorsByStatus: { 400: null; 401: null; 403: null; 409: null; 500: null }
@@ -135,7 +181,7 @@ export type Routes = {
 	}
 	"/api/v1/organizations/:orgId": {
 		delete: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly params: { orgId: string }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "organizations.delete" }>; readonly routePattern: "/api/v1/organizations/:orgId" }, { "application/json": { no_content: unknown } }>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly params: { orgId: string }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/v1/organizations/:orgId" }, { "application/json": { no_content: unknown } }>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
@@ -144,7 +190,7 @@ export type Routes = {
 			output: { "application/json": { no_content: unknown } }
 		}
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly params: { orgId: string }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "organizations.retrieve" }>; readonly routePattern: "/api/v1/organizations/:orgId" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { db: { orgs: { id: string; name: string; slug: string }[] }; user: { id: string; locale: string; name: string } } & { readonly params: { orgId: string }; readonly errors: { api_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/api/v1/organizations/:orgId" }, never>
 			errors: "api_error" | "unauthorized"
 			errorShapes: { api_error: null; unauthorized: null }
 			errorsByStatus: { 401: null; 500: null }
@@ -154,8 +200,6 @@ export type Routes = {
 		}
 	}
 }
-
-export type RouteCtx<TPath extends keyof Routes, TMethod extends keyof Routes[TPath] & string> = Routes[TPath][TMethod] extends { ctx: infer T } ? T : never
 
 export type RouteInput<TPath extends keyof Routes, TMethod extends keyof Routes[TPath] & string> = Routes[TPath][TMethod] extends { input: infer T } ? T : never
 

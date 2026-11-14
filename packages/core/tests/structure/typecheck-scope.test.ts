@@ -2,7 +2,8 @@
  * Every tsconfig.json the repository tracks is type-checked by a gate (bit 20 k-fix): the cf e2e host's carried two
  * errors that no gate ran. A gate is `typecheck` or one the standards block names; it checks a tsconfig through
  * `tsc --noEmit -p <path>`, or through `bun run --filter <...> type:check` over the workspaces it selects, whose
- * `type:check` is `tsc --noEmit` in their own directory.
+ * `type:check` is `tsc --noEmit` in their own directory, or `bun type-check.ts`: cf-workers' per-app programs, each
+ * extending that directory's tsconfig (one program holds one app's operationId slot).
  */
 import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
@@ -13,6 +14,9 @@ import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 const ROOT = join(import.meta.dirname, "../../../..")
 /* checked against the packed tarball by test:packaging: in the tree it resolves no published exports (bit 19 i) */
 const PACKED_ONLY = ["packages/core/tests/e2e/strict-consumer/tsconfig.json"]
+
+/* a workspace `type:check` that checks its own tsconfig.json */
+const CHECKS_OWN_TSCONFIG = ["tsc --noEmit", "bun type-check.ts"]
 
 type Manifest = { name?: string; scripts?: Record<string, string>; standards?: { gates?: string[] } }
 
@@ -46,7 +50,7 @@ function checkedBy(scripts: Record<string, string>, gates: readonly string[]): S
 		const filters = [...script.matchAll(/--filter '?([^'\s]+)'?/g)].map(([, filter]) => filter as string)
 		for (const dir of workspaces) {
 			const manifest = manifestAt(dir)
-			if (manifest.scripts?.["type:check"] !== "tsc --noEmit") continue
+			if (!CHECKS_OWN_TSCONFIG.includes(manifest.scripts?.["type:check"] ?? "")) continue
 			if (filters.some((filter) => selects(filter, dir, manifest.name))) checked.add(join(dir, "tsconfig.json"))
 		}
 	}

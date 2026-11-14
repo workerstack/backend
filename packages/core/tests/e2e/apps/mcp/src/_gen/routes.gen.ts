@@ -38,9 +38,6 @@ export type MetaShape = {
 	security: [{ apiKey: ["extract:write"] }]
 } & Record<string, unknown>
 
-
-export type RouteSelector = typeof P0 | typeof P1 | typeof P2 | typeof P3 | typeof P4
-
 export const meta: Record<string, MetaShape> = S({
 	[P0]: M0,
 	[P1]: M1,

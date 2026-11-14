@@ -52,9 +52,6 @@ export type MetaShape = {
 	operationId: "health.list" | "docs.list" | "feed.list" | "account.list" | "account.settings.create" | "resources.retrieve" | "resources.delete" | "resources.create"
 } & Record<string, unknown>
 
-
-export type RouteSelector = typeof P6 | typeof P3 | typeof P1 | typeof P2 | typeof P0 | typeof P5 | typeof P4 | typeof P7
-
 export const meta: Record<string, MetaShape> = S({
 	[P0]: M0,
 	[P1]: M1,

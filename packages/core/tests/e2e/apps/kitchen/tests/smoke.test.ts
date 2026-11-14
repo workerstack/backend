@@ -3,6 +3,7 @@ import type { WSAdapter } from "@workerstack/backend/http"
 import { compareApps, probesFromTree } from "../../../differential.ts"
 import { routeTree } from "../src/_gen/routes.gen.ts"
 import { createApp } from "../src/app.ts"
+import { greetingLog } from "../src/app2.ts"
 
 const stubWs: WSAdapter = {
 	upgrade() {
@@ -77,5 +78,51 @@ describe("its SSE routes in the generated document (carry-in #7)", () => {
 				.filter(([status, answer]) => status.startsWith("2") && answer.content?.["text/event-stream"] !== undefined)
 				.map(([status]) => status)
 		expect([streams("/api/events"), streams("/api/events-live")]).toEqual([["200"], ["200"]])
+	})
+})
+
+describe("its hello groups share one step typed OperationCtx over both ids", () => {
+	test("GET /api/hello greets through the step and its c.with db", async () => {
+		const res = await fetchApp("/api/hello?q=ada")
+		expect([res.status, await res.json()]).toEqual([200, { greeting: "hello ada (audited)", q: "ada" }])
+	})
+
+	test("POST /api/hello greets through the same step, by the greeter, and fires the defined tap", async () => {
+		const res = await fetchApp("/api/hello", {
+			body: JSON.stringify({ name: "ada" }),
+			headers: { "content-type": "application/json", "x-greeter": "bob" },
+			method: "POST",
+		})
+		expect([res.status, await res.json()]).toEqual([
+			200,
+			{ by: "bob", created: "ada", greeting: "hello ada (audited)" },
+		])
+		expect(greetingLog.at(-1)).toBe("ada")
+	})
+
+	test("the step's shared c.errors refuses a name in either group, and a POST without a greeter", async () => {
+		const refused = async (res: Response) => [res.status, ((await res.json()) as { error_key: string }).error_key]
+		const post = (headers: Record<string, string>, name: string) =>
+			fetchApp("/api/hello", {
+				body: JSON.stringify({ name }),
+				headers: { "content-type": "application/json", ...headers },
+				method: "POST",
+			})
+		expect([
+			await refused(await fetchApp("/api/hello?q=nobody")),
+			await refused(await post({ "x-greeter": "bob" }, "nobody")),
+			await refused(await post({}, "ada")),
+		]).toEqual([
+			[403, "greeting_refused"],
+			[403, "greeting_refused"],
+			[403, "greeting_refused"],
+		])
+	})
+
+	test("POST /api/hello's invalidate names hello.list, emitted as its METHOD and pattern", async () => {
+		const doc = (await (await fetchApp("/api/openapi.json")).json()) as {
+			paths: Record<string, Record<string, { "x-invalidate"?: unknown }>>
+		}
+		expect(doc.paths["/api/hello"]?.post?.["x-invalidate"]).toEqual(["GET /api/hello"])
 	})
 })

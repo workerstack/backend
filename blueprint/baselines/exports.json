@@ -45,7 +45,6 @@
 		"InferMeta",
 		"InferMethods",
 		"InferOutput",
-		"InferRouteCtx",
 		"InferRouteErrors",
 		"InferRouteInput",
 		"InferRouteMeta",

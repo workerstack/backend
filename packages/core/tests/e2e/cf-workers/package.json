@@ -9,7 +9,7 @@
 		"test": "playwright test",
 		"test:live": "bun scripts/live-smoke.ts",
 		"test:prod": "TEST_MODE=prod playwright test",
-		"type:check": "tsc --noEmit"
+		"type:check": "bun type-check.ts"
 	},
 	"dependencies": {
 		"@backend/e2e-compose": "workspace:*",

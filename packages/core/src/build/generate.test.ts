@@ -228,7 +228,9 @@ describe("generateAndWrite (bit 19 h2), continued (3)", () => {
 		},
 		SLOW,
 	)
+})
 
+describe("generateAndWrite (bit 19 h2), continued (4)", () => {
 	// v0: 75ddd200b6
 	it(
 		"builds the types' document with the check when no OpenAPI output ran it, so it still reports once",
@@ -240,7 +242,9 @@ describe("generateAndWrite (bit 19 h2), continued (3)", () => {
 			})
 			const config = { app: "src/app.ts", codegen: { tree: false, types: true } }
 			expect(await invalidateReports(config, dir)).toBe(1)
-			expect(read(dir, "src/_gen/types.gen.d.ts")).toContain('export type RouteSelector = "GET /health" | "GET /items"')
+			expect(read(dir, "src/_gen/types.gen.d.ts")).toContain(
+				'"items.list": { kind: "http"; ctx: Routes["/items"]["get"]["ctx"] }',
+			)
 		},
 		SLOW,
 	)

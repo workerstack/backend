@@ -46,9 +46,6 @@ export type MetaShape = {
 	worker?: "origin"
 } & Record<string, unknown>
 
-
-export type RouteSelector = typeof P4 | typeof P5 | typeof P6 | typeof P3 | typeof P0 | typeof P2 | typeof P7 | typeof P1
-
 export const meta: Record<string, MetaShape> = S({
 	[P0]: M0,
 	[P1]: M1,

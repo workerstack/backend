@@ -26,7 +26,7 @@ payload the schema refuses never reaches the handler.
 | `.meta({ audit: {...} })` with the key typed by `.taps<T>()`   | the same `.meta()`, with the key typed by `metaType<TapMeta<typeof audit>>()`          |
 | a `TapHandler<TEnv, T>` annotation on a handler                | `TapContext<TEnv>` on the handler's first parameter; the payload comes from the schema |
 | a payload no one checked                                       | a refused payload fails the request with a 500; a refused meta value throws at compile |
-| an app's `$taps` type carrying the payloads                    | `$taps` is always `{}`                                                                 |
+| an app's `$taps` type carrying the payloads                    | gone: a tap's payload is its schema's output                                           |
 
 ```ts
 import { defineTap, httpApp, type TapContext, type TapMeta } from "@workerstack/backend/http"
@@ -837,32 +837,29 @@ const header = (method: string, path: string) => fresh[`${method} ${path}`]
 A route's own `meta.invalidate` names operationIds, and the document emits each as `"<METHOD> <pattern>"` with the
 colon form; normalize an emitted selector to the template before you look one up.
 
-## The generated `RouteCtx` is the route's ctx; its meta is what the app declares
+## A route's ctx outside the app is `OperationCtx<"id">`
 
-`types.gen.d.ts` types each route's ctx, and a service outside the app module takes it:
-`RouteCtx<"/items", "get">`. Its `meta` is the meta type the app declares with `metaType<AppMeta>()` plus the OpenAPI
-keys a route may add — not the route's configured values, which are narrower than what the handler holds (a
-route's `operationId` is `string` there, not `"items.list"`). Read a route's values from the sibling
-`RouteMeta<"/items", "get">`, which still types them as literals. Its `params` are the path's strings, except where
-`.input({ params })` gives a key a schema: then that key is the schema's output, as the handler has it.
-
-`InferRouteCtx<typeof app, …>` is the same ctx read off the app type, for a module the app does **not** import; a
-service the app imports would be a cycle, and the generic then resolves to `never`.
+`types.gen.d.ts` used to type each route's ctx by path as `RouteCtx<"/items", "get">`, and `InferRouteCtx<typeof
+app, "/items", "get">` read the same ctx off the app type. Both are gone. A service or step outside the app module
+takes `OperationCtx<"items.list">` from `@workerstack/backend/http`, named by the route's declared `operationId`.
+Codegen fills the ids into the `HttpCodegen` slot in `types.gen.d.ts`, so the app module can import the service
+without a cycle. One id is that route's own ctx, with its input, params and meta; several ids merge into the members
+every route shares. A route's configured meta values are still literals in the sibling `RouteMeta<"/items", "get">`.
 
 ```ts v0
 import type { RouteCtx } from "./_gen/types.gen.d.ts"
+import { type InferRouteCtx } from "@workerstack/backend/http"
+
+function items(ctx: RouteCtx<"/items", "get">) {}
+function fromApp(ctx: InferRouteCtx<typeof app, "/items", "get">) {}
 ```
 
 ```ts
-import { httpApp, type InferRouteCtx } from "@workerstack/backend/http"
+import type { OperationCtx } from "@workerstack/backend/http"
 
-const routed = httpApp()
-	.get("/items")
-	.handler((ctx) => ctx.res.text("ok", "items"))
-
-/* a module the app does not import reads the ctx off the app type; one it imports takes RouteCtx from _gen */
-function items(ctx: InferRouteCtx<typeof routed, "/items", "get">): string {
-	return ctx.routePattern
+/* typed from the operationId slot codegen writes into _gen/types.gen.d.ts; HttpContext until it runs */
+function items(ctx: OperationCtx<"items.list">): void {
+	ctx.log.info("listed")
 }
 void items
 ```

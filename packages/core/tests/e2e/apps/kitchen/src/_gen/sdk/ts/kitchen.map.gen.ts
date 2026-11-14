@@ -73,6 +73,17 @@ export const serviceMap: ServiceMap = {
 			path: "/api/health",
 		},
 	},
+	hello: {
+		create: {
+			invalidate: ["GET /api/hello"],
+			method: "POST",
+			path: "/api/hello",
+		},
+		list: {
+			method: "GET",
+			path: "/api/hello",
+		},
+	},
 	organizations: {
 		create: {
 			empty: true,

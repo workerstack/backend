@@ -1,5 +1,7 @@
 import type { Result, SDKConfig, SSEEvent, TypedWebSocket } from "./kitchen.runtime.gen.js"
 
+export type CreateApiHelloRequest = { name: string }
+export type CreateApiHelloResponse200 = { by: string; created: string; greeting: string }
 export type CreateApiV1OrganizationResponse409 = {
 	error_key: "org_slug_taken"
 	fields: Record<string, { error_key: string; message: string; path: string }[]>
@@ -27,6 +29,15 @@ export type Err401Unauthorized = {
 	success: false
 	vars?: Record<string, number | string>
 }
+export type Err403GreetingRefused = {
+	error_key: "greeting_refused"
+	fields: Record<string, { error_key: string; message: string; path: string }[]>
+	message: string
+	status: 403
+	status_key: string
+	success: false
+	vars?: Record<string, number | string>
+}
 export type Err403OrgLimitReached = {
 	error_key: "org_limit_reached"
 	fields: Record<string, { error_key: string; message: string; path: string }[]>
@@ -46,6 +57,7 @@ export type Err500ApiError = {
 	vars?: Record<string, number | string>
 }
 export type ListApiEventsResponse200 = string
+export type ListApiHelloResponse200 = { greeting: string; q: string }
 export type ListApiResponse200 = { id: string }
 
 /** The order.paid webhook event */
@@ -161,6 +173,14 @@ export interface KitchenOperations {
 	}
 	health: {
 		check: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+	}
+	hello: {
+		create: HttpCall<
+			{ json: CreateApiHelloRequest },
+			CreateApiHelloResponse200,
+			{ 403: ErrorEnvelope<403, "greeting_refused"> }
+		>
+		list: HttpCall<{ search: { q: string } }, ListApiHelloResponse200, { 403: ErrorEnvelope<403, "greeting_refused"> }>
 	}
 	organizations: {
 		create: HttpCall<

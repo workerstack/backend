@@ -26,9 +26,6 @@ export type MetaShape = {
 	operationId: "health.list" | "users.retrieve" | "echo.create"
 } & Record<string, unknown>
 
-
-export type RouteSelector = typeof P0 | typeof P1 | typeof P2
-
 export const meta: Record<string, MetaShape> = S({
 	[P0]: M0,
 	[P1]: M1,

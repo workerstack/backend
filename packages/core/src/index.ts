@@ -42,7 +42,6 @@ export type {
 	InferErrorFactory,
 	InferMeta,
 	InferMethods,
-	InferRouteCtx,
 	InferRouteErrors,
 	InferRouteInput,
 	InferRouteMeta,

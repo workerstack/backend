@@ -505,6 +505,95 @@
         }
       }
     },
+    "/api/hello": {
+      "get": {
+        "operationId": "hello.list",
+        "x-backend-route": "GET /api/hello",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListApiHelloResponse200"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err403GreetingRefused"
+                }
+              }
+            },
+            "description": "greeting_refused",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "greeting_refused": {
+            "status": 403
+          }
+        }
+      },
+      "post": {
+        "operationId": "hello.create",
+        "x-invalidate": [
+          "GET /api/hello"
+        ],
+        "x-backend-route": "POST /api/hello",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiHelloRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiHelloResponse200"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err403GreetingRefused"
+                }
+              }
+            },
+            "description": "greeting_refused",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "greeting_refused": {
+            "status": 403
+          }
+        }
+      }
+    },
     "/api/realtime/broadcast/{topic}": {
       "post": {
         "operationId": "realtime.broadcast.create",
@@ -1118,6 +1207,121 @@
       },
       "ListApiEventsResponse200": {
         "type": "string"
+      },
+      "ListApiHelloResponse200": {
+        "type": "object",
+        "properties": {
+          "greeting": {
+            "type": "string"
+          },
+          "q": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "greeting",
+          "q"
+        ],
+        "additionalProperties": false
+      },
+      "Err403GreetingRefused": {
+        "properties": {
+          "error_key": {
+            "enum": [
+              "greeting_refused"
+            ],
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": {
+              "items": {
+                "properties": {
+                  "error_key": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error_key",
+                  "message",
+                  "path"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              403
+            ],
+            "type": "integer"
+          },
+          "status_key": {
+            "type": "string"
+          },
+          "success": {
+            "const": false
+          },
+          "vars": {
+            "additionalProperties": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "error_key",
+          "fields",
+          "message",
+          "status",
+          "status_key",
+          "success"
+        ],
+        "type": "object"
+      },
+      "CreateApiHelloRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "CreateApiHelloResponse200": {
+        "type": "object",
+        "properties": {
+          "by": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string"
+          },
+          "greeting": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "by",
+          "created",
+          "greeting"
+        ],
+        "additionalProperties": false
       },
       "CreateApiV1OrganizationResponse409": {
         "properties": {

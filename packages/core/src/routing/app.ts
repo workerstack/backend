@@ -58,8 +58,6 @@ export class HttpApp<
 	declare readonly $meta: TMeta
 	/** The routes registered so far, by path and method, without `internal` ones. Type only; the generated client reads it. */
 	declare readonly $routes: TRoutes
-	/** Always `{}`: a tap is no part of the app's type. Type only, read by the pinned clients extractor. */
-	declare readonly $taps: {}
 	readonly #graph: HttpGraph
 	/** this handle's view: read-only, reached through a symbol the package does not export */
 	readonly [VIEW]: HandleView

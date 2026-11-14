@@ -9,7 +9,6 @@ import { httpApp } from "../../src/routing/app.ts"
 import type {
 	HttpMeta,
 	InferBasePath,
-	InferRouteCtx,
 	InferRouteMeta,
 	InferRouteMethods,
 	InferRoutePaths,
@@ -25,10 +24,9 @@ type Chain<N extends number, Acc = {}, I extends unknown[] = [0]> = I["length"] 
 
 describe("$routes", () => {
 	// v0: 9bf8379dff
-	it("a fresh app has no routes and no taps", () => {
+	it("a fresh app has no routes", () => {
 		const app = httpApp<{}>()
 		expectTypeOf<InferRoutes<typeof app>>().toEqualTypeOf<{}>()
-		expectTypeOf<(typeof app)["$taps"]>().toEqualTypeOf<{}>()
 	})
 
 	// v0: 85569eeaad
@@ -119,7 +117,7 @@ describe("$routes through the builder at depth, and per method", () => {
 		expectTypeOf<InferRoutes<typeof deep>>().not.toBeNever()
 		expectTypeOf<InferRoutes<typeof deep>>().toHaveProperty("/r1")
 		expectTypeOf<InferRoutes<typeof deep>>().toHaveProperty("/r25")
-		expectTypeOf<InferRouteCtx<typeof deep, "/r1", "get">>().toMatchTypeOf<{ req: Request }>()
+		expectTypeOf<InferRoutes<typeof deep>["/r1"]["get"]["ctx"]>().toMatchTypeOf<{ req: Request }>()
 	})
 
 	// v0: 626265f3f4

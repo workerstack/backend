@@ -12,7 +12,7 @@ import { generateOpenApi } from "../openapi/generate.ts"
 import { generateManifest } from "../openapi/manifest.ts"
 import { toYaml } from "../openapi/yaml.ts"
 import type { InvalidateCheckConfig } from "../routing/invalidate-check.ts"
-import { routeId } from "../routing/pattern.ts"
+import { normalizePattern, routeId } from "../routing/pattern.ts"
 import type { RouteTree } from "../routing/tree.ts"
 import { sanitizeOpenApiSpec, securityNamed } from "../schema/sanitize-spec.ts"
 import type { EffectConverter } from "../schema/to-json-schema.ts"
@@ -121,7 +121,8 @@ async function typesOf(
 		exportName: source.exportName,
 		outputDir: dirname(resolve(run.root, path)),
 		report: run.report,
-		routeId,
+		/* the id the router serves a full path at: a trailing or doubled slash dropped, a refused pattern thrown */
+		routeId: (method, path) => routeId(method, normalizePattern(path)),
 		tsMorph: await run.codegen.loadTsMorph(),
 	})
 	const { baseCtxName } = config.codegen.types as { baseCtxName: string | undefined }

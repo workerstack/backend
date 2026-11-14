@@ -24,43 +24,30 @@ const APP = [
 	'import { cors } from "@workerstack/backend/http/cors"',
 	'import { serveOpenApi } from "@workerstack/backend/http/openapi"',
 	'import { requestId } from "@workerstack/backend/http/request-id"',
+	'import { ws } from "@workerstack/backend/ws"',
 	'import * as z from "zod"',
 	"",
 	'const errors = defineErrors({ item_not_found: "not_found" })',
 	"",
-	"export const app = serveOpenApi(",
-	"\thttpApp<{}>()",
-	"\t\t.errorFactory(errors)",
-	"\t\t.use(requestId())",
-	'\t\t.use(cors({ origin: "http://app.test" }))',
-	'\t\t.use(createMiddleware((_ctx, next) => next({ userId: "u-1" })))',
-	'\t\t.get("/health").meta({ operationId: "health.list" })',
-	'\t\t.handler((ctx) => ctx.res.text("ok", "ok"))',
-	'\t\t.post("/items").meta({ operationId: "items.create" })',
-	"\t\t.input({ json: z.object({ name: z.string() }) })",
-	'\t\t.output({ "application/json": { created: z.object({ name: z.string(), userId: z.string() }) } })',
-	'\t\t.handler((ctx) => ctx.res.json("created", { name: ctx.input.json.name, userId: ctx.userId })),',
-	'\t{ title: "Consumer", version: "1.0.0" },',
-	")",
+	"const routes = httpApp<{}>()",
+	"\t.errorFactory(errors)",
+	"\t.use(requestId())",
+	'\t.use(cors({ origin: "http://app.test" }))',
+	'\t.use(createMiddleware((_ctx, next) => next({ userId: "u-1" })))',
+	'\t.get("/health").meta({ operationId: "health.list" })',
+	'\t.handler((ctx) => ctx.res.text("ok", "ok"))',
+	'\t.post("/items").meta({ operationId: "items.create" })',
+	"\t.input({ json: z.object({ name: z.string() }) })",
+	'\t.output({ "application/json": { created: z.object({ name: z.string(), userId: z.string() }) } })',
+	'\t.handler((ctx) => ctx.res.json("created", { name: ctx.input.json.name, userId: ctx.userId }))',
+	'ws(routes, "/live").meta({ operationId: "live.connect" }).handler({ onMessage(_ctx, socket, data) { socket.send(data) } })',
+	"",
+	'export const app = serveOpenApi(routes, { title: "Consumer", version: "1.0.0" })',
 	"",
 ].join("\n")
 
-/* the consumer fills the operation slot as the clients emitter will, read through the root entry's re-exports: each
- * expect-error is unused unless the ids narrow, and `live.connect`, a WebSocket id, is no invalidate target */
-const SLOT = [
-	'import type { RouteCtx } from "./_gen/types.gen.js"',
-	"",
-	'declare module "@workerstack/backend/http" {',
-	"\tinterface HttpCodegen {",
-	"\t\toperationId: {",
-	'\t\t\t"health.list": { kind: "http"; ctx: RouteCtx<"/health", "get"> }',
-	'\t\t\t"live.connect": { kind: "ws"; ctx: {} }',
-	"\t\t}",
-	"\t}",
-	"}",
-	"",
-].join("\n")
-
+/* the operation slot is the one `backend generate` writes into src/_gen/types.gen.d.ts: each expect-error is unused
+ * unless the generated ids narrow, and `live.connect`, a WebSocket id, is no invalidate target */
 const OPERATIONS = [
 	'import type { HttpMeta, HttpOperationId, OperationId } from "@workerstack/backend/http"',
 	"",
@@ -119,7 +106,7 @@ beforeAll(() => {
 		{ "@workerstack/backend": `file:${tarball}`, "@workerstack/clients": CLIENTS, zod: ZOD },
 		["@types/node", "vite"],
 	)
-	write(app, { "src/app.ts": APP, "src/operations.ts": OPERATIONS, "src/slot.d.ts": SLOT })
+	write(app, { "src/app.ts": APP, "src/operations.ts": OPERATIONS })
 }, 180_000)
 afterAll(() => files.done())
 
