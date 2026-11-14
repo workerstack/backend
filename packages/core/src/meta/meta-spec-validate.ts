@@ -42,7 +42,7 @@ export type MetaSpecDiagnostic = {
 /** How many errors an aggregate error lists before it only counts. */
 const LISTED = 20
 
-/** What one policy run found: each code and message once, in order. */
+/** What one document build found, its metaSpec policy's and its own checks': each code and message once, in order. */
 export class MetaSpecDiagnostics {
 	readonly list: MetaSpecDiagnostic[] = []
 	/** meta keys already reported as unmapped: once, not once per route */
@@ -58,13 +58,13 @@ export class MetaSpecDiagnostics {
 		this.list.push({ code, level, message })
 	}
 
-	/** Throws one error naming every policy error; with none, the warnings for the caller to report. */
+	/** Throws one error naming every error the document build found; with none, the warnings for the caller to report. */
 	throwIfErrors(): readonly MetaSpecDiagnostic[] {
 		const errors = this.list.filter(({ level }) => level === "error")
 		if (errors.length === 0) return this.list
 		const shown = errors.slice(0, LISTED).map(({ code, message }) => `  - ${code}: ${message}`)
 		const more = errors.length > LISTED ? `\n  … and ${errors.length - LISTED} more` : ""
-		throw new Error(`[backend:metaSpec] ${errors.length} policy error(s):\n${shown.join("\n")}${more}`)
+		throw new Error(`[backend:openapi] ${errors.length} document error(s):\n${shown.join("\n")}${more}`)
 	}
 }
 

@@ -36,7 +36,7 @@ describe("MetaSpecDiagnostics: collected, never printed", () => {
 		const diagnostics = new MetaSpecDiagnostics()
 		diagnostics.add("INVALID_VALUE", "error", "bad")
 		expect(() => diagnostics.throwIfErrors()).toThrow(
-			/^\[backend:metaSpec\] 1 policy error\(s\):\n {2}- INVALID_VALUE: bad$/,
+			/^\[backend:openapi\] 1 document error\(s\):\n {2}- INVALID_VALUE: bad$/,
 		)
 	})
 
@@ -47,7 +47,7 @@ describe("MetaSpecDiagnostics: collected, never printed", () => {
 		for (let i = 0; i < 22; i++) diagnostics.add("INVALID_VALUE", "error", `bad ${i}`)
 		diagnostics.add("MISSING_ENTRY", "warn", "w")
 		expect(() => diagnostics.throwIfErrors()).toThrow(
-			/^\[backend:metaSpec\] 22 policy error\(s\):\n {2}- INVALID_VALUE: bad 0\n[\s\S]*- INVALID_VALUE: bad 19\n {2}… and 2 more$/,
+			/^\[backend:openapi\] 22 document error\(s\):\n {2}- INVALID_VALUE: bad 0\n[\s\S]*- INVALID_VALUE: bad 19\n {2}… and 2 more$/,
 		)
 	})
 })

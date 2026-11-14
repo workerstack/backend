@@ -110,7 +110,7 @@ describe("an invalidate target that names no HTTP operation", () => {
 			.meta({ invalidate: ["nope"], operationId: "both.update" })
 			.handler((c) => c.res.text("ok", "ok"))
 		expect(() => generateOpenApi(app, { info: INFO })).toThrow(
-			/2 policy error\(s\):\n.*PUT \/both: invalidate target "nope".*\n.*PATCH \/both: invalidate target "nope"/,
+			/2 document error\(s\):\n.*PUT \/both: invalidate target "nope".*\n.*PATCH \/both: invalidate target "nope"/,
 		)
 	})
 
@@ -125,7 +125,7 @@ describe("an invalidate target that names no HTTP operation", () => {
 			.meta({ invalidate: ["gone"], operationId: "dropped.create" })
 			.handler((c) => c.res.text("ok", "ok"))
 		expect(() => generateOpenApi(app, { filterRoutes: (route) => route.path !== "/dropped", info: INFO })).toThrow(
-			/2 policy error\(s\):\n.*POST \/hidden: invalidate target "gone".*\n.*POST \/dropped: invalidate target "gone"/,
+			/2 document error\(s\):\n.*POST \/hidden: invalidate target "gone".*\n.*POST \/dropped: invalidate target "gone"/,
 		)
 	})
 

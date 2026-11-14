@@ -95,14 +95,14 @@ describe("generateOpenApi: synchronous, and the metaSpec it is built with", () =
 
 describe("generateOpenApi: one diagnostics channel", () => {
 	// v0: b1941b54e2
-	it("throws every policy error at once, one aggregate", () => {
+	it("throws every document error at once, one aggregate", () => {
 		const app = httpApp<{}>().metaType<{ rateLimit?: string; worker?: string }>()
 		app.metaSpec({ meta: {} } as never)
 		app
 			.get("/a")
 			.meta({ operationId: "a.list", rateLimit: "ai", worker: "w" })
 			.handler((c) => c.res.text("ok", "ok"))
-		expect(() => generateOpenApi(app, { info: INFO })).toThrow(/2 policy error.*MISSING_ENTRY/s)
+		expect(() => generateOpenApi(app, { info: INFO })).toThrow(/^\[backend:openapi\] 2 document error.*MISSING_ENTRY/s)
 	})
 
 	// v0: 3e900e5370
