@@ -338,11 +338,4 @@ To move from `@lovrozagar/*`:
 ## Upgrade
 
 Install `@workerstack/backend` and `@workerstack/clients` at the versions above together, then rewrite the imports.
-In a project that has the `~/Development/standards` checkout, the rename codemod applies every table on this page in
-one run, from a clean git tree:
-
-```sh
-bun ~/Development/standards/tools/rename-brand/rename.ts . path/to/migrating-from-honey.md
-```
-
-Without it, replace each "Before" with its "After", longest first, then rerun `honey generate`.
+Replace each "Before" with its "After", longest first, then rerun `honey generate`.

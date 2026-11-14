@@ -19,8 +19,8 @@ const EXEMPT = [
 	/^packages\/gen\/src\/_tokenizer\//,
 	/^CHANGELOG\.md$/,
 	/^blueprint\//,
-	/^\.(agents|claude|codex|gemini|grok|rulesync)\//,
-	/^(AGENTS|CLAUDE|GEMINI)\.md$/,
+	/^\.(agents|claude|codex|cursor|grok|repo)\//,
+	/^(AGENTS|CLAUDE)\.md$/,
 ]
 
 function repoFiles(): string[] {
