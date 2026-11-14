@@ -1,7 +1,7 @@
 # Cron
 
 `@workerstack/backend/cron` defines scheduled jobs once. `@workerstack/backend/cron/workers` runs them from a Workers cron
-trigger, and `@workerstack/backend/cron/serve` runs them on a timer in a Node or Bun process.
+trigger.
 
 ## Example
 
@@ -57,48 +57,3 @@ of the trigger that fired, and a run for an expression the definition lacks fail
 
 Every job of the expression runs. If one fails, the others finish, `noRetry()` is called so finished jobs do not run
 again, and the run rethrows.
-
-## In a process
-
-`serveCron(cron, options)` shares one timer between Node and Bun. It wakes at each minute and reads the clock, so a suspended laptop or
-a clock step corrects itself within a minute.
-
-```ts
-import { defineCron } from "@workerstack/backend/cron"
-import { serveCron } from "@workerstack/backend/cron/serve"
-
-declare function report(error: unknown): void
-
-const cron = defineCron<{}>({ schedules: { "* * * * *": { ping: async ({ log }) => log.info("ping") } } })
-
-const running = serveCron(cron, { env: {}, onError: report, singleInstance: true })
-
-process.once("SIGTERM", () => running.close(10_000))
-```
-
-Pass exactly one of `singleInstance: true` or `claim`. With several instances, `claim` decides which one runs a tick:
-
-```ts
-import { defineCron } from "@workerstack/backend/cron"
-import { serveCron } from "@workerstack/backend/cron/serve"
-
-declare const store: { insertIfAbsent(key: string): Promise<boolean> }
-declare function report(error: unknown): void
-
-const cron = defineCron<{}>({ schedules: { "* * * * *": { ping: async ({ log }) => log.info("ping") } } })
-
-serveCron(cron, {
-	claim: (key, scheduledAt) => store.insertIfAbsent(`${key} ${scheduledAt.toISOString()}`),
-	env: {},
-	onError: report,
-})
-```
-
-`claim(key, scheduledAt)` is asked per job per tick and never released. Its `key` is `<expression> <job>`.
-
-- With a job still running, that job skips its tick: a job still running never runs alongside itself.
-- A tick missed while the process was down or suspended is lost. `claim` covers several instances, not downtime.
-- A failed job or `claim` reaches `onError`. If `onError` throws, the error is logged.
-- `close(timeoutMs)` stops the timer and waits for running jobs. When the timeout passes first it aborts their `signal`
-  and resolves without them. With no timeout it waits as long as they take.
-- The timer keeps the process alive until `close`.

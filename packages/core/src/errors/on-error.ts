@@ -9,7 +9,6 @@
  */
 import { type HoneyContext, REQUEST, setCtxError } from "../context/context.ts"
 import type { MaybePromise } from "../middleware/middleware.ts"
-import { isHoneyResponse, isNodeOutbound } from "../response/builder.ts"
 import type { FetchState } from "../routing/dispatch.ts"
 import type { AppSettings, ErrorCtx, ErrorI18n } from "../routing/settings.ts"
 import { invokeUser } from "../realtime/invoke-user.ts"
@@ -44,21 +43,19 @@ export function errorCtx(s: AppSettings<unknown>, state: FetchState): ErrorCtx<u
 		jsonFromError: (err) =>
 			createErrorResponse(err, s.errorFormatter, s.payloadErrorFormatter, {
 				format: s.errorFormat,
-				nodeOut: isNodeOutbound(state.req),
 				report: formatterReport(s, state),
 			}),
 		req: state.req,
 	}
 }
 
-/** How an error answers for `ctx`: its format, its request id as the instance, its bridge. */
+/** How an error answers for `ctx`: its format, its request id as the instance. */
 function answerFor(s: AppSettings<unknown>, ctx: object): ErrorAnswer {
 	const state = stateOf(ctx)
 	return {
 		digest: state.digest,
 		format: s.errorFormat,
 		instance: (ctx as { requestId?: string }).requestId ?? null,
-		nodeOut: isNodeOutbound(state.req),
 		report: formatterReport(s, state),
 	}
 }
@@ -154,8 +151,7 @@ function settleOnError(s: AppSettings<unknown>, t: Throw, result: unknown): Mayb
 		serverError(s, t, error, "server error")
 		return answer(s, t.ctx, error)
 	}
-	/* jsonFromError answers a HoneyResponse on the Node path: a Response all the same */
-	if (result instanceof Response || isHoneyResponse(result)) {
+	if (result instanceof Response) {
 		setCtxError(t.ctx as HoneyContext, t.error)
 		return result as Response
 	}

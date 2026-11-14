@@ -5,7 +5,7 @@
  * pinned in tests/integration/cookie-codec.test.ts.
  */
 import { describe, expect, it } from "vitest"
-import { isHoneyResponse, rawBodyOf } from "./builder.ts"
+import { rawBodyOf } from "./builder.ts"
 import { SILENT } from "../telemetry/logger.ts"
 import { HoneyRes, type ResLink, type ResponseOptions } from "./response.ts"
 
@@ -81,15 +81,10 @@ describe("body helpers", () => {
 
 describe("body helpers: the options' content type, and json's serialization", () => {
 	// v0: 9122573f2c
-	it("a content type in the options replaces the helper's own, on the native and the Node path", () => {
-		for (const helper of [new HoneyRes(), new HoneyRes(true)]) {
-			const response = helper.json(
-				"ok",
-				{ data: 1 },
-				{ headers: { "Content-Type": "application/json; charset=utf-8" } },
-			)
-			expect([...response.headers]).toEqual([["content-type", "application/json; charset=utf-8"]])
-		}
+	it("a content type in the options replaces the helper's own", () => {
+		const helper = new HoneyRes()
+		const response = helper.json("ok", { data: 1 }, { headers: { "Content-Type": "application/json; charset=utf-8" } })
+		expect([...response.headers]).toEqual([["content-type", "application/json; charset=utf-8"]])
 	})
 
 	// v0: 0d12f86daf
@@ -108,14 +103,9 @@ describe("body helpers: the options' content type, and json's serialization", ()
 		])
 	})
 
-	it("json of a value JSON.stringify leaves out writes an empty body, kept as an empty raw body on both paths", async () => {
-		const answers = [res, new HoneyRes(true)].flatMap((helper) => [
-			helper.json("ok", undefined),
-			helper.json("ok", () => 1),
-		])
+	it("json of a value JSON.stringify leaves out writes an empty body, kept as an empty raw body", async () => {
+		const answers = [res.json("ok", undefined), res.json("ok", () => 1)]
 		expect(await Promise.all(answers.map(async (r) => [rawBodyOf(r), await r.text()]))).toEqual([
-			["", ""],
-			["", ""],
 			["", ""],
 			["", ""],
 		])
@@ -146,14 +136,13 @@ describe("status", () => {
 	})
 
 	// v0: b3c80a24ec
-	it("a body on a null-body status throws, on the native and the Node path", () => {
-		for (const helper of [new HoneyRes(), new HoneyRes(true)])
-			for (const [key, status] of [
-				["no_content", 204],
-				["reset_content", 205],
-				["not_modified", 304],
-			] as const)
-				expect(() => helper.json(key, 1)).toThrow(`A ${status} response cannot have a body`)
+	it("a body on a null-body status throws", () => {
+		for (const [key, status] of [
+			["no_content", 204],
+			["reset_content", 205],
+			["not_modified", 304],
+		] as const)
+			expect(() => res.json(key, 1)).toThrow(`A ${status} response cannot have a body`)
 	})
 })
 
@@ -271,59 +260,13 @@ describe("raw()", () => {
 })
 
 describe("raw(): a body already read", () => {
-	it("is refused, on a plain response, one Honey built, and the Node path, naming the fix", async () => {
+	it("is refused, on a plain response and one Honey built, naming the fix", async () => {
 		const plain = new Response("cached")
 		const built = res.json("ok", { cached: true })
-		const node = new HoneyRes(true).json("ok", { cached: true })
-		for (const used of [plain, built, node]) {
+		for (const used of [plain, built]) {
 			await used.text()
 			expect(() => res.raw(used)).toThrow("raw(): this response's body was already read")
 		}
-	})
-})
-
-describe("the Node path", () => {
-	const nodeRes = new HoneyRes(true)
-
-	// v0: aea1af3ba3
-	it("json and text skip the native Response but read like one", async () => {
-		const json = nodeRes.json("ok", { message: "Hello, World!" })
-		expect([isHoneyResponse(json), Object.getPrototypeOf(json) === Response.prototype]).toEqual([true, false])
-		expect([json.status, json.headers.get("content-type"), await json.json()]).toEqual([
-			200,
-			"application/json",
-			{ message: "Hello, World!" },
-		])
-		const text = nodeRes.text("created", "hi")
-		expect([isHoneyResponse(text), text.status, await text.text()]).toEqual([true, 201, "hi"])
-	})
-
-	// v0: 669a65fbb2
-	it("lower-cases option headers and appends cookies after a set-cookie header", async () => {
-		const response = nodeRes.json("ok", 1, {
-			cookies: { b: { value: "2" } },
-			headers: { "Set-Cookie": "a=1", "X-A": "1" },
-		})
-		expect([response.headers.get("x-a"), response.headers.getSetCookie(), await response.json()]).toEqual([
-			"1",
-			["a=1", "b=2"],
-			1,
-		])
-		expect(nodeRes.text("ok", "x", { cookies: { c: { value: "3" } } }).headers.getSetCookie()).toEqual(["c=3"])
-	})
-
-	it("noContent and redirect build an empty bag, and the shared content-type maps stay unchanged", async () => {
-		const empty = nodeRes.noContent({ headers: { "x-a": "1" } })
-		expect([isHoneyResponse(empty), empty.status, empty.headers.get("x-a"), await empty.text()]).toEqual([
-			true,
-			204,
-			"1",
-			"",
-		])
-		const moved = nodeRes.redirect("moved_permanently", "/next")
-		expect([moved.status, moved.headers.get("location")]).toEqual([301, "/next"])
-		nodeRes.json("ok", 1, { headers: { "x-a": "1" } })
-		expect(nodeRes.json("ok", 1).headers.get("x-a")).toBeNull()
 	})
 })
 
@@ -490,7 +433,7 @@ describe("ctx.res linked to its request", () => {
 	it("sse() resumes from the Last-Event-ID header; an explicit lastEventId wins; a bare res has none", async () => {
 		const seen: unknown[] = []
 		const record = async (stream: { lastEventId: string | undefined }) => void seen.push(stream.lastEventId)
-		const linked = new HoneyRes(false, link({ "last-event-id": "41" }))
+		const linked = new HoneyRes(link({ "last-event-id": "41" }))
 		await linked.sse(record).text()
 		await linked.sse(record, { lastEventId: "7" }).text()
 		await res.sse(record).text()
@@ -500,7 +443,7 @@ describe("ctx.res linked to its request", () => {
 	// v0: 1c5f096151
 	it("every producer ends when the request's signal aborts", async () => {
 		const request = link()
-		const linked = new HoneyRes(false, request)
+		const linked = new HoneyRes(request)
 		const bodies = [
 			linked.sse((stream) => new Promise((resolve) => stream.signal.addEventListener("abort", () => resolve()))),
 			linked.stream((_writable, signal) => new Promise((resolve) => signal.addEventListener("abort", () => resolve()))),

@@ -3,7 +3,7 @@
  * route's error boundary allows, and that error becomes a JSON response through the app's
  * formatters. Pure: dispatch wraps it with onError, i18n and telemetry.
  */
-import { createHoneyResponse, withRawBody } from "../response/builder.ts"
+import { withRawBody } from "../response/builder.ts"
 import { EK, HoneyError, hasUnknownStatus, isFrameworkErrorKey } from "./error.ts"
 import { ERROR_META, type ErrorMetaEntry } from "./errors.ts"
 import { type ErrorFormat, PROBLEM_JSON, problemDetails } from "./problem-json.ts"
@@ -74,20 +74,12 @@ export type ErrorAnswer = {
 	readonly format?: ErrorFormat
 	/** The request id a Problem Details document names as its `instance`. */
 	readonly instance?: string | null
-	/** Build the answer for honey's Node adapter, as a `HoneyResponse` rather than a `Response`. Default false. */
-	readonly nodeOut?: boolean
 	/** Called with the failure when a formatter throws. */
 	readonly report?: FormatterReport | undefined
 }
 
-/** A JSON answer built the way the bridge it goes out over writes it fastest. */
-export function jsonAnswer(
-	payload: string,
-	headers: Record<string, string>,
-	status: number,
-	nodeOut: boolean,
-): Response {
-	if (nodeOut) return createHoneyResponse({ headers, raw: payload, status })
+/** A JSON answer that remembers its buffered body. */
+export function jsonAnswer(payload: string, headers: Record<string, string>, status: number): Response {
 	return withRawBody(new Response(payload, { headers, status }), payload)
 }
 
@@ -147,7 +139,7 @@ export function createErrorResponse(
 	/* a schema error keeps its declared body, and so its type */
 	const type = answer.format === "problem+json" && error.data === undefined ? PROBLEM_JSON : "application/json"
 	const headers: Record<string, string> = { "content-type": type, ...error.headers }
-	return jsonAnswer(payload, headers, error.status, answer.nodeOut === true)
+	return jsonAnswer(payload, headers, error.status)
 }
 
 /**

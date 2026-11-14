@@ -1,7 +1,5 @@
-import type { AddressInfo } from "node:net"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import * as z from "zod"
-import { createNodeServer } from "../adapters/node/server.ts"
 import { HoneyError } from "../errors/error.ts"
 import { rangeResponse } from "../response/range.ts"
 import { HoneyRes } from "../response/response.ts"
@@ -286,21 +284,14 @@ describe("output validation through the app: where the body is read from", () =>
 		]).toEqual([[200, { id: "a" }], "output_validation_failed"])
 	})
 
-	it("an empty body honey built is validated as null, on the native and the Node path", async () => {
+	it("an empty body honey built is validated as null", async () => {
 		const check = compileOutput({ "application/json": { created: z.null(), ok: z.object({ id: z.string() }) } }, null)
-		const answers = await Promise.all(
-			[new HoneyRes(), new HoneyRes(true)].map(async (res) => {
-				const passed = await check(res.json("created", undefined), {})
-				const failed = (await Promise.resolve()
-					.then(() => check(res.json("ok", undefined), {}))
-					.catch((e: unknown) => e)) as HoneyError
-				return [passed.status, failed.errorKey]
-			}),
-		)
-		expect(answers).toEqual([
-			[201, "output_validation_failed"],
-			[201, "output_validation_failed"],
-		])
+		const res = new HoneyRes()
+		const passed = await check(res.json("created", undefined), {})
+		const failed = (await Promise.resolve()
+			.then(() => check(res.json("ok", undefined), {}))
+			.catch((e: unknown) => e)) as HoneyError
+		expect([passed.status, failed.errorKey]).toEqual([201, "output_validation_failed"])
 	})
 
 	it("a body honey did not build is read from a clone, and the client still gets it whole", async () => {
@@ -423,33 +414,5 @@ describe("output validation beside the rest of the request", () => {
 			)
 		const [bad, good] = [await send('{"name":1}'), await answer(send('{"name":"ada"}'))]
 		expect([bad.status, good, validate.mock.calls]).toEqual([400, [201, { name: "ADA" }], [[{ name: "ADA" }]]])
-	})
-})
-
-describe("output validation over real HTTP", () => {
-	// v0: 9c1b0baf81
-	// v0: 9b32e7fceb
-	it("a valid answer arrives as sent; an invalid one arrives as a 500 output_validation_failed", async () => {
-		const app = validating()
-		const out = { "application/json": { ok: z.object({ id: z.string() }) } }
-		app
-			.get("/valid")
-			.output(out)
-			.handler((ctx) => ctx.res.json("ok", { id: "abc" }))
-		app
-			.get("/bad")
-			.output(out)
-			.handler((ctx) => undeclared(ctx, foreign("application/json")))
-		const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-		await new Promise((resolve) => server.once("listening", resolve))
-		const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-		try {
-			expect([await answer(fetch(`${base}/valid`)), (await answer(fetch(`${base}/bad`)))[1].error_key]).toEqual([
-				[200, { id: "abc" }],
-				"output_validation_failed",
-			])
-		} finally {
-			await server.shutdown(0)
-		}
 	})
 })

@@ -1,7 +1,7 @@
 /**
  * The `honey` CLI's argument parsing (bit 19 h1, ported from v0's unit/plugin/cli-args.test.ts): strict, `--k v` and
  * `--k=v`, a value flag never taking the next flag, unknown flags and stray arguments refused, booleans bare, `true`
- * or `false`; `--plugin` an integer; init's `--workers`.
+ * or `false`; `--plugin` an integer; init's `--force`.
  */
 import { describe, expect, it } from "vitest"
 import { parseGenerateArgs, parseInitFlags, UsageError } from "./cli-args.ts"
@@ -77,17 +77,18 @@ describe("honey generate argument parsing", () => {
 
 describe("honey init argument parsing", () => {
 	// v0: 2a36f102fa
-	it("--workers adds the Worker, and the flags that named a company are gone", () => {
-		expect(parseInitFlags(["--workers", "--force"])).toEqual({ force: true, workers: true })
-		expect([refusal(parseInitFlags, ["--cf"]), refusal(parseInitFlags, ["--cloudflare"])]).toEqual([
-			expect.stringContaining("--cf"),
-			expect.stringContaining("--cloudflare"),
+	it("takes --force alone: --workers and the flags that named a company are gone", () => {
+		expect(parseInitFlags(["--force"])).toEqual({ force: true })
+		expect(["--workers", "--cf", "--cloudflare"].map((flag) => refusal(parseInitFlags, [flag]))).toEqual([
+			"unknown option --workers",
+			"unknown option --cf",
+			"unknown option --cloudflare",
 		])
 	})
 
 	// v0: 3a045bcf9d
 	it("rejects unknown flags", () => {
-		expect([refusal(parseInitFlags, ["--workers", "--typo"]), refusal(parseInitFlags, ["app"])]).toEqual([
+		expect([refusal(parseInitFlags, ["--force", "--typo"]), refusal(parseInitFlags, ["app"])]).toEqual([
 			"unknown option --typo",
 			'unexpected argument "app"',
 		])

@@ -13,8 +13,7 @@ import * as z from "zod"
 import { httpSession, withClients } from "../fixture/mcp-clients/clients.ts"
 import { written } from "../fixture/emitted.ts"
 import { generateMcpHandler } from "@workerstack/clients"
-import type { Server } from "node:http"
-import { serve, type ServeHandle } from "../../src/adapters/node/serve.ts"
+import { type Listener, serve } from "../fixture/loopback.ts"
 import { type McpHandler, mcp } from "../../src/mcp/mount.ts"
 import { memoryUploadStore, uploads } from "../../src/mcp/uploads.ts"
 import { urlFiles } from "../../src/mcp/url-files.ts"
@@ -46,7 +45,7 @@ function app() {
 		})
 }
 
-const servers: ServeHandle<Server>[] = []
+const servers: Listener[] = []
 let endpoint = ""
 const hosted: string[] = []
 
@@ -71,7 +70,7 @@ beforeAll(async () => {
 	/* the listed host, https as the guard asks, reached on the local file host's port */
 	const local = (request: Request) => {
 		const url = new URL(request.url)
-		return fetch(`http://127.0.0.1:${fileHost.port}${url.pathname}`, {
+		return fetch(`${fileHost.url}${url.pathname}`, {
 			redirect: request.redirect,
 			signal: request.signal,
 		})
@@ -83,7 +82,7 @@ beforeAll(async () => {
 	})
 	const server = await serve(mounted, { hostname: "127.0.0.1", port: 0 })
 	servers.push(server)
-	endpoint = `http://127.0.0.1:${server.port}/mcp`
+	endpoint = `${server.url}/mcp`
 })
 
 afterAll(async () => {

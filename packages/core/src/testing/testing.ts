@@ -1,10 +1,7 @@
 /**
  * `testClient(app, options)`: requests against an app from a test, each answered as the raw Web `Response`
- * (`@workerstack/backend/testing`). By default it calls `app.fetch` in process; `transport: serve` serves the app
- * through that runtime's `serve` (`@workerstack/backend/node`, `@workerstack/backend/bun`) on a free local port and sends
- * real HTTP, so the runtime's adapter (its request view, its response writer, the socket's peer) is in the path. An
- * opt-in cookie jar carries `Set-Cookie` into the next request. A plain function: nothing registers itself (H23), and
- * no adapter is imported here: the test names its runtime.
+ * (`@workerstack/backend/testing`). It calls `app.fetch` in process. An opt-in cookie jar carries `Set-Cookie` into
+ * the next request. A plain function: nothing registers itself (H23).
  */
 import { PEER_ADDRESS } from "../context/peer.ts"
 
@@ -14,31 +11,13 @@ type FetchApp<TEnv> = {
 	fetch(request: Request, env: TEnv): Response | Promise<Response>
 }
 
-/** `serve` from `@workerstack/backend/node` or `@workerstack/backend/bun`, as a test client's transport. */
-type ServeTransport<TEnv> = (
-	app: FetchApp<TEnv>,
-	options: {
-		/** The client's `env`, handed to the app as `ctx.env`. */
-		env: TEnv
-		/** Always the loopback, `127.0.0.1`. */
-		hostname: string
-		/** Always `0`: a free port. */
-		port: number
-	},
-) => Promise<{
-	/** Stops the server; `TestClient.close()` calls it. */
-	close(): Promise<void>
-	/** Where the client sends each request. */
-	readonly url: string
-}>
-
 /** Per-request options for a `TestClient` call. */
 export type TestRequestOptions = {
 	/** Sent as `multipart/form-data`, one field per entry. */
 	form?: Record<string, string>
 	/** Request headers. A `cookie` header is joined with the jar's cookies when `cookies` is on. */
 	headers?: Record<string, string>
-	/** The peer address the request comes from, as a server adapter would report it (`ctx.ip`). In process only. */
+	/** The peer address the request comes from, as the platform would report it (`ctx.ip`). */
 	ip?: string
 	/** Sent as `application/json`; wins over `form`. */
 	json?: unknown
@@ -52,14 +31,8 @@ export type TestClientOptions<TEnv> = {
 	cookies?: boolean
 	/** Handed to the app as `ctx.env`. */
 	env: TEnv
-	/** The default peer address for every request; a request's own `ip` wins. In process only. */
+	/** The default peer address for every request; a request's own `ip` wins. */
 	ip?: string
-	/**
-	 * `"fetch"` (default) calls `app.fetch` in process. `serve` from `@workerstack/backend/node` or
-	 * `@workerstack/backend/bun` serves the app with it on a free local port, started on first use, and sends real HTTP
-	 * through that runtime's adapter; `close()` stops it.
-	 */
-	transport?: "fetch" | ServeTransport<TEnv>
 }
 
 /**
@@ -83,14 +56,12 @@ export type TestClient = {
 	put(path: string, options?: TestRequestOptions): Promise<Response>
 	/** Any method, a custom one included. */
 	request(method: string, path: string, options?: TestRequestOptions): Promise<Response>
-	/** Stop the server a `serve` transport started; nothing otherwise. */
-	close(): Promise<void>
 }
 
 const IN_PROCESS_ORIGIN = "http://localhost"
 
-function buildRequest(method: string, path: string, origin: string, options: TestRequestOptions): Request {
-	const url = new URL(path, origin)
+function buildRequest(method: string, path: string, options: TestRequestOptions): Request {
+	const url = new URL(path, IN_PROCESS_ORIGIN)
 	for (const [key, value] of Object.entries(options.search ?? {})) url.searchParams.set(key, value)
 	const headers = new Headers(options.headers)
 	let body: BodyInit | null = null
@@ -125,21 +96,9 @@ function parseSetCookie(line: string, now: number): { expired: boolean; name: st
 	return { expired, name, value: pair.slice(eq + 1).trim() }
 }
 
-/** A test client for `app`; see `TestClientOptions` for the cookie jar, peer address and transport. */
+/** A test client for `app`; see `TestClientOptions` for the cookie jar and peer address. */
 export function testClient<TEnv>(app: FetchApp<TEnv>, options: TestClientOptions<TEnv>): TestClient {
 	const jar = new Map<string, string>()
-	const { transport = "fetch" } = options
-	let server: ReturnType<ServeTransport<TEnv>> | null = null
-
-	const send = async (request: (origin: string) => Request, ip: string | undefined): Promise<Response> => {
-		if (transport !== "fetch") {
-			server ??= transport(app, { env: options.env, hostname: "127.0.0.1", port: 0 })
-			return fetch(request((await server).url), { redirect: "manual" })
-		}
-		const req = request(IN_PROCESS_ORIGIN)
-		if (ip !== undefined) Object.defineProperty(req, PEER_ADDRESS, { value: ip })
-		return app.fetch(req, options.env)
-	}
 
 	const call = async (method: string, path: string, given: TestRequestOptions = {}): Promise<Response> => {
 		const headers = { ...given.headers }
@@ -147,10 +106,10 @@ export function testClient<TEnv>(app: FetchApp<TEnv>, options: TestClientOptions
 			const kept = [...jar].map(([name, value]) => `${name}=${value}`).join("; ")
 			headers.cookie = headers.cookie === undefined ? kept : `${headers.cookie}; ${kept}`
 		}
-		const response = await send(
-			(origin) => buildRequest(method, path, origin, { ...given, headers }),
-			given.ip ?? options.ip,
-		)
+		const request = buildRequest(method, path, { ...given, headers })
+		const ip = given.ip ?? options.ip
+		if (ip !== undefined) Object.defineProperty(request, PEER_ADDRESS, { value: ip })
+		const response = await app.fetch(request, options.env)
 		if (options.cookies === true) {
 			const now = Date.now()
 			for (const line of response.headers.getSetCookie()) {
@@ -164,11 +123,6 @@ export function testClient<TEnv>(app: FetchApp<TEnv>, options: TestClientOptions
 	}
 
 	return {
-		async close() {
-			const started = server
-			server = null
-			if (started !== null) await (await started).close()
-		},
 		delete: (path, given) => call("DELETE", path, given),
 		get: (path, given) => call("GET", path, given),
 		head: (path, given) => call("HEAD", path, given),

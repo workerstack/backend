@@ -112,14 +112,14 @@ describe("the npm READMEs are each their package's guide", () => {
 	 */
 	/* the SDK targets' matrix lives on the generator's codegen page, which the README links */
 	// v0: d678624171
-	it("core's README is the framework's guide: the tagged install, honey init, serve(app), /docs, curl /health", () => {
+	it("core's README is the framework's guide: the tagged install, honey init, export default app, /docs, curl /health", () => {
 		const readme = read("packages/core/README.md")
 		const has = (pattern: RegExp) => pattern.test(readme)
 		expect([
 			has(/npm install @workerstack\/backend@next/),
 			has(/release candidate/),
 			has(/honey init/),
-			has(/serve\(app/),
+			has(/export default app/),
 			has(/\/docs/),
 			has(/\bcurl\b/),
 			has(/\/health/),

@@ -3,9 +3,7 @@
  * paired with the artifacts that build must emit and the size it must stay under.
  *
  * A target is one (app, deploy target) pair. The runtime that *runs* the build is
- * orthogonal — see RUNTIME_IDS. Both axes matter: the deploy target decides which
- * feature prelude `createBuildPlugin` injects and whether node builtins are external,
- * and the build runtime catches a plugin that assumes one host's APIs.
+ * orthogonal — see RUNTIME_IDS: it catches a plugin that assumes one host's APIs.
  */
 import { existsSync, readdirSync } from "node:fs"
 import { createRequire } from "node:module"
@@ -13,11 +11,11 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 /** Runtime that executes `vite build`. */
-export const RUNTIME_IDS = ["node", "bun"] as const
+export const RUNTIME_IDS = ["node"] as const
 export type RuntimeId = (typeof RUNTIME_IDS)[number]
 
 /** Deploy target the bundle is produced for — honey/build's `target`. */
-export const TARGET_IDS = ["node", "bun", "workers"] as const
+export const TARGET_IDS = ["workers"] as const
 export type TargetId = (typeof TARGET_IDS)[number]
 
 const e2eRoot = dirname(fileURLToPath(import.meta.url))
@@ -52,7 +50,7 @@ const ALL_RUNTIMES: RuntimeId[] = [...RUNTIME_IDS]
 /**
  * Every e2e app builds for every target. The apps are deliberately uniform — one
  * `src/gen-app.ts` exporting `app` — so the matrix is generated rather than written
- * out 20 times. Per-app deviations belong here, as fields on the entry.
+ * out per app. Per-app deviations belong here, as fields on the entry.
  */
 type AppBuild = {
 	app: string
@@ -63,14 +61,11 @@ type AppBuild = {
 }
 
 /**
- * Node and bun keep dependencies external, so their bundles are small. Cloudflare
- * bundles everything, which is why it is the target that regresses first when a
+ * Cloudflare bundles every dependency, so its bundle regresses first when a
  * dynamic import stops being opaque.
  */
 const DEFAULT_MAX_GZIP_KB: Record<TargetId, number> = {
-	bun: 110,
 	workers: 110,
-	node: 110,
 }
 
 const APP_BUILDS: AppBuild[] = [
@@ -142,11 +137,7 @@ const VITE_BIN = join(dirname(createRequire(import.meta.url).resolve("vite/packa
 
 /** `vite build` with `config` (relative to the cwd it runs in), started by `runtime` itself. */
 export function viteBuildCommand(config: string, runtime: RuntimeId): string[] {
-	const cfg = ["--config", config]
-	if (runtime === "bun") {
-		return ["bun", "--bun", VITE_BIN, "build", ...cfg]
-	}
-	return ["node", VITE_BIN, "build", ...cfg]
+	return [runtime, VITE_BIN, "build", "--config", config]
 }
 
 export function buildCommand(spec: BuildSpec, runtime: RuntimeId): string[] {

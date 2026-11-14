@@ -1,38 +1,35 @@
 import { builtinModules } from "node:module"
 
-/* 00-rules "Environments": portable core runs on Node, Bun and Workers from one source, so a
- * runtime's builtins, globals and adapters stay in that runtime's folder. build/ is build-time
- * Node code. */
+/* 00-rules "Environments": portable core runs on Cloudflare Workers from one source, so Node
+ * builtins and globals stay in build/ (build-time Node code) and the Workers adapter stays out of
+ * portable files. */
 
 const NODE_BUILTINS = new Set(builtinModules)
 
 const RUNTIME_FILES = [
-	["node", /^(?:adapters\/node\/|ws\/node\.ts$)/],
-	["bun", /^(?:adapters\/bun\/|ws\/bun\.ts$)/],
 	["workers", /^(?:adapters\/workers\/|ws\/workers\.ts$)/],
 	["build", /^build\//],
 ]
 
 /* who may touch each runtime global; an empty list means nobody */
 const GLOBALS = new Map([
-	["Buffer", ["node", "build"]],
-	["Bun", ["bun"]],
+	["Buffer", ["build"]],
+	["Bun", []],
 	["WebSocketPair", ["workers"]],
 	["document", []],
-	["process", ["node", "build"]],
+	["process", ["build"]],
 	["window", []],
 ])
 
-const ADAPTER_BUCKETS = new Set(["node", "bun", "workers"])
+const ADAPTER_BUCKETS = new Set(["workers"])
 
 const MESSAGES = {
-	adapter: "only the same runtime's adapter may import an adapter",
+	adapter: "only the Workers adapter may import the Workers adapter",
 	codegen: "core reaches honey-clients from build/ only",
 	codegenStatic: "core imports honey-clients through import() only: it is an optional peer",
 	escape: "an import stays inside its package's src (no repo path outside it, no sibling package)",
-	node: "node builtins are for the Node adapter and build-time code only",
+	node: "node builtins are for build-time code only",
 	tsMorph: "ts-morph is honey-clients's dependency, not core's",
-	ws: "ws is for the Node WebSocket adapter only",
 }
 
 /** The src-relative path of a non-test file under core's src/, else null. */
@@ -73,7 +70,6 @@ function relativeProblem(where, spec) {
 }
 
 function packageProblem(where, spec, dynamic) {
-	if (spec === "ws" || spec.startsWith("ws/")) return where.bucket === "node" ? null : "ws"
 	if (spec === "ts-morph") return "tsMorph"
 	if (spec.startsWith("@workerstack/clients")) {
 		return where.bucket !== "build" ? "codegen" : dynamic ? null : "codegenStatic"
@@ -83,7 +79,7 @@ function packageProblem(where, spec, dynamic) {
 
 function problemOf(where, spec, dynamic) {
 	if (spec.startsWith(".")) return relativeProblem(where, spec)
-	if (isNodeBuiltin(spec)) return where.bucket === "node" || where.bucket === "build" ? null : "node"
+	if (isNodeBuiltin(spec)) return where.bucket === "build" ? null : "node"
 	return packageProblem(where, spec, dynamic)
 }
 

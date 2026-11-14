@@ -11,17 +11,11 @@ import { REFERENCE_WORK } from "../e2e/reference/vite.config.ts"
 
 /* node 22's ceilings at 5f2942e (blueprint/baselines/build.json), the ones both jobs were judged against */
 const CEILINGS: Record<string, [baseline: number, ceiling: number]> = {
-	"compose×bun": [25.52, 28.97],
 	"compose×workers": [25.66, 28.74],
-	"defaults×bun": [25.27, 29.05],
 	"defaults×workers": [25.2, 28.41],
-	"gateway×bun": [26.23, 29.44],
 	"gateway×workers": [25.84, 29.02],
-	"kitchen×bun": [26.62, 30.84],
 	"kitchen×workers": [26.46, 29.82],
-	"mcp×bun": [14.2, 16.35],
 	"mcp×workers": [14.22, 16.7],
-	"surface×bun": [27.31, 31.47],
 	"surface×workers": [26.95, 30.6],
 }
 const APPS = ["compose", "defaults", "gateway", "kitchen", "mcp", "surface"] as const
@@ -70,7 +64,7 @@ async function redCells(runner: ReturnType<typeof fakeRunner>, target: string, m
 		const [baseline, ceiling] = CEILINGS[cell] as [number, number]
 		const verdict = gate.judgeBuild({
 			builds: window.builds,
-			ceiling: { baseline, byClass: {}, catches: "", ceiling },
+			ceiling: { baseline, catches: "", ceiling },
 			mode: "judge",
 			referenceMs: gate.median(window.references),
 			runtime: "node",
@@ -88,22 +82,22 @@ const SLOWED = { compose: 6_041, defaults: 6_015, gateway: 6_148, kitchen: 6_364
 /* the runner turns 14% slower when surface×workers starts on today's order: 7,446 / 6,500 = 1.146 in that job */
 const SLOW_AT = 6 * 230 + 3 * (6_041 + 6_015 + 6_148 + 6_364 + 3_454)
 
-/* 40969532154's build (node) ×bun cells, and the reference at the other runs' low end, 164 ms (that job read 149) */
+/* 40969532154's build (node) ×workers cells, and the reference at the other runs' low end, 164 ms (that job read 149) */
 const FAST_REF = { compose: 4_072, defaults: 3_869, gateway: 3_917, kitchen: 4_237, mcp: 2_461, surface: 4_564 }
 
 /*
  * The reference's spread within a cell window against the app builds' at each REFERENCE_WORK size, on this machine
- * under the heavy lock (bit 21 bref): the median over 36 windows a runtime (every cell, twice) of each window's
+ * under the heavy lock (bit 21 bref): the median over 36 windows (every cell, twice) of each window's
  * (max-min)/median in %, the reference's over its 4 three-sample subsets so both count three samples
  */
-type Spread = { bun: number; node: number }
-const BUILDS_SPREAD: Spread = { bun: 3.2, node: 3.3 }
+type Spread = { node: number }
+const BUILDS_SPREAD: Spread = { node: 3.3 }
 const REFERENCE_SPREAD: Record<number, Spread> = {
-	0: { bun: 6.1, node: 7.4 },
-	5_000: { bun: 5, node: 4.9 },
-	7_500: { bun: 3.8, node: 3.4 },
-	10_000: { bun: 3.3, node: 2.9 },
-	15_000: { bun: 1.9, node: 2.1 },
+	0: { node: 7.4 },
+	5_000: { node: 4.9 },
+	7_500: { node: 3.4 },
+	10_000: { node: 2.9 },
+	15_000: { node: 2.1 },
 }
 
 describe("the e2e build gate's reference window", () => {
@@ -121,26 +115,24 @@ describe("the e2e build gate's reference window", () => {
 		expect(await redCells(runner, "workers", SLOWED)).toEqual([])
 	})
 
-	it("passes a reference that reads 10% fast once (CI 40969532154, mcp×bun red at 16.54)", async () => {
+	it("passes a reference that reads 10% fast once (CI 40969532154, mcp×workers red at 16.54)", async () => {
 		const runner = fakeRunner({ referenceMs: 164, referenceSpeed: (now) => (now < 1_200 ? 0.9 : 1) })
-		expect(await redCells(runner, "bun", FAST_REF)).toEqual([])
+		expect(await redCells(runner, "workers", FAST_REF)).toEqual([])
 	})
 
-	it("sizes the reference's work at the smallest size measured spreading no wider than the builds on either runtime", () => {
-		const fits = ([size]: [string, Spread]) => {
-			const spread = REFERENCE_SPREAD[Number(size)] as Spread
-			return spread.node <= BUILDS_SPREAD.node && spread.bun <= BUILDS_SPREAD.bun
-		}
-		expect(REFERENCE_WORK).toBe(Number(Object.entries(REFERENCE_SPREAD).find(fits)?.[0]))
+	it("sizes the reference's work at a size measured spreading no wider than the builds, the recorded ratios' size", () => {
+		/* the smallest size that fits is 10,000; 15,000 stays because build.json's ceilings were recorded at it */
+		const spread = REFERENCE_SPREAD[REFERENCE_WORK] as Spread
+		expect(spread.node <= BUILDS_SPREAD.node).toBe(true)
 	})
 
 	it("reds app builds 1.2x slower in every sample, the reference unchanged: every cell", async () => {
 		const at = (factor: number) =>
-			Object.fromEntries(APPS.map((app) => [app, (CEILINGS[`${app}×bun`] as [number, number])[0] * 164 * factor]))
+			Object.fromEntries(APPS.map((app) => [app, (CEILINGS[`${app}×workers`] as [number, number])[0] * 164 * factor]))
 		const [steady, slower] = [
-			await redCells(fakeRunner({ referenceMs: 164 }), "bun", at(1)),
-			await redCells(fakeRunner({ referenceMs: 164 }), "bun", at(1.2)),
+			await redCells(fakeRunner({ referenceMs: 164 }), "workers", at(1)),
+			await redCells(fakeRunner({ referenceMs: 164 }), "workers", at(1.2)),
 		]
-		expect([steady, slower.map((each) => each.split(" ")[0])]).toEqual([[], APPS.map((app) => `${app}×bun`)])
+		expect([steady, slower.map((each) => each.split(" ")[0])]).toEqual([[], APPS.map((app) => `${app}×workers`)])
 	})
 })

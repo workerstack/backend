@@ -20,7 +20,7 @@ A honey app is a `fetch(request, env, ctx)` handler. An adapter delivers the req
 
 ## Realtime and WebSocket
 
-- **Upgrade** — a WS route matches via its own plan in the `FinalTable`; the adapter performs the 101 upgrade. `ws/{node,bun,cloudflare}.ts` are the per-runtime adapters (Deno removed); `ws/shared.ts` and `ws/session.ts` hold the runtime-agnostic session logic.
+- **Upgrade** — a WS route matches via its own plan in the `FinalTable`; the adapter performs the 101 upgrade. `ws/workers.ts` is the one adapter (Node, Bun and Deno removed); `ws/shared.ts` and `ws/session.ts` hold the runtime-agnostic session logic.
 - **SSE + resume** — `realtime/{bus,route,server}.ts` back the resume client; `Last-Event-ID` resume is opt-in via `.meta({ extensions: { "x-realtime": true } })`. v1 (H8) makes reconnect parity uniform across SDKs and ships a reference resume server as the conformance target.
 
 ## OpenAPI + the IR seam (core → codegen)

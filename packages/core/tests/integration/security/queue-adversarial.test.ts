@@ -1,6 +1,6 @@
 /**
- * The adversarial suite's queue cases: a sender ahead of its consumer, a handler settling twice, and
- * a message that always fails. Each is a failing input first and the property that answers it
+ * The adversarial suite's queue cases, through the Workers consumer: a sender ahead of its consumer and a handler
+ * settling twice. The platform bounds attempts (`max_retries`), so there is no attempt-limit case here. Each is a failing input first and the property that answers it
  * second; the mutation harness reruns this directory with each guard disabled.
  */
 import { resolve as resolvePath } from "node:path"
@@ -21,10 +21,6 @@ if (mutant !== undefined) {
 const { workersQueue } = (await import(
 	resolvePath(REPO, "packages/core/src/queue/workers.ts")
 )) as typeof import("../../../src/queue/workers.ts")
-
-const { memoryQueueStore, serveQueue } = (await import(
-	resolvePath(REPO, "packages/core/src/queue/serve.ts")
-)) as typeof import("../../../src/queue/serve.ts")
 
 const { defineConsumer, queueContract, queueMessage } = (await import(
 	resolvePath(REPO, "packages/core/src/queue/define.ts")
@@ -73,22 +69,5 @@ describe("v1 adversarial: a handler settling twice", () => {
 		const m = message({ data: 1, type: "job" })
 		await workersQueue(consumer)({ messages: [m], queue: "q" }, {}, CTX)
 		expect(m.calls).toEqual(["ack"])
-	})
-})
-
-describe("v1 adversarial: a message that always fails", () => {
-	it("stops at maxAttempts instead of running forever", async () => {
-		vi.useFakeTimers({ now: 0 })
-		const store = memoryQueueStore()
-		await jobs.send(store, "job", 1)
-		const job = vi.fn(async () => {
-			throw new Error("down")
-		})
-		const consumer = defineConsumer<{}>()(jobs, { handlers: { job }, logger: SILENT })
-		const running = serveQueue(consumer, { env: {}, maxAttempts: 2, pollMs: 10, store })
-		await vi.advanceTimersByTimeAsync(1_000)
-		await running.close(0)
-		vi.useRealTimers()
-		expect([job.mock.calls.length, store.deadLetters().length]).toEqual([2, 1])
 	})
 })

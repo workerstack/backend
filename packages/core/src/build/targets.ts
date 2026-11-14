@@ -1,6 +1,6 @@
 /**
- * The build plugin (`@workerstack/backend/build`): bundles the app for node, bun or a Cloudflare Worker (H15)
- * from a virtual entry that imports it and starts it the way that target runs an app. Nothing is detected or
+ * The build plugin (`@workerstack/backend/build`): bundles the app for a Cloudflare Worker (H15)
+ * from a virtual entry that imports it and exports it the way a Worker runs an app. Nothing is detected or
  * injected: v1 code-splits through plain dynamic import() (Q4, H23). Bit 21 h: a Worker's module also exports every
  * other named export of the app's entry (a Durable Object class, a WorkerEntrypoint, a Workflow), since a Worker's
  * bindings name classes its main module exports. A value workerd takes as no entrypoint (a string, a number) is
@@ -9,8 +9,8 @@
  */
 import { builtinModules } from "node:module"
 
-/** The runtime a bundle is built for: `node` and `bun` bundles start a server, a `workers` bundle is a Worker. */
-export type BuildTarget = "bun" | "node" | "workers"
+/** The runtime a bundle is built for: a `workers` bundle is a Cloudflare Worker. */
+export type BuildTarget = "workers"
 
 /** Options for `createBuildPlugin`: the runtime to build for and how the bundle is written. */
 export type HoneyBuildConfig = {
@@ -20,8 +20,6 @@ export type HoneyBuildConfig = {
 	minify?: boolean
 	/** Where the bundle is written, relative to Vite's project root; default `./dist`. */
 	outDir?: string
-	/** a node or bun server's port when PORT is unset; default 3000 */
-	port?: number
 	/** The runtime the bundle is built for; `createBuildPlugin` throws on any other value. */
 	target: BuildTarget
 }
@@ -36,12 +34,12 @@ export type BuildApp = {
 
 /** How one target starts the app and how its bundle is resolved. */
 type Target = {
-	/** The source of the virtual entry module for `app`, given the default port and the entry's extra export names. */
-	entry(app: BuildApp, port: number, named: readonly string[]): string
+	/** The source of the virtual entry module for `app`, given the entry's extra export names. */
+	entry(app: BuildApp, named: readonly string[]): string
 	/** bundle every dependency: a Worker has no node_modules at run time */
 	noExternal: boolean
-	/** The runtime Vite resolves server-side imports for: `webworker` for a Worker, `node` for node and bun. */
-	ssrTarget: "node" | "webworker"
+	/** The runtime Vite resolves server-side imports for: `webworker` for a Worker. */
+	ssrTarget: "webworker"
 }
 
 const VIRTUAL_ENTRY = "virtual:honey-build-entry"
@@ -52,21 +50,11 @@ function importApp(app: BuildApp): string {
 	return `import { ${app.export} as app } from "./${app.entry}"`
 }
 
-/** A server on every interface, as `serve(app)` from the runtime's entry starts one: the process's env, PORT before the configured port. */
-function serverEntry(runtime: "bun" | "node", app: BuildApp, port: number): string {
-	return [
-		`import { serve } from "@workerstack/backend/${runtime}"`,
-		importApp(app),
-		"",
-		`await serve(app, { env: process.env, hostname: "0.0.0.0", port: Number(process.env.PORT ?? ${port}) })`,
-	].join("\n")
-}
-
 /* workerd calls these on the default export, and a named one would be an entrypoint nothing reaches */
 const DEFAULT_HANDLERS = ["queue", "scheduled"]
 
 /** A Worker: the app is its fetch, its entry's `named` exports its own, and there is nothing to listen on. */
-function workerEntry(app: BuildApp, _port: number, named: readonly string[]): string {
+function workerEntry(app: BuildApp, named: readonly string[]): string {
 	/* an export name need not be an identifier (`export { x as "a-b" }`) */
 	const names = named.map((name) => (/^[A-Za-z_$][\w$]*$/.test(name) ? name : JSON.stringify(name)))
 	/*
@@ -158,9 +146,9 @@ export type HoneyBuildPlugin = {
 		}
 		/** How Vite resolves server-side imports. */
 		ssr: {
-			/** `true` for a Worker, which bundles every dependency; left out for node and bun. */
-			noExternal?: boolean
-			/** `webworker` for a Worker, `node` for node and bun. */
+			/** Always `true`: a Worker bundles every dependency. */
+			noExternal: boolean
+			/** Always `webworker`. */
 			target: Target["ssrTarget"]
 		}
 	}
@@ -168,7 +156,7 @@ export type HoneyBuildPlugin = {
 	 * Returns the virtual entry's source for its own id, and nothing for any other. For a Worker it rejects when the app
 	 * entry does not resolve, or when the entry has a default export beside a named app.
 	 */
-	load(this: EntryContext, id: string): Promise<VirtualEntry> | VirtualEntry | undefined
+	load(this: EntryContext, id: string): Promise<VirtualEntry> | undefined
 	/** Always `"honey:build"`. */
 	name: string
 	/** Resolves the virtual entry's id, and nothing for any other. */
@@ -188,16 +176,14 @@ async function passedOn(context: EntryContext, app: BuildApp): Promise<string[]>
 	return exports.filter((name) => name !== "default" && name !== app.export)
 }
 
-const TARGETS: Readonly<Record<BuildTarget, Target & { readonly named: boolean }>> = {
-	bun: { entry: (app, port) => serverEntry("bun", app, port), named: false, noExternal: false, ssrTarget: "node" },
-	workers: { entry: workerEntry, named: true, noExternal: true, ssrTarget: "webworker" },
-	node: { entry: (app, port) => serverEntry("node", app, port), named: false, noExternal: false, ssrTarget: "node" },
+const TARGETS: Readonly<Record<BuildTarget, Target>> = {
+	workers: { entry: workerEntry, noExternal: true, ssrTarget: "webworker" },
 }
 
 /** The Vite plugin that builds `app` for `config.target`: `vite build` with it emits `<outDir>/index.js`. */
 export function createBuildPlugin(config: HoneyBuildConfig, app: BuildApp): HoneyBuildPlugin {
 	if (!Object.hasOwn(TARGETS, config.target)) {
-		throw new Error(`honey build: unknown target "${config.target}"; expected node, bun or workers`)
+		throw new Error(`honey build: unknown target "${config.target}"; expected workers`)
 	}
 	const target = TARGETS[config.target]
 	return {
@@ -215,19 +201,12 @@ export function createBuildPlugin(config: HoneyBuildConfig, app: BuildApp): Hone
 					},
 					ssr: true,
 				},
-				/* node and bun install dependencies beside the bundle; inlining them would inline native addons too */
-				ssr: { ...(target.noExternal ? { noExternal: true } : {}), target: target.ssrTarget },
+				ssr: { noExternal: target.noExternal, target: target.ssrTarget },
 			}
 		},
 		load(this: EntryContext, id: string) {
 			if (id !== RESOLVED_ENTRY) return undefined
-			const port = config.port ?? 3000
-			const module = (named: readonly string[]): VirtualEntry => ({
-				code: target.entry(app, port, named),
-				moduleType: "js",
-			})
-			/* only a Worker passes exports on, which needs the build to read its entry */
-			return target.named ? passedOn(this, app).then(module) : module([])
+			return passedOn(this, app).then((named): VirtualEntry => ({ code: target.entry(app, named), moduleType: "js" }))
 		},
 		name: "honey:build",
 		resolveId(id: string): string | undefined {

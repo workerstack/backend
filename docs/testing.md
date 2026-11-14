@@ -6,8 +6,6 @@ method. Each takes `json`, `form`, `headers` and `search`, and `ip` sets the pee
 
 - **Cookies:** `cookies: true` keeps each answer's `Set-Cookie` and sends the cookies on later requests, honoring
   `Max-Age` and `Expires`.
-- **Real HTTP:** `transport: serve`, with `serve` from `@workerstack/backend/node` or `@workerstack/backend/bun`, serves the
-  app on a free local port through that runtime's adapter, for what only a real socket shows; `close()` stops it.
 
 ```ts run
 import { honey } from "@workerstack/backend"

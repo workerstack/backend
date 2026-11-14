@@ -1,10 +1,8 @@
 /**
- * Header edits on a response a middleware got back from `next()`, without leaving the fast path:
- * a HoneyResponse is edited on its plain header map (`HoneyOutHeaders.set`/`delete`), so no native
- * `Headers` is built. A plain native response is edited in place; one whose headers are immutable
+ * Header edits on a response a middleware got back from `next()`, A native response is edited in place; one whose headers are immutable
  * (`fetch()`, `Response.redirect()`) is copied first; a 101 upgrade is never touched.
  */
-import { isHoneyResponse, rawBodyOf } from "./builder.ts"
+import { rawBodyOf } from "./builder.ts"
 
 /** What an edit may do to the headers: read, set and delete, never walk them. */
 export type HeaderEdit = {
@@ -32,7 +30,7 @@ export function withHeaders(response: Response, edit: (headers: HeaderEdit) => v
 	/* an upgrade belongs to the runtime: rebuilding it throws or drops the socket */
 	if (response.status === 101) return response
 	/* a raw body means honey built it, so its headers are its own: no probe (a native delete per edit) */
-	if (isHoneyResponse(response) || rawBodyOf(response) !== null || !hasImmutableHeaders(response)) {
+	if (rawBodyOf(response) !== null || !hasImmutableHeaders(response)) {
 		edit(response.headers)
 		return response
 	}

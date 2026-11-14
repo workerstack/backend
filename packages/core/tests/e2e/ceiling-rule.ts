@@ -4,7 +4,7 @@
  * runs by derive-build-ceilings.ts and bench/src/derive-ceilings.ts.
  */
 
-/** The record runs a derive needs: at least 6 (the build derive also needs its Bun jobs on the fast and slow class). */
+/** The record runs a derive needs: at least 6. */
 export const MIN_RECORD_RUNS = 6
 
 /** The per-run false-red chance every derived cell shares, split evenly across them (ceilingRule). */

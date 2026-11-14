@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { isHoneyResponse, NODE_OUTBOUND, rawBodyOf, withRawBody } from "../response/builder.ts"
+import { rawBodyOf, withRawBody } from "../response/builder.ts"
 import { honey } from "../routing/app.ts"
 import { compress, type CompressOptions } from "./compress.ts"
 
@@ -17,10 +17,8 @@ function app(handler: Route = (ctx) => ctx.res.text("ok", TEXT), options?: Compr
 	return a
 }
 
-function request(headers: Record<string, string> = {}, init: { node?: boolean } = {}): Request {
-	const req = new Request("https://app.example.com/t", { headers })
-	if (init.node) Object.defineProperty(req, NODE_OUTBOUND, { value: true })
-	return req
+function request(headers: Record<string, string> = {}): Request {
+	return new Request("https://app.example.com/t", { headers })
 }
 
 async function decoded(res: Response): Promise<string> {
@@ -151,17 +149,13 @@ describe("compress(): BREACH, the compressed length as a secret oracle", () => {
 })
 
 describe("compress(): the plain path", () => {
-	it("on a Node-bridge answer it encodes the retained raw body, never reading the stream, and stays a HoneyResponse", async () => {
-		const res = await app().fetch(request({ "accept-encoding": "gzip" }, { node: true }), {})
+	it("encodes the retained raw body and keeps the encoded bytes as the answer's raw body", async () => {
+		const res = await app().fetch(request({ "accept-encoding": "gzip" }), {})
 		const raw = rawBodyOf(res) as Uint8Array
 		const roundTrip = await new Response(
 			new Blob([raw as BlobPart]).stream().pipeThrough(new DecompressionStream("gzip")),
 		).text()
-		expect([isHoneyResponse(res), res.headers.get("content-encoding"), roundTrip === TEXT]).toEqual([
-			true,
-			"gzip",
-			true,
-		])
+		expect([res.headers.get("content-encoding"), roundTrip === TEXT]).toEqual(["gzip", true])
 	})
 
 	it("a binary raw body (static files, a middleware's own answer) is encoded from its bytes", async () => {

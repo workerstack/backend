@@ -1,7 +1,5 @@
-import type { AddressInfo } from "node:net"
 import { describe, expect, expectTypeOf, it } from "vitest"
 import * as z from "zod"
-import { createNodeServer } from "../adapters/node/server.ts"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { GRAPH, Honey, honey } from "./app.ts"
@@ -175,30 +173,5 @@ describe("chain meta beside sub-chains, sub-apps and the rest of a route", () =>
 			410,
 			{ area: "sub" },
 		])
-	})
-})
-
-describe("chain meta on the wire", () => {
-	// v0: 5fd405dc34
-	// v0: 38ad15ea53
-	it("reaches ctx.meta on the wire as in process", async () => {
-		const app = honey<{}>()
-		const chain = app.meta({ security: "jwt" })
-		chain.get("/chain").handler((ctx) => ctx.res.json("ok", ctx.meta))
-		chain
-			.get("/route")
-			.meta({ security: "none" })
-			.handler((ctx) => ctx.res.json("ok", ctx.meta))
-		const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-		await new Promise((resolve) => server.once("listening", resolve))
-		const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-		try {
-			expect(await Promise.all(["/chain", "/route"].map(async (path) => (await fetch(base + path)).json()))).toEqual([
-				{ security: "jwt" },
-				{ security: "none" },
-			])
-		} finally {
-			await server.shutdown(0)
-		}
 	})
 })

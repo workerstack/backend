@@ -10,8 +10,7 @@
  * them without judging, for CI to record the ceilings from.
  *
  *   bun run packages/core/tests/e2e/run-build.ts
- *   bun run packages/core/tests/e2e/run-build.ts --runtime bun
- *   bun run packages/core/tests/e2e/run-build.ts --runtime all --target cloudflare
+ *   bun run packages/core/tests/e2e/run-build.ts --runtime all --target workers
  *   bun run packages/core/tests/e2e/run-build.ts --app kitchen --verbose
  *   bun run packages/core/tests/e2e/run-build.ts --check-generated
  */
@@ -32,7 +31,6 @@ import {
 	RUNTIME_IDS,
 	type RuntimeId,
 	TARGET_IDS,
-	type TargetId,
 	unregisteredBuildApps,
 	viteBuildCommand,
 } from "./builds.ts"
@@ -138,17 +136,16 @@ function gzipKb(path: string): number {
 	return Math.round(gzipSync(readFileSync(path)).length / 1024)
 }
 
-/** One `vite build` in `cwd` for `target`, timed: its exit code, output and wall time in ms. */
-async function timedBuild(command: string[], cwd: string, target: TargetId) {
+/** One `vite build` in `cwd`, timed: its exit code, output and wall time in ms. */
+async function timedBuild(command: string[], cwd: string) {
 	const started = performance.now()
 	const proc = Bun.spawn(command, {
 		cwd,
-		/* core is read as source in this checkout (R3): every process the build starts, on Node or Bun, the honey
+		/* core is read as source in this checkout (R3): every process the build starts, on Node, the honey
 		   generate child the plugin spawns included, resolves it through the honey-source condition */
 		env: {
 			...process.env,
 			BUN_OPTIONS: SOURCE_CONDITION,
-			HONEY_BUILD_TARGET: target,
 			NODE_ENV: "production",
 			NODE_OPTIONS: SOURCE_CONDITION,
 		},
@@ -182,7 +179,7 @@ function meterOf(runtime: RuntimeId): CellMeter {
 	if (known !== undefined) return known
 	const command = viteBuildCommand(REFERENCE_BUILD.config, runtime)
 	const meter = cellMeter(async (target) => {
-		const built = await timedBuild(command, REFERENCE_BUILD.cwd, target as TargetId)
+		const built = await timedBuild(command, REFERENCE_BUILD.cwd)
 		if (built.code !== 0) {
 			process.stdout.write(built.output)
 			throw new Error(`the reference build for ${target} on ${runtime} exited ${built.code}`)
@@ -206,7 +203,7 @@ async function runBuild(spec: BuildSpec, runtime: RuntimeId): Promise<Result> {
 		for (const dir of spec.outDirs) {
 			rmSync(join(cwd, dir), { force: true, recursive: true })
 		}
-		return timedBuild(buildCommand(spec, runtime), cwd, spec.target)
+		return timedBuild(buildCommand(spec, runtime), cwd)
 	})
 	if ("failed" in measured) {
 		process.stdout.write(measured.failed.output)

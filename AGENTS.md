@@ -59,4 +59,4 @@ Touching `package.json` exports, `files`, or anything about what ships? Also run
 `bun run test:packaging` — it packs the real tarball and type-checks a consumer
 with every strictness flag on. See `packages/core/docs/packaging.md`.
 
-Per-runtime e2e (`test:e2e:node`, `:cf`) needs extra toolchains — leave to CI.
+Per-runtime e2e (`test:e2e:cf`) needs extra toolchains — leave to CI.

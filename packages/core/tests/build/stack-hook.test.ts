@@ -45,7 +45,7 @@ function coldBuild(bun: string, version: string) {
 	mkdirSync(join(dir, "transpiler"), { recursive: true })
 	mkdirSync(tmp, { recursive: true })
 	const log = join(dir, "trap.jsonl")
-	const [, ...args] = buildCommand(spec, "bun")
+	const [, ...args] = buildCommand(spec, "node")
 	const built = spawnSync(bun, args, {
 		cwd: buildCwd(spec),
 		encoding: "utf8",

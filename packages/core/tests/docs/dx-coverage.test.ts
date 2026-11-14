@@ -21,7 +21,7 @@ describe("dx/ pointers", () => {
 			"| value | required | default | outcome | pitfall | test |",
 			"| --- | --- | --- | --- | --- | --- |",
 			"| a | no | — | — | — | `routing/app.test.ts` |",
-			"| b | no | — | — | — | `nowhere/bogus.test.ts`, `adapters/*/serve.test.ts` |",
+			"| b | no | — | — | — | `nowhere/bogus.test.ts`, `ws/*.test.ts` |",
 		].join("\n")
 		expect(dangling(pointersOf("fixture.md", table), tracked, rows)).toEqual(["fixture.md:4 nowhere/bogus.test.ts"])
 	})

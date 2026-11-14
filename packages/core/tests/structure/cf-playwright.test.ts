@@ -23,9 +23,9 @@ async function configUnder(env: Record<string, string>, host = "cf-workers"): Pr
 	return ((await import(`../e2e/${host}/playwright.config.ts`)) as { default: Config }).default
 }
 
-/** The HTTP and WebSocket bases the e2e tests of a run under `env` on `host` use, as their worker sees the env. */
-async function basesUnder(env: Record<string, string>, host?: string): Promise<[string | undefined, string]> {
-	const { use } = await configUnder(env, host)
+/** The HTTP and WebSocket bases the e2e tests of a run under `env` use, as their worker sees the env. */
+async function basesUnder(env: Record<string, string>): Promise<[string | undefined, string]> {
+	const { use } = await configUnder(env)
 	const { e2eWsBase } = await import("../e2e/playwright-app.ts")
 	return [use?.baseURL, e2eWsBase()]
 }
@@ -78,16 +78,7 @@ describe("the e2e bases a run's tests dial (bit 20)", () => {
 		])
 	})
 
-	it("dials the local host on each host's port otherwise, and a bun or node run ignores a stray HONEY_CF_URL", async () => {
-		const stray = { HONEY_CF_URL: "https://honey-e2e-kitchen.example.workers.dev", TEST_MODE: "dev" }
-		expect([
-			await basesUnder({ TEST_MODE: "dev" }),
-			await basesUnder(stray, "bun"),
-			await basesUnder(stray, "node"),
-		]).toEqual([
-			["http://localhost:4102", "ws://localhost:4102"],
-			["http://localhost:4100", "ws://localhost:4100"],
-			["http://localhost:4101", "ws://localhost:4101"],
-		])
+	it("dials the local host on its port otherwise", async () => {
+		expect(await basesUnder({ TEST_MODE: "dev" })).toEqual(["http://localhost:4102", "ws://localhost:4102"])
 	})
 })

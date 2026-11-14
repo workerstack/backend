@@ -4,7 +4,6 @@
  * the abort signal are read from the request only when first asked for.
  */
 import type { HoneyError } from "../errors/error.ts"
-import { isNodeOutbound } from "../response/builder.ts"
 import { HoneyRes } from "../response/response.ts"
 import { searchOfUrl } from "../routing/request-path.ts"
 import { dict } from "../routing/tree.ts"
@@ -225,7 +224,7 @@ export class HoneyContext<TEnv = Record<string, unknown>> {
 		this.path = state.path
 		this.req = state.req
 		/* the context is the res's link to its request: signal and headers read only when a stream needs them */
-		this.res = new HoneyRes(isNodeOutbound(state.req), this)
+		this.res = new HoneyRes(this)
 		this.routePattern = route.pattern
 		this.#routeId = route.id
 		this[REQUEST] = state
@@ -243,8 +242,7 @@ export class HoneyContext<TEnv = Record<string, unknown>> {
 	}
 
 	/**
-	 * The client address the platform reports, in one canonical spelling: `CF-Connecting-IP` on Workers, the socket on
-	 * Bun and Node. Bun reports it through the server in `env`, which `serve()` puts there. `null` when nothing reports one
+	 * The client address the platform reports, in one canonical spelling: `CF-Connecting-IP` on Workers. `null` when nothing reports one
 	 * or what it reports is not one address. Forwarding headers are not trusted, so behind your own reverse proxy this is
 	 * the proxy's address.
 	 */

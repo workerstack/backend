@@ -4,7 +4,6 @@
  * layer whose middleware answered synchronously stays synchronous (no Promise per layer).
  */
 import { isReservedCtxKey } from "../context/context.ts"
-import { isHoneyResponse } from "../response/builder.ts"
 
 /** A result that may come directly or through a promise, so a callback typed with it can be plain or `async`. */
 export type MaybePromise<T> = Promise<T> | T
@@ -153,7 +152,7 @@ function mergeAdditions(ctx: object, additions: Record<string, unknown>): void {
 }
 
 /** Whether a layer answered: a Response, or honey's own built one. */
-export const isAnswer = (value: unknown): value is Response => isHoneyResponse(value) || value instanceof Response
+export const isAnswer = (value: unknown): value is Response => value instanceof Response
 
 /** Settle one layer's result: anything but a Response (nothing, a string…) and a throw both go to the boundary. */
 function settle(

@@ -5,13 +5,11 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { type ExpectedSet, mismatches, type Outcomes } from "./expected.ts"
 
-const ENVS = ["bun", "node", "cf"] as const
+const ENVS = ["cf"] as const
 type EnvName = (typeof ENVS)[number]
 
 const FILTER: Record<EnvName, string> = {
-	bun: "@honey/e2e-bun",
 	cf: "@honey/e2e-cf-workers",
-	node: "@honey/e2e-node",
 }
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -26,29 +24,27 @@ function discoverApps(): string[] {
 }
 
 function printHelp(): void {
-	process.stdout.write(`Run Playwright e2e for one environment × one or all consumer apps.
+	process.stdout.write(`Run Playwright e2e on Cloudflare Workers × one or all consumer apps.
 
 Usage:
-  bun packages/core/tests/e2e/run.ts [--env bun|node|cf|all] [--app <name>|all] [--mode dev|prod] [--record <file>]
+  bun packages/core/tests/e2e/run.ts [--env cf] [--app <name>|all] [--mode dev|prod] [--record <file>]
 
 --record merges each cell's passed / skipped / failed test names into <file> (the committed
 expected set is blueprint/baselines/e2e-expected.json).
 
 Defaults:
-  --env bun --app all --mode dev
+  --env cf --app all --mode dev
 
 Examples:
   bun packages/core/tests/e2e/run.ts
-  bun packages/core/tests/e2e/run.ts --env node
-  bun packages/core/tests/e2e/run.ts --env bun --app kitchen
-  bun packages/core/tests/e2e/run.ts --env all
+  bun packages/core/tests/e2e/run.ts --app kitchen --mode prod
 `)
 }
 
-type Args = { app: string; env: EnvName | "all"; mode: "dev" | "prod"; record: string | null }
+type Args = { app: string; env: EnvName; mode: "dev" | "prod"; record: string | null }
 
 function parseArgs(argv: string[]): Args {
-	let env: EnvName | "all" = "bun"
+	let env: EnvName = "cf"
 	let app = "all"
 	let mode: "dev" | "prod" = "dev"
 	let record: string | null = null
@@ -61,7 +57,7 @@ function parseArgs(argv: string[]): Args {
 		}
 		const next = argv[i + 1]
 		if (arg === "--env" && next) {
-			env = next as EnvName | "all"
+			env = next as EnvName
 			i++
 			continue
 		}
@@ -83,8 +79,8 @@ function parseArgs(argv: string[]): Args {
 		throw new Error(`unknown argument: ${arg}`)
 	}
 
-	if (env !== "all" && !ENVS.includes(env)) {
-		throw new Error(`unknown --env "${env}". expected ${[...ENVS, "all"].join(", ")}`)
+	if (!ENVS.includes(env)) {
+		throw new Error(`unknown --env "${env}". expected ${ENVS.join(", ")}`)
 	}
 	if (mode !== "dev" && mode !== "prod") {
 		throw new Error(`unknown --mode "${mode}". expected dev, prod`)
@@ -115,11 +111,9 @@ function outcomesOf(report: { suites?: Suite[] }): Outcomes {
 	return out
 }
 
-/* the deploy target each env's prod bundle is built for, and the runtime that builds it (cf builds on bun) */
-const PROD_BUILD: Record<EnvName, { runtime: "bun" | "node"; target: string }> = {
-	bun: { runtime: "bun", target: "bun" },
-	cf: { runtime: "bun", target: "workers" },
-	node: { runtime: "node", target: "node" },
+/* the deploy target each env's prod bundle is built for, and the runtime that builds it */
+const PROD_BUILD: Record<EnvName, { runtime: "node"; target: string }> = {
+	cf: { runtime: "node", target: "workers" },
 }
 
 /** prod serves the cell's built bundle: built here for `env`'s own target (cf: the Workers bundle, j3) */
@@ -165,7 +159,7 @@ for (const name of apps) {
 	}
 }
 
-const envs: EnvName[] = env === "all" ? [...ENVS] : [env]
+const envs: EnvName[] = [env]
 const results: { app: string; env: EnvName; ok: boolean }[] = []
 const recorded: Record<string, Outcomes> = {}
 

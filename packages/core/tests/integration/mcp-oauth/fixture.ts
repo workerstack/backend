@@ -5,8 +5,7 @@
  * server: `mcp(app, "/mcp", handler, { oauth })`. Its routes check the token themselves, its audience the endpoint:
  * listing needs `orders:read`, creating `orders:write` (a 403 step-up challenge otherwise). Every request either
  * server answers is logged in order, so a leg reads the whole discovery, token and step-up sequence off it. Both
- * serve through the `serve` the caller hands in, its runtime's own: core's test passes Node's, and gen's leg runs
- * the world on Bun (serve.ts), whose node:http lacks parts the Node adapter reads (Bun 1.3.11 has no `headersDistinct`).
+ * serve through the `serve` the caller hands in: the loopback listener (fixture/loopback.ts).
  */
 import { createHash, randomBytes } from "node:crypto"
 import { join } from "node:path"
@@ -17,6 +16,7 @@ import { type McpHandler, mcp } from "../../../src/mcp/mount.ts"
 import { oauth } from "../../../src/mcp/oauth.ts"
 import { generateOpenApi } from "../../../src/openapi/generate.ts"
 import { honey } from "../../../src/routing/app.ts"
+import { type Listener, type serve } from "../../fixture/loopback.ts"
 import { createLogger } from "../../../src/telemetry/logger.ts"
 import * as z from "zod"
 
@@ -53,14 +53,8 @@ const SCHEMES = {
 	},
 }
 
-/** A running server, as either runtime's `serve` answers it. */
-type Listener = { close(timeout?: number): Promise<void>; readonly url: string }
-
-/** `serve` from `@workerstack/backend/node` or `@workerstack/backend/bun`: the runtime the world runs on. */
-export type Serve = (
-	app: { fetch(request: Request, env: {}): Promise<Response> },
-	options: { hostname: string; port: number },
-) => Promise<Listener>
+/** `serve` from fixture/loopback.ts. */
+export type Serve = typeof serve
 
 /** A server answering `fetch` on a loopback port the OS picks: its origin. */
 async function listening(

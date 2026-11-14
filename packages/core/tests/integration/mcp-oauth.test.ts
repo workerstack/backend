@@ -11,7 +11,7 @@ import { writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { clientsDir, withClients } from "../fixture/mcp-clients/clients.ts"
-import { serve } from "../../src/adapters/node/serve.ts"
+import { serve } from "../fixture/loopback.ts"
 import { CLIENT_ID, type OAuthWorld, REDIRECT_URI, startOAuthWorld } from "./mcp-oauth/fixture.ts"
 
 /** Each client: its imports, its options beside its name, and how it hands the callback to finishAuth. */

@@ -119,35 +119,12 @@ jobs:
       - run: bun run test:consumers
       - run: bun run test:e2e
 
-  runtimes:
-    name: runtime integration
-    needs: node-current
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      # Node 22.12 has no shouldUpgradeCallback, so it exercises the adapter's 'upgrade' fallback
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "22.12.0"
-      - run: echo "HONEY_TEST_NODE_LEGACY=$(which node)" >> "$GITHUB_ENV"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: ${{ needs.node-current.outputs.node }}
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - run: bun install --frozen-lockfile
-      # v1's adapters over raw sockets: Node current in-process, Bun spawned, and Node 22.12 spawned (its 'upgrade' fallback)
-      - working-directory: packages/core
-        run: HONEY_REQUIRE_NODE_LEGACY=1 bunx vitest run tests/integration/ws-adapters.test.ts
-
   hotpath:
     name: hot-path benchmark
     runs-on: ubuntu-latest
-    # bit 21 k-pass: 3 interleaved passes and a 2.6 s round floor. At the slow runner class (3.9x local) the five
-    # steps take ~666 s and the rest ~22 s, 688 s x 1.5 = 17.2 min; the 30-run history's worst steps scaled the same
-    # way give 437 s x 1.5 = 10.9 min. The larger, rounded up.
+    # bit 21 k-pass: 3 interleaved passes and a 2.6 s round floor. Sized when five steps ran (at the slow runner
+    # class, 3.9x local, ~666 s and the rest ~22 s, 688 s x 1.5 = 17.2 min, rounded up); the websockets and adapter
+    # steps are gone, so the three left finish well inside it.
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -156,7 +133,7 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
       # the runner's CPU model, to tell a per-runner bench level (a ratio cancels speed, not microarchitecture) from a
-      # per-process one (bit 21: adapter's levels move together per job, and a job is one runner and one process)
+      # per-process one (a job is one runner and one process)
       - name: cpu
         run: grep -m1 "model name" /proc/cpuinfo
       # Each bench: v1's cost as a ratio to a raw twin doing the same work, judged against its ceiling in
@@ -175,19 +152,6 @@ jobs:
         run: bun run bench:streaming
         env:
           BENCH_MODE: ${{ inputs.bench_mode || 'judge' }}
-      - name: websockets
-        run: bun run bench:websockets
-        env:
-          BENCH_MODE: ${{ inputs.bench_mode || 'judge' }}
-      # the Node bridge on Node itself (node:http under Bun is Bun's own), on the version adapter's
-      # ceilings were recorded with
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "26.12.1"
-      - name: adapter
-        run: bun run bench:adapter
-        env:
-          BENCH_MODE: ${{ inputs.bench_mode || 'judge' }}
 
   build:
     name: build (${{ matrix.runtime }})
@@ -199,7 +163,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runtime: [node, bun]
+        runtime: [node]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # the node tier runs the built bundles on the oldest supported Node line, not the image default
@@ -230,8 +194,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # the oldest supported LTS and the current release: Node behavior differs across versions
-        node: ["22", "current"]
+        # the oldest supported Node (engines.node's floor, an exact pin) and the current release: behavior differs across versions
+        node: ["22.12.0", "current"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -255,27 +219,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runtime: node
-            node: "22"
-            script: test:e2e:node
-          - runtime: node
-            node: "current"
-            script: test:e2e:node
-          - runtime: cf-workers
-            script: test:e2e:cf
-          # prod (Q14): run.ts builds each app for the runtime, then Playwright drives the built bundle, no source
-          - runtime: node
-            node: "22"
-            prod: true
-            script: test:e2e:node:prod
-          - runtime: node
-            node: "current"
-            prod: true
-            script: test:e2e:node:prod
-          - runtime: bun
-            prod: true
-            script: test:e2e:bun:prod
-          # cf: wrangler dev serves the built worker under local workerd, no deploy and no secrets
+          # prod (Q14): run.ts builds each app for workers, then Playwright drives the built bundle, no source.
+          # wrangler dev serves the built worker under local workerd, no deploy and no secrets
           - runtime: cf-workers
             prod: true
             script: test:e2e:cf:prod

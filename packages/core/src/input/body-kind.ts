@@ -1,10 +1,9 @@
 /**
  * What body an answer carries, decided without reading it, and the answer to a HEAD request.
  * Honey tags its answers at creation: a buffered one by its raw body, a produced stream (sse,
- * stream, generate) by its tag. Neither ever reads `.body` off a buffered HoneyResponse, which on
- * Node would build a stream for it.
+ * stream, generate) by its tag. Neither ever reads `.body` of a buffered answer.
  */
-import { isHoneyResponse, isProducedStream, rawBodyOf, replaceResponse } from "../response/builder.ts"
+import { isProducedStream, rawBodyOf, replaceResponse } from "../response/builder.ts"
 
 /**
  * `buffered`: the whole body is in memory, or its length is declared, so reading it is bounded.
@@ -16,9 +15,7 @@ export type BodyKind = "buffered" | "empty" | "stream"
 export function bodyKind(response: Response): BodyKind {
 	if (rawBodyOf(response) !== null) return "buffered"
 	if (isProducedStream(response)) return "stream"
-	/* a HoneyResponse without a raw body hands out its stream, or null, without building one */
 	if (response.body === null) return "empty"
-	if (isHoneyResponse(response)) return "stream"
 	const length = response.headers.get("content-length")
 	return length !== null && /^\d+$/.test(length.trim()) ? "buffered" : "stream"
 }

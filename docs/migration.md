@@ -12,6 +12,33 @@ generated from a small example API (`Kitchen`); yours is named after your docume
 The SDK sections cover the four SDKs 0.7.3 shipped: TypeScript, Python, Go and Rust. The C# and Java SDKs are new
 in 1.0, so they migrate nothing; their client is documented in [the generated clients page](https://github.com/workerstack/clients/blob/main/docs/client.md).
 
+## From 1.0.0-rc.25 to 1.0.0-rc.26
+
+Apps run on Cloudflare Workers only: `export default app` is the Worker. A Node or Bun entry has nothing to import now.
+
+| Before                                                                      | Now                                                                                     |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `serve(app, options)` from `@workerstack/backend/node` or `/bun`            | `export default app`; run it with `wrangler dev`                                        |
+| `@workerstack/backend/ws/node`, `/ws/bun` (`nodeWebSocket`, `bunWebSocket`) | `workersWebSocket()` from `@workerstack/backend/ws/workers`                             |
+| `serveCron` from `@workerstack/backend/cron/serve`                          | `workersCron` from `@workerstack/backend/cron/workers`, on a Workers cron trigger       |
+| `serveQueue`, `memoryQueueStore` from `@workerstack/backend/queue/serve`    | `workersQueue` from `@workerstack/backend/queue/workers`, on a Workers Queue binding    |
+| `testClient(app, { transport: serve })`                                     | `testClient(app, { env })`, in process; the option is gone                              |
+| `createBuildPlugin({ target: "node" })` or `"bun"`, and its `port` option   | the one target is `workers`; any other target is refused with `expected workers`        |
+| the optional `ws` peer                                                      | none: delete it from your dependencies if only honey used it                            |
+| a `runtime` field on each request-log line                                  | none: there is one runtime                                                              |
+| `honey init --workers`; `honey init` writing `src/server.ts`                | `honey init` always writes `src/worker.ts` and `wrangler.jsonc`; `--workers` is refused |
+
+```ts
+import { honey } from "@workerstack/backend"
+import { testClient } from "@workerstack/backend/testing"
+
+const app = honey()
+app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
+
+export const client = testClient(app, { env: {} })
+export default app
+```
+
 ## From 1.0.0-rc.24 to 1.0.0-rc.25
 
 Nothing breaks. A list that answers a sparse fieldset (rows cut to `?select=`) failed the output check with a 500
@@ -136,11 +163,10 @@ export type Inputs<T> = InferInputMap<T>
 export const limited = rateLimit({ limit: 60, store: memoryRateLimitStore({ windowMs: 60_000 }) })
 ```
 
-### `@workerstack/backend/serve` is gone: serve from your runtime's entry
+### `@workerstack/backend/serve` is gone: the app is the Worker
 
-`serve` comes from `@workerstack/backend/node` or `@workerstack/backend/bun`, which no longer detect the runtime, and each
-answers a `ServeHandle` with the runtime's own server on `server`. `HoneyServer` is that handle, and `detectRuntime`
-and `ServeRuntime` go with the detection. A test client's `transport` takes that `serve` instead of `"serve"`.
+An app runs on Cloudflare Workers, so there is nothing to serve: `export default app` is the Worker. `HoneyServer`,
+`detectRuntime` and `ServeRuntime` go with the detection, and a test client calls the app in process.
 
 ```ts rc.20
 import { serve } from "@lovrozagar/honey/serve"
@@ -150,13 +176,11 @@ const client = testClient(app, { env, transport: "serve" })
 
 ```ts
 import { honey } from "@workerstack/backend"
-import { serve } from "@workerstack/backend/node"
 import { testClient } from "@workerstack/backend/testing"
 
 const app = honey()
-const server = await serve(app, { port: 0 })
-await server.close()
-export const client = testClient(app, { env: {}, transport: serve })
+export const client = testClient(app, { env: {} })
+export default app
 ```
 
 ### `RouteTreeV2` is `RouteTree`, and `generated()` answers each target's files and packages
@@ -922,15 +946,15 @@ const user = await sid.verify(token)
 The rest of what 0.7.3 exported and 1.0 does not. Everything else it exported was its own internals — an
 adapter's socket wrapper, the plugin's resolved config, the tree's matcher — and no app wrote them.
 
-| v0                                                                                    | v1                                                                                                                                          |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `startHoneyServer`, `enableServe`, `HoneyServeOptions` (`@workerstack/backend/serve`) | `serve(app, options)` from `@workerstack/backend/node` or `@workerstack/backend/bun`, its options inline, `ServeHandle` for what it answers |
-| `HoneyServer` (`@workerstack/backend/node`), its `shutdown(timeout)`                  | `ServeHandle`: Node's own `http.Server` on `server`, and `close(timeout)`                                                                   |
-| `detectRuntime` (`@workerstack/backend`)                                              | nothing: a server imports its runtime's `serve`, and a Worker exports the app                                                               |
-| `enableOpenApi`, `spec` (`@workerstack/backend/openapi`)                              | `serveOpenApi(app, options)`                                                                                                                |
-| `createProxyHandler` (`@workerstack/backend/proxy`)                                   | `proxy({ destination })`, a handler you pass to `.handler()`                                                                                |
-| `RealtimeRouteOpts` (`@workerstack/backend/realtime`)                                 | `RealtimeLimits` and `ConnContext`                                                                                                          |
-| `ClientInfo`, `clientInfo`, `TrustProxy` (`@workerstack/backend/trust`)               | nothing: `ctx.ip` is the platform's peer, and a proxy header is yours to read                                                               |
+| v0                                                                                    | v1                                                                            |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `startHoneyServer`, `enableServe`, `HoneyServeOptions` (`@workerstack/backend/serve`) | `export default app`: the app is the Worker                                   |
+| `HoneyServer` (`@workerstack/backend/node`), its `shutdown(timeout)`                  | nothing: there is no server to hold                                           |
+| `detectRuntime` (`@workerstack/backend`)                                              | nothing: a Worker exports the app                                             |
+| `enableOpenApi`, `spec` (`@workerstack/backend/openapi`)                              | `serveOpenApi(app, options)`                                                  |
+| `createProxyHandler` (`@workerstack/backend/proxy`)                                   | `proxy({ destination })`, a handler you pass to `.handler()`                  |
+| `RealtimeRouteOpts` (`@workerstack/backend/realtime`)                                 | `RealtimeLimits` and `ConnContext`                                            |
+| `ClientInfo`, `clientInfo`, `TrustProxy` (`@workerstack/backend/trust`)               | nothing: `ctx.ip` is the platform's peer, and a proxy header is yours to read |
 
 ```ts v0
 import { startHoneyServer } from "@lovrozagar/honey/serve"
@@ -939,11 +963,9 @@ await startHoneyServer(app, { port: 3000 })
 
 ```ts
 import { honey } from "@workerstack/backend"
-import { serve } from "@workerstack/backend/node"
 
 const app = honey()
-const server = await serve(app, { port: 3000 })
-await server.close()
+export default app
 ```
 
 ## A client over several documents: a merged tree's document replaces `mergeSpecs`
@@ -1033,8 +1055,8 @@ realtime(app, "/rt", { handler: (_ctx, conn) => conn.send({ hello: true }) })
 
 ## `trust` and `trustProxy` are cut
 
-`ctx.ip` is the platform's peer: `CF-Connecting-IP` on Workers, the socket on Node and Bun, never an
-`X-Forwarded-*` value. Behind your own proxy, read the header your proxy sets in your own code.
+`ctx.ip` is the platform's peer: `CF-Connecting-IP` on Workers, never an
+`X-Forwarded-*` value, and `null` off Workers unless a test sets it. Behind your own proxy, read the header your proxy sets in your own code.
 
 ```ts v0
 import { trustProxy } from "@lovrozagar/honey/trust"
@@ -1124,11 +1146,10 @@ const app = honey()
 ws(app, "/echo").handler({ onMessage: (_ctx, socket, data) => socket.send(data) })
 ```
 
-## `testClient` moved, and `transport: "node"` is `transport: serve`
+## `testClient` moved, and `transport: "node"` is gone
 
-`testClient` comes from `@workerstack/backend/testing`. `transport` takes the runtime's `serve` itself, from
-`@workerstack/backend/node` or `@workerstack/backend/bun`: the app is served with it on a free port through that runtime's
-own adapter, so it is no longer Node-only.
+`testClient` comes from `@workerstack/backend/testing`. It calls the app in process, and its `transport` option is gone:
+there is no port to serve on.
 
 ```ts v0
 const client = testClient(app, { transport: "node" })
@@ -1136,18 +1157,15 @@ const client = testClient(app, { transport: "node" })
 
 ```ts
 import { honey } from "@workerstack/backend"
-import { serve } from "@workerstack/backend/node"
 import { testClient } from "@workerstack/backend/testing"
 
 const app = honey()
-const client = testClient(app, { env: {}, transport: serve })
-await client.close()
+const client = testClient(app, { env: {} })
 ```
 
 ## `app.serve(...)` is removed
 
-Import `serve` from your runtime's entry, `@workerstack/backend/node` or `@workerstack/backend/bun`, and pass the app. On
-Cloudflare Workers, export the app itself.
+Export the app itself: on Cloudflare Workers it is the Worker.
 
 ```ts v0
 app.serve({ port: 3000 })
@@ -1155,11 +1173,9 @@ app.serve({ port: 3000 })
 
 ```ts
 import { honey } from "@workerstack/backend"
-import { serve } from "@workerstack/backend/node"
 
 const app = honey()
-const server = await serve(app, { hostname: "0.0.0.0", port: 3000 })
-await server.close()
+export default app
 ```
 
 ## Installed packages run their compiled `dist/`

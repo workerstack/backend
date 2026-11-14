@@ -1,13 +1,13 @@
 /**
  * How CI re-records a bench ceiling (bit 20 e3, 00-rules' perf gate step 4): ci.yml's workflow_dispatch takes a
- * `bench_mode` input (judge or record, judge by default), and each of the five bench steps maps it to BENCH_MODE. A
+ * `bench_mode` input (judge or record, judge by default), and each of the three bench steps maps it to BENCH_MODE. A
  * push and a release's call always judge; a dispatch with bench_mode=record prints every RATIO line and never fails.
  */
 import { describe, expect, it } from "vitest"
 import { type Step, workflow } from "./fixture/workflows.ts"
 
 const ci = workflow("ci.yml")
-const BENCHES = ["hotpath", "finalize", "streaming", "websockets", "adapter"] as const
+const BENCHES = ["hotpath", "finalize", "streaming"] as const
 const MAPPED = "${{ inputs.bench_mode || 'judge' }}"
 
 type Dispatch = { inputs?: Record<string, { default?: unknown; options?: unknown; type?: unknown }> }
@@ -23,7 +23,7 @@ describe("ci.yml's bench mode", () => {
 		})
 	})
 
-	it("reaches each of the five bench steps as BENCH_MODE, judge when nothing sets it", () => {
+	it("reaches each of the three bench steps as BENCH_MODE, judge when nothing sets it", () => {
 		const steps = (ci.jobs.hotpath?.steps ?? []) as readonly Step[]
 		const mapping = BENCHES.map((name) => [name, steps.find((step) => step.name === name)?.env?.BENCH_MODE])
 		expect(mapping).toEqual(BENCHES.map((name) => [name, MAPPED]))

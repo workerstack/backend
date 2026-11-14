@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { createHoneyResponse } from "../response/builder.ts"
 import { HoneyRes } from "../response/response.ts"
 import { honey } from "../routing/app.ts"
 import { bodyKind, headResponse } from "./body-kind.ts"
@@ -24,18 +23,17 @@ async function seen(answer: Response | Promise<Response>, names: string[]): Prom
 
 describe("bodyKind: read from how the answer was built, never from its body", () => {
 	// v0: be6ccf73ce
-	it("buffered for a body honey built, stream for one it produces, empty for none, on both paths", () => {
-		for (const res of [new HoneyRes(), new HoneyRes(true)]) {
-			expect([
-				bodyKind(res.json("ok", {})),
-				bodyKind(res.binary("ok", new Uint8Array(1))),
-				bodyKind(res.noContent()),
-				bodyKind(res.redirect("found", "/x")),
-				bodyKind(res.sse(async () => {}, { headers: { "content-length": "5" } })),
-				bodyKind(res.generate(counter().generator)),
-				bodyKind(res.stream(async () => {})),
-			]).toEqual(["buffered", "buffered", "empty", "empty", "stream", "stream", "stream"])
-		}
+	it("buffered for a body honey built, stream for one it produces, empty for none", () => {
+		const res = new HoneyRes()
+		expect([
+			bodyKind(res.json("ok", {})),
+			bodyKind(res.binary("ok", new Uint8Array(1))),
+			bodyKind(res.noContent()),
+			bodyKind(res.redirect("found", "/x")),
+			bodyKind(res.sse(async () => {}, { headers: { "content-length": "5" } })),
+			bodyKind(res.generate(counter().generator)),
+			bodyKind(res.stream(async () => {})),
+		]).toEqual(["buffered", "buffered", "empty", "empty", "stream", "stream", "stream"])
 	})
 
 	it("a response honey did not build is buffered only when it declares its length", () => {
@@ -44,26 +42,23 @@ describe("bodyKind: read from how the answer was built, never from its body", ()
 			bodyKind(new Response("x", { headers: { "content-length": "1x" } })),
 			bodyKind(new Response(new ReadableStream())),
 			bodyKind(new Response(null)),
-			bodyKind(createHoneyResponse({ headers: {}, status: 200, stream: new ReadableStream() })),
-			bodyKind(createHoneyResponse({ headers: {}, status: 200 })),
-		]).toEqual(["buffered", "stream", "stream", "empty", "stream", "empty"])
+		]).toEqual(["buffered", "stream", "stream", "empty"])
 	})
 })
 
 describe("headResponse: the answer GET would send, without its body", () => {
 	it("keeps the status and headers and states the byte length of a body honey built", async () => {
-		for (const res of [new HoneyRes(), new HoneyRes(true)]) {
-			const names = ["content-type", "content-length", "x-a"]
-			expect([
-				await seen(headResponse(res.json("created", { name: "é" }, { headers: { "x-a": "1" } })), names),
-				await seen(headResponse(res.text("ok", "x", { headers: { "content-length": "1" } })), names),
-				await seen(headResponse(res.noContent()), names),
-			]).toEqual([
-				[201, "application/json", "13", "1", ""],
-				[200, "text/plain; charset=utf-8", "1", null, ""],
-				[204, null, null, null, ""],
-			])
-		}
+		const res = new HoneyRes()
+		const names = ["content-type", "content-length", "x-a"]
+		expect([
+			await seen(headResponse(res.json("created", { name: "é" }, { headers: { "x-a": "1" } })), names),
+			await seen(headResponse(res.text("ok", "x", { headers: { "content-length": "1" } })), names),
+			await seen(headResponse(res.noContent()), names),
+		]).toEqual([
+			[201, "application/json", "13", "1", ""],
+			[200, "text/plain; charset=utf-8", "1", null, ""],
+			[204, null, null, null, ""],
+		])
 	})
 
 	it("states the length of bytes too, and answers even when cancelling a foreign body fails", async () => {

@@ -10,8 +10,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { builtinModules, createRequire } from "node:module"
 import { join } from "node:path"
 
-/** What the dist imports and a consumer provides itself: runtimes, optional peers, the clients package. */
-const PROVIDED = ["bun", "ws", "vite", "jiti", "typescript", "@workerstack/clients"]
+/** What the dist imports and a consumer provides itself: build-time tools, the optional clients package. */
+const PROVIDED = ["vite", "jiti", "typescript", "@workerstack/clients"]
 const provided = (id: string) =>
 	id.startsWith("node:") ||
 	id.startsWith("cloudflare:") ||

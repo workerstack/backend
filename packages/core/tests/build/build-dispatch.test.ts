@@ -5,7 +5,6 @@
  * and the e2e job's (a prod cell builds its app first). A push and a release's call always judge.
  */
 import { describe, expect, it } from "vitest"
-import { runtimeKey } from "../e2e/build-gate.ts"
 import { type Step, workflow } from "./fixture/workflows.ts"
 
 const ci = workflow("ci.yml")
@@ -32,10 +31,5 @@ describe("ci.yml's build mode", () => {
 			stepOf("build", "bun packages/core/tests/e2e/run-build.ts")?.env?.BUILD_MODE,
 			stepOf("e2e", "bun run ${{ matrix.script }}")?.env?.BUILD_MODE,
 		]).toEqual([MAPPED, MAPPED])
-	})
-
-	it("pins the Bun its build ceilings are kept under: a BUN_VERSION bump to a new minor needs a re-record", () => {
-		const pinned = (ci as unknown as { env: { BUN_VERSION: string } }).env.BUN_VERSION
-		expect(runtimeKey("bun", pinned)).toBe("bun 1.4")
 	})
 })

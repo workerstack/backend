@@ -31,7 +31,7 @@ const FORWARDING = [
 	"x-real-ip",
 ] as const
 
-/** The headers an edit needs: native `Headers` and the plain map's `HoneyOutHeaders` both are. */
+/** The headers an edit needs. */
 type Editable = { delete(name: string): void; get(name: string): string | null }
 
 /** Drop every hop-by-hop header and every header `Connection` names; an upgrade may keep `Upgrade`. */

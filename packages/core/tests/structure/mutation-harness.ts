@@ -6,12 +6,10 @@
  *
  *     bun packages/core/tests/structure/mutation-harness.ts
  */
-import type { IncomingMessage } from "node:http"
 import { resolve } from "node:path"
 import type { producerStream } from "../../src/streaming/producer-stream.ts"
 import { parseMediaType } from "../../src/response/media-type.ts"
 import {
-	NaiveOutHeaders,
 	adoptingRequestId,
 	bufferingEtag,
 	lengthOnlyBodyLimit,
@@ -20,15 +18,12 @@ import {
 	forwardedIp,
 	forwardedKey,
 	inlineFiring,
-	naiveWriter,
-	overlappingServeCron,
 	passThrough,
 	plainYaml,
 	rawServerTiming,
 	rawTargetProxy,
 	reflectingCors,
 	ackingDeliver,
-	claimIgnoringServeCron,
 	bodyOnlySignWebhook,
 	confusedVerifyJwt,
 	expOptionalVerifyJwt,
@@ -37,14 +32,11 @@ import {
 	laxSecretSignWebhook,
 	type ParseUserAgent,
 	resettlingDeliver,
-	type ServeQueue,
-	type ServeCron,
 	type SignWebhook,
 	textIpAllowed,
 	type VerifyJwt,
 	textIpRestrict,
 	translatingInPlace,
-	unboundedServeQueue,
 	uncappedParseUserAgent,
 	trustingJsonSchemaOf,
 	trustingEveryHop,
@@ -125,35 +117,6 @@ export const GUARDS: readonly Guard[] = [
 		}),
 		id: "v1-cookie-signature",
 		module: "packages/core/src/context/cookie-sign.ts",
-	},
-	{
-		catches: "v1: a request URL built from whatever Host the client sent (a second one, or one carrying a path)",
-		disable: () => ({
-			nodeRequestUrl: (incoming: IncomingMessage) => `http://${incoming.headers.host}${incoming.url}`,
-		}),
-		id: "v1-node-host",
-		module: "packages/core/src/adapters/node/url.ts",
-	},
-	{
-		catches: "v1: a request body read past maxRequestBodySize",
-		disable: (original) => {
-			const nodeRequest = original.nodeRequest as (incoming: IncomingMessage, url: string, maxBody: number) => Request
-			return { nodeRequest: (incoming: IncomingMessage, url: string) => nodeRequest(incoming, url, 0) }
-		},
-		id: "v1-node-body-cap",
-		module: "packages/core/src/adapters/node/request.ts",
-	},
-	{
-		catches: "v1: an upstream's hop-by-hop or Connection-named headers written onto this connection",
-		disable: () => ({ writeResponse: naiveWriter({ keepHopByHop: true, trustLength: false }) }),
-		id: "v1-node-hop-by-hop",
-		module: "packages/core/src/adapters/node/response.ts",
-	},
-	{
-		catches: "v1: a stream's declared length trusted, desynchronizing keep-alive",
-		disable: () => ({ writeResponse: naiveWriter({ keepHopByHop: false, trustLength: true }) }),
-		id: "v1-node-stream-length",
-		module: "packages/core/src/adapters/node/response.ts",
 	},
 	{
 		catches: "v1: a producer running ahead of a reader that stopped reading",
@@ -254,18 +217,6 @@ export const GUARDS: readonly Guard[] = [
 		module: "packages/core/src/context/user-agent.ts",
 	},
 	{
-		catches: "v1: a job slower than its schedule running alongside itself",
-		disable: (original) => ({ serveCron: overlappingServeCron(original.serveCron as ServeCron) }),
-		id: "v1-cron-overlap",
-		module: "packages/core/src/cron/serve.ts",
-	},
-	{
-		catches: "v1: an instance running a tick it lost the claim for, so every instance runs the job",
-		disable: (original) => ({ serveCron: claimIgnoringServeCron(original.serveCron as ServeCron) }),
-		id: "v1-cron-claim",
-		module: "packages/core/src/cron/serve.ts",
-	},
-	{
 		catches: "v1: a type the consumer does not know acked away, so a sender deployed first loses its messages",
 		disable: (original) => ({ deliver: ackingDeliver(original.deliver as Deliver) }),
 		id: "v1-queue-unknown-acked",
@@ -276,12 +227,6 @@ export const GUARDS: readonly Guard[] = [
 		disable: (original) => ({ deliver: resettlingDeliver(original.deliver as Deliver) }),
 		id: "v1-queue-first-settle",
 		module: "packages/core/src/queue/deliver.ts",
-	},
-	{
-		catches: "v1: a message that always fails retrying forever",
-		disable: (original) => ({ serveQueue: unboundedServeQueue(original.serveQueue as ServeQueue) }),
-		id: "v1-queue-max-attempts",
-		module: "packages/core/src/queue/serve.ts",
 	},
 	{
 		catches: "v1: a public key verifying as an HMAC secret, so anyone holding it forges tokens (algorithm confusion)",
@@ -356,12 +301,6 @@ export const GUARDS: readonly Guard[] = [
 		disable: (original) => ({ curlLogger: unredacted(original.curlLogger as LoggerFactory) }),
 		id: "v1-curl-logger-redaction",
 		module: "packages/core/src/observability/curl-logger.ts",
-	},
-	{
-		catches: "v1: a header value carrying CR/LF written through the plain header path",
-		disable: () => ({ HoneyOutHeaders: NaiveOutHeaders }),
-		id: "v1-out-headers-validation",
-		module: "packages/core/src/response/out-headers.ts",
 	},
 	{
 		catches: "v1: a cross-site WebSocket upgrade carrying credentials let through",

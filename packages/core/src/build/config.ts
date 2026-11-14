@@ -108,8 +108,7 @@ export type HoneyVitePluginConfig = {
 	/**
 	 * `true` keeps the answer check in a production build. Every `.output()` route checks what it answers under the dev
 	 * server, in tests and in a development build; a production `vite build` drops the check from each bundle it makes
-	 * unless this is `true`. A node or bun bundle keeps honey external, so its check is dropped where it runs, by
-	 * starting the runtime with `--conditions=honey-no-output-check`.
+	 * unless this is `true`.
 	 */
 	readonly outputValidation?: boolean
 	/** globs, from the project root, whose edits regenerate in dev */

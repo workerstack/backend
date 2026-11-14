@@ -3,10 +3,9 @@
  * field catalog only, or `"aborted"` when the reader cancels first. The body observer
  * (span-lifecycle.ts) calls the line when the body ended.
  */
-import { isHoneyResponse, type RawBody, rawBodyOf } from "../response/builder.ts"
+import { type RawBody, rawBodyOf } from "../response/builder.ts"
 import type { FetchState } from "../routing/dispatch.ts"
 import type { AppSettings } from "../routing/settings.ts"
-import { detectRuntime } from "../runtime/detect-runtime.ts"
 import { pathOf, type RequestLogEntry } from "./fields.ts"
 import type { RequestTrace } from "./request-trace.ts"
 import type { BodyEnd } from "./span-lifecycle.ts"
@@ -24,12 +23,6 @@ export type Seen = {
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
 
-function header(response: Response, name: string): string | undefined {
-	if (!isHoneyResponse(response)) return response.headers.get(name) ?? undefined
-	const value = response.plainHeaders[name]
-	return value === undefined ? undefined : String(value)
-}
-
 /** A media type's essence: `type/subtype`, lowercased, without parameters. */
 function essenceOf(value: string | undefined): string {
 	const text = value ?? ""
@@ -39,21 +32,11 @@ function essenceOf(value: string | undefined): string {
 
 function kindOf(response: Response, raw: RawBody | null): string {
 	if (response.status === 101) return "upgrade"
-	const essence = essenceOf(header(response, "content-type"))
+	const essence = essenceOf(response.headers.get("content-type") ?? undefined)
 	if (essence === "text/event-stream") return "sse"
 	if (raw === null) return response.body === null ? "empty" : "stream"
 	if (essence === "application/json" || essence.endsWith("+json")) return "json"
 	return essence.slice(0, essence.indexOf("/")) === "text" ? "text" : "binary"
-}
-
-/** The runtime `globals` belong to, or `unknown` for one serve() does not know. */
-export function runtimeOf(globals: Parameters<typeof detectRuntime>[0] = globalThis): string {
-	try {
-		return detectRuntime(globals)
-	} catch {
-		/* not a runtime serve() knows: the line says so instead of failing the request */
-		return "unknown"
-	}
 }
 
 /** Write the line, unless `skip` says not to; a `skip` that throws is logged and the line still written. */
@@ -83,10 +66,9 @@ export function requestLine(s: AppSettings<unknown>, seen: Seen, response: Respo
 		/* the path routing matched, under stripPrefix; the raw URL's before routing ran */
 		path: state?.path ?? pathOf(request.url),
 		routeId: state?.plan.route.id ?? "",
-		runtime: runtimeOf(),
 		status: response.status,
 	}
-	const requestId = state?.requestId?.id ?? header(response, "x-request-id")
+	const requestId = state?.requestId?.id ?? response.headers.get("x-request-id") ?? undefined
 	if (requestId !== undefined) entry.requestId = requestId
 	if (state?.errorKey !== undefined) entry.errorKey = state.errorKey
 	return (ended, bytes) => {

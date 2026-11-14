@@ -10,7 +10,7 @@ import { HoneyError } from "../errors/error.ts"
 import { boundary, errorCtx, formatterReport } from "../errors/on-error.ts"
 import { createErrorResponse, jsonAnswer } from "../errors/projector.ts"
 import { compileChain, type MaybePromise } from "../middleware/middleware.ts"
-import { isNodeOutbound, replaceResponse } from "../response/builder.ts"
+import { replaceResponse } from "../response/builder.ts"
 import type { StatusKey } from "../response/status.ts"
 import type { Seen } from "../telemetry/request-log.ts"
 import { observe, startTrace } from "../telemetry/span-lifecycle.ts"
@@ -73,7 +73,7 @@ function make405(s: AppSettings<unknown>, state: FetchState, allowed: string[]):
  * nothing (finalize decides) and, checked per request since a setter may come later, no
  * `onNotFound`, the default formatter (a custom one may stamp each body) and no factory override.
  */
-function fixedNotFound(): (nodeOut: boolean) => Response {
+function fixedNotFound(): () => Response {
 	const error = new HoneyError({ errorKey: "not_found", status: "not_found" })
 	const payload = JSON.stringify({
 		error_key: error.errorKey,
@@ -83,7 +83,7 @@ function fixedNotFound(): (nodeOut: boolean) => Response {
 		status_key: error.statusKey,
 		success: false,
 	})
-	return (nodeOut) => jsonAnswer(payload, { "content-type": "application/json" }, 404, nodeOut)
+	return () => jsonAnswer(payload, { "content-type": "application/json" }, 404)
 }
 
 function plainNotFound(s: AppSettings<unknown>): boolean {
@@ -119,7 +119,6 @@ export function badRequestTarget(s: AppSettings<unknown>, request: Request): Res
 	const error = frameworkError(s, "bad_request", "bad_request")
 	return createErrorResponse(error, s.errorFormatter, s.payloadErrorFormatter, {
 		format: s.errorFormat,
-		nodeOut: isNodeOutbound(request),
 		report: formatterReport(s, null),
 	})
 }
@@ -155,7 +154,7 @@ function miss(
 ): MaybePromise<Response> {
 	if (allowed === null) state.trace?.event("not_found")
 	else state.trace?.event("method_not_allowed", { "http.allowed_methods": allowed.join(", ") })
-	if (allowed === null && final.notFound !== null && plainNotFound(s)) return final.notFound(isNodeOutbound(state.req))
+	if (allowed === null && final.notFound !== null && plainNotFound(s)) return final.notFound()
 	state.allowed = allowed
 	return run(state, final.miss, EMPTY_PARAMS)
 }
@@ -286,7 +285,7 @@ export function dispatch(
 ): MaybePromise<Response> {
 	const s = g.settings
 	if (s.requestLog === null && s.telemetry === null) return routed(g, { env, executionCtx, request, seen: undefined })
-	const trace = s.telemetry === null ? undefined : startTrace(s, s.telemetry, request, env)
+	const trace = s.telemetry === null ? undefined : startTrace(s, s.telemetry, request)
 	const seen: Seen = { request, started: performance.now(), state: null, trace }
 	let answer: MaybePromise<Response>
 	try {

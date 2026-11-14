@@ -1,7 +1,7 @@
 # Queue
 
 `@workerstack/backend/queue` defines a typed queue. `@workerstack/backend/queue/workers` consumes it from a Workers Queue
-binding, and `@workerstack/backend/queue/serve` consumes it in a Node or Bun process from a `QueueStore`.
+binding.
 
 ## Example
 
@@ -120,56 +120,3 @@ own `max_retries`, past which Workers drops it.
 `throw deadLetter` reports, then acks, even when the report fails: the handler already gave up, and the letter is logged.
 
 Messages of a batch run at once, and one message cannot fail the batch.
-
-## In a process
-
-```ts
-import { defineConsumer, queueContract, queueMessage } from "@workerstack/backend/queue"
-import { memoryQueueStore, serveQueue } from "@workerstack/backend/queue/serve"
-
-const jobs = queueContract({ ping: queueMessage<number>() })
-const consumer = defineConsumer<{}>()(jobs, { handlers: { ping: async () => {} } })
-
-const store = memoryQueueStore()
-await jobs.send(store, "ping", 1)
-
-const running = serveQueue(consumer, { env: {}, store })
-
-process.once("SIGTERM", () => running.close(10_000))
-```
-
-`serveQueue(consumer, options)` takes:
-
-| option         | default     | what it does                                                    |
-| -------------- | ----------- | --------------------------------------------------------------- |
-| `env`          | required    | what handlers receive                                           |
-| `store`        | required    | where messages wait                                             |
-| `concurrency`  | 10          | the most messages running at once                               |
-| `leaseSeconds` | 30          | how long a lease holds, extended every half lease while it runs |
-| `maxAttempts`  | 5           | the delivery after which a retry dead-letters                   |
-| `pollMs`       | 1,000       | the wait after an empty or failed claim                         |
-| `queue`        | `"default"` | the name a letter carries                                       |
-| `onError`      | logs        | receives a failed store call                                    |
-
-A crash loses nothing: leases expire and the messages redeliver. A message whose lease kept expiring past `maxAttempts`
-dead-letters without running, so a message that kills the process cannot loop forever.
-
-`close(timeoutMs)` stops claiming and waits for running messages and their background work. When the timeout passes
-first it resolves, and those messages redeliver. With no timeout it waits as long as they take, so a handler closing its
-own consumer calls `void close()`.
-
-### A store of your own
-
-`memoryQueueStore()` lives in this process's memory: it is for development and tests. Production needs a `QueueStore`:
-
-| method                             | what it must do                                                  |
-| ---------------------------------- | ---------------------------------------------------------------- |
-| `send`, `sendBatch`                | store messages, honouring `delaySeconds`                         |
-| `claim({ limit, leaseSeconds })`   | lease deliverable messages in order, counting an attempt on each |
-| `extend(receipt, seconds)`         | hold a lease `seconds` from now                                  |
-| `ack(receipt)`                     | finish a message                                                 |
-| `retry(receipt, { delaySeconds })` | make it deliverable after the delay                              |
-| `deadLetter(receipt, reason)`      | keep it from redelivering                                        |
-
-A claim answers `[{ id, body, attempts, receipt }]`, with `attempts` from 1. An expired lease is claimable again, and a
-stale receipt must change nothing.

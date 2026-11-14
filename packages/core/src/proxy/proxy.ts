@@ -9,12 +9,9 @@
  * middleware's header, replacing the client's. The URL is the normalized path, the deadlines and
  * failure mapping are upstream.ts's. Every method but GET and HEAD forwards its body. The call
  * follows `ctx.signal`: a disconnect, `timeout()` or shutdown cancels it and its body. Redirects go
- * back to the client, never followed. On the Node bridge the answer is a HoneyResponse, so the
- * header middleware in front of the route stay on the plain map.
+ * back to the client, never followed.
  */
 import { type HoneyContext, REQUEST, TRACE } from "../context/context.ts"
-import { createHoneyResponse, isNodeOutbound } from "../response/builder.ts"
-import { headersToRecord, HoneyOutHeaders } from "../response/out-headers.ts"
 import type { TypedResponse } from "../response/response.ts"
 import { searchOfUrl } from "../routing/request-path.ts"
 import { clientHeaders, upstreamHeaders } from "./headers.ts"
@@ -76,19 +73,9 @@ function isNullBody(status: number): boolean {
 }
 
 /** The client's copy of the upstream answer, its headers cleaned and mutable for onResponse. */
-function answerFor(
-	response: Response,
-	body: ReadableStream<Uint8Array> | null,
-	decoded: boolean,
-	nodeOut: boolean,
-): Response {
+function answerFor(response: Response, body: ReadableStream<Uint8Array> | null, decoded: boolean): Response {
 	const init = { status: response.status, statusText: response.statusText }
 	const stream = isNullBody(response.status) ? null : body
-	if (nodeOut) {
-		const headers = new HoneyOutHeaders(headersToRecord(response.headers))
-		clientHeaders(headers, decoded)
-		return createHoneyResponse({ ...init, headers: headers.toRecord(), stream })
-	}
 	const headers = new Headers(response.headers)
 	clientHeaders(headers, decoded)
 	return new Response(stream, { ...init, headers })
@@ -159,7 +146,7 @@ export function proxy<TCtx>(config: ProxyConfig<TCtx>): (ctx: TCtx) => Promise<T
 			response.body !== null && idleMs !== undefined
 				? withIdleTimeout(response.body, idleMs, () => upstream.abort(timeoutError()))
 				: response.body
-		const answer = answerFor(response, stream, decoded, isNodeOutbound(req))
+		const answer = answerFor(response, stream, decoded)
 		const replaced = config.onResponse ? await config.onResponse(ctx, answer) : undefined
 		return (replaced ?? answer) as TypedResponse
 	}
