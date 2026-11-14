@@ -139,7 +139,9 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * Plan 53 (D16) took 1,568 off (27,094 to 25,526 on CI's Node 26.13.1): apps run on Workers only, so the
 			 * builder's Node out-headers path, runtime detection and the request log's runtime field are gone. Locked
 			 * at 25,600. Plan 55's renames (the brand names out of every export and header) added 7 (25,533). Still
-			 * locked at 25,600.
+			 * locked at 25,600. Plan 57 added 35 (25,568 on CI's Node 26.13.1) so a step derives a context with one
+			 * member swapped: ctx.with(), one Object.create over the overrides' descriptors, and its reserved key.
+			 * Still locked at 25,600.
 			 */
 			const gzipped = gzipSync(js, { level: 9 }).length
 			const builtBy = run(BUN as string, ["--version"], full).out.trim()
@@ -279,7 +281,8 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * minimal bundle. Locked at 28,500: CI's Node
 			 * 26.13.0 gzips it to 28,441. Plan 53 (D16) took 1,575 off (28,441 to 26,866 on CI's Node 26.13.1): the
 			 * Node and Bun runtime paths, as in the minimal bundle. Locked at 26,900. Plan 55's renames added 6
-			 * (26,872). Still locked at 26,900.
+			 * (26,872). Still locked at 26,900. Plan 57 added 37 (26,909 on CI's Node 26.13.1): ctx.with(), as in
+			 * the minimal bundle. Locked at 27,000.
 			 */
 			const gzipped = gzipSync(bunBundle("static-doc", served), { level: 9 }).length
 			expect(
@@ -287,7 +290,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					routeModules("static-doc", served, [...GENERATOR, ...PAGES]),
 					routeModules("static-page", withPage, [...GENERATOR, ...PAGES]),
 					routeModules("generated-doc", generated, PAGES),
-					gzipped < 26_900,
+					gzipped < 27_000,
 				],
 				`${gzipped} bytes gzipped`,
 			).toEqual([[], ["openapi/scalar"], [], true])

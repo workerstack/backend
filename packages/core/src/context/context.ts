@@ -72,6 +72,9 @@ const EMPTY: Readonly<Record<string, never>> = /* @__PURE__ */ Object.freeze({})
 /** The route info of a context built without a route, as a test builds one; a 404 or 405 has route info of its own. */
 export const NO_ROUTE: RouteInfo = /* @__PURE__ */ Object.freeze({ errors: null, id: "", meta: EMPTY, pattern: "" })
 
+/** The members `ctx.with()` may not replace: what one request decided, which a derived context shares as is. */
+type RequestOwned = "input" | "meta" | "params" | "req" | "res"
+
 /** The context's slot for its request state: an own symbol key the package does not export, so it is no part of the API. */
 export const REQUEST: unique symbol = /* @__PURE__ */ Symbol("backend.request")
 
@@ -125,6 +128,7 @@ const RESERVED: Readonly<Record<string, true>> = /* @__PURE__ */ Object.freeze({
 	searchAll: true,
 	signal: true,
 	tap: true,
+	with: true,
 })
 
 export function isReservedCtxKey(key: string): boolean {
@@ -324,6 +328,16 @@ export class HttpContext<TEnv = Record<string, unknown>> {
 	tap(key: string, payload: unknown): void {
 		const self = this[SELF]
 		;(self.#taps ??= []).push({ key, payload })
+	}
+
+	/**
+	 * A context that answers `overrides` and reads everything else from this one: the lazy views, the logger, the signal
+	 * and the tap queue stay this request's, and a member set here later shows through. For a step that needs one member
+	 * swapped, such as a database handle resolved per tenant. Typed as the context it is called on, so an override takes
+	 * that member's declared type; `req`, `res`, `input`, `params` and `meta` belong to the request and cannot be replaced.
+	 */
+	with<C>(this: C, overrides: Partial<Omit<C, RequestOwned>>): C {
+		return Object.create(this as object, Object.getOwnPropertyDescriptors(overrides)) as C
 	}
 
 	/** What `tap()` queued, or null when nothing was. */

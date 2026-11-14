@@ -395,3 +395,55 @@ describe("the whole ctx with taps, meta and empty declarations", () => {
 			})
 	})
 })
+
+describe("ctx.with", () => {
+	type ShardDb = { query: (sql: string) => unknown[] }
+	const withShard = createMiddleware((_ctx, next) => next({ shardDb: null as ShardDb | null }))
+
+	it("returns the receiver's context, overriding a member with its declared type", () => {
+		httpApp<{}>()
+			.use(withShard)
+			.get("/rows")
+			.handler((ctx) => {
+				const derived = ctx.with({ shardDb: { query: () => [] } })
+				expectTypeOf(derived).toEqualTypeOf<typeof ctx>()
+				// @ts-expect-error a number is not a ShardDb
+				ctx.with({ shardDb: 42 })
+				return derived.res.text("ok", "ok")
+			})
+	})
+
+	it("refuses the request-specific members", () => {
+		httpApp<{}>()
+			.use(withShard)
+			.post("/rows")
+			.input({ json: z.object({ a: z.string() }) })
+			.handler((ctx) => {
+				// @ts-expect-error req is not overridable
+				ctx.with({ req: ctx.req })
+				// @ts-expect-error res is not overridable
+				ctx.with({ res: ctx.res })
+				// @ts-expect-error input is not overridable
+				ctx.with({ input: ctx.input })
+				// @ts-expect-error params is not overridable
+				ctx.with({ params: ctx.params })
+				// @ts-expect-error meta is not overridable
+				ctx.with({ meta: ctx.meta })
+				expectTypeOf(ctx.with({})).toEqualTypeOf<typeof ctx>()
+				return ctx.res.text("ok", "ok")
+			})
+	})
+
+	it("returns a picked context from a picked context, still refusing req", () => {
+		httpApp<{}>()
+			.use(withShard)
+			.get("/picked")
+			.handler((ctx) => {
+				const picked: Pick<typeof ctx, "shardDb" | "with" | "log"> = ctx
+				expectTypeOf(picked.with({ shardDb: null })).toEqualTypeOf<Pick<typeof ctx, "shardDb" | "with" | "log">>()
+				// @ts-expect-error req is not on the picked context, nor overridable
+				picked.with({ req: ctx.req })
+				return ctx.res.text("ok", "ok")
+			})
+	})
+})

@@ -311,7 +311,7 @@ describe("app.context(): mounts and the framework's keys", () => {
 
 	// v0: 329636cf2d
 	// v0: 6ffd201bbd
-	it.each([...RESERVED, "ip", "log", "tap"])("refuse %s, a key the framework owns, at registration", (key) => {
+	it.each([...RESERVED, "ip", "log", "tap", "with"])("refuse %s, a key the framework owns, at registration", (key) => {
 		expect(() => httpApp<{}>().context({ [key]: 1 })).toThrow(`context() cannot set reserved key "${key}"`)
 	})
 })
