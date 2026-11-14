@@ -1,9 +1,8 @@
 /** The app's type machinery: the handler ctx, each route's record, and the `Infer*` ladder. Type-only. */
 import type { HttpContext, REQUEST } from "../context/context.ts"
-import type { HttpApp } from "./app.ts"
 import type { HttpOperationId } from "./codegen-types.ts"
 import type { ApplyOutput } from "./output-types.ts"
-import type { DeclaredMeta, InitAccMeta, RouteMeta, WithChainMeta, WithMiddlewareMeta } from "./meta-types.ts"
+import type { DeclaredMeta, RouteMeta, WithMiddlewareMeta } from "./meta-types.ts"
 import type { MiddlewareErrorKeys } from "../middleware/middleware.ts"
 import type { BuilderTypes } from "./route-builder.ts"
 import type { StatusKey } from "../response/status.ts"
