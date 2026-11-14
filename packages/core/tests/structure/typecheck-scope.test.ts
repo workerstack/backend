@@ -1,6 +1,7 @@
 /**
  * Every tsconfig.json the repository tracks is type-checked by a gate (bit 20 k-fix): the cf e2e host's carried two
- * errors that no gate ran. A gate is `typecheck` or one the standards block names; it checks a tsconfig through
+ * errors that no gate ran. A gate is a root script CI runs (`bun run <script>` in ci.yml, a matrix `script:` included); it
+ * checks a tsconfig through
  * `tsc --noEmit -p <path>`, or through `bun run --filter <...> type:check` over the workspaces it selects, whose
  * `type:check` is `tsc --noEmit` in their own directory, or `bun type-check.ts`: cf-workers' per-app programs, each
  * extending that directory's tsconfig (one program holds one app's operationId slot).
@@ -18,7 +19,7 @@ const PACKED_ONLY = ["packages/core/tests/e2e/strict-consumer/tsconfig.json"]
 /* a workspace `type:check` that checks its own tsconfig.json */
 const CHECKS_OWN_TSCONFIG = ["tsc --noEmit", "bun type-check.ts"]
 
-type Manifest = { name?: string; scripts?: Record<string, string>; standards?: { gates?: string[] } }
+type Manifest = { name?: string; scripts?: Record<string, string> }
 
 const manifestAt = (dir: string) => JSON.parse(readFileSync(join(ROOT, dir, "package.json"), "utf8")) as Manifest
 /** The tracked files named `name`, repo-relative. */
@@ -26,6 +27,13 @@ const tracked = (name: string) =>
 	execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" })
 		.split("\n")
 		.filter((path) => path === name || path.endsWith(`/${name}`))
+/** The root scripts CI runs: each `bun run <script>` step, and each matrix `script:` a `${{ matrix.script }}` step takes. */
+const ciGates = () => {
+	const workflow = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8")
+	const steps = [...workflow.matchAll(/\bbun run ([\w:.-]+)/g)].map(([, gate]) => gate as string)
+	const matrix = [...workflow.matchAll(/^\s*(?:- )?script: ([\w:.-]+)$/gm)].map(([, gate]) => gate as string)
+	return [...new Set([...steps, ...matrix])]
+}
 
 /** A `bun --filter` value as a test on a workspace: a `./` path glob (`*` within one segment), else a package name. */
 function selects(filter: string, dir: string, name: string | undefined): boolean {
@@ -60,7 +68,7 @@ function checkedBy(scripts: Record<string, string>, gates: readonly string[]): S
 describe("every tracked tsconfig.json is type-checked by a gate (bit 20 k-fix)", () => {
 	it("names none a gate leaves unchecked", { timeout: SPAWN_TIMEOUT }, () => {
 		const root = manifestAt(".")
-		const checked = checkedBy(root.scripts ?? {}, ["typecheck", ...(root.standards?.gates ?? [])])
+		const checked = checkedBy(root.scripts ?? {}, ciGates())
 		const unchecked = tracked("tsconfig.json").filter((path) => !checked.has(path) && !PACKED_ONLY.includes(path))
 		expect(unchecked).toEqual([])
 	})
