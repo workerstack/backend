@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"deploy": "wrangler deploy --name backend-cf-e2e",
+		"deploy": "WRANGLER_BUILD_CONDITIONS=backend-source,workerd,worker,browser wrangler deploy --name backend-cf-e2e",
 		"dev": "WRANGLER_BUILD_CONDITIONS=backend-source,workerd,worker,browser bunx wrangler dev --port 0 --ip 0.0.0.0 --inspector-port 0",
 		"test": "playwright test",
 		"test:live": "bun scripts/live-smoke.ts",
