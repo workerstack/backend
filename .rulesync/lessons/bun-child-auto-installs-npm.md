@@ -1,6 +1,8 @@
 ---
 name: bun-child-auto-installs-npm
 paths: ["packages/core/src/build/init.test.ts", "packages/core/src/build/**"]
+hits: 1
+last-hit: 2026-11-14
 evidence: ["plan 58"]
 ---
 
