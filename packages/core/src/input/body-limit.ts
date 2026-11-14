@@ -5,7 +5,6 @@
  * body is limited, extension methods too; a request with no body and no declared length is not.
  * With `rejectUnlisted`, a body whose media type no `limits` key matches answers 415 instead.
  */
-import { withBody } from "../adapters/fetch-request.ts"
 import { EK, HoneyError } from "../errors/error.ts"
 import { type MiddlewareFn, namedMiddleware } from "../middleware/middleware.ts"
 import { replaceRequest } from "../context/context.ts"
@@ -140,7 +139,7 @@ export function bodyLimit<const TOptions extends BodyLimitOptions>(
 		const cap = listed ?? maxSize
 		if (declared !== null && declared > cap) throw tooLarge()
 		if (body === null || (trustContentLength && declared !== null)) return next()
-		replaceRequest(ctx, withBody(req, counted(body, cap)))
+		replaceRequest(ctx, new Request(req, { body: counted(body, cap), duplex: "half" } as RequestInit))
 		return next()
 	}
 	mw.errors = (

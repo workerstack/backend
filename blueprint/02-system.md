@@ -6,7 +6,7 @@ What the running system does, in order, and who owns each part. Verified against
 
 A honey app is a `fetch(request, env, ctx)` handler. An adapter delivers the request; the pipeline below runs; a `Response` leaves. The pipeline is compiled once at **finalize** into a `FinalTable` and re-run only when registrations change.
 
-1. **Ingress / adapter** — `adapters/{node,bun,workers}` deliver a standard `Request` and the runtime's `env`/`ctx`. Node bridges `node:http` (`node-request.ts`); Bun and Workers pass Fetch natively. `detect-runtime.ts` returns a pure runtime value; no portable-core file branches on globals. *Deno is removed in v1 (H15).*
+1. **Ingress** — the app is the Worker: workerd hands `fetch` a standard `Request` and the Worker `env`/`ctx`, and `ctx.req` is that `Request`. Apps run on Cloudflare Workers only (D16); no portable-core file branches on globals. *Deno is removed in v1 (H15); Node and Bun in 1.0.0-rc.26.*
 2. **Trust / proxy** — `trust.ts` resolves the effective client IP and protocol from `X-Forwarded-*` only as far as the configured `trustProxy` allows; `ip.ts` / `ip-restrict.ts` apply IP policy. Owner of "who is the client".
 3. **`onRequest` telemetry** — fires exactly once per request; every later exit (redirect, 426, upgrade, miss, preflight, handler, error) pairs with exactly one `onResponse`/`onError`.
 4. **Route match** — `pattern.ts` compiles path patterns; `tree.ts` + `matchRoute` resolve method + path to a record, or a catch-all, or a miss. A leaf delegated to a catch-all first refuses a body its route does not declare with 415, from the kind (`bd`) generated trees carry as data. Trailing-slash and prefix handling (`request-path.ts`, `strip-prefix`) run here.
@@ -36,7 +36,7 @@ Core owns description; codegen owns generation. The boundary is the IR.
 
 | concern | owner (v0 → v1 split happens in the named bit) | bit |
 | --- | --- | --- |
-| ingress / adapters | `adapters/{node,bun,workers}`, `detect-runtime`, `node-request` | 03/04 |
+| ingress | the Worker `fetch` (`routing/app.ts`) | 03/04 |
 | trust / client identity | `trust`, `ip`, `ip-restrict` | 03 |
 | route model | `pattern`, `tree`, `request-path`, finalize | 01 |
 | middleware + edge security | `middleware`, `cors`, `secure-headers`, `csrf`, `rate-limit`*, `compress`*, `request-id`, `server-timing`, `timeout`, `body-limit`, `powered-by` | 02/07 |

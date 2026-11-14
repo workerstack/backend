@@ -685,14 +685,12 @@ An app runs as a Cloudflare Worker: `export default app` is the Worker's `fetch`
 and `scheduled` and `queue` move onto the default.
 
 ```ts
-import { honey, toFetchRequest } from "@workerstack/backend"
+import { honey } from "@workerstack/backend"
 
 const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
 
-/* a request from an adapter that handed you its own Request subclass */
-declare const incoming: Request
-const request = toFetchRequest(incoming)
+export default app
 ```
 
 The app is the default export, and `app.fetch` the handler to wrap when you need to:
@@ -1275,8 +1273,8 @@ generator.
 | `@workerstack/backend/build`           | `createBuildPlugin`, a production bundle for a deploy target                                                             |
 
 The root export's values: `honey()` and the `Honey` class behind it, `HoneyContext` and `HoneyRes` (the handler's
-`ctx` and its `ctx.res`), `HoneyError`, `defineErrors` and `ERROR_META`, `definePreset` and `Preset`, `createMiddleware`,
-`mergeTree` and `toFetchRequest`.
+`ctx` and its `ctx.res`), `HoneyError`, `defineErrors` and `ERROR_META`, `definePreset` and `Preset`, `createMiddleware` and
+`mergeTree`.
 
 ## Type helpers
 

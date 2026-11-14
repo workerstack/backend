@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import { createBuildPlugin } from "../../src/build/targets.ts"
+import * as root from "../../src/index.ts"
 
 const CORE = join(import.meta.dirname, "../..")
 const manifest = JSON.parse(readFileSync(join(CORE, "package.json"), "utf8")) as {
@@ -24,6 +25,7 @@ const RUNTIME_SOURCES = [
 	"src/queue/serve.ts",
 	"src/cron/serve.ts",
 	"src/runtime/detect-runtime.ts",
+	"src/adapters/fetch-request.ts",
 ]
 const APP = { entry: "./src/app.ts", export: "default" }
 
@@ -39,6 +41,10 @@ describe("workers only", () => {
 
 	it("has no Node or Bun runtime source", () => {
 		expect(RUNTIME_SOURCES.filter((path) => existsSync(join(CORE, path)))).toEqual([])
+	})
+
+	it("exports no unwrapper for a Node request view: ctx.req is a Request", () => {
+		expect(Object.hasOwn(root, "toFetchRequest")).toBe(false)
 	})
 
 	it("builds the workers target and refuses node and bun", () => {
