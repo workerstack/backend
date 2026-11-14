@@ -4,9 +4,11 @@ Every public export of both packages, tagged **KEEP** (re-homed and split, behav
 
 ## `@lovrozagar/honey` — entry points
 
+**Layout since 1.0.0-rc.26 (plan 54, by surface).** The package has no root entry: the root row below is `./http`, every other HTTP subpath listed here (`./accepts`, `./cors`, `./input`, `./openapi/*`, `./testing`, `./tree`, and the rest) sits under `./http/` (`./http/cors`), and `./cron/workers`, `./queue/workers` and `./ws/workers` are folded into `./cron`, `./queue` and `./ws`. The rows keep the names they were decided under; `docs/migrating-from-honey.md` holds the old-to-new table.
+
 | export | disposition | note |
 | --- | --- | --- |
-| `.` (`honey()`, `Honey`, `HoneyContext`, `HoneyCtx`, `defineErrors`, `HoneyError`, `createMiddleware`, `HoneyRes`/`createErrorResponse`, `mergeTree`, `toFetchRequest`, the `Infer*`/meta types) | KEEP | the `Honey` class (~2,600 lines in v0) is split into route-model / finalize / dispatch / registration files under the limits; the public type stays |
+| `.` → `./http` (`honey()`, `Honey`, `HoneyContext`, `HoneyCtx`, `defineErrors`, `HoneyError`, `createMiddleware`, `HoneyRes`/`createErrorResponse`, `mergeTree`, `toFetchRequest`, the `Infer*`/meta types) | KEEP | the `Honey` class (~2,600 lines in v0) is split into route-model / finalize / dispatch / registration files under the limits; the public type stays |
 | `./accepts` | KEEP | |
 | `./body-limit` | KEEP | |
 | `./build` | MODIFY [H15] | Deno build target removed |
@@ -30,8 +32,8 @@ Every public export of both packages, tagged **KEEP** (re-homed and split, behav
 | `./jwt` | NEW | |
 | `./webhook` | NEW | |
 | `./user-agent` | NEW | |
-| `./cron`, `./cron/workers` | NEW | |
-| `./queue`, `./queue/workers` | NEW | |
+| `./cron`, `./cron/workers` (folded into `./cron`) | NEW | |
+| `./queue`, `./queue/workers` (folded into `./queue`) | NEW | |
 | `./logger` | KEEP | the only `console` owner |
 | `./openapi`, `./openapi/scalar`, `./openapi/swagger` | MODIFY [B1,B2,B3] | configurable `servers` + variables, `tags`/`externalDocs`, `webhooks` |
 | `./openapi/spec` | DELETE (bit 19 i) | v0's `spec()` handler is `serveOpenApi` on `./openapi` |
@@ -51,7 +53,7 @@ Every public export of both packages, tagged **KEEP** (re-homed and split, behav
 | `./mcp/oauth` | ADD (bit 21 f) | `oauth(options)` (type `McpOAuthOptions`) → the opt-in OAuth 2.1 resource-server role for `mcp()`: RFC 9728 protected-resource metadata, 401 `Bearer resource_metadata` and 403 step-up challenges; no authorization server, no token validation; a mount without it carries none of it |
 | `./mcp/uploads` | ADD (bit 21 g) | `uploads(options)`, `memoryUploadStore()`, the `UploadStore` contract (`claim`, `put`, `take`) and `McpUploadsOptions` → out-of-band file uploads for `mcp()` (the files extension's MRTR flow, 2026-07-28): one-shot, scoped, expiring HMAC tokens bound to the forwarded credential; a mount without it carries none of it |
 | `./mcp/url-files` | ADD (bit 21 g) | `urlFiles(options)` and `McpUrlFilesOptions` → an opt-in `{url}` file value for `mcp()`: an exact-host (or explicit `*.`) allowlist, https only, no redirect followed, a streamed size cap, a timeout, IP literals refused; off unless imported |
-| `./ws/workers` | KEEP | |
+| `./ws/workers` (folded into `./ws`) | KEEP | |
 | `./ws/deno` | DELETE [H15] | |
 
 ### Added to `@lovrozagar/honey`

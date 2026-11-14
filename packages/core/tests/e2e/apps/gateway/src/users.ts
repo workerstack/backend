@@ -1,4 +1,4 @@
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import * as z from "zod"
 
 /**

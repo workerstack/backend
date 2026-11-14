@@ -57,6 +57,52 @@ export const REMOVED_SUBPATHS: readonly RemovedSubpath[] = [
 	},
 ]
 
+/**
+ * Every subpath the 1.0 layout moved, old to new (docs/migrating-from-honey.md). `.` is `./http`, and the three
+ * cron, queue and ws "workers" entries folded into their runtime's own subpath. A move is not a removal: a 0.7.3 name under a moved
+ * subpath is looked up at its new subpath, so the per-name check stays as strong as it was.
+ */
+export const MOVED_SUBPATHS: ReadonlyMap<string, string> = new Map([
+	[".", "./http"],
+	["./accepts", "./http/accepts"],
+	["./body-limit", "./http/body-limit"],
+	["./cache-control", "./http/cache-control"],
+	["./compress", "./http/compress"],
+	["./cookie", "./http/cookie"],
+	["./cookie-sign", "./http/cookie-sign"],
+	["./cors", "./http/cors"],
+	["./csrf", "./http/csrf"],
+	["./curl-logger", "./http/curl-logger"],
+	["./etag", "./http/etag"],
+	["./i18n", "./http/i18n"],
+	["./input", "./http/input"],
+	["./ip-restrict", "./http/ip-restrict"],
+	["./jwt", "./http/jwt"],
+	["./openapi", "./http/openapi"],
+	["./openapi/auth", "./http/openapi/auth"],
+	["./openapi/scalar", "./http/openapi/scalar"],
+	["./openapi/static", "./http/openapi/static"],
+	["./openapi/swagger", "./http/openapi/swagger"],
+	["./powered-by", "./http/powered-by"],
+	["./pretty-json", "./http/pretty-json"],
+	["./proxy", "./http/proxy"],
+	["./range", "./http/range"],
+	["./rate-limit", "./http/rate-limit"],
+	["./request-id", "./http/request-id"],
+	["./request-to-curl", "./http/request-to-curl"],
+	["./secure-headers", "./http/secure-headers"],
+	["./server-timing", "./http/server-timing"],
+	["./static", "./http/static"],
+	["./testing", "./http/testing"],
+	["./timeout", "./http/timeout"],
+	["./tree", "./http/tree"],
+	["./user-agent", "./http/user-agent"],
+	["./webhook", "./http/webhook"],
+	["./cron/workers", "./cron"],
+	["./queue/workers", "./queue"],
+	["./ws/workers", "./ws"],
+])
+
 /* why a name was never one to write: the same reason reads for a whole family */
 const ADAPTER = "a WebSocket adapter's own plumbing, reached through ws() and the adapter, never imported"
 const PLUGIN = "the plugin's resolved config and write path, read by the plugin itself"
@@ -141,6 +187,7 @@ export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
 	matchRoute: { kind: "internal", why: TREE },
 	matchWsRoute: { kind: "internal", why: TREE },
 	mergeInto: { kind: "internal", why: TREE },
+	mergeTree: { kind: "guide" },
 	overlaySchemas: { kind: "internal", why: TREE },
 	readableStream: { kind: "guide" },
 	resolveFieldName: {
@@ -181,21 +228,31 @@ export function surfaceOf(sources: Readonly<Record<string, string>>): Record<str
 
 /**
  * What 0.7.3 exported that `now` does not: each kept subpath's lost names, and the subpaths that went with
- * everything in them.
+ * everything in them. A subpath in `moved` is kept at its new key, and its names are looked up there only; any
+ * other subpath's names count as kept when any live subpath exports them.
  */
 export function removed(
 	old: Readonly<Record<string, readonly string[]>>,
 	now: Readonly<Record<string, Set<string>>>,
+	moved: ReadonlyMap<string, string>,
 ): { readonly names: string[]; readonly subpaths: string[] } {
 	const live = new Set(Object.values(now).flatMap((names) => [...names]))
+	const keptAt = (subpath: string): string | undefined => {
+		const target = moved.get(subpath) ?? subpath
+		return Object.hasOwn(now, target) ? target : undefined
+	}
 	const subpaths = Object.keys(old)
-		.filter((subpath) => !Object.hasOwn(now, subpath))
+		.filter((subpath) => keptAt(subpath) === undefined)
 		.sort()
 	const names = [
 		...new Set(
-			Object.entries(old)
-				.filter(([subpath]) => Object.hasOwn(now, subpath))
-				.flatMap(([, names]) => names.filter((name) => !live.has(name))),
+			Object.entries(old).flatMap(([subpath, names]) => {
+				const at = keptAt(subpath)
+				if (at === undefined) return []
+				return moved.has(subpath)
+					? names.filter((name) => !now[at]?.has(name))
+					: names.filter((name) => !live.has(name))
+			}),
 		),
 	].sort()
 	return { names, subpaths }

@@ -49,7 +49,7 @@ export function project(files: Readonly<Record<string, string>> = {}, options: {
 /** An app module: `export const app` (or `export default`) with GET /health and POST /items, plus `extra` lines. */
 export function appSource(options: { extra?: readonly string[]; named?: boolean } = {}): string {
 	return [
-		'import { createMiddleware, honey } from "@workerstack/backend"',
+		'import { createMiddleware, honey } from "@workerstack/backend/http"',
 		'import * as z from "zod"',
 		`${options.named === false ? "export default" : "export const app ="} honey()`,
 		'\t.get("/health").handler((c) => c.res.text("ok", "ok"))',

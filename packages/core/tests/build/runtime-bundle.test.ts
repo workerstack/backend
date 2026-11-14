@@ -92,7 +92,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`bun ${pinnedBunVersion()} build of honey() leaves out tooling and every optional runtime feature`,
 		() => {
 			const entry = [
-				'import { honey } from "@workerstack/backend"',
+				'import { honey } from "@workerstack/backend/http"',
 				'const app = honey().get("/json").handler((ctx) => ctx.res.json("ok", { ok: true }))',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
@@ -161,10 +161,10 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`a feature is bundled once its entry is imported (bun ${pinnedBunVersion()})`,
 		() => {
 			const entry = [
-				'import { honey } from "@workerstack/backend"',
-				'import { createErrorTranslator } from "@workerstack/backend/i18n"',
-				'import { swagger } from "@workerstack/backend/openapi/swagger"',
-				'import { proxy } from "@workerstack/backend/proxy"',
+				'import { honey } from "@workerstack/backend/http"',
+				'import { createErrorTranslator } from "@workerstack/backend/http/i18n"',
+				'import { swagger } from "@workerstack/backend/http/openapi/swagger"',
+				'import { proxy } from "@workerstack/backend/http/proxy"',
 				'import { realtime } from "@workerstack/backend/realtime"',
 				"const app = honey()",
 				'\t.errorI18n(createErrorTranslator({ errors: {}, resolveLocale: () => "en" }))',
@@ -179,7 +179,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				.filter(([, marker]) => !js.includes(marker))
 				.map(([name]) => name)
 			const sockets = [
-				'import { honey } from "@workerstack/backend"',
+				'import { honey } from "@workerstack/backend/http"',
 				'import { ws } from "@workerstack/backend/ws"',
 				"const app = honey()",
 				'ws(app, "/live").handler({})',
@@ -187,7 +187,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				"",
 			]
 			const mounted = [
-				'import { honey } from "@workerstack/backend"',
+				'import { honey } from "@workerstack/backend/http"',
 				'import { mcp } from "@workerstack/backend/mcp"',
 				"const app = honey()",
 				'mcp(app, "/mcp", { challenge: "Bearer", fetch: async () => new Response(null), secured: false })',
@@ -195,7 +195,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				"",
 			]
 			const protectedMount = [
-				'import { honey } from "@workerstack/backend"',
+				'import { honey } from "@workerstack/backend/http"',
 				'import { mcp } from "@workerstack/backend/mcp"',
 				'import { oauth } from "@workerstack/backend/mcp/oauth"',
 				"const app = honey()",
@@ -205,7 +205,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				"",
 			]
 			const filesMount = [
-				'import { honey } from "@workerstack/backend"',
+				'import { honey } from "@workerstack/backend/http"',
 				'import { mcp } from "@workerstack/backend/mcp"',
 				'import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"',
 				'import { urlFiles } from "@workerstack/backend/mcp/url-files"',
@@ -241,23 +241,23 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`serveStaticOpenApi carries no generator and no page it was not given (bun ${pinnedBunVersion()})`,
 		() => {
 			const served = [
-				'import { honey } from "@workerstack/backend"',
-				'import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"',
+				'import { honey } from "@workerstack/backend/http"',
+				'import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"',
 				'const app = serveStaticOpenApi(honey(), { json: { asset: "/openapi.json" } })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const withPage = [
-				'import { honey } from "@workerstack/backend"',
-				'import { scalar } from "@workerstack/backend/openapi/scalar"',
-				'import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"',
+				'import { honey } from "@workerstack/backend/http"',
+				'import { scalar } from "@workerstack/backend/http/openapi/scalar"',
+				'import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"',
 				'const app = serveStaticOpenApi(honey(), { docs: { "/docs": scalar }, json: { asset: "/openapi.json" } })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
 			]
 			const generated = [
-				'import { honey } from "@workerstack/backend"',
-				'import { serveOpenApi } from "@workerstack/backend/openapi"',
+				'import { honey } from "@workerstack/backend/http"',
+				'import { serveOpenApi } from "@workerstack/backend/http/openapi"',
 				'const app = serveOpenApi(honey(), { title: "Doc", version: "1.0.0" })',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
@@ -297,7 +297,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`a sender of webhooks alone carries none of honey()'s router (bun ${pinnedBunVersion()})`,
 		() => {
 			const sender = [
-				'import { signWebhook, webhookContract } from "@workerstack/backend/webhook"',
+				'import { signWebhook, webhookContract } from "@workerstack/backend/http/webhook"',
 				'const schema = { "~standard": { validate: (value: unknown) => ({ value }), vendor: "app", version: 1 } } as const',
 				"const events = webhookContract({ ping: schema })",
 				"export const send = async (secret: string) => [",
@@ -307,7 +307,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				"",
 			]
 			const router = [
-				'import { honey } from "@workerstack/backend"',
+				'import { honey } from "@workerstack/backend/http"',
 				'const app = honey().get("/json").handler((ctx) => ctx.res.json("ok", { ok: true }))',
 				"export default { fetch: (req: Request) => app.fetch(req, {}) }",
 				"",
@@ -330,7 +330,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		`basic() and credentialsMatch alone carry none of honey()'s router or the generator (bun ${pinnedBunVersion()})`,
 		() => {
 			const guard = [
-				'import { basic, credentialsMatch } from "@workerstack/backend/openapi/auth"',
+				'import { basic, credentialsMatch } from "@workerstack/backend/http/openapi/auth"',
 				"export const auth = basic({",
 				'\trealm: "Internal",',
 				'\tverify: ({ password, username }) => credentialsMatch({ password, username }, { password: "pw", username: "docs" }),',
@@ -349,10 +349,10 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 	it("a Worker built by the build plugin carries none of ts-morph, oxfmt, jiti or honey-clients", async () => {
 		write(full, {
 			"src/worker-app.ts": [
-				'import { honey } from "@workerstack/backend"',
-				'import { serveOpenApi } from "@workerstack/backend/openapi"',
+				'import { honey } from "@workerstack/backend/http"',
+				'import { serveOpenApi } from "@workerstack/backend/http/openapi"',
 				'import { realtime } from "@workerstack/backend/realtime"',
-				'import { workersWebSocket } from "@workerstack/backend/ws/workers"',
+				'import { workersWebSocket } from "@workerstack/backend/ws"',
 				"",
 				"export const app = serveOpenApi(",
 				'\thoney().wsAdapter(workersWebSocket()).get("/health").handler((ctx) => ctx.res.text("ok", "ok")),',
@@ -395,7 +395,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 				"",
 			].join("\n"),
 			"src/app.ts":
-				'import { honey } from "@workerstack/backend"\nexport const app = honey().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))\n',
+				'import { honey } from "@workerstack/backend/http"\nexport const app = honey().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))\n',
 		})
 		const loaded = run("node", ["plugin.mjs"], dir)
 		const generated = run("node", ["node_modules/.bin/honey", "generate", "--app", "src/app.ts", "--tree"], dir)

@@ -206,7 +206,7 @@ export default { plugins: [honeyPlugin({ app: "src/app.ts", codegen: { mcp: true
 The app mounts it, checking the credential before any tool runs:
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
@@ -245,7 +245,7 @@ bring the authorization server, and your own code (`authenticate` and each route
 | `options.resourceName`         | the endpoint's name as a user sees it                                                                                                                                                 |
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { oauth } from "@workerstack/backend/mcp/oauth"
 
@@ -358,7 +358,7 @@ tool error. No shipping client implements the extension yet.
 | `PUT <path>/uploads/<token>` | the upload route `mcp()` registers: 204 when the bytes are taken                                                                                          |
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"
 
@@ -422,7 +422,7 @@ plain argument.
 | `options.fetch`     | the fetch it runs, the platform's by default                                                                                                       |
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { urlFiles } from "@workerstack/backend/mcp/url-files"
 
@@ -477,7 +477,7 @@ export default {
 The Worker:
 
 ```ts
-import { createMiddleware, honey } from "@workerstack/backend"
+import { createMiddleware, honey } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { type UploadStore, uploads } from "@workerstack/backend/mcp/uploads"
 import { urlFiles } from "@workerstack/backend/mcp/url-files"

@@ -1,8 +1,8 @@
-import type { WSAdapter } from "@workerstack/backend"
-import type { RouteTree } from "@workerstack/backend/tree"
-import { honey } from "@workerstack/backend"
-import { serveManifest, serveOpenApi } from "@workerstack/backend/openapi"
-import { scalar } from "@workerstack/backend/openapi/scalar"
+import type { WSAdapter } from "@workerstack/backend/http"
+import type { RouteTree } from "@workerstack/backend/http/tree"
+import { honey } from "@workerstack/backend/http"
+import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
 import * as z from "zod"
 
 /** `routeTree`: boot from a generated route tree (`src/_gen/routes.gen.ts`) instead of building the trie. */

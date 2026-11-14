@@ -1,6 +1,6 @@
 {
 	"name": "@workerstack/backend",
-	"version": "1.0.0-rc.25",
+	"version": "1.0.0-rc.26",
 	"description": "Type-safe API framework built on Web Standards. Builder-pattern DX, precompiled radix tree in production.",
 	"keywords": [
 		"api",
@@ -42,90 +42,195 @@
 		}
 	},
 	"exports": {
-		".": {
-			"honey-source": "./src/index.ts",
-			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
-		},
-		"./accepts": {
-			"honey-source": "./src/input/accepts.ts",
-			"types": "./dist/input/accepts.d.ts",
-			"default": "./dist/input/accepts.js"
-		},
-		"./body-limit": {
-			"honey-source": "./src/input/body-limit.ts",
-			"types": "./dist/input/body-limit.d.ts",
-			"default": "./dist/input/body-limit.js"
-		},
 		"./build": {
 			"honey-source": "./src/build/index.ts",
 			"types": "./dist/build/index.d.ts",
 			"default": "./dist/build/index.js"
 		},
-		"./cache-control": {
-			"honey-source": "./src/response/cache-control.ts",
-			"types": "./dist/response/cache-control.d.ts",
-			"default": "./dist/response/cache-control.js"
-		},
-		"./compress": {
-			"honey-source": "./src/middleware/compress.ts",
-			"types": "./dist/middleware/compress.d.ts",
-			"default": "./dist/middleware/compress.js"
-		},
-		"./cookie": {
-			"honey-source": "./src/context/cookie.ts",
-			"types": "./dist/context/cookie.d.ts",
-			"default": "./dist/context/cookie.js"
-		},
-		"./cookie-sign": {
-			"honey-source": "./src/context/cookie-sign.ts",
-			"types": "./dist/context/cookie-sign.d.ts",
-			"default": "./dist/context/cookie-sign.js"
-		},
-		"./cors": {
-			"honey-source": "./src/middleware/cors.ts",
-			"types": "./dist/middleware/cors.d.ts",
-			"default": "./dist/middleware/cors.js"
+		"./cron": {
+			"honey-source": "./src/cron/cron-subpath.ts",
+			"types": "./dist/cron/cron-subpath.d.ts",
+			"default": "./dist/cron/cron-subpath.js"
 		},
 		"./crypto": {
 			"honey-source": "./src/security/crypto.ts",
 			"types": "./dist/security/crypto.d.ts",
 			"default": "./dist/security/crypto.js"
 		},
-		"./csrf": {
+		"./http": {
+			"honey-source": "./src/index.ts",
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./http/accepts": {
+			"honey-source": "./src/input/accepts.ts",
+			"types": "./dist/input/accepts.d.ts",
+			"default": "./dist/input/accepts.js"
+		},
+		"./http/body-limit": {
+			"honey-source": "./src/input/body-limit.ts",
+			"types": "./dist/input/body-limit.d.ts",
+			"default": "./dist/input/body-limit.js"
+		},
+		"./http/cache-control": {
+			"honey-source": "./src/response/cache-control.ts",
+			"types": "./dist/response/cache-control.d.ts",
+			"default": "./dist/response/cache-control.js"
+		},
+		"./http/compress": {
+			"honey-source": "./src/middleware/compress.ts",
+			"types": "./dist/middleware/compress.d.ts",
+			"default": "./dist/middleware/compress.js"
+		},
+		"./http/cookie": {
+			"honey-source": "./src/context/cookie.ts",
+			"types": "./dist/context/cookie.d.ts",
+			"default": "./dist/context/cookie.js"
+		},
+		"./http/cookie-sign": {
+			"honey-source": "./src/context/cookie-sign.ts",
+			"types": "./dist/context/cookie-sign.d.ts",
+			"default": "./dist/context/cookie-sign.js"
+		},
+		"./http/cors": {
+			"honey-source": "./src/middleware/cors.ts",
+			"types": "./dist/middleware/cors.d.ts",
+			"default": "./dist/middleware/cors.js"
+		},
+		"./http/csrf": {
 			"honey-source": "./src/middleware/csrf.ts",
 			"types": "./dist/middleware/csrf.d.ts",
 			"default": "./dist/middleware/csrf.js"
 		},
-		"./curl-logger": {
+		"./http/curl-logger": {
 			"honey-source": "./src/observability/curl-logger.ts",
 			"types": "./dist/observability/curl-logger.d.ts",
 			"default": "./dist/observability/curl-logger.js"
 		},
-		"./etag": {
+		"./http/etag": {
 			"honey-source": "./src/response/etag.ts",
 			"types": "./dist/response/etag.d.ts",
 			"default": "./dist/response/etag.js"
 		},
-		"./i18n": {
+		"./http/i18n": {
 			"honey-source": "./src/i18n/index.ts",
 			"types": "./dist/i18n/index.d.ts",
 			"default": "./dist/i18n/index.js"
 		},
-		"./input": {
+		"./http/input": {
 			"honey-source": "./src/input/input-subpath.ts",
 			"types": "./dist/input/input-subpath.d.ts",
 			"default": "./dist/input/input-subpath.js"
 		},
-		"./jwt": {
+		"./http/ip-restrict": {
+			"honey-source": "./src/middleware/ip-restrict.ts",
+			"types": "./dist/middleware/ip-restrict.d.ts",
+			"default": "./dist/middleware/ip-restrict.js"
+		},
+		"./http/jwt": {
 			"honey-source": "./src/security/jwt.ts",
 			"types": "./dist/security/jwt.d.ts",
 			"default": "./dist/security/jwt.js"
 		},
-		"./ip-restrict": {
-			"honey-source": "./src/middleware/ip-restrict.ts",
-			"types": "./dist/middleware/ip-restrict.d.ts",
-			"default": "./dist/middleware/ip-restrict.js"
+		"./http/openapi": {
+			"honey-source": "./src/openapi/register.ts",
+			"types": "./dist/openapi/register.d.ts",
+			"default": "./dist/openapi/register.js"
+		},
+		"./http/openapi/auth": {
+			"honey-source": "./src/openapi/auth.ts",
+			"types": "./dist/openapi/auth.d.ts",
+			"default": "./dist/openapi/auth.js"
+		},
+		"./http/openapi/scalar": {
+			"honey-source": "./src/openapi/scalar.ts",
+			"types": "./dist/openapi/scalar.d.ts",
+			"default": "./dist/openapi/scalar.js"
+		},
+		"./http/openapi/static": {
+			"honey-source": "./src/openapi/static.ts",
+			"types": "./dist/openapi/static.d.ts",
+			"default": "./dist/openapi/static.js"
+		},
+		"./http/openapi/swagger": {
+			"honey-source": "./src/openapi/swagger.ts",
+			"types": "./dist/openapi/swagger.d.ts",
+			"default": "./dist/openapi/swagger.js"
+		},
+		"./http/powered-by": {
+			"honey-source": "./src/middleware/powered-by.ts",
+			"types": "./dist/middleware/powered-by.d.ts",
+			"default": "./dist/middleware/powered-by.js"
+		},
+		"./http/pretty-json": {
+			"honey-source": "./src/response/pretty-json.ts",
+			"types": "./dist/response/pretty-json.d.ts",
+			"default": "./dist/response/pretty-json.js"
+		},
+		"./http/proxy": {
+			"honey-source": "./src/proxy/proxy.ts",
+			"types": "./dist/proxy/proxy.d.ts",
+			"default": "./dist/proxy/proxy.js"
+		},
+		"./http/range": {
+			"honey-source": "./src/response/range.ts",
+			"types": "./dist/response/range.d.ts",
+			"default": "./dist/response/range.js"
+		},
+		"./http/rate-limit": {
+			"honey-source": "./src/middleware/rate-limit.ts",
+			"types": "./dist/middleware/rate-limit.d.ts",
+			"default": "./dist/middleware/rate-limit.js"
+		},
+		"./http/request-id": {
+			"honey-source": "./src/middleware/request-id.ts",
+			"types": "./dist/middleware/request-id.d.ts",
+			"default": "./dist/middleware/request-id.js"
+		},
+		"./http/request-to-curl": {
+			"honey-source": "./src/observability/request-to-curl.ts",
+			"types": "./dist/observability/request-to-curl.d.ts",
+			"default": "./dist/observability/request-to-curl.js"
+		},
+		"./http/secure-headers": {
+			"honey-source": "./src/middleware/secure-headers.ts",
+			"types": "./dist/middleware/secure-headers.d.ts",
+			"default": "./dist/middleware/secure-headers.js"
+		},
+		"./http/server-timing": {
+			"honey-source": "./src/middleware/server-timing.ts",
+			"types": "./dist/middleware/server-timing.d.ts",
+			"default": "./dist/middleware/server-timing.js"
+		},
+		"./http/static": {
+			"honey-source": "./src/response/static.ts",
+			"types": "./dist/response/static.d.ts",
+			"default": "./dist/response/static.js"
+		},
+		"./http/testing": {
+			"honey-source": "./src/testing/testing.ts",
+			"types": "./dist/testing/testing.d.ts",
+			"default": "./dist/testing/testing.js"
+		},
+		"./http/timeout": {
+			"honey-source": "./src/middleware/timeout.ts",
+			"types": "./dist/middleware/timeout.d.ts",
+			"default": "./dist/middleware/timeout.js"
+		},
+		"./http/tree": {
+			"honey-source": "./src/routing/tree-subpath.ts",
+			"types": "./dist/routing/tree-subpath.d.ts",
+			"default": "./dist/routing/tree-subpath.js"
+		},
+		"./http/user-agent": {
+			"honey-source": "./src/context/user-agent.ts",
+			"types": "./dist/context/user-agent.d.ts",
+			"default": "./dist/context/user-agent.js"
+		},
+		"./http/webhook": {
+			"honey-source": "./src/security/webhook.ts",
+			"types": "./dist/security/webhook.d.ts",
+			"default": "./dist/security/webhook.js"
 		},
 		"./logger": {
 			"honey-source": "./src/telemetry/logger-subpath.ts",
@@ -152,150 +257,30 @@
 			"types": "./dist/mcp/url-files.d.ts",
 			"default": "./dist/mcp/url-files.js"
 		},
-		"./openapi": {
-			"honey-source": "./src/openapi/register.ts",
-			"types": "./dist/openapi/register.d.ts",
-			"default": "./dist/openapi/register.js"
-		},
-		"./openapi/auth": {
-			"honey-source": "./src/openapi/auth.ts",
-			"types": "./dist/openapi/auth.d.ts",
-			"default": "./dist/openapi/auth.js"
-		},
-		"./openapi/scalar": {
-			"honey-source": "./src/openapi/scalar.ts",
-			"types": "./dist/openapi/scalar.d.ts",
-			"default": "./dist/openapi/scalar.js"
-		},
-		"./openapi/static": {
-			"honey-source": "./src/openapi/static.ts",
-			"types": "./dist/openapi/static.d.ts",
-			"default": "./dist/openapi/static.js"
-		},
-		"./openapi/swagger": {
-			"honey-source": "./src/openapi/swagger.ts",
-			"types": "./dist/openapi/swagger.d.ts",
-			"default": "./dist/openapi/swagger.js"
-		},
 		"./plugin": {
 			"honey-source": "./src/build/plugin-subpath.ts",
 			"types": "./dist/build/plugin-subpath.d.ts",
 			"default": "./dist/build/plugin-subpath.js"
 		},
-		"./powered-by": {
-			"honey-source": "./src/middleware/powered-by.ts",
-			"types": "./dist/middleware/powered-by.d.ts",
-			"default": "./dist/middleware/powered-by.js"
-		},
-		"./pretty-json": {
-			"honey-source": "./src/response/pretty-json.ts",
-			"types": "./dist/response/pretty-json.d.ts",
-			"default": "./dist/response/pretty-json.js"
-		},
-		"./proxy": {
-			"honey-source": "./src/proxy/proxy.ts",
-			"types": "./dist/proxy/proxy.d.ts",
-			"default": "./dist/proxy/proxy.js"
-		},
-		"./range": {
-			"honey-source": "./src/response/range.ts",
-			"types": "./dist/response/range.d.ts",
-			"default": "./dist/response/range.js"
-		},
-		"./rate-limit": {
-			"honey-source": "./src/middleware/rate-limit.ts",
-			"types": "./dist/middleware/rate-limit.d.ts",
-			"default": "./dist/middleware/rate-limit.js"
+		"./queue": {
+			"honey-source": "./src/queue/queue-subpath.ts",
+			"types": "./dist/queue/queue-subpath.d.ts",
+			"default": "./dist/queue/queue-subpath.js"
 		},
 		"./realtime": {
 			"honey-source": "./src/realtime/realtime.ts",
 			"types": "./dist/realtime/realtime.d.ts",
 			"default": "./dist/realtime/realtime.js"
 		},
-		"./request-id": {
-			"honey-source": "./src/middleware/request-id.ts",
-			"types": "./dist/middleware/request-id.d.ts",
-			"default": "./dist/middleware/request-id.js"
-		},
-		"./request-to-curl": {
-			"honey-source": "./src/observability/request-to-curl.ts",
-			"types": "./dist/observability/request-to-curl.d.ts",
-			"default": "./dist/observability/request-to-curl.js"
-		},
-		"./secure-headers": {
-			"honey-source": "./src/middleware/secure-headers.ts",
-			"types": "./dist/middleware/secure-headers.d.ts",
-			"default": "./dist/middleware/secure-headers.js"
-		},
-		"./server-timing": {
-			"honey-source": "./src/middleware/server-timing.ts",
-			"types": "./dist/middleware/server-timing.d.ts",
-			"default": "./dist/middleware/server-timing.js"
-		},
-		"./static": {
-			"honey-source": "./src/response/static.ts",
-			"types": "./dist/response/static.d.ts",
-			"default": "./dist/response/static.js"
-		},
 		"./telemetry/otel": {
 			"honey-source": "./src/telemetry/otel-subpath.ts",
 			"types": "./dist/telemetry/otel-subpath.d.ts",
 			"default": "./dist/telemetry/otel-subpath.js"
 		},
-		"./testing": {
-			"honey-source": "./src/testing/testing.ts",
-			"types": "./dist/testing/testing.d.ts",
-			"default": "./dist/testing/testing.js"
-		},
-		"./timeout": {
-			"honey-source": "./src/middleware/timeout.ts",
-			"types": "./dist/middleware/timeout.d.ts",
-			"default": "./dist/middleware/timeout.js"
-		},
-		"./tree": {
-			"honey-source": "./src/routing/tree-subpath.ts",
-			"types": "./dist/routing/tree-subpath.d.ts",
-			"default": "./dist/routing/tree-subpath.js"
-		},
 		"./ws": {
-			"honey-source": "./src/ws/route.ts",
-			"types": "./dist/ws/route.d.ts",
-			"default": "./dist/ws/route.js"
-		},
-		"./cron": {
-			"honey-source": "./src/cron/define.ts",
-			"types": "./dist/cron/define.d.ts",
-			"default": "./dist/cron/define.js"
-		},
-		"./cron/workers": {
-			"honey-source": "./src/cron/workers.ts",
-			"types": "./dist/cron/workers.d.ts",
-			"default": "./dist/cron/workers.js"
-		},
-		"./queue": {
-			"honey-source": "./src/queue/define.ts",
-			"types": "./dist/queue/define.d.ts",
-			"default": "./dist/queue/define.js"
-		},
-		"./queue/workers": {
-			"honey-source": "./src/queue/workers.ts",
-			"types": "./dist/queue/workers.d.ts",
-			"default": "./dist/queue/workers.js"
-		},
-		"./user-agent": {
-			"honey-source": "./src/context/user-agent.ts",
-			"types": "./dist/context/user-agent.d.ts",
-			"default": "./dist/context/user-agent.js"
-		},
-		"./webhook": {
-			"honey-source": "./src/security/webhook.ts",
-			"types": "./dist/security/webhook.d.ts",
-			"default": "./dist/security/webhook.js"
-		},
-		"./ws/workers": {
-			"honey-source": "./src/ws/workers.ts",
-			"types": "./dist/ws/workers.d.ts",
-			"default": "./dist/ws/workers.js"
+			"honey-source": "./src/ws/ws-subpath.ts",
+			"types": "./dist/ws/ws-subpath.d.ts",
+			"default": "./dist/ws/ws-subpath.js"
 		},
 		"./package.json": "./package.json"
 	},
@@ -318,7 +303,7 @@
 		"@total-typescript/ts-reset": "catalog:",
 		"@types/node": "catalog:",
 		"@vitest/coverage-v8": "4.1.10",
-		"@workerstack/clients": "1.0.0-rc.24",
+		"@workerstack/clients": "file:vendor/workerstack-clients-1.0.0-rc.27.tgz",
 		"ajv": "8.20.0",
 		"ajv-formats": "3.0.1",
 		"arktype": "catalog:",

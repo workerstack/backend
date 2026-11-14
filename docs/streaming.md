@@ -21,7 +21,7 @@ send, with `await new Promise((resolve) => setTimeout(resolve, 0))`.
 ends on its own or the client goes away. This block runs as part of the docs' tests.
 
 ```ts run
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 let ended = (_: string) => {}
 const cleanedUp = new Promise<string>((resolve) => (ended = resolve))

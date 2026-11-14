@@ -1,6 +1,6 @@
 /**
  * A typed queue, the same on every runtime: a contract senders import, and a consumer that
- * `./queue/workers` or `./queue/serve` runs. A sender needs only the contract, and any
+ * `./queue` (on Workers) or `./queue/serve` runs. A sender needs only the contract, and any
  * `{ send, sendBatch }` is a target, so a Workers Queue binding and a `QueueStore` both qualify.
  *
  * A handler that returns acks its message, a throw retries it, and `throw deadLetter(reason)` gives

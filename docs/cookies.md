@@ -3,14 +3,14 @@
 `ctx.cookies[name]` reads a request cookie: `ctx.cookies` is the request's cookies, parsed once. A response
 sets cookies through its `cookies` option, one `Set-Cookie` each, with `path`, `domain`, `maxAge`, `expires`,
 `httpOnly`, `secure` and `sameSite`. `createCookieSigner({ name, secrets })` from
-`@workerstack/backend/cookie-sign` signs one cookie's values with HMAC, the cookie's name bound into each signature,
+`@workerstack/backend/http/cookie-sign` signs one cookie's values with HMAC, the cookie's name bound into each signature,
 and verifies them in constant time; pass several secrets to rotate one in without logging everyone out. The codec parses and serializes per RFC 6265.
 
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { createCookieSigner } from "@workerstack/backend/cookie-sign"
+import { honey } from "@workerstack/backend/http"
+import { createCookieSigner } from "@workerstack/backend/http/cookie-sign"
 
 const signer = createCookieSigner({ name: "session", secrets: [process.env.COOKIE_SECRET ?? ""] })
 

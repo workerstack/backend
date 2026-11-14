@@ -1,5 +1,5 @@
 /**
- * The JWS layer under `./jwt` (RFC 7515, RFC 7518) on WebCrypto alone, so it runs on Node, Bun and Workers: the
+ * The JWS layer under `./http/jwt` (RFC 7515, RFC 7518) on WebCrypto alone, so it runs on Node, Bun and Workers: the
  * algorithms, base64url, and turning key material into a `CryptoKey`. Keys are imported per call: nothing outlives
  * the call, so no secret sits in module state (an HMAC import costs microseconds).
  */

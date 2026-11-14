@@ -1,5 +1,5 @@
 /**
- * `./jwt`: JWS compact tokens (RFC 7515, RFC 7519) on WebCrypto alone, so Node, Bun and Workers need no JWT library.
+ * `./http/jwt`: JWS compact tokens (RFC 7515, RFC 7519) on WebCrypto alone, so Node, Bun and Workers need no JWT library.
  * Claims follow jose's rules: `exp <= now - tolerance` is expired, `nbf > now + tolerance` is not yet valid, and a
  * max age counts from `iat`. An HMAC `secret` and a public key are separate options, so a token cannot choose which
  * one verifies it.

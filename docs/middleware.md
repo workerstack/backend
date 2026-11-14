@@ -14,10 +14,10 @@ header, so behind your own proxy read the header your proxy sets in your own cod
 ## Example
 
 ```ts
-import { type MiddlewareFn, honey } from "@workerstack/backend"
-import { cors } from "@workerstack/backend/cors"
-import { rateLimit } from "@workerstack/backend/rate-limit"
-import { secureHeaders } from "@workerstack/backend/secure-headers"
+import { type MiddlewareFn, honey } from "@workerstack/backend/http"
+import { cors } from "@workerstack/backend/http/cors"
+import { rateLimit } from "@workerstack/backend/http/rate-limit"
+import { secureHeaders } from "@workerstack/backend/http/secure-headers"
 
 type UserCtx = { user: { id: string } | null }
 

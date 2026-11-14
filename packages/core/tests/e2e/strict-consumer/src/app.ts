@@ -6,11 +6,11 @@
  * inherits the consumer's flags, and `skipLibCheck` does not cover `.ts`, so there is no
  * way for a consumer to opt out of our lint posture.
  */
-import { createMiddleware, defineErrors, honey } from "@workerstack/backend"
-import type { InferCtx } from "@workerstack/backend"
-import { cors } from "@workerstack/backend/cors"
+import { createMiddleware, defineErrors, honey } from "@workerstack/backend/http"
+import type { InferCtx } from "@workerstack/backend/http"
+import { cors } from "@workerstack/backend/http/cors"
 import { createLogger } from "@workerstack/backend/logger"
-import { requestId } from "@workerstack/backend/request-id"
+import { requestId } from "@workerstack/backend/http/request-id"
 import * as z from "zod"
 
 const errors = defineErrors({ unauthorized: "unauthorized" })

@@ -1,4 +1,4 @@
-import { honey, type InferCtx, type MiddlewareFn } from "@workerstack/backend"
+import { honey, type InferCtx, type MiddlewareFn } from "@workerstack/backend/http"
 
 type Env = Record<string, unknown>
 

@@ -252,7 +252,7 @@ describe("a stale route tree (bit 19 h2, V072-3 under Q3)", () => {
 		return generateRouteTree(old.toRouteTree() as never)
 	}
 	const SELF_LOADING = [
-		'import { honey } from "@workerstack/backend"',
+		'import { honey } from "@workerstack/backend/http"',
 		'import { routeTree } from "./_gen/routes.gen.ts"',
 		"export const app = honey().routeTree(routeTree as never)",
 		'app.get("/a").handler((c) => c.res.text("ok", "a"))',
@@ -315,7 +315,7 @@ describe("honey-clients, an optional peer (bit 19 h2, Q2)", () => {
 		writeFileSync(join(dir, "core/package.json"), JSON.stringify({ imports: flat, type: "module" }))
 		for (const name of ["jiti", "zod"]) symlinkSync(join(modules, name), join(dir, "node_modules", name), "dir")
 		symlinkSync(join(dir, "core/src"), join(honeyDir, "src"), "dir")
-		const pkg = { exports: { ".": "./src/routing/app.ts" }, name: "@workerstack/backend", type: "module" }
+		const pkg = { exports: { "./http": "./src/routing/app.ts" }, name: "@workerstack/backend", type: "module" }
 		writeFileSync(join(honeyDir, "package.json"), JSON.stringify(pkg))
 		writeFileSync(join(dir, "src/app.ts"), appSource())
 		return dir

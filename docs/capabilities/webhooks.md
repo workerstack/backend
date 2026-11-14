@@ -1,7 +1,7 @@
 # Webhooks
 
 The requests your API sends out are part of its contract too. Declare the events once with `webhookContract` from
-`@workerstack/backend/webhook`, each type with the schema of its `data`, and pass the contract as `webhooks` when you
+`@workerstack/backend/http/webhook`, each type with the schema of its `data`, and pass the contract as `webhooks` when you
 serve the document. Each event appears under OpenAPI 3.1's `webhooks` as one
 [Standard Webhooks](https://www.standardwebhooks.com) delivery: a POST of `{ type, timestamp, data }` with the
 `webhook-id`, `webhook-timestamp` and `webhook-signature` headers. A TypeScript SDK generated from that document
@@ -10,9 +10,9 @@ verifies a delivery into a typed event; the other languages' SDKs follow.
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { serveOpenApi } from "@workerstack/backend/openapi"
-import { webhookContract } from "@workerstack/backend/webhook"
+import { honey } from "@workerstack/backend/http"
+import { serveOpenApi } from "@workerstack/backend/http/openapi"
+import { webhookContract } from "@workerstack/backend/http/webhook"
 import * as z from "zod"
 
 const events = webhookContract({

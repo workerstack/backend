@@ -214,9 +214,9 @@ if (inPackage.length === 0 && inGenerated.length === 0 && inConsumer.length === 
 	await Bun.write(
 		join(consumer, "smoke.ts"),
 		[
-			'import { honey } from "@workerstack/backend"',
-			'import { serveOpenApi } from "@workerstack/backend/openapi"',
-			'import { parseUserAgent } from "@workerstack/backend/user-agent"',
+			'import { honey } from "@workerstack/backend/http"',
+			'import { serveOpenApi } from "@workerstack/backend/http/openapi"',
+			'import { parseUserAgent } from "@workerstack/backend/http/user-agent"',
 			'import * as z from "zod"',
 			"const app = honey<{}>()",
 			'app.get("/hi").output({ "application/json": { ok: z.object({ ok: z.boolean() }) } })',
@@ -279,7 +279,7 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	await Bun.write(
 		join(dir, "node-smoke.mjs"),
 		[
-			'import { honey } from "@workerstack/backend"',
+			'import { honey } from "@workerstack/backend/http"',
 			"const app = honey()",
 			'app.get("/hi").handler((c) => c.res.text("ok", "hi"))',
 			'const res = await app.fetch(new Request("http://x/hi"), {})',
@@ -295,7 +295,7 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	await Bun.write(
 		join(dir, "src", "server-app.ts"),
 		[
-			'import { honey } from "@workerstack/backend"',
+			'import { honey } from "@workerstack/backend/http"',
 			'export const app = honey().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))',
 			"export default app",
 		].join("\n"),

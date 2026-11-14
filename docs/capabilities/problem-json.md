@@ -8,7 +8,7 @@ error JSON, and the OpenAPI document and SDKs follow the format you choose.
 ## Example
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend"
+import { defineErrors, honey } from "@workerstack/backend/http"
 
 const errors = defineErrors({ out_of_stock: "conflict" })
 
@@ -29,7 +29,7 @@ and the answer stays `application/problem+json`. An error `defineErrors` gave a 
 under either format: `payloadErrorFormatter` shapes that body, and it answers `application/json`.
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend"
+import { defineErrors, honey } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const errors = defineErrors({

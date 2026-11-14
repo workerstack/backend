@@ -1,7 +1,7 @@
 /**
  * `proxy(config)`: a route handler that forwards the request to an upstream and streams its answer
  * back, mounted like any other: `app.all("/api/*rest").handler(proxy({ destination }))`. Plain code
- * reached through `@workerstack/backend/proxy`, no slot and no builder method (H23): core never imports
+ * reached through `@workerstack/backend/http/proxy`, no slot and no builder method (H23): core never imports
  * it. The answer is the passthrough brand, since the upstream decides its status and type.
  *
  * Both ways, hop-by-hop headers are dropped and the forwarding headers describe the client as the

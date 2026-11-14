@@ -1,6 +1,6 @@
 /**
  * `testClient(app, options)`: requests against an app from a test, each answered as the raw Web `Response`
- * (`@workerstack/backend/testing`). It calls `app.fetch` in process. An opt-in cookie jar carries `Set-Cookie` into
+ * (`@workerstack/backend/http/testing`). It calls `app.fetch` in process. An opt-in cookie jar carries `Set-Cookie` into
  * the next request. A plain function: nothing registers itself (H23).
  */
 import { PEER_ADDRESS } from "../context/peer.ts"

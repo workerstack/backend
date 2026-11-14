@@ -1,6 +1,6 @@
 # Cron
 
-`@workerstack/backend/cron` defines scheduled jobs once. `@workerstack/backend/cron/workers` runs them from a Workers cron
+`@workerstack/backend/cron` defines scheduled jobs once. `@workerstack/backend/cron` runs them from a Workers cron
 trigger.
 
 ## Example
@@ -45,7 +45,7 @@ where workerd calls it.
 
 ```ts
 import { defineCron } from "@workerstack/backend/cron"
-import { workersCron } from "@workerstack/backend/cron/workers"
+import { workersCron } from "@workerstack/backend/cron"
 
 const cron = defineCron<{}>({ schedules: { "*/5 * * * *": { ping: async ({ log }) => log.info("ping") } } })
 

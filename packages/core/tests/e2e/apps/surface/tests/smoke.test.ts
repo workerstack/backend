@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { WSAdapter } from "@workerstack/backend"
+import type { WSAdapter } from "@workerstack/backend/http"
 import { compareApps, probesFromTree } from "../../../differential.ts"
 import { routeTree } from "../src/_gen/routes.gen.ts"
 import { createApp } from "../src/app.ts"

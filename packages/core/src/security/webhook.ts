@@ -1,5 +1,5 @@
 /**
- * `./webhook`: outgoing webhooks to the Standard Webhooks scheme on WebCrypto alone, so Node, Bun and
+ * `./http/webhook`: outgoing webhooks to the Standard Webhooks scheme on WebCrypto alone, so Node, Bun and
  * Workers share it. `webhookContract` declares the events an API sends and signs each attempt;
  * `signWebhook` signs any body for receivers outside that contract.
  */

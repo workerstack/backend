@@ -1,4 +1,4 @@
-import type { WSAdapter } from "@workerstack/backend"
+import type { WSAdapter } from "@workerstack/backend/http"
 
 /** Used by honey generate so apps that accept a WS adapter still export a Honey instance. */
 export const stubWs: WSAdapter = {

@@ -18,7 +18,7 @@ const MARKER = "function compileOutput("
 
 /* one route that answers what its .output() refuses, one with no .output(); a schema of its own, so no validator
  * library is installed */
-const APP = `import { honey } from "@workerstack/backend"
+const APP = `import { honey } from "@workerstack/backend/http"
 const row = {
 	"~standard": {
 		validate: (value) => (typeof value?.id === "string" ? { value } : { issues: [{ message: "id is no string" }] }),

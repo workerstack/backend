@@ -11,10 +11,12 @@ import { dirname, join, resolve } from "node:path"
 
 export const CORE = resolve(import.meta.dirname, "../../..")
 export const REPO = resolve(CORE, "../..")
-/** The honey-clients version core pins, which an install takes from npm. */
-export const CLIENTS = (
+/** The clients specifier core's package.json pins, as written there. */
+export const CLIENTS_PIN = (
 	JSON.parse(readFileSync(join(CORE, "package.json"), "utf8")) as { devDependencies: Record<string, string> }
 ).devDependencies["@workerstack/clients"] as string
+/** That pin as a consumer outside the repo installs it: a `file:` tarball resolved against core, else the npm range. */
+export const CLIENTS = CLIENTS_PIN.startsWith("file:") ? `file:${resolve(CORE, CLIENTS_PIN.slice(5))}` : CLIENTS_PIN
 
 export type Run = { code: number; out: string }
 

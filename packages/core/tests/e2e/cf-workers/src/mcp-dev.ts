@@ -4,7 +4,7 @@
  * wrangler.jsonc deploys as honey-cf-e2e, carries no Durable Object.
  */
 import { createApp } from "@honey/e2e-mcp"
-import { workersWebSocket } from "@workerstack/backend/ws/workers"
+import { workersWebSocket } from "@workerstack/backend/ws"
 import { workerUploadStore } from "../../apps/mcp/src/uploads-store.workers.ts"
 
 export { McpUploads } from "../../apps/mcp/src/uploads-object.ts"

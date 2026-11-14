@@ -78,7 +78,7 @@ export function tocDrift(markdown: string): string[] {
 export function specifiers(manifest: string, name: string): string[] {
 	return Object.keys((JSON.parse(manifest) as { exports: Record<string, unknown> }).exports)
 		.filter((subpath) => subpath !== "./package.json")
-		.map((subpath) => (subpath === "." ? name : `${name}/${subpath.slice(2)}`))
+		.map((subpath) => `${name}/${subpath.slice(2)}`)
 }
 
 /**
@@ -197,7 +197,10 @@ describe("the npm READMEs cover their package's surface", () => {
 	})
 
 	it("reads the surfaces it checks from the packages themselves, not from a list of its own", () => {
-		expect(specifiers('{"exports":{".":{},"./ws/bun":{},"./package.json":"x"}}', "pkg")).toEqual(["pkg", "pkg/ws/bun"])
+		expect(specifiers('{"exports":{"./http":{},"./ws/bun":{},"./package.json":"x"}}', "pkg")).toEqual([
+			"pkg/http",
+			"pkg/ws/bun",
+		])
 		const index = ['export { honey, type Honey } from "./a.ts"', "export type {\n\tOne,\n} from './b.ts'"].join("\n")
 		expect(valueExports(index)).toEqual(["honey"])
 	})

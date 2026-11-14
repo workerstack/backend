@@ -1,6 +1,6 @@
 # Rate limiting
 
-`rateLimit({ limit, windowMs })` from `@workerstack/backend/rate-limit` is a
+`rateLimit({ limit, windowMs })` from `@workerstack/backend/http/rate-limit` is a
 fixed-window limiter keyed by `ctx.ip`, the platform's peer address. Over the limit it answers 429 with
 `Retry-After`, and every answer carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. The
 default store is in memory, per process and bounded, so a spray of keys cannot exhaust memory; behind several
@@ -9,8 +9,8 @@ instances, pass a shared `store`. A custom `key` limits by user or API key inste
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { rateLimit } from "@workerstack/backend/rate-limit"
+import { honey } from "@workerstack/backend/http"
+import { rateLimit } from "@workerstack/backend/http/rate-limit"
 
 const app = honey().use(rateLimit({ limit: 60, windowMs: 60_000 }))
 

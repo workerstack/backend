@@ -1,6 +1,6 @@
 # Testing an app
 
-`testClient(app, { env })` from `@workerstack/backend/testing` calls your app the way a client would, without a
+`testClient(app, { env })` from `@workerstack/backend/http/testing` calls your app the way a client would, without a
 server: `get`, `post`, `put`, `patch`, `delete`, `head`, `options`, and `request(method, path)` for any other
 method. Each takes `json`, `form`, `headers` and `search`, and `ip` sets the peer address `ctx.ip` reads.
 
@@ -8,8 +8,8 @@ method. Each takes `json`, `form`, `headers` and `search`, and `ip` sets the pee
   `Max-Age` and `Expires`.
 
 ```ts run
-import { honey } from "@workerstack/backend"
-import { testClient } from "@workerstack/backend/testing"
+import { honey } from "@workerstack/backend/http"
+import { testClient } from "@workerstack/backend/http/testing"
 
 const app = honey()
 app.get("/hello").handler((ctx) => ctx.res.json("ok", { hello: ctx.search.name ?? "world", ip: ctx.ip }))

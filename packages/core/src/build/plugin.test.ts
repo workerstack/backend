@@ -220,7 +220,7 @@ describe("honeyPlugin() at build start (bit 19 h2), continued (2)", () => {
 		async () => {
 			const made = fresh({
 				"src/app.ts":
-					'import { honey } from "@workerstack/backend"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
+					'import { honey } from "@workerstack/backend/http"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
 				"src/routes.ts": 'export const path = "/first"\n',
 				"vite.config.ts":
 					'import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin({ app: "src/app.ts", codegen: { tree: "src/_gen/routes.gen.ts" } })] }\n',

@@ -31,7 +31,7 @@ afterEach(() => {
 /** The downstream service: GET /orders and POST /items with a JSON body, plus `extra` lines. */
 const downSource = (extra: readonly string[] = []) =>
 	[
-		'import { honey } from "@workerstack/backend"',
+		'import { honey } from "@workerstack/backend/http"',
 		'import * as z from "zod"',
 		"export const app = honey()",
 		'\t.get("/orders").handler((c) => c.res.text("ok", "orders"))',
@@ -44,7 +44,7 @@ const downSource = (extra: readonly string[] = []) =>
 
 /** The gateway's app, built without its tree: its own routes and errors, and a catch-all. */
 const GATEWAY_SOURCE = [
-	'import { defineErrors, honey } from "@workerstack/backend"',
+	'import { defineErrors, honey } from "@workerstack/backend/http"',
 	'export const app = honey().errorFactory(defineErrors({ maintenance: "service_unavailable" }))',
 	'app.get("/health").errors("maintenance").handler((c) => c.res.text("ok", "up"))',
 	'app.get("/robots.txt").handler((c) => c.res.text("ok", "User-agent: *"))',
@@ -62,9 +62,9 @@ function gatewayProject(): Project {
 			'import { routeTree } from "./_gen/routes.gen.ts"\nimport { app as gateway } from "./gateway.ts"\nexport const app = gateway.routeTree(routeTree)\n',
 		/* the merge entry that also exports the gateway built without its tree */
 		"src/seed.ts":
-			'import { mergeTree } from "@workerstack/backend"\nimport { app as down } from "./down.ts"\nimport { app as gateway } from "./gateway.ts"\nexport const tree = mergeTree([down.toRouteTree(), { worker: "down" }])\nexport const app = gateway\n',
+			'import { mergeTree } from "@workerstack/backend/http"\nimport { app as down } from "./down.ts"\nimport { app as gateway } from "./gateway.ts"\nexport const tree = mergeTree([down.toRouteTree(), { worker: "down" }])\nexport const app = gateway\n',
 		"src/route-tree.ts":
-			'import { mergeTree } from "@workerstack/backend"\nimport { app as down } from "./down.ts"\nexport const tree = mergeTree([down.toRouteTree(), { worker: "down" }])\n',
+			'import { mergeTree } from "@workerstack/backend/http"\nimport { app as down } from "./down.ts"\nexport const tree = mergeTree([down.toRouteTree(), { worker: "down" }])\n',
 	})
 	projects.push(made)
 	return made
@@ -88,7 +88,7 @@ const documentAt = (dir: string) => JSON.parse(read(dir, "src/_gen/openapi.gen.j
 
 /** A service whose `GET /bad` declares output under `orders`, a name no status has (a JS app's, or a cast's). */
 const BAD_OUTPUT = [
-	'import { honey } from "@workerstack/backend"',
+	'import { honey } from "@workerstack/backend/http"',
 	"export const app = honey()",
 	'app.get("/bad").output({ "application/json": { orders: true } } as never).handler((c) => c.res.noContent())',
 	"",
@@ -101,7 +101,7 @@ describe("honey generate: an output key that names no status (bit 21 f2)", () =>
 			const made = project({
 				"src/app.ts": BAD_OUTPUT,
 				"src/route-tree.ts":
-					'import { mergeTree } from "@workerstack/backend"\nimport { app } from "./app.ts"\nexport const tree = mergeTree([app.toRouteTree(), { worker: "down" }])\n',
+					'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "./app.ts"\nexport const tree = mergeTree([app.toRouteTree(), { worker: "down" }])\n',
 			})
 			projects.push(made)
 			const refused = 'GET /bad: .output() key "orders" under application/json is none of accepted'
@@ -165,7 +165,7 @@ describe("a gateway's app (bit 19 h2), continued (2)", () => {
 			const made = gatewayProject()
 			made.write(
 				"src/plain.app.ts",
-				'import { honey } from "@workerstack/backend"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = honey().routeTree(routeTree)\n',
+				'import { honey } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = honey().routeTree(routeTree)\n',
 			)
 			const done = await generate(
 				{ app: "src/plain.app.ts", codegen: { ...OUTPUTS, mergeTree: "src/route-tree.ts" } },
@@ -340,9 +340,9 @@ function linked(files: Record<string, string>): Project {
 const OLDER =
 	"export const routeTree = { root: { s: {}, m: null, d: null, w: null, ws: null }, meta: {}, handlers: {} }\n"
 const SELF_LOADING =
-	'import { honey } from "@workerstack/backend"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = honey().routeTree(routeTree as never)\n'
+	'import { honey } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = honey().routeTree(routeTree as never)\n'
 const MERGE =
-	'import { mergeTree } from "@workerstack/backend"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n'
+	'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n'
 const failure = (run: Promise<unknown>) =>
 	run.then(
 		() => "resolved",
@@ -400,7 +400,7 @@ const GATEWAY = (tree: string) => ({
 	"src/served.ts": `import { app as gateway } from "./gateway.ts"\n${tree}export const app = ${tree === "" ? "gateway" : "gateway.routeTree(routeTree)"}\n`,
 	"src/routes.ts": MERGE,
 	"src/seed.ts":
-		'import { mergeTree } from "@workerstack/backend"\nimport { app as down } from "./down.ts"\nimport { app as gateway } from "./gateway.ts"\nexport const tree = mergeTree([down.toRouteTree(), {}])\nexport const app = gateway\n',
+		'import { mergeTree } from "@workerstack/backend/http"\nimport { app as down } from "./down.ts"\nimport { app as gateway } from "./gateway.ts"\nexport const tree = mergeTree([down.toRouteTree(), {}])\nexport const app = gateway\n',
 })
 
 describe("sourceOf natively: a gateway's app (bit 19 h2)", () => {
@@ -465,7 +465,7 @@ describe("sourceOf natively: the documents' app, imported on demand (bit 19 h2)"
 			"src/down.ts": downSource(),
 			"src/gateway.ts": GATEWAY_SOURCE,
 			"src/seed.ts":
-				'import { mergeTree } from "@workerstack/backend"\nimport { app as down } from "./down.ts"\nimport { app as gateway } from "./gateway.ts"\nexport const tree = mergeTree([down.toRouteTree(), {}])\nexport const app = gateway\n',
+				'import { mergeTree } from "@workerstack/backend/http"\nimport { app as down } from "./down.ts"\nimport { app as gateway } from "./gateway.ts"\nexport const tree = mergeTree([down.toRouteTree(), {}])\nexport const app = gateway\n',
 			"src/served.ts": 'import { app as gateway } from "./gateway.ts"\nexport const app = gateway\n',
 		})
 		const source = await sourceOf(

@@ -1,4 +1,4 @@
-import { workersWebSocket } from "@workerstack/backend/ws/workers"
+import { workersWebSocket } from "@workerstack/backend/ws"
 import { loadE2eApp } from "../../load.ts"
 
 type WorkerEnv = Record<string, unknown> & { HONEY_E2E_APP?: string }

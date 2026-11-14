@@ -39,7 +39,7 @@ package, so nothing here is pseudocode.
 
 ## Install
 
-honey moved to the workerstack org in 1.0.0-rc.23, and [the migration note](https://github.com/workerstack/backend/blob/main/docs/migrating-to-workerstack.md)
+honey moved to the workerstack org in 1.0.0-rc.23, and [the migration note](https://github.com/workerstack/backend/blob/main/docs/migrating-from-honey.md)
 maps each old package name to its new one. 1.0 is out as a release candidate, published under npm's `next` tag, so
 an install without a tag gets a deprecated placeholder.
 Add `@next` until the final release:
@@ -62,7 +62,7 @@ Declare what a route takes and what it answers. `ctx.input` is typed by the sche
 payload for the status key you name:
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend"
+import { defineErrors, honey } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const errors = defineErrors({ not_found: "not_found" })
@@ -90,9 +90,9 @@ export default app
 The reference UI comes from the document the routes already describe:
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { serveOpenApi } from "@workerstack/backend/openapi"
-import { scalar } from "@workerstack/backend/openapi/scalar"
+import { honey } from "@workerstack/backend/http"
+import { serveOpenApi } from "@workerstack/backend/http/openapi"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
 const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
@@ -121,7 +121,7 @@ it, `context()` adds static values the handler finds on `ctx`, and `use()` insta
 its descendants.
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 type Env = { GREETING: string }
 
@@ -138,7 +138,7 @@ export default app
 Settings sit on the same chain and apply to the whole app:
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 	.trailingSlash("strip")
@@ -173,8 +173,8 @@ Apps that share their settings write them once with `definePreset<TEnv>()`, whic
 `use(mw)`. `honey(preset)` starts an app with its own copy, typed as the same chain on `honey()` would be:
 
 ```ts
-import { defineErrors, definePreset, honey } from "@workerstack/backend"
-import { requestId } from "@workerstack/backend/request-id"
+import { defineErrors, definePreset, honey } from "@workerstack/backend/http"
+import { requestId } from "@workerstack/backend/http/request-id"
 
 const errors = defineErrors({ internal_server_error: "internal_server_error" })
 
@@ -197,9 +197,9 @@ One method per call (`get`, `post`, `put`, `patch`, `delete`, `head`, `options`)
 set. Paths take `:params` and a trailing `*` wildcard; `meta()` carries what the document says about the route.
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { serveOpenApi } from "@workerstack/backend/openapi"
-import { scalar } from "@workerstack/backend/openapi/scalar"
+import { honey } from "@workerstack/backend/http"
+import { serveOpenApi } from "@workerstack/backend/http/openapi"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
 const app = honey()
 
@@ -216,7 +216,7 @@ serveOpenApi(app, { title: "Users", version: "1.0.0", docs: { "/docs": scalar } 
 Sub-apps mount with `route()`, and `on()` registers one handler for several methods:
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const admin = honey()
 admin.get("/stats").handler((ctx) => ctx.res.json("ok", { users: 1 }))
@@ -229,8 +229,8 @@ app.on(["POST", "PUT"], "/webhooks/:source").handler((ctx) => ctx.res.json("acce
 A gateway merges the route trees its services publish, each tree tagged with meta of its own:
 
 ```ts
-import { mergeTree } from "@workerstack/backend"
-import type { RouteTree } from "@workerstack/backend/tree"
+import { mergeTree } from "@workerstack/backend/http"
+import type { RouteTree } from "@workerstack/backend/http/tree"
 
 declare const orders: RouteTree
 declare const billing: RouteTree
@@ -251,7 +251,7 @@ unless `honeyPlugin({ outputValidation: true })` keeps it. A media type other th
 image or a CSV is as typed as a JSON body:
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const app = honey()
@@ -270,8 +270,8 @@ app
 A body you do not want in memory is input too: `streamed()` leaves a json or form body unread for the handler to stream.
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { streamed } from "@workerstack/backend/input"
+import { honey } from "@workerstack/backend/http"
+import { streamed } from "@workerstack/backend/http/input"
 import * as z from "zod"
 
 const app = honey()
@@ -290,8 +290,8 @@ app
 Content negotiation, when a route answers in more than one shape, reads the request directly:
 
 ```ts
-import { accepts } from "@workerstack/backend/accepts"
-import { honey } from "@workerstack/backend"
+import { accepts } from "@workerstack/backend/http/accepts"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 
@@ -313,7 +313,7 @@ argument is the status key the route declared, which is what makes the payload's
 `redirect` entry, an undeclared media type's helper is gone, and so is `raw`.
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 
@@ -333,11 +333,11 @@ app.get("/bytes").handler((ctx) =>
 Caching, entity tags and byte ranges are middleware and helpers over any of those:
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { cacheControl } from "@workerstack/backend/cache-control"
-import { etag } from "@workerstack/backend/etag"
-import { prettyJson } from "@workerstack/backend/pretty-json"
-import { rangeResponse } from "@workerstack/backend/range"
+import { honey } from "@workerstack/backend/http"
+import { cacheControl } from "@workerstack/backend/http/cache-control"
+import { etag } from "@workerstack/backend/http/etag"
+import { prettyJson } from "@workerstack/backend/http/pretty-json"
+import { rangeResponse } from "@workerstack/backend/http/range"
 
 const video = new Blob([new Uint8Array(1024)], { type: "video/mp4" })
 
@@ -352,12 +352,12 @@ app.get("/video").handler((ctx) => ctx.res.raw(rangeResponse(ctx.req, video)))
 
 `etag()` answers a conditional GET with 304, `rangeResponse` a `Range` request with 206, and `cacheControl` sets the
 header once for every route under it. `httpDate` from the same subpath formats an HTTP date, and `notModified` from
-`@workerstack/backend/etag` turns a response into its 304.
+`@workerstack/backend/http/etag` turns a response into its 304.
 
 Streaming bodies clean up when the client leaves — the generator's `finally` runs:
 
 ```ts run
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 let ended = (_: string) => {}
 const cleanedUp = new Promise<string>((resolve) => (ended = resolve))
@@ -404,7 +404,7 @@ which keys it can throw with `.errors()`, and those keys are what the document a
 about.
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend"
+import { defineErrors, honey } from "@workerstack/backend/http"
 
 const errors = defineErrors({ out_of_stock: "conflict" })
 
@@ -425,7 +425,7 @@ Problem Details document under `problem+json`) and its answer keeps that content
 shapes the body of an error `defineErrors` gave a payload schema, which always answers `application/json`.
 
 ```ts
-import { defineErrors, ERROR_META, type ErrorFormatter, HoneyError, honey } from "@workerstack/backend"
+import { defineErrors, ERROR_META, type ErrorFormatter, HoneyError, honey } from "@workerstack/backend/http"
 
 const errors = defineErrors({ db_timeout: "service_unavailable" })
 
@@ -456,10 +456,10 @@ A middleware is a function of `(ctx, next)`. Calling `next({ … })` adds typed 
 it sees — that is how per-request data (a user, a tenant, a database handle) reaches a handler without a global.
 
 ```ts
-import { type MiddlewareFn, honey } from "@workerstack/backend"
-import { cors } from "@workerstack/backend/cors"
-import { rateLimit } from "@workerstack/backend/rate-limit"
-import { secureHeaders } from "@workerstack/backend/secure-headers"
+import { type MiddlewareFn, honey } from "@workerstack/backend/http"
+import { cors } from "@workerstack/backend/http/cors"
+import { rateLimit } from "@workerstack/backend/http/rate-limit"
+import { secureHeaders } from "@workerstack/backend/http/secure-headers"
 
 type UserCtx = { user: { id: string } | null }
 
@@ -481,7 +481,7 @@ app.get("/me").handler((ctx) => ctx.res.json("ok", { user: ctx.user }))
 answer with (each route that mounts it declares them, and its document lists them) and the meta it gives those routes:
 
 ```ts
-import { createMiddleware, defineErrors, honey } from "@workerstack/backend"
+import { createMiddleware, defineErrors, honey } from "@workerstack/backend/http"
 
 const errors = defineErrors({ api_key_missing: "unauthorized" })
 
@@ -500,15 +500,15 @@ app.get("/me").handler((ctx) => ctx.res.json("ok", { at: ctx.at }))
 The bundled set, each its own subpath so an app that does not import it bundles none of it:
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { bodyLimit } from "@workerstack/backend/body-limit"
-import { compress } from "@workerstack/backend/compress"
-import { csrf } from "@workerstack/backend/csrf"
-import { ipRestrict } from "@workerstack/backend/ip-restrict"
-import { poweredBy } from "@workerstack/backend/powered-by"
-import { requestId } from "@workerstack/backend/request-id"
-import { serverTiming } from "@workerstack/backend/server-timing"
-import { timeout } from "@workerstack/backend/timeout"
+import { honey } from "@workerstack/backend/http"
+import { bodyLimit } from "@workerstack/backend/http/body-limit"
+import { compress } from "@workerstack/backend/http/compress"
+import { csrf } from "@workerstack/backend/http/csrf"
+import { ipRestrict } from "@workerstack/backend/http/ip-restrict"
+import { poweredBy } from "@workerstack/backend/http/powered-by"
+import { requestId } from "@workerstack/backend/http/request-id"
+import { serverTiming } from "@workerstack/backend/http/server-timing"
+import { timeout } from "@workerstack/backend/http/timeout"
 
 const app = honey()
 	.use(requestId())
@@ -523,26 +523,26 @@ const app = honey()
 app.get("/report").handler((ctx) => ctx.res.text("ok", "row\n".repeat(5000)))
 ```
 
-| Middleware                         | From                                  | What it does                                                                              |
-| ---------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `cors(options)`                    | `@workerstack/backend/cors`           | the CORS headers and the preflight answer                                                 |
-| `secureHeaders(options?)`          | `@workerstack/backend/secure-headers` | CSP, HSTS and the rest of the hardening headers                                           |
-| `csrf(options?)`                   | `@workerstack/backend/csrf`           | refuses a cross-origin unsafe method                                                      |
-| `rateLimit(options)`               | `@workerstack/backend/rate-limit`     | a window per key, with `memoryRateLimitStore()` or one of your own                        |
-| `compress(options?)`               | `@workerstack/backend/compress`       | gzip or brotli over a threshold                                                           |
-| `cacheControl(options)`            | `@workerstack/backend/cache-control`  | the `Cache-Control` header, and `httpDate`                                                |
-| `etag(options?)`                   | `@workerstack/backend/etag`           | an entity tag, 304 on a conditional GET, and `notModified`                                |
-| `prettyJson(options?)`             | `@workerstack/backend/pretty-json`    | indents a JSON body when the query asks                                                   |
-| `requestId(options?)`              | `@workerstack/backend/request-id`     | one id per request, on the response and in the log                                        |
-| `timeout(options)`                 | `@workerstack/backend/timeout`        | a deadline per request                                                                    |
-| `bodyLimit(options)`               | `@workerstack/backend/body-limit`     | refuses a body over a size, or of a media type it does not list                           |
-| `ipRestrict(options)`              | `@workerstack/backend/jwt`            | `signJwt`, `verifyJwt`, `remoteJwks`, `decodeJwtPayload`, `importPkcs8`, `isJwsAlgorithm` |
-| `@workerstack/backend/ip-restrict` | an allow or deny list over `ctx.ip`   |
-| `ipAllowed(ip, lists)`             | `@workerstack/backend/ip-restrict`    | the same check for lists read per request                                                 |
-| `serverTiming()`                   | `@workerstack/backend/server-timing`  | `Server-Timing`, and `ctx.timing` to add to it                                            |
-| `poweredBy(options?)`              | `@workerstack/backend/powered-by`     | the `X-Powered-By` header                                                                 |
-| `staticFiles(options)`             | `@workerstack/backend/static`         | serves files under a prefix                                                               |
-| `curlLogger(options?)`             | `@workerstack/backend/curl-logger`    | logs each request as the command that would repeat it                                     |
+| Middleware                              | From                                       | What it does                                                                              |
+| --------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `cors(options)`                         | `@workerstack/backend/http/cors`           | the CORS headers and the preflight answer                                                 |
+| `secureHeaders(options?)`               | `@workerstack/backend/http/secure-headers` | CSP, HSTS and the rest of the hardening headers                                           |
+| `csrf(options?)`                        | `@workerstack/backend/http/csrf`           | refuses a cross-origin unsafe method                                                      |
+| `rateLimit(options)`                    | `@workerstack/backend/http/rate-limit`     | a window per key, with `memoryRateLimitStore()` or one of your own                        |
+| `compress(options?)`                    | `@workerstack/backend/http/compress`       | gzip or brotli over a threshold                                                           |
+| `cacheControl(options)`                 | `@workerstack/backend/http/cache-control`  | the `Cache-Control` header, and `httpDate`                                                |
+| `etag(options?)`                        | `@workerstack/backend/http/etag`           | an entity tag, 304 on a conditional GET, and `notModified`                                |
+| `prettyJson(options?)`                  | `@workerstack/backend/http/pretty-json`    | indents a JSON body when the query asks                                                   |
+| `requestId(options?)`                   | `@workerstack/backend/http/request-id`     | one id per request, on the response and in the log                                        |
+| `timeout(options)`                      | `@workerstack/backend/http/timeout`        | a deadline per request                                                                    |
+| `bodyLimit(options)`                    | `@workerstack/backend/http/body-limit`     | refuses a body over a size, or of a media type it does not list                           |
+| `ipRestrict(options)`                   | `@workerstack/backend/http/jwt`            | `signJwt`, `verifyJwt`, `remoteJwks`, `decodeJwtPayload`, `importPkcs8`, `isJwsAlgorithm` |
+| `@workerstack/backend/http/ip-restrict` | an allow or deny list over `ctx.ip`        |
+| `ipAllowed(ip, lists)`                  | `@workerstack/backend/http/ip-restrict`    | the same check for lists read per request                                                 |
+| `serverTiming()`                        | `@workerstack/backend/http/server-timing`  | `Server-Timing`, and `ctx.timing` to add to it                                            |
+| `poweredBy(options?)`                   | `@workerstack/backend/http/powered-by`     | the `X-Powered-By` header                                                                 |
+| `staticFiles(options)`                  | `@workerstack/backend/http/static`         | serves files under a prefix                                                               |
+| `curlLogger(options?)`                  | `@workerstack/backend/http/curl-logger`    | logs each request as the command that would repeat it                                     |
 
 Full reference: [middleware](https://github.com/workerstack/backend/blob/main/docs/middleware.md),
 [rate limiting](https://github.com/workerstack/backend/blob/main/docs/capabilities/rate-limit.md) and
@@ -556,7 +556,7 @@ The handler's `ctx` is one object, and these keys are reserved on it: `req`, `en
 from a middleware's `next({ … })`.
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 
@@ -587,8 +587,8 @@ secrets, newest first, so a rotation keeps the old ones verifying and a value si
 another:
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { createCookieSigner } from "@workerstack/backend/cookie-sign"
+import { honey } from "@workerstack/backend/http"
+import { createCookieSigner } from "@workerstack/backend/http/cookie-sign"
 
 const signer = createCookieSigner({ name: "session", secrets: [process.env.COOKIE_SECRET ?? ""] })
 
@@ -607,10 +607,10 @@ app.get("/me").handler(async (ctx) => {
 })
 ```
 
-`@workerstack/backend/cookie` has the header functions on their own (`serializeCookie`, `parseCookieHeader`):
+`@workerstack/backend/http/cookie` has the header functions on their own (`serializeCookie`, `parseCookieHeader`):
 
 ```ts
-import { parseCookieHeader, serializeCookie } from "@workerstack/backend/cookie"
+import { parseCookieHeader, serializeCookie } from "@workerstack/backend/http/cookie"
 
 declare const req: Request
 
@@ -627,7 +627,7 @@ long-poll, whichever the client can hold — is `realtime(app, path, options)`. 
 route can publish into them.
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { realtime } from "@workerstack/backend/realtime"
 import { ws } from "@workerstack/backend/ws"
 
@@ -656,7 +656,7 @@ app.post("/announce").handler(async (ctx) => {
 A publisher outside a connection works the same way, which is what a ticker is:
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { realtime } from "@workerstack/backend/realtime"
 
 const app = honey()
@@ -671,7 +671,7 @@ const prices = realtime(app, "/prices", {
 setInterval(() => prices.publish("ticker", { eur: 1.08, at: Date.now() }), 1000)
 ```
 
-A WebSocket route needs the Workers adapter, `workersWebSocket()` from `@workerstack/backend/ws/workers`, set with
+A WebSocket route needs the Workers adapter, `workersWebSocket()` from `@workerstack/backend/ws`, set with
 `app.wsAdapter(workersWebSocket())` in the Worker entry.
 
 A resumed connection replays from the client's `Last-Event-ID` or `reconnect_token`.
@@ -685,7 +685,7 @@ An app runs as a Cloudflare Worker: `export default app` is the Worker's `fetch`
 and `scheduled` and `queue` move onto the default.
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
@@ -696,7 +696,7 @@ export default app
 The app is the default export, and `app.fetch` the handler to wrap when you need to:
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 type Env = { readonly SECRET: string }
 
@@ -712,9 +712,9 @@ export default { fetch: (...args: Parameters<typeof app.fetch>) => app.fetch(...
 read — honey never assumes a filesystem.
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { cacheControl } from "@workerstack/backend/cache-control"
-import { staticFiles } from "@workerstack/backend/static"
+import { honey } from "@workerstack/backend/http"
+import { cacheControl } from "@workerstack/backend/http/cache-control"
+import { staticFiles } from "@workerstack/backend/http/static"
 
 const assets = new Map<string, Blob>([["/app.js", new Blob(["console.log(1)"])]])
 
@@ -727,8 +727,8 @@ const app = honey()
 upstream is explicit and nothing is reachable by accident.
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { proxy } from "@workerstack/backend/proxy"
+import { honey } from "@workerstack/backend/http"
+import { proxy } from "@workerstack/backend/http/proxy"
 
 const app = honey()
 
@@ -751,9 +751,9 @@ you the document as a value instead, for a file you commit or a build step. Tags
 externalDocs and webhooks are all declared, never guessed.
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { serveOpenApi } from "@workerstack/backend/openapi"
-import { scalar } from "@workerstack/backend/openapi/scalar"
+import { honey } from "@workerstack/backend/http"
+import { serveOpenApi } from "@workerstack/backend/http/openapi"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
 const app = honey()
 
@@ -774,10 +774,10 @@ serveOpenApi(app, {
 The document as a value, the route manifest, YAML, and either reference page explicitly:
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { generateManifest, generateOpenApi, serveManifest, toYaml } from "@workerstack/backend/openapi"
-import { scalar } from "@workerstack/backend/openapi/scalar"
-import { swagger } from "@workerstack/backend/openapi/swagger"
+import { honey } from "@workerstack/backend/http"
+import { generateManifest, generateOpenApi, serveManifest, toYaml } from "@workerstack/backend/http/openapi"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
+import { swagger } from "@workerstack/backend/http/openapi/swagger"
 
 const app = honey()
 app.get("/orders").handler((ctx) => ctx.res.json("ok", []))
@@ -796,9 +796,9 @@ Webhooks, the requests your API sends out, are declared once as a contract: the 
 Standard Webhooks delivery, and the contract signs each attempt:
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { serveOpenApi } from "@workerstack/backend/openapi"
-import { webhookContract } from "@workerstack/backend/webhook"
+import { honey } from "@workerstack/backend/http"
+import { serveOpenApi } from "@workerstack/backend/http/openapi"
+import { webhookContract } from "@workerstack/backend/http/webhook"
 import * as z from "zod"
 
 const events = webhookContract({
@@ -822,7 +822,7 @@ Full reference: [the OpenAPI document](https://github.com/workerstack/backend/bl
 
 ## Serving a prebuilt or external document
 
-`serveStaticOpenApi(app, options)` from `@workerstack/backend/openapi/static` serves a document someone has already
+`serveStaticOpenApi(app, options)` from `@workerstack/backend/http/openapi/static` serves a document someone has already
 built. Nothing generates it, so the generator never reaches the bundle: an app that serves its document this way
 carries about 1.2 KB gzipped over a bare `honey()`. Reach for it when the build plugin already wrote the document to
 disk, when a gateway serves a document assembled elsewhere, or when a Worker should answer the spec without parsing
@@ -832,9 +832,9 @@ document, which is the usual case.
 The source is an inline value, a Workers asset binding, a URL, or a loader of your own:
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { scalar } from "@workerstack/backend/openapi/scalar"
-import { serveStaticOpenApi } from "@workerstack/backend/openapi/static"
+import { honey } from "@workerstack/backend/http"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
+import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"
 
 /* a document you already have as a value: serialized once, on the first request */
 const inline = serveStaticOpenApi(honey(), {
@@ -903,7 +903,7 @@ included — dispatches in process, and is guarded by the app's own auth. It is 
 `mcp(app, path, handler, options)` mounts the handler `codegen.mcp` generated beside your app:
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 
 /* in the app: import { mcpHandler } from "./_gen/mcp.gen.ts" */
@@ -920,7 +920,7 @@ Bearer challenges), which is what ChatGPT requires; `uploads()` takes files out 
 through a tool argument; `urlFiles()` lets a file argument be an https URL from a host you list.
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { type McpHandler, mcp } from "@workerstack/backend/mcp"
 import { oauth } from "@workerstack/backend/mcp/oauth"
 import { memoryUploadStore, uploads } from "@workerstack/backend/mcp/uploads"
@@ -957,9 +957,9 @@ Full reference: [the generated MCP server](https://github.com/workerstack/backen
 to a response before the error is reported.
 
 ```ts
-import { HoneyError, honey } from "@workerstack/backend"
+import { HoneyError, honey } from "@workerstack/backend/http"
 import { createLogger } from "@workerstack/backend/logger"
-import { requestId } from "@workerstack/backend/request-id"
+import { requestId } from "@workerstack/backend/http/request-id"
 
 const app = honey()
 	.use(requestId())
@@ -978,7 +978,7 @@ W3C `traceparent`, so a span from a caller stays one trace. With it on, the logg
 `span_id`, and `requestId` stays the client-facing id.
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { createLogger } from "@workerstack/backend/logger"
 import { otelAdapter, type OtelApi } from "@workerstack/backend/telemetry/otel"
 
@@ -996,9 +996,9 @@ A request logged as the command that would repeat it is its own middleware, and 
 its own for a failing call you want to paste into a terminal — both redact credentials by default:
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { curlLogger } from "@workerstack/backend/curl-logger"
-import { requestToCurl } from "@workerstack/backend/request-to-curl"
+import { honey } from "@workerstack/backend/http"
+import { curlLogger } from "@workerstack/backend/http/curl-logger"
+import { requestToCurl } from "@workerstack/backend/http/request-to-curl"
 
 declare const req: Request
 
@@ -1016,7 +1016,7 @@ Full reference: [logging, errors and tracing](https://github.com/workerstack/bac
 Error messages translate through a dictionary you supply, and ICU messages interpolate with plurals:
 
 ```ts run
-import { interpolate } from "@workerstack/backend/i18n"
+import { interpolate } from "@workerstack/backend/http/i18n"
 
 const message = "{count, plural, one {# new message} other {# new messages}} for {name}"
 console.log(interpolate(message, { count: 3, name: "Ada" }, "en"))
@@ -1024,8 +1024,8 @@ console.log(interpolate(message, { count: 3, name: "Ada" }, "en"))
 ```
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend"
-import { createErrorTranslator, translateError } from "@workerstack/backend/i18n"
+import { defineErrors, honey } from "@workerstack/backend/http"
+import { createErrorTranslator, translateError } from "@workerstack/backend/http/i18n"
 
 const errors = defineErrors({ not_found: "not_found" })
 
@@ -1069,8 +1069,8 @@ Full reference: [internationalization](https://github.com/workerstack/backend/bl
 options rather than mocks.
 
 ```ts run
-import { honey } from "@workerstack/backend"
-import { testClient } from "@workerstack/backend/testing"
+import { honey } from "@workerstack/backend/http"
+import { testClient } from "@workerstack/backend/http/testing"
 
 const app = honey()
 app.get("/hello").handler((ctx) => ctx.res.json("ok", { hello: ctx.search.name ?? "world", ip: ctx.ip }))
@@ -1216,73 +1216,70 @@ Full reference: [code generation](https://github.com/workerstack/clients/blob/ma
 ## Every export
 
 Each feature is a subpath: import what the app uses, and a bundle carries nothing else. An app that never imports
-`@workerstack/backend/ws` bundles no WebSocket code, and one that never imports `@workerstack/backend/openapi` no document
+`@workerstack/backend/ws` bundles no WebSocket code, and one that never imports `@workerstack/backend/http/openapi` no document
 generator.
 
-| Export                                 | What it holds                                                                                                            |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `@workerstack/backend`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                       |
-| `@workerstack/backend/ws`              | `ws(app, path)`, a WebSocket route                                                                                       |
-| `@workerstack/backend/webhook`         | `signWebhook`                                                                                                            |
-| `@workerstack/backend/cron`            | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`                                   |
-| `@workerstack/backend/cron/workers`    | `workersCron`, `WorkersScheduledController`                                                                              |
-| `@workerstack/backend/queue`           | `queueContract`, `queueMessage`, `defineConsumer`, `deadLetter`, `QueueBodyError`, `QueueDeadLetter`, and their types    |
-| `@workerstack/backend/queue/workers`   | `workersQueue`, `WorkersQueueOptions` and the binding's types                                                            |
-| `@workerstack/backend/user-agent`      | `parseUserAgent`, `ParsedUserAgent`, `DeviceType`                                                                        |
-| `@workerstack/backend/ws/workers`      | `workersWebSocket`                                                                                                       |
-| `@workerstack/backend/realtime`        | `realtime(app, path, options)`: a resumable connection over WebSocket, SSE and long-poll                                 |
-| `@workerstack/backend/mcp`             | `mcp(app, path, handler, options?)`: the app's tools over MCP's Streamable HTTP, the handler `codegen.mcp` writes        |
-| `@workerstack/backend/mcp/oauth`       | `oauth(options)`: `mcp()`'s opt-in OAuth 2.1 resource server (RFC 9728 metadata, Bearer challenges)                      |
-| `@workerstack/backend/mcp/uploads`     | `uploads(options)`, `memoryUploadStore()`: `mcp()`'s opt-in out-of-band file uploads (the file-uploads extension's flow) |
-| `@workerstack/backend/mcp/url-files`   | `urlFiles(options)`: `mcp()`'s opt-in file arguments as https URLs from listed hosts                                     |
-| `@workerstack/backend/openapi`         | `serveOpenApi`, `serveManifest`, `generateOpenApi`, `generateManifest`, `toYaml`                                         |
-| `@workerstack/backend/openapi/auth`    | `basic`, `credentialsMatch`: HTTP Basic in front of a served document and its docs pages                                 |
-| `@workerstack/backend/openapi/scalar`  | `scalar`, the Scalar API reference page                                                                                  |
-| `@workerstack/backend/openapi/static`  | `serveStaticOpenApi`, a document built ahead of time or living elsewhere, served without the generator                   |
-| `@workerstack/backend/openapi/swagger` | `swagger`, the Swagger UI page                                                                                           |
-| `@workerstack/backend/i18n`            | `createErrorTranslator`, `translateError`, `interpolate`, `createInterpolator`                                           |
-| `@workerstack/backend/input`           | `streamed()`, a request body left unread for the handler                                                                 |
-| `@workerstack/backend/range`           | `rangeResponse`, a `Range` request answered from bytes                                                                   |
-| `@workerstack/backend/cache-control`   | `cacheControl`, `httpDate`                                                                                               |
-| `@workerstack/backend/compress`        | `compress`                                                                                                               |
-| `@workerstack/backend/etag`            | `etag`, `notModified`                                                                                                    |
-| `@workerstack/backend/rate-limit`      | `rateLimit`, `memoryRateLimitStore`                                                                                      |
-| `@workerstack/backend/cors`            | `cors`                                                                                                                   |
-| `@workerstack/backend/csrf`            | `csrf`                                                                                                                   |
-| `@workerstack/backend/body-limit`      | `bodyLimit`                                                                                                              |
-| `@workerstack/backend/timeout`         | `timeout`                                                                                                                |
-| `@workerstack/backend/ip-restrict`     | `ipRestrict`, `ipAllowed`, `isIpRule`                                                                                    |
-| `@workerstack/backend/request-id`      | `requestId`                                                                                                              |
-| `@workerstack/backend/secure-headers`  | `secureHeaders`                                                                                                          |
-| `@workerstack/backend/server-timing`   | `serverTiming`                                                                                                           |
-| `@workerstack/backend/powered-by`      | `poweredBy`                                                                                                              |
-| `@workerstack/backend/pretty-json`     | `prettyJson`                                                                                                             |
-| `@workerstack/backend/logger`          | `createLogger`                                                                                                           |
-| `@workerstack/backend/curl-logger`     | `curlLogger`, a request logged as a command that repeats it                                                              |
-| `@workerstack/backend/telemetry/otel`  | `otelAdapter`                                                                                                            |
-| `@workerstack/backend/static`          | `staticFiles`                                                                                                            |
-| `@workerstack/backend/proxy`           | `proxy`, a route that forwards to an upstream                                                                            |
-| `@workerstack/backend/accepts`         | `accepts`, content negotiation                                                                                           |
-| `@workerstack/backend/cookie`          | `serializeCookie`, `parseCookieHeader`                                                                                   |
-| `@workerstack/backend/cookie-sign`     | `createCookieSigner`                                                                                                     |
-| `@workerstack/backend/crypto`          | `timingSafeEqual`                                                                                                        |
-| `@workerstack/backend/request-to-curl` | `requestToCurl`                                                                                                          |
-| `@workerstack/backend/testing`         | `testClient`, an app called in process                                                                                   |
-| `@workerstack/backend/tree`            | the route tree's types                                                                                                   |
-| `@workerstack/backend/plugin`          | `honeyPlugin()`, the Vite plugin that generates the app's artifacts                                                      |
-| `@workerstack/backend/build`           | `createBuildPlugin`, a production bundle for a deploy target                                                             |
+| Export                                      | What it holds                                                                                                                                                                        |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@workerstack/backend/http`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                                                                                   |
+| `@workerstack/backend/ws`                   | `ws(app, path)`, a WebSocket route; `workersWebSocket`                                                                                                                               |
+| `@workerstack/backend/http/webhook`         | `signWebhook`                                                                                                                                                                        |
+| `@workerstack/backend/cron`                 | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`; `workersCron`, `WorkersScheduledController`                                                  |
+| `@workerstack/backend/queue`                | `queueContract`, `queueMessage`, `defineConsumer`, `deadLetter`, `QueueBodyError`, `QueueDeadLetter`, and their types; `workersQueue`, `WorkersQueueOptions` and the binding's types |
+| `@workerstack/backend/http/user-agent`      | `parseUserAgent`, `ParsedUserAgent`, `DeviceType`                                                                                                                                    |
+| `@workerstack/backend/realtime`             | `realtime(app, path, options)`: a resumable connection over WebSocket, SSE and long-poll                                                                                             |
+| `@workerstack/backend/mcp`                  | `mcp(app, path, handler, options?)`: the app's tools over MCP's Streamable HTTP, the handler `codegen.mcp` writes                                                                    |
+| `@workerstack/backend/mcp/oauth`            | `oauth(options)`: `mcp()`'s opt-in OAuth 2.1 resource server (RFC 9728 metadata, Bearer challenges)                                                                                  |
+| `@workerstack/backend/mcp/uploads`          | `uploads(options)`, `memoryUploadStore()`: `mcp()`'s opt-in out-of-band file uploads (the file-uploads extension's flow)                                                             |
+| `@workerstack/backend/mcp/url-files`        | `urlFiles(options)`: `mcp()`'s opt-in file arguments as https URLs from listed hosts                                                                                                 |
+| `@workerstack/backend/http/openapi`         | `serveOpenApi`, `serveManifest`, `generateOpenApi`, `generateManifest`, `toYaml`                                                                                                     |
+| `@workerstack/backend/http/openapi/auth`    | `basic`, `credentialsMatch`: HTTP Basic in front of a served document and its docs pages                                                                                             |
+| `@workerstack/backend/http/openapi/scalar`  | `scalar`, the Scalar API reference page                                                                                                                                              |
+| `@workerstack/backend/http/openapi/static`  | `serveStaticOpenApi`, a document built ahead of time or living elsewhere, served without the generator                                                                               |
+| `@workerstack/backend/http/openapi/swagger` | `swagger`, the Swagger UI page                                                                                                                                                       |
+| `@workerstack/backend/http/i18n`            | `createErrorTranslator`, `translateError`, `interpolate`, `createInterpolator`                                                                                                       |
+| `@workerstack/backend/http/input`           | `streamed()`, a request body left unread for the handler                                                                                                                             |
+| `@workerstack/backend/http/range`           | `rangeResponse`, a `Range` request answered from bytes                                                                                                                               |
+| `@workerstack/backend/http/cache-control`   | `cacheControl`, `httpDate`                                                                                                                                                           |
+| `@workerstack/backend/http/compress`        | `compress`                                                                                                                                                                           |
+| `@workerstack/backend/http/etag`            | `etag`, `notModified`                                                                                                                                                                |
+| `@workerstack/backend/http/rate-limit`      | `rateLimit`, `memoryRateLimitStore`                                                                                                                                                  |
+| `@workerstack/backend/http/cors`            | `cors`                                                                                                                                                                               |
+| `@workerstack/backend/http/csrf`            | `csrf`                                                                                                                                                                               |
+| `@workerstack/backend/http/body-limit`      | `bodyLimit`                                                                                                                                                                          |
+| `@workerstack/backend/http/timeout`         | `timeout`                                                                                                                                                                            |
+| `@workerstack/backend/http/ip-restrict`     | `ipRestrict`, `ipAllowed`, `isIpRule`                                                                                                                                                |
+| `@workerstack/backend/http/request-id`      | `requestId`                                                                                                                                                                          |
+| `@workerstack/backend/http/secure-headers`  | `secureHeaders`                                                                                                                                                                      |
+| `@workerstack/backend/http/server-timing`   | `serverTiming`                                                                                                                                                                       |
+| `@workerstack/backend/http/powered-by`      | `poweredBy`                                                                                                                                                                          |
+| `@workerstack/backend/http/pretty-json`     | `prettyJson`                                                                                                                                                                         |
+| `@workerstack/backend/logger`               | `createLogger`                                                                                                                                                                       |
+| `@workerstack/backend/http/curl-logger`     | `curlLogger`, a request logged as a command that repeats it                                                                                                                          |
+| `@workerstack/backend/telemetry/otel`       | `otelAdapter`                                                                                                                                                                        |
+| `@workerstack/backend/http/static`          | `staticFiles`                                                                                                                                                                        |
+| `@workerstack/backend/http/proxy`           | `proxy`, a route that forwards to an upstream                                                                                                                                        |
+| `@workerstack/backend/http/accepts`         | `accepts`, content negotiation                                                                                                                                                       |
+| `@workerstack/backend/http/cookie`          | `serializeCookie`, `parseCookieHeader`                                                                                                                                               |
+| `@workerstack/backend/http/cookie-sign`     | `createCookieSigner`                                                                                                                                                                 |
+| `@workerstack/backend/crypto`               | `timingSafeEqual`                                                                                                                                                                    |
+| `@workerstack/backend/http/request-to-curl` | `requestToCurl`                                                                                                                                                                      |
+| `@workerstack/backend/http/testing`         | `testClient`, an app called in process                                                                                                                                               |
+| `@workerstack/backend/http/tree`            | the route tree's types                                                                                                                                                               |
+| `@workerstack/backend/plugin`               | `honeyPlugin()`, the Vite plugin that generates the app's artifacts                                                                                                                  |
+| `@workerstack/backend/build`                | `createBuildPlugin`, a production bundle for a deploy target                                                                                                                         |
 
-The root export's values: `honey()` and the `Honey` class behind it, `HoneyContext` and `HoneyRes` (the handler's
+`@workerstack/backend/http` exports `honey()` and the `Honey` class behind it, `HoneyContext` and `HoneyRes` (the handler's
 `ctx` and its `ctx.res`), `HoneyError`, `defineErrors` and `ERROR_META`, `definePreset` and `Preset`, `createMiddleware` and
 `mergeTree`.
 
 ## Type helpers
 
-Exported from `@workerstack/backend`, each over the app you built (`typeof app`). This is how a test, a client or a
+Exported from `@workerstack/backend/http`, each over the app you built (`typeof app`). This is how a test, a client or a
 helper of yours stays tied to the routes rather than to a copy of their shapes.
 
 ```ts
-import { honey, type InferRouteInput, type InferRoutePaths, type InferRoutes } from "@workerstack/backend"
+import { honey, type InferRouteInput, type InferRoutePaths, type InferRoutes } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const app = honey()

@@ -5,12 +5,12 @@ typed messages. `realtime(app, path, options)` from `@workerstack/backend/realti
 WebSocket, then SSE, then long-poll, with rooms and a publisher. `ctx.res.sse()` is a server-sent event stream, with
 `lastEventId` for resume and a keepalive.
 
-A WebSocket route needs the Workers adapter, `workersWebSocket()` from `@workerstack/backend/ws/workers`. The streaming page covers SSE producers in depth.
+A WebSocket route needs the Workers adapter, `workersWebSocket()` from `@workerstack/backend/ws`. The streaming page covers SSE producers in depth.
 
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { realtime } from "@workerstack/backend/realtime"
 import { ws } from "@workerstack/backend/ws"
 

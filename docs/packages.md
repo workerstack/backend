@@ -1,64 +1,61 @@
 # Package exports
 
 Each feature is a subpath: import what an app uses, and a bundle carries nothing else. An app that never imports
-`@workerstack/backend/ws` bundles no WebSocket code, and one that never imports `@workerstack/backend/openapi` no document
+`@workerstack/backend/ws` bundles no WebSocket code, and one that never imports `@workerstack/backend/http/openapi` no document
 generator.
 
 ## @workerstack/backend
 
-| Export                                 | What it holds                                                                                                                                       |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@workerstack/backend`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                                                  |
-| `@workerstack/backend/ws`              | `ws(app, path)`, a WebSocket route                                                                                                                  |
-| `@workerstack/backend/webhook`         | `webhookContract`, `signWebhook`, `SignedWebhook`, `WebhookContract`, `WebhookEvents`, `WebhookSignOptions`, `SignWebhookOptions`, `WebhookHeaders` |
-| `@workerstack/backend/cron`            | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`                                                              |
-| `@workerstack/backend/cron/workers`    | `workersCron`, `WorkersScheduledController`                                                                                                         |
-| `@workerstack/backend/queue`           | `queueContract`, `queueMessage`, `defineConsumer`, `deadLetter`, `QueueBodyError`, `QueueDeadLetter`, and their types                               |
-| `@workerstack/backend/queue/workers`   | `workersQueue`, `WorkersQueueOptions` and the binding's types                                                                                       |
-| `@workerstack/backend/user-agent`      | `parseUserAgent`, `ParsedUserAgent`, `DeviceType`                                                                                                   |
-| `@workerstack/backend/ws/workers`      | `workersWebSocket`                                                                                                                                  |
-| `@workerstack/backend/realtime`        | `realtime(app, path, options)`: a resumable connection over WebSocket, SSE and long-poll                                                            |
-| `@workerstack/backend/mcp`             | `mcp(app, path, handler, options?)`: the app's tools over MCP's Streamable HTTP, the handler `codegen.mcp` writes                                   |
-| `@workerstack/backend/mcp/oauth`       | `oauth(options)`: `mcp()`'s opt-in OAuth 2.1 resource server (RFC 9728 metadata, Bearer challenges)                                                 |
-| `@workerstack/backend/mcp/uploads`     | `uploads(options)`, `memoryUploadStore()`: `mcp()`'s opt-in out-of-band file uploads (the file-uploads extension's flow)                            |
-| `@workerstack/backend/mcp/url-files`   | `urlFiles(options)`: `mcp()`'s opt-in file arguments as https URLs from listed hosts                                                                |
-| `@workerstack/backend/openapi`         | `serveOpenApi`, `serveManifest`, `generateOpenApi`, `generateManifest`, `toYaml`                                                                    |
-| `@workerstack/backend/openapi/auth`    | `basic`, `credentialsMatch`: HTTP Basic in front of a served document and its docs pages                                                            |
-| `@workerstack/backend/openapi/scalar`  | `scalar`, the Scalar API reference page                                                                                                             |
-| `@workerstack/backend/openapi/static`  | `serveStaticOpenApi`: a document built ahead of time or living elsewhere, served without the generator                                              |
-| `@workerstack/backend/openapi/swagger` | `swagger`, the Swagger UI page                                                                                                                      |
-| `@workerstack/backend/i18n`            | `createErrorTranslator`, `translateError`                                                                                                           |
-| `@workerstack/backend/input`           | `streamed()`, a request body left unread for the handler                                                                                            |
-| `@workerstack/backend/range`           | `rangeResponse`, a `Range` request answered from bytes                                                                                              |
-| `@workerstack/backend/cache-control`   | `cacheControl`, `httpDate`                                                                                                                          |
-| `@workerstack/backend/compress`        | `compress`                                                                                                                                          |
-| `@workerstack/backend/etag`            | `etag`, `notModified`                                                                                                                               |
-| `@workerstack/backend/rate-limit`      | `rateLimit`, `memoryRateLimitStore`                                                                                                                 |
-| `@workerstack/backend/cors`            | `cors`                                                                                                                                              |
-| `@workerstack/backend/csrf`            | `csrf`                                                                                                                                              |
-| `@workerstack/backend/body-limit`      | `bodyLimit`                                                                                                                                         |
-| `@workerstack/backend/timeout`         | `timeout`                                                                                                                                           |
-| `@workerstack/backend/jwt`             | `signJwt`, `verifyJwt`, `remoteJwks`, `decodeJwtPayload`, `importPkcs8`, `isJwsAlgorithm`                                                           |
-| `@workerstack/backend/ip-restrict`     | `ipRestrict`, `ipAllowed`, `isIpRule`                                                                                                               |
-| `@workerstack/backend/request-id`      | `requestId`                                                                                                                                         |
-| `@workerstack/backend/secure-headers`  | `secureHeaders`                                                                                                                                     |
-| `@workerstack/backend/server-timing`   | `serverTiming`                                                                                                                                      |
-| `@workerstack/backend/powered-by`      | `poweredBy`                                                                                                                                         |
-| `@workerstack/backend/pretty-json`     | `prettyJson`                                                                                                                                        |
-| `@workerstack/backend/logger`          | `createLogger`                                                                                                                                      |
-| `@workerstack/backend/curl-logger`     | `curlLogger`, a request logged as a `curl` command                                                                                                  |
-| `@workerstack/backend/telemetry/otel`  | `otelAdapter`                                                                                                                                       |
-| `@workerstack/backend/static`          | `staticFiles`                                                                                                                                       |
-| `@workerstack/backend/proxy`           | `proxy`, a route that forwards to an upstream                                                                                                       |
-| `@workerstack/backend/accepts`         | `accepts`, content negotiation                                                                                                                      |
-| `@workerstack/backend/cookie`          | `serializeCookie`, `parseCookieHeader`                                                                                                              |
-| `@workerstack/backend/cookie-sign`     | `createCookieSigner`                                                                                                                                |
-| `@workerstack/backend/crypto`          | `timingSafeEqual`                                                                                                                                   |
-| `@workerstack/backend/request-to-curl` | `requestToCurl`                                                                                                                                     |
-| `@workerstack/backend/testing`         | `testClient`, an app called in process or over a runtime's `serve`                                                                                  |
-| `@workerstack/backend/tree`            | the route tree's types                                                                                                                              |
-| `@workerstack/backend/plugin`          | `honeyPlugin()`, the Vite plugin that generates the app's artifacts                                                                                 |
-| `@workerstack/backend/build`           | `createBuildPlugin`, a production bundle for a deploy target                                                                                        |
+| Export                                      | What it holds                                                                                                                                                                        |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@workerstack/backend/http`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                                                                                   |
+| `@workerstack/backend/ws`                   | `ws(app, path)`, a WebSocket route; `workersWebSocket`                                                                                                                               |
+| `@workerstack/backend/http/webhook`         | `webhookContract`, `signWebhook`, `SignedWebhook`, `WebhookContract`, `WebhookEvents`, `WebhookSignOptions`, `SignWebhookOptions`, `WebhookHeaders`                                  |
+| `@workerstack/backend/cron`                 | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`; `workersCron`, `WorkersScheduledController`                                                  |
+| `@workerstack/backend/queue`                | `queueContract`, `queueMessage`, `defineConsumer`, `deadLetter`, `QueueBodyError`, `QueueDeadLetter`, and their types; `workersQueue`, `WorkersQueueOptions` and the binding's types |
+| `@workerstack/backend/http/user-agent`      | `parseUserAgent`, `ParsedUserAgent`, `DeviceType`                                                                                                                                    |
+| `@workerstack/backend/realtime`             | `realtime(app, path, options)`: a resumable connection over WebSocket, SSE and long-poll                                                                                             |
+| `@workerstack/backend/mcp`                  | `mcp(app, path, handler, options?)`: the app's tools over MCP's Streamable HTTP, the handler `codegen.mcp` writes                                                                    |
+| `@workerstack/backend/mcp/oauth`            | `oauth(options)`: `mcp()`'s opt-in OAuth 2.1 resource server (RFC 9728 metadata, Bearer challenges)                                                                                  |
+| `@workerstack/backend/mcp/uploads`          | `uploads(options)`, `memoryUploadStore()`: `mcp()`'s opt-in out-of-band file uploads (the file-uploads extension's flow)                                                             |
+| `@workerstack/backend/mcp/url-files`        | `urlFiles(options)`: `mcp()`'s opt-in file arguments as https URLs from listed hosts                                                                                                 |
+| `@workerstack/backend/http/openapi`         | `serveOpenApi`, `serveManifest`, `generateOpenApi`, `generateManifest`, `toYaml`                                                                                                     |
+| `@workerstack/backend/http/openapi/auth`    | `basic`, `credentialsMatch`: HTTP Basic in front of a served document and its docs pages                                                                                             |
+| `@workerstack/backend/http/openapi/scalar`  | `scalar`, the Scalar API reference page                                                                                                                                              |
+| `@workerstack/backend/http/openapi/static`  | `serveStaticOpenApi`: a document built ahead of time or living elsewhere, served without the generator                                                                               |
+| `@workerstack/backend/http/openapi/swagger` | `swagger`, the Swagger UI page                                                                                                                                                       |
+| `@workerstack/backend/http/i18n`            | `createErrorTranslator`, `translateError`                                                                                                                                            |
+| `@workerstack/backend/http/input`           | `streamed()`, a request body left unread for the handler                                                                                                                             |
+| `@workerstack/backend/http/range`           | `rangeResponse`, a `Range` request answered from bytes                                                                                                                               |
+| `@workerstack/backend/http/cache-control`   | `cacheControl`, `httpDate`                                                                                                                                                           |
+| `@workerstack/backend/http/compress`        | `compress`                                                                                                                                                                           |
+| `@workerstack/backend/http/etag`            | `etag`, `notModified`                                                                                                                                                                |
+| `@workerstack/backend/http/rate-limit`      | `rateLimit`, `memoryRateLimitStore`                                                                                                                                                  |
+| `@workerstack/backend/http/cors`            | `cors`                                                                                                                                                                               |
+| `@workerstack/backend/http/csrf`            | `csrf`                                                                                                                                                                               |
+| `@workerstack/backend/http/body-limit`      | `bodyLimit`                                                                                                                                                                          |
+| `@workerstack/backend/http/timeout`         | `timeout`                                                                                                                                                                            |
+| `@workerstack/backend/http/jwt`             | `signJwt`, `verifyJwt`, `remoteJwks`, `decodeJwtPayload`, `importPkcs8`, `isJwsAlgorithm`                                                                                            |
+| `@workerstack/backend/http/ip-restrict`     | `ipRestrict`, `ipAllowed`, `isIpRule`                                                                                                                                                |
+| `@workerstack/backend/http/request-id`      | `requestId`                                                                                                                                                                          |
+| `@workerstack/backend/http/secure-headers`  | `secureHeaders`                                                                                                                                                                      |
+| `@workerstack/backend/http/server-timing`   | `serverTiming`                                                                                                                                                                       |
+| `@workerstack/backend/http/powered-by`      | `poweredBy`                                                                                                                                                                          |
+| `@workerstack/backend/http/pretty-json`     | `prettyJson`                                                                                                                                                                         |
+| `@workerstack/backend/logger`               | `createLogger`                                                                                                                                                                       |
+| `@workerstack/backend/http/curl-logger`     | `curlLogger`, a request logged as a `curl` command                                                                                                                                   |
+| `@workerstack/backend/telemetry/otel`       | `otelAdapter`                                                                                                                                                                        |
+| `@workerstack/backend/http/static`          | `staticFiles`                                                                                                                                                                        |
+| `@workerstack/backend/http/proxy`           | `proxy`, a route that forwards to an upstream                                                                                                                                        |
+| `@workerstack/backend/http/accepts`         | `accepts`, content negotiation                                                                                                                                                       |
+| `@workerstack/backend/http/cookie`          | `serializeCookie`, `parseCookieHeader`                                                                                                                                               |
+| `@workerstack/backend/http/cookie-sign`     | `createCookieSigner`                                                                                                                                                                 |
+| `@workerstack/backend/crypto`               | `timingSafeEqual`                                                                                                                                                                    |
+| `@workerstack/backend/http/request-to-curl` | `requestToCurl`                                                                                                                                                                      |
+| `@workerstack/backend/http/testing`         | `testClient`, an app called in process or over a runtime's `serve`                                                                                                                   |
+| `@workerstack/backend/http/tree`            | the route tree's types                                                                                                                                                               |
+| `@workerstack/backend/plugin`               | `honeyPlugin()`, the Vite plugin that generates the app's artifacts                                                                                                                  |
+| `@workerstack/backend/build`                | `createBuildPlugin`, a production bundle for a deploy target                                                                                                                         |
 
 ## @workerstack/clients
 
@@ -68,11 +65,11 @@ The generator's exports are listed in [its own README](https://github.com/worker
 ## Utilities
 
 ```ts
-import { accepts } from "@workerstack/backend/accepts"
-import { serializeCookie } from "@workerstack/backend/cookie"
-import { createCookieSigner } from "@workerstack/backend/cookie-sign"
+import { accepts } from "@workerstack/backend/http/accepts"
+import { serializeCookie } from "@workerstack/backend/http/cookie"
+import { createCookieSigner } from "@workerstack/backend/http/cookie-sign"
 import { timingSafeEqual } from "@workerstack/backend/crypto"
-import { requestToCurl } from "@workerstack/backend/request-to-curl"
+import { requestToCurl } from "@workerstack/backend/http/request-to-curl"
 
 declare const req: Request
 declare const SECRET: string
@@ -95,7 +92,7 @@ const curl = await requestToCurl(req, { excludeHeader: (name) => name === "autho
 
 ## Type helpers
 
-Exported from `@workerstack/backend`, each over the app you built (`typeof app`):
+Exported from `@workerstack/backend/http`, each over the app you built (`typeof app`):
 
 | Type                                         | What it describes                                                |
 | -------------------------------------------- | ---------------------------------------------------------------- |

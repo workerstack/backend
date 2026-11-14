@@ -64,7 +64,7 @@ media types, build the answer with `ctx.res`.
 ## Example
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend"
+import { defineErrors, honey } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const errors = defineErrors({})
@@ -95,7 +95,7 @@ rows were cut to; the check then accepts a row without a field the selection lef
 a selected field that is missing, or a missing envelope field.
 
 ```ts
-import { honey, type Selection } from "@workerstack/backend"
+import { honey, type Selection } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const app = honey()

@@ -13,7 +13,15 @@ describe("the workers runtime's public name", () => {
 	it("no subpath names the company", () => {
 		const { exports } = JSON.parse(read("package.json")) as { exports: Record<string, unknown> }
 		expect(Object.keys(exports).filter((subpath) => /cloudflare|(^|\/)cf($|\/)/.test(subpath))).toEqual([])
-		expect(Object.keys(exports)).toContain("./ws/workers")
+	})
+
+	it("./ws exports the Workers adapter beside the route", async () => {
+		const { exports } = JSON.parse(read("package.json")) as { exports: Record<string, unknown> }
+		expect(Object.keys(exports)).toContain("./ws")
+		expect(Object.keys(exports)).not.toContain("./ws/workers")
+		const surface = (await import("../../src/ws/ws-subpath.ts")) as Record<string, unknown>
+		expect(typeof surface.workersWebSocket).toBe("function")
+		expect(typeof surface.ws).toBe("function")
 	})
 
 	it("the adapter carries the name", () => {

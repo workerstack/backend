@@ -36,7 +36,7 @@ const REFUSALS = [
 /** A module declaring one route with `output`. */
 const fixture = (output: string) =>
 	[
-		'import { honey } from "@workerstack/backend"',
+		'import { honey } from "@workerstack/backend/http"',
 		'import * as z from "zod"',
 		"const row = z.object({ x: z.string() })",
 		`honey().get("/x").output(${output})`,

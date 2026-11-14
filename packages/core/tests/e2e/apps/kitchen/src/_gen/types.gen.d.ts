@@ -1,10 +1,10 @@
-import type { HoneyContext, WithOutput, HoneyError } from "@workerstack/backend"
+import type { HoneyContext, WithOutput, HoneyError } from "@workerstack/backend/http"
 
 export type BaseCtx = HoneyContext<Record<string, unknown>> & { requestId: string }
 
 export type RouteSelector = "ALL /api/echo" | "DELETE /api/v1/organizations/:orgId" | "GET /api" | "GET /api/boundary/custom" | "GET /api/boundary/default" | "GET /api/events" | "GET /api/events-live" | "GET /api/health" | "GET /api/v1/organizations" | "GET /api/v1/organizations/:orgId" | "POST /api/realtime/broadcast/:topic" | "POST /api/v1/organizations"
 
-declare module "@workerstack/backend" {
+declare module "@workerstack/backend/http" {
 	interface HoneyCodegen {
 		routeSelector: RouteSelector
 	}

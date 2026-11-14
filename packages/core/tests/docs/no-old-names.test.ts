@@ -78,7 +78,7 @@ describe("the docs name no removed name (bit 21 i7d)", () => {
 		const files = filesUnder(DOCS)
 		expect({ exempt: files.includes(EXEMPT), pages: files.filter((file) => file.endsWith(".md")).length }).toEqual({
 			exempt: true,
-			pages: 32,
+			pages: 33,
 		})
 	})
 

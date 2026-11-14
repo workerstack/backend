@@ -58,7 +58,7 @@ const REDIRECTS = [
 
 /** The fixture: a custom media type and a typo that must compile, then the call completions are asked inside. */
 const PRELUDE = [
-	'import { honey } from "@workerstack/backend"',
+	'import { honey } from "@workerstack/backend/http"',
 	'import * as z from "zod"',
 	"const row = z.object({ x: z.string() })",
 	'const route = honey().get("/x")',
