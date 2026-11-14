@@ -8,7 +8,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { CLIENTS, CLIENTS_PIN, CORE, consumer, pack, REPO, run, scratch, write } from "./fixture/packed.ts"
+import { CLIENTS, CORE, consumer, pack, REPO, run, scratch, write } from "./fixture/packed.ts"
+import { shippedManifest } from "../../../../scripts/pack.ts"
 import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 
 const TSC = join(REPO, "node_modules/typescript/bin/tsc")
@@ -112,21 +113,24 @@ afterAll(() => files.done())
 
 describe.sequential("the tarball, installed (bit 19 i)", () => {
 	it(
-		"publishes a manifest with no workspace: or catalog: specifier, each dev pin at its repo version",
+		"publishes a manifest with no devDependencies and no workspace:, catalog:, file:, link: or git specifier",
 		{ timeout: SPAWN_TIMEOUT },
 		() => {
-			const { name, ...fields } = JSON.parse(run("tar", ["-xOzf", tarball, "package/package.json"], files.out).out) as {
-				devDependencies: Record<string, string>
+			const published = JSON.parse(run("tar", ["-xOzf", tarball, "package/package.json"], files.out).out) as {
+				devDependencies?: Record<string, string>
 				name: string
-			}
-			const unresolved = JSON.stringify(fields).match(/"(?:workspace|catalog):[^"]*"/g) ?? []
-			/* the clients pin is read from the checkout rather than written here, so a dependency bump needs no edit */
-			expect([
-				name,
-				unresolved,
-				fields.devDependencies["@workerstack/clients"],
-				fields.devDependencies.typescript,
-			]).toEqual(["@workerstack/backend", [], CLIENTS_PIN, "7.0.2"])
+			} & Record<string, unknown>
+			/* a consumer never installs devDependencies, and a vendored file: pin names a tarball no install can reach */
+			const specs = ["dependencies", "optionalDependencies", "peerDependencies"].flatMap((field) =>
+				Object.values((published[field] ?? {}) as Record<string, string>),
+			)
+			const unresolved = specs.filter((spec) => /^(?:workspace|catalog|file|link|git(?:\+[a-z]+)?|github):/.test(spec))
+			expect([published.name, specs.length > 0, unresolved, published.devDependencies]).toEqual([
+				"@workerstack/backend",
+				true,
+				[],
+				undefined,
+			])
 		},
 	)
 
@@ -249,5 +253,32 @@ describe("the shipped backend bin picks what it runs (bit 19 i)", () => {
 
 	it("on Bun in an installed package runs dist/ too: the tarball ships no source", { timeout: SPAWN_TIMEOUT }, () => {
 		expect(runBin("bun", binLayout(false))).toBe("dist")
+	})
+})
+
+describe("the packed manifest refuses a spec no install can reach", () => {
+	it("names the field, the dependency and its spec for file:, link: and git specs, and keeps a registry range", () => {
+		const base = { name: "@workerstack/backend", version: "1.0.0" }
+		const refusal = (field: string, spec: string) => {
+			try {
+				shippedManifest({ ...base, [field]: { x: spec } })
+				return "packed"
+			} catch (error) {
+				return (error as Error).message
+			}
+		}
+		expect([
+			refusal("dependencies", "file:vendor/x.tgz"),
+			refusal("peerDependencies", "link:../x"),
+			refusal("optionalDependencies", "git+https://example.com/x.git"),
+			refusal("peerDependencies", ">=1.0.0-rc.27"),
+			refusal("devDependencies", "file:vendor/x.tgz"),
+		]).toEqual([
+			'pack: @workerstack/backend dependencies.x is "file:vendor/x.tgz"; a published manifest names only registry versions',
+			'pack: @workerstack/backend peerDependencies.x is "link:../x"; a published manifest names only registry versions',
+			'pack: @workerstack/backend optionalDependencies.x is "git+https://example.com/x.git"; a published manifest names only registry versions',
+			"packed",
+			"packed",
+		])
 	})
 })

@@ -43,7 +43,7 @@
     },
     "packages/core": {
       "name": "@workerstack/backend",
-      "version": "1.0.0-rc.26",
+      "version": "1.0.0-rc.28",
       "bin": {
         "backend": "bin/backend.js",
       },

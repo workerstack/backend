@@ -12,7 +12,7 @@ import { dirname, join, resolve } from "node:path"
 export const CORE = resolve(import.meta.dirname, "../../..")
 export const REPO = resolve(CORE, "../..")
 /** The clients specifier core's package.json pins, as written there. */
-export const CLIENTS_PIN = (
+const CLIENTS_PIN = (
 	JSON.parse(readFileSync(join(CORE, "package.json"), "utf8")) as { devDependencies: Record<string, string> }
 ).devDependencies["@workerstack/clients"] as string
 /** That pin as a consumer outside the repo installs it: a `file:` tarball resolved against core, else the npm range. */
