@@ -30,11 +30,9 @@ Every public export of both packages, tagged **KEEP** (re-homed and split, behav
 | `./jwt` | NEW | |
 | `./webhook` | NEW | |
 | `./user-agent` | NEW | |
-| `./cron`, `./cron/serve`, `./cron/workers` | NEW | |
-| `./queue`, `./queue/serve`, `./queue/workers` | NEW | |
+| `./cron`, `./cron/workers` | NEW | |
+| `./queue`, `./queue/workers` | NEW | |
 | `./logger` | KEEP | the only `console` owner |
-| `./node` | KEEP, MODIFY (plan 39 6.4) | Node adapter: async `serve(app, options)` → `ServeHandle<http.Server>` |
-| `./bun` | ADD (plan 39 6.4) | Bun adapter: async `serve(app, options)` → `ServeHandle` with Bun's `Server` |
 | `./openapi`, `./openapi/scalar`, `./openapi/swagger` | MODIFY [B1,B2,B3] | configurable `servers` + variables, `tags`/`externalDocs`, `webhooks` |
 | `./openapi/spec` | DELETE (bit 19 i) | v0's `spec()` handler is `serveOpenApi` on `./openapi` |
 | `./plugin` | KEEP | |
@@ -42,10 +40,10 @@ Every public export of both packages, tagged **KEEP** (re-homed and split, behav
 | `./proxy` | MODIFY [H15] | Deno branch removed |
 | `./realtime` | MODIFY [H8] | SSE declared-schema typing + uniform reconnect; reference resume server ships |
 | `./secure-headers` | KEEP | |
-| `./serve` | DELETE (plan 39 6.4) | Deno runtime removed [H15], then the detecting entry itself: a server imports `./node` or `./bun`; `detectRuntime` leaves the root and stays internal for the request log |
+| `./serve` | DELETE (plan 39 6.4) | Deno runtime removed [H15], then the detecting entry itself: an app is the Worker: `export default app` |
 | `./static` | MODIFY [A3] | Range / 206 / `Accept-Ranges` |
 | `./telemetry/otel` | KEEP | |
-| `./testing` | KEEP (bit 20 a) | `testClient`, with the types `TestClient`, `TestClientOptions` and `TestRequestOptions` (src/testing/testing.ts); v0's `transport: "node"` is `transport: "serve"` |
+| `./testing` | KEEP (bit 20 a) | `testClient`, with the types `TestClient`, `TestClientOptions` and `TestRequestOptions` (src/testing/testing.ts) in process |
 | `./trust` | DELETE [H23] | `trustProxy` is cut; `ctx.ip` is the platform peer |
 | `./tree` | KEEP | |
 | `./ws` | ADD (bit 19 i2) | `ws(app, path)` → the WS route builder, plus the types `WsRouteOf` and `AnyHoneyHandle`; replaces the `app.ws(path)` method, so an app that opens no socket bundles no WS route code |
@@ -53,7 +51,7 @@ Every public export of both packages, tagged **KEEP** (re-homed and split, behav
 | `./mcp/oauth` | ADD (bit 21 f) | `oauth(options)` (type `McpOAuthOptions`) → the opt-in OAuth 2.1 resource-server role for `mcp()`: RFC 9728 protected-resource metadata, 401 `Bearer resource_metadata` and 403 step-up challenges; no authorization server, no token validation; a mount without it carries none of it |
 | `./mcp/uploads` | ADD (bit 21 g) | `uploads(options)`, `memoryUploadStore()`, the `UploadStore` contract (`claim`, `put`, `take`) and `McpUploadsOptions` → out-of-band file uploads for `mcp()` (the files extension's MRTR flow, 2026-07-28): one-shot, scoped, expiring HMAC tokens bound to the forwarded credential; a mount without it carries none of it |
 | `./mcp/url-files` | ADD (bit 21 g) | `urlFiles(options)` and `McpUrlFilesOptions` → an opt-in `{url}` file value for `mcp()`: an exact-host (or explicit `*.`) allowlist, https only, no redirect followed, a streamed size cap, a timeout, IP literals refused; off unless imported |
-| `./ws/bun`, `./ws/workers`, `./ws/node`, `./ws/session` | KEEP | |
+| `./ws/workers` | KEEP | |
 | `./ws/deno` | DELETE [H15] | |
 
 ### Added to `@lovrozagar/honey`

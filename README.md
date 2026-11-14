@@ -1,7 +1,7 @@
 # Honey
 
 A typed web framework for the Fetch API whose routes are the source of its clients. You write a route once, with its
-input and output schemas; honey serves it on Node, Bun or Cloudflare Workers, and `honey-clients` turns the same
+input and output schemas; honey runs it on Cloudflare Workers, and `honey-clients` turns the same
 routes into an OpenAPI 3.1 document, typed SDKs for six languages, a command-line client and an MCP server.
 
 Nothing is inferred at runtime: the schemas you declare are what the handler receives, what the document says, and

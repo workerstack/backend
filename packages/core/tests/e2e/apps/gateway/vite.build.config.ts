@@ -2,9 +2,6 @@ import { createBuildPlugin } from "@workerstack/backend/build"
 import { defaultClientConditions, defaultServerConditions } from "vite"
 import base from "./vite.config.ts"
 
-/** Deploy target, set by packages/core/tests/e2e/run-build.ts. Defaults to node for a bare `vite build`. */
-const target = (process.env.HONEY_BUILD_TARGET ?? "node") as "bun" | "workers" | "node"
-
 /* the app's own config supplies honey() codegen — the build goes through the real path */
 export default {
 	...base,
@@ -15,8 +12,8 @@ export default {
 	plugins: [
 		...(base.plugins ?? []),
 		createBuildPlugin(
-			{ minify: true, outDir: `dist/${target}`, target },
-			{ entry: `src/serve-entry.${target}.ts`, export: "app" },
+			{ minify: true, outDir: "dist/workers", target: "workers" },
+			{ entry: "src/serve-entry.workers.ts", export: "app" },
 		),
 	],
 }

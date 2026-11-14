@@ -9,8 +9,8 @@ packages/core/
   src/
     routing/        route model, pattern, tree, request-path, finalize, dispatch (splits v0 index.ts 3,829 + tree.ts 558)
     context/        HoneyContext, ctx builders, cookies, cookie-sign, user-agent
-    cron/           expression, define, run, workers, serve
-    queue/          define, deliver, workers, serve, memory-store
+    cron/           expression, define, run, workers
+    queue/          define, deliver, workers
     input/          input, params, query, headers, json, form, binary (A1); body-limit/kind, accepts
     validation/     validate-input, validate-output, content-type (the standard-schema runners)
     response/       response, builder (ex honey-response), media-type, binary (A1), sse, range (A3), etag + last-modified (A4), cache-control (A4), with-headers, response-headers (A2), static
@@ -18,7 +18,7 @@ packages/core/
     middleware/     middleware core; cors, secure-headers, csrf, rate-limit (A5), compress (A6), request-id, timeout, server-timing, powered-by, ip-restrict
     streaming/      producer-stream
     realtime/       bus, route, server, register, reference-server (H8)
-    ws/             node, bun, cloudflare, session, shared, origin (deno deleted — H15)
+    ws/             workers, session, shared, origin (node, bun and deno deleted — H15, D16)
     openapi/        collect, generate, manifest, extract-schemas, document, paths, components, security, servers (B1), tags (B2), webhooks (B3), spec-factory, spec, scalar, swagger, docs-page, serve, json-schema-slot, register
     schema/         standard-schema → JSON Schema (zod/valibot/arktype/yup/effect), slots/hoist/dedup, canonicalize, resolve-refs, sanitize-spec (split from v0 codegen.ts)
     meta/           meta-spec, meta-spec-merge, meta-spec-validate
@@ -26,11 +26,7 @@ packages/core/
     security/       crypto, jws, jwks, jwt, webhook
     i18n/           i18n, slot, dict
     observability/  curl-logger, request-to-curl
-    adapters/
-      node/         serve, request (node:* allowed)
-      bun/          bun serve (Bun allowed)
-      workers/      cf serve (Workers runtime)
-    runtime/        detect-runtime, feature-detect/load/slots, peer (deno branches removed)
+    adapters/       fetch-request (a foreign Request subclass to a native one)
     telemetry/      logger (the only console owner; ex "./logger"), request-log, otel, traceparent, span-lifecycle, fields
     build/          plugin, loaders, cli, cli-args, glob, yaml, targets, index
     testing/        the testing helper

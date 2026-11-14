@@ -6,9 +6,7 @@
  * identical to an unconfigured server's, every line and span where the contract puts it, and no
  * query or credential in any of them.
  */
-import type { AddressInfo } from "node:net"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { type HoneyServer, createNodeServer } from "../../../src/adapters/node/server.ts"
 import { requestId } from "../../../src/middleware/request-id.ts"
 import { proxy } from "../../../src/proxy/proxy.ts"
 import { realtime } from "../../../src/realtime/realtime.ts"
@@ -54,9 +52,7 @@ function openingAdapter() {
 const handshake = (path: string) =>
 	new Request(`https://app.example.com${path}`, { headers: { connection: "Upgrade", upgrade: "websocket" } })
 
-const servers: HoneyServer[] = []
-afterEach(async () => {
-	await Promise.all(servers.splice(0).map((server) => server.shutdown(0)))
+afterEach(() => {
 	vi.restoreAllMocks()
 })
 
@@ -91,7 +87,7 @@ describe("the app logger reaches the ws and realtime sessions", () => {
 	})
 })
 
-describe("the app logger reaches the request's producers, background tasks and the bridge", () => {
+describe("the app logger reaches the request's producers, background tasks and an unfinished app", () => {
 	// v0: 739857836c
 	it("an SSE or stream producer that fails after its body started", async () => {
 		const { lines, logger } = recording()
@@ -123,22 +119,16 @@ describe("the app logger reaches the request's producers, background tasks and t
 		])
 	})
 
-	it("the Node bridge: a failure it answers with 500 goes to the app logger, never to process warnings", async () => {
-		const { lines, logger } = recording()
+	it("an unfinished builder: the app refuses to serve, the request fails with the refusal and no process warning", async () => {
 		const warning = vi.spyOn(process, "emitWarning")
-		const app = honey<{}>().logger(logger)
+		const app = honey<{}>().logger(false)
 		app.get("/page").handler((ctx) => ctx.res.text("ok", "x"))
-		/* a builder left without .handler() makes the app refuse to serve: the bridge answers 500 */
+		/* a builder left without .handler() makes the app refuse to serve */
 		app.get("/unfinished")
-		const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-		servers.push(server)
-		await new Promise((resolve) => server.once("listening", resolve))
-		const res = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/page`)
-		expect([res.status, summary(lines), warning.mock.calls]).toEqual([
-			500,
-			[["serve failed", null, expect.stringContaining("never got a .handler()")]],
-			[],
-		])
+		await expect(async () => app.fetch(new Request("http://localhost/page"), {})).rejects.toThrow(
+			"GET /unfinished was declared but never got a .handler()",
+		)
+		expect(warning.mock.calls).toEqual([])
 	})
 })
 

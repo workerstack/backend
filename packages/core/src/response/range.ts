@@ -1,11 +1,10 @@
 /**
  * Range requests (A3, RFC 9110 §14): `rangeResponse` answers one satisfiable byte range with 206,
  * a range past the end with 416, and everything else with the whole body. A plain helper:
- * `staticFiles` and routes call it with the request. On the Node bridge each answer is a
- * HoneyResponse, so the header middleware in front of it stay on the plain map.
+ * `staticFiles` and routes call it with the request.
  */
 import { dict } from "../routing/tree.ts"
-import { createHoneyResponse, isNodeOutbound, withRawBody } from "./builder.ts"
+import { withRawBody } from "./builder.ts"
 
 /** A body that can hand out any byte span without reading the rest. */
 export type RangeSource = {
@@ -79,12 +78,8 @@ function headersFor(body: RangeBody, init: RangeInit | undefined): Record<string
 	return headers
 }
 
-/** One answer, built the way the bridge it goes out over writes it fastest; bytes are kept as its raw body. */
-function answer(request: Request, part: Part | null, headers: Record<string, string>, status: number): Response {
-	if (isNodeOutbound(request)) {
-		if (part === null || part instanceof Uint8Array) return createHoneyResponse({ headers, raw: part, status })
-		return createHoneyResponse({ headers, status, stream: part instanceof Blob ? part.stream() : part })
-	}
+/** One answer; bytes are kept as its raw body. */
+function answer(part: Part | null, headers: Record<string, string>, status: number): Response {
 	/* as pairs, not a record: Node's Headers drops a record key named __proto__ */
 	const response = new Response(part, { headers: Object.entries(headers), status })
 	return part instanceof Uint8Array ? withRawBody(response, part) : response
@@ -94,8 +89,8 @@ function answer(request: Request, part: Part | null, headers: Record<string, str
 function whole(request: Request, body: RangeBody, headers: Record<string, string>): Response {
 	const size = sizeOf(body)
 	headers["content-length"] = String(size)
-	if (request.method === "HEAD" || size === 0) return answer(request, null, headers, 200)
-	return answer(request, body instanceof Uint8Array ? body : slice(body, { end: size - 1, start: 0 }), headers, 200)
+	if (request.method === "HEAD" || size === 0) return answer(null, headers, 200)
+	return answer(body instanceof Uint8Array ? body : slice(body, { end: size - 1, start: 0 }), headers, 200)
 }
 
 /**
@@ -114,9 +109,9 @@ export function rangeResponse(request: Request, body: RangeBody, init?: RangeIni
 	if (span === null) return whole(request, body, headers)
 	if (span === "unsatisfiable") {
 		headers["content-range"] = `bytes */${size}`
-		return answer(request, null, headers, 416)
+		return answer(null, headers, 416)
 	}
 	headers["content-range"] = `bytes ${span.start}-${span.end}/${size}`
 	headers["content-length"] = String(span.end - span.start + 1)
-	return answer(request, slice(body, span), headers, 206)
+	return answer(slice(body, span), headers, 206)
 }

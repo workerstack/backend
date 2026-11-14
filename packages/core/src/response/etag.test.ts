@@ -1,7 +1,5 @@
-import type { AddressInfo } from "node:net"
-import { afterEach, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { type HoneyServer, createNodeServer } from "../adapters/node/server.ts"
 import { HoneyError } from "../errors/error.ts"
 import { bodyLimit } from "../input/body-limit.ts"
 import { cors } from "../middleware/cors.ts"
@@ -11,20 +9,11 @@ import { serverTiming } from "../middleware/server-timing.ts"
 import { honey } from "../routing/app.ts"
 import { etag, ifNoneMatchHits } from "./etag.ts"
 
-const servers: HoneyServer[] = []
-
-afterEach(async () => {
-	await Promise.all(servers.splice(0).map((server) => server.shutdown(0)))
-})
-
 type App = { fetch(request: Request, env: {}): Response | Promise<Response> }
 
-/** Serve `app` on a free loopback port; the base URL to reach it. */
-async function listen(app: App): Promise<string> {
-	const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-	servers.push(server)
-	await new Promise((resolve) => server.once("listening", resolve))
-	return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+/** `app` answering `path` in process. */
+function send(app: App, path: string, init?: RequestInit): Promise<Response> | Response {
+	return app.fetch(new Request(`http://localhost${path}`, init), {})
 }
 
 const get = (path: string, headers?: Record<string, string>, method = "GET") =>
@@ -206,7 +195,7 @@ describe("etag: a stream is never buffered", () => {
 
 	// v0: 448426b1ab
 	// v0: 23beeac98c
-	it("a generated or written stream arrives whole on the wire", async () => {
+	it("a generated or written stream arrives whole", async () => {
 		const app = honey<{}>().use(etag())
 		app.get("/gen").handler((ctx) =>
 			ctx.res.generate(
@@ -224,8 +213,7 @@ describe("etag: a stream is never buffered", () => {
 				await writer.close()
 			}),
 		)
-		const base = await listen(app)
-		const bodies = await Promise.all(["/gen", "/written"].map(async (path) => (await fetch(`${base}${path}`)).text()))
+		const bodies = await Promise.all(["/gen", "/written"].map(async (path) => (await send(app, `${path}`)).text()))
 		expect(bodies).toEqual(["chunk1chunk2", "streamed"])
 	})
 })
@@ -310,10 +298,9 @@ describe("etag beside other middleware", () => {
 			.use(etag())
 			.use(secureHeaders())
 		app.get("/data").handler((ctx) => ctx.res.json("ok", { message: "Hello" }))
-		const base = await listen(app)
-		const first = await fetch(`${base}/data`, { headers: { origin: "http://app.com" } })
+		const first = await send(app, "/data", { headers: { origin: "http://app.com" } })
 		const tag = first.headers.get("etag") ?? ""
-		const second = await fetch(`${base}/data`, { headers: { "if-none-match": tag, origin: "http://app.com" } })
+		const second = await send(app, "/data", { headers: { "if-none-match": tag, origin: "http://app.com" } })
 		expect([
 			[first.status, WEAK.test(tag), ...named(first), await first.json()],
 			[second.status, second.headers.get("etag") === tag, ...named(second), await second.text()],
@@ -335,16 +322,15 @@ describe("etag beside other middleware", () => {
 			.input({ json: z.object({ key: z.string() }) })
 			.handler((ctx) => ctx.res.json("created", ctx.input.json))
 		app.get("/api").handler((ctx) => ctx.res.json("ok", { data: true }))
-		const base = await listen(app)
 		const origin = { origin: "http://app.com" }
-		const posted = await fetch(`${base}/api`, {
+		const posted = await send(app, "/api", {
 			body: '{"key":"value"}',
 			headers: { ...origin, "content-type": "application/json" },
 			method: "POST",
 		})
-		const got = await fetch(`${base}/api`, { headers: origin })
+		const got = await send(app, "/api", { headers: origin })
 		const tag = got.headers.get("etag") ?? ""
-		const again = await fetch(`${base}/api`, { headers: { ...origin, "if-none-match": tag } })
+		const again = await send(app, "/api", { headers: { ...origin, "if-none-match": tag } })
 		expect([
 			[
 				posted.status,
@@ -358,7 +344,7 @@ describe("etag beside other middleware", () => {
 	})
 })
 
-describe("etag on the wire", () => {
+describe("etag through the whole stack", () => {
 	// v0: b43feb38d8
 	// v0: 414a75178f
 	// v0: ccaf6c7013
@@ -372,10 +358,9 @@ describe("etag on the wire", () => {
 				cookies: { session: { httpOnly: true, path: "/", value: "tok-1" }, theme: { path: "/", value: "dark" } },
 			}),
 		)
-		const base = await listen(app)
-		const first = await fetch(`${base}/health`)
+		const first = await send(app, "/health")
 		const tag = first.headers.get("etag") ?? ""
-		const second = await fetch(`${base}/health`, { headers: { "if-none-match": tag } })
+		const second = await send(app, "/health", { headers: { "if-none-match": tag } })
 		expect([
 			first.status,
 			WEAK.test(tag),
@@ -402,8 +387,7 @@ describe("etag on the wire", () => {
 	it("HEAD gets the tag GET gets, and no body", async () => {
 		const app = honey<{}>().use(etag())
 		app.get("/data").handler((ctx) => ctx.res.json("ok", { items: [1, 2, 3] }))
-		const base = await listen(app)
-		const [got, head] = await Promise.all([fetch(`${base}/data`), fetch(`${base}/data`, { method: "HEAD" })])
+		const [got, head] = await Promise.all([send(app, "/data"), send(app, "/data", { method: "HEAD" })])
 		expect([
 			head.status,
 			WEAK.test(head.headers.get("etag") ?? ""),

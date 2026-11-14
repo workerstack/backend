@@ -9,21 +9,14 @@ generator.
 | Export                                 | What it holds                                                                                                                                       |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@workerstack/backend`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                                                  |
-| `@workerstack/backend/node`            | `serve(app, options)` on Node's `node:http`                                                                                                         |
-| `@workerstack/backend/bun`             | `serve(app, options)` on `Bun.serve`                                                                                                                |
 | `@workerstack/backend/ws`              | `ws(app, path)`, a WebSocket route                                                                                                                  |
-| `@workerstack/backend/ws/bun`          | `bunWebSocket`                                                                                                                                      |
-| `@workerstack/backend/ws/node`         | `nodeWebSocket` (with the optional `ws` peer)                                                                                                       |
 | `@workerstack/backend/webhook`         | `webhookContract`, `signWebhook`, `SignedWebhook`, `WebhookContract`, `WebhookEvents`, `WebhookSignOptions`, `SignWebhookOptions`, `WebhookHeaders` |
 | `@workerstack/backend/cron`            | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`                                                              |
-| `@workerstack/backend/cron/serve`      | `serveCron`, `ServeCronOptions`, `CronHandle`, `CronFailure`                                                                                        |
 | `@workerstack/backend/cron/workers`    | `workersCron`, `WorkersScheduledController`                                                                                                         |
 | `@workerstack/backend/queue`           | `queueContract`, `queueMessage`, `defineConsumer`, `deadLetter`, `QueueBodyError`, `QueueDeadLetter`, and their types                               |
-| `@workerstack/backend/queue/serve`     | `serveQueue`, `memoryQueueStore`, `QueueStore`, `ServeQueueOptions`, `QueueHandle`, `QueueFailure` and the store's types                            |
 | `@workerstack/backend/queue/workers`   | `workersQueue`, `WorkersQueueOptions` and the binding's types                                                                                       |
 | `@workerstack/backend/user-agent`      | `parseUserAgent`, `ParsedUserAgent`, `DeviceType`                                                                                                   |
 | `@workerstack/backend/ws/workers`      | `workersWebSocket`                                                                                                                                  |
-| `@workerstack/backend/ws/session`      | `createWsSession`: the session runtime a custom WebSocket adapter builds on                                                                         |
 | `@workerstack/backend/realtime`        | `realtime(app, path, options)`: a resumable connection over WebSocket, SSE and long-poll                                                            |
 | `@workerstack/backend/mcp`             | `mcp(app, path, handler, options?)`: the app's tools over MCP's Streamable HTTP, the handler `codegen.mcp` writes                                   |
 | `@workerstack/backend/mcp/oauth`       | `oauth(options)`: `mcp()`'s opt-in OAuth 2.1 resource server (RFC 9728 metadata, Bearer challenges)                                                 |

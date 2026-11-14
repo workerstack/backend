@@ -147,24 +147,6 @@ test.describe("Realtime", () => {
 		await Promise.all([ws1.waitForClose(), ws2.waitForClose()])
 	})
 
-	test("REST publish reaches a subscribed chat connection", async ({ request }) => {
-		test.skip(
-			process.env.HONEY_E2E_ENV === "cf",
-			"workerd isolates do not share the in-memory realtime bus; live CF needs a Durable Object",
-		)
-		const ws = connectRealtime("/api/realtime/chat/room-42")
-		await ws.waitForFrames(1)
-		const pub = await request.post("/api/realtime/broadcast/room:default", {
-			data: { from: "rest", text: "hello-room" },
-		})
-		expect(pub.status()).toBe(200)
-		const frames = await ws.waitForFrames(2)
-		const last = frames[1] as Record<string, unknown>
-		expect(JSON.stringify(last)).toContain("hello-room")
-		ws.close(1000)
-		await ws.waitForClose()
-	})
-
 	test("clean close with code 1000", async () => {
 		const ws = connectRealtime("/api/realtime/echo")
 		await ws.waitForFrames(1)

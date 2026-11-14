@@ -4,9 +4,7 @@
  * running); SSE framing and Last-Event-ID resume; rangeResponse from a route; HEAD never starts
  * a producer; streams stay independent of each other and of other requests.
  */
-import { type AddressInfo, connect } from "node:net"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { createNodeServer } from "../../src/adapters/node/server.ts"
 import { rangeResponse } from "../../src/response/range.ts"
 import type { SSEStream } from "../../src/response/sse.ts"
 import { honey } from "../../src/routing/app.ts"
@@ -180,32 +178,21 @@ function endlessApp() {
 	return { app, finished }
 }
 
-describe("a stream ends when its client drops the socket", () => {
+describe("a stream ends when its client leaves", () => {
 	// v0: 6e66defcb5
-	it("stream(), generate() and sse() each run their finally after a real socket drops mid-stream", async () => {
+	it("stream(), generate() and sse() each run their finally after the client cancels mid-stream", async () => {
 		const { app, finished } = endlessApp()
-		const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-		await new Promise((resolve) => server.once("listening", resolve))
-		const { port } = server.address() as AddressInfo
-		try {
-			for (const path of ["/stream", "/generate", "/sse"]) {
-				const socket = connect(port, "127.0.0.1")
-				socket.on("error", () => {})
-				await new Promise((resolve) => {
-					socket.once("data", resolve)
-					socket.write(`GET ${path} HTTP/1.1\r\nHost: h\r\n\r\n`)
-				})
-				socket.destroy()
-			}
-			await expect.poll(() => finished.toSorted()).toEqual(["generate", "sse", "stream"])
-		} finally {
-			await server.shutdown(0)
+		for (const path of ["/stream", "/generate", "/sse"]) {
+			const reader = ((await send(app, path)).body as ReadableStream<Uint8Array>).getReader()
+			await reader.read()
+			await reader.cancel()
 		}
+		await expect.poll(() => finished.toSorted()).toEqual(["generate", "sse", "stream"])
 	})
 })
 
 describe("a never-yielding SSE producer facing a client that stopped reading", () => {
-	it("is held back by backpressure over node:http: what it sent stays under 16 MB", async () => {
+	it("is held back by backpressure: what it sent stays far under what it would send unbounded", async () => {
 		let sent = 0
 		const data = "x".repeat(1024)
 		const app = honey<{}>()
@@ -218,33 +205,29 @@ describe("a never-yielding SSE producer facing a client that stopped reading", (
 				}
 			}),
 		)
-		const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-		await new Promise((resolve) => server.once("listening", resolve))
-		const { port } = server.address() as AddressInfo
-		try {
-			const socket = connect(port, "127.0.0.1")
-			socket.on("error", () => {})
-			socket.write("GET /flood HTTP/1.1\r\nHost: h\r\n\r\n")
-			socket.pause()
-			await new Promise((resolve) => setTimeout(resolve, 300))
-			const held = sent
-			socket.destroy()
-			/* the pipeline's and the socket's buffers hold a few MB at most; a send that never waits sends all 50 000 (~50 MB) */
-			expect(held * 1_045).toBeLessThan(16 * 1024 * 1024)
-		} finally {
-			await server.shutdown(0)
-		}
+		const reader = ((await send(app, "/flood")).body as ReadableStream<Uint8Array>).getReader()
+		await reader.read()
+		await new Promise((resolve) => setTimeout(resolve, 300))
+		const held = sent
+		await reader.cancel()
+		/* the pipeline's buffers hold a few MB at most; a send that never waits sends all 50 000 (~50 MB) */
+		expect(held * 1_045).toBeLessThan(16 * 1024 * 1024)
 	})
 })
 
 describe("HEAD and range from a route", () => {
 	// v0: 38b62aecf2
-	it("HEAD on a streaming route answers its head and never runs the producer", async () => {
+	// v0: 40d6fd580a
+	// v0: 4ed7ba1182
+	// v0: eba2a8cacc
+	// v0: 583268d9f0
+	it("HEAD on a streaming route answers its head, sends no body and never runs the producer", async () => {
 		const { app, log } = streamingApp()
 		const heads = await Promise.all(
 			["/stream", "/generate", "/events"].map((path) => send(app, path, { method: "HEAD" })),
 		)
-		expect([heads.map((res) => res.status), log]).toEqual([[200, 200, 200], []])
+		const bodies = await Promise.all(heads.map((res) => res.text()))
+		expect([heads.map((res) => res.status), bodies, log]).toEqual([[200, 200, 200], ["", "", ""], []])
 	})
 
 	it("rangeResponse answers 206, 416 and 200 from a route", async () => {

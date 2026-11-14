@@ -3,7 +3,7 @@
  * the repo beside `@workerstack/clients` at the version core pins. The install carries every export's files,
  * type-checks against every core subpath under maximal strictness, runs the bin from dist/, and generates an app's artifacts through the
  * tarball's own `build/artifacts` (generate.ts `artifactsFor`). A bin picks dist/ in an install and the source in a
- * checkout; `ws`, core's optional peer, fails with an install hint until it is installed, then works in that process.
+ * checkout.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
@@ -188,14 +188,14 @@ describe.sequential("the tarball, installed (bit 19 i)", () => {
 	])(
 		"type-checks against every core subpath, the generated types included, with %s resolution and every strict flag",
 		(resolution, module) => {
-			expect(strictCheck(app, resolution, module)).toEqual([58, 0, ""])
+			expect(strictCheck(app, resolution, module)).toEqual([51, 0, ""])
 		},
 		60_000,
 	)
 
 	it("type-checks against every core subpath with honey-clients, an optional peer, not installed", () => {
 		const dir = consumer(join(files.out, "core-only"), { "@workerstack/backend": `file:${tarball}` }, ["@types/node"])
-		expect(strictCheck(dir, "Bundler", "ESNext")).toEqual([58, 0, ""])
+		expect(strictCheck(dir, "Bundler", "ESNext")).toEqual([51, 0, ""])
 	}, 60_000)
 })
 
@@ -239,40 +239,4 @@ describe("the shipped honey bin picks what it runs (bit 19 i)", () => {
 	it("on Bun in an installed package runs dist/ too: the tarball ships no source", { timeout: SPAWN_TIMEOUT }, () => {
 		expect(runBin("bun", binLayout(false))).toBe("dist")
 	})
-})
-
-describe("ws, core's optional peer, in a real install (bit 19 i)", () => {
-	/* one process: the upgrade fails naming the package, `npm install ws` runs, and the next upgrade works */
-	const SERVER = [
-		'import { execFileSync } from "node:child_process"',
-		'import { honey } from "@workerstack/backend"',
-		'import { serve } from "@workerstack/backend/node"',
-		'import { ws } from "@workerstack/backend/ws"',
-		"const app = honey()",
-		'ws(app, "/live").handler({ onMessage: (_ctx, ws, data) => ws.send(data) })',
-		'const server = await serve(app, { hostname: "127.0.0.1", port: 0 })',
-		"const echo = () => new Promise((done) => {",
-		"\tconst client = new WebSocket(`ws://127.0.0.1:${server.port}/live`)",
-		'\tclient.onopen = () => client.send("hi")',
-		"\tclient.onmessage = (e) => { done(`echo ${e.data}`); client.close() }",
-		'\tclient.onerror = () => done("refused")',
-		"})",
-		"const before = await echo()",
-		'execFileSync("npm", ["install", "ws@8.21.0", "--no-audit", "--no-fund", "--prefer-offline", "--silent"])',
-		"const after = await echo()",
-		"console.log(`result ${JSON.stringify({ after, before })}`)",
-		"await server.close(100)",
-		"",
-	].join("\n")
-
-	// v0: ddd820848a
-	it("fails the upgrade with an install hint without ws, and works once ws is installed (not cached)", () => {
-		const dir = consumer(join(files.out, "ws"), { "@workerstack/backend": `file:${tarball}` })
-		writeFileSync(join(dir, "server.mjs"), SERVER)
-		/* a served app's environment: NODE_ENV=test, which this runner sets, silences the default logger */
-		const ran = run("node", ["server.mjs"], dir, { NODE_ENV: "production" })
-		const line = ran.out.split("\n").find((l) => l.startsWith("result ")) ?? "result {}"
-		const hinted = ran.out.split("result ")[0]?.includes("npm install ws")
-		expect([JSON.parse(line.slice(7)), hinted], ran.out).toEqual([{ after: "echo hi", before: "refused" }, true])
-	}, 90_000)
 })

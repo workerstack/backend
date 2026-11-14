@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { PEER_ADDRESS } from "../context/peer.ts"
-import { isHoneyResponse, NODE_OUTBOUND } from "../response/builder.ts"
 import { honey } from "../routing/app.ts"
 import { memoryRateLimitStore, rateLimit, type RateLimitOptions } from "./rate-limit.ts"
 
@@ -27,10 +26,9 @@ function app(options: RateLimitOptions) {
 	return Object.assign(a, { seen })
 }
 
-function request(init: { headers?: Record<string, string>; peer?: string; node?: boolean } = {}) {
+function request(init: { headers?: Record<string, string>; peer?: string } = {}) {
 	const req = new Request("https://app.example.com/t", { headers: init.headers })
 	if (init.peer !== undefined) Object.defineProperty(req, PEER_ADDRESS, { value: init.peer })
-	if (init.node) Object.defineProperty(req, NODE_OUTBOUND, { value: true })
 	return req
 }
 
@@ -177,11 +175,6 @@ describe("rateLimit(): a custom store", () => {
 })
 
 describe("rateLimit(): the answer it edits", () => {
-	it("on a Node-bridge answer the headers go on the plain header map", async () => {
-		const { res } = await send(app({ limit: 5, windowMs: 60_000 }), { node: true, peer: "203.0.113.7" })
-		expect([isHoneyResponse(res), res.headers.get("x-ratelimit-remaining")]).toEqual([true, "4"])
-	})
-
 	it("a 101 upgrade passes through untouched", async () => {
 		const a = honey<{}>()
 		const upgraded = new Response(null)

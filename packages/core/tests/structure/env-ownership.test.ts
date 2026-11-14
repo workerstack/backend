@@ -2,7 +2,7 @@
 /**
  * Who owns an environment variable (bit 22). `HONEY_REQUIRE_TOOLCHAINS` and its per-language siblings belong
  * to the TEST harness: they mean "this leg's toolchain must be here, do not skip", and `.github/workflows/ci.yml`
- * sets them on six jobs. Product code must not read them, because then CI's choice about tests silently becomes
+ * sets them on the jobs that run tests. Product code must not read them, because then CI's choice about tests silently becomes
  * a change in what a generated run does.
  *
  * This exists because it happened: `missingFormatter` read `HONEY_REQUIRE_TOOLCHAINS`, which turned every

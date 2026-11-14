@@ -1,7 +1,7 @@
 import { createServer } from "node:http"
 import type { AddressInfo } from "node:net"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { createHoneyResponse, isHoneyResponse } from "./builder.ts"
+import { withRawBody } from "./builder.ts"
 import { addVary, type HeaderEdit, withHeaders } from "./with-headers.ts"
 
 afterEach(() => {
@@ -13,14 +13,22 @@ const inject = (headers: HeaderEdit) => headers.set("x-echo", "a\r\nx-injected: 
 
 describe("withHeaders: which response it edits, and how", () => {
 	// v0: 11b4d16e64
-	it("a HoneyResponse is edited on its plain map: the same object, no native Headers built", () => {
-		const response = createHoneyResponse({ headers: { "content-type": "application/json" }, raw: "{}", status: 200 })
-		vi.stubGlobal("Headers", function NativeHeaders() {
-			throw new Error("native Headers built")
-		})
+	it("a response honey built is edited on its own headers: the same object, no native Headers built", () => {
+		const response = withRawBody(new Response("{}", { headers: { "content-type": "application/json" } }), "{}")
+		const native = Headers
+		let built = 0
+		vi.stubGlobal(
+			"Headers",
+			class CountingHeaders extends native {
+				constructor(init?: HeadersInit) {
+					super(init)
+					built++
+				}
+			},
+		)
 		const edited = withHeaders(response, stamp)
 		vi.unstubAllGlobals()
-		expect([edited === response, isHoneyResponse(edited), edited.headers.get("x-stamped")]).toEqual([true, true, "yes"])
+		expect([edited === response, edited.headers.get("x-stamped"), built]).toEqual([true, "yes", 0])
 	})
 
 	// v0: 4482dfb319
@@ -33,7 +41,9 @@ describe("withHeaders: which response it edits, and how", () => {
 			"1",
 		])
 	})
+})
 
+describe("withHeaders: a response with immutable headers", () => {
 	// v0: e12d894fa2
 	it("a response with immutable headers is copied: body, status, status text and headers kept, then edited", async () => {
 		const redirect = Response.redirect("https://elsewhere.example/", 307)
@@ -106,8 +116,8 @@ describe("withHeaders: what it never does", () => {
 		expect([withHeaders(upgraded, edit) === upgraded, edit.mock.calls.length]).toEqual([true, 0])
 	})
 
-	it("an edit that sets a header Fetch refuses throws, on the plain path as on the native one", () => {
-		const honey = createHoneyResponse({ headers: {}, raw: "", status: 200 })
+	it("an edit that sets a header Fetch refuses throws, on a response honey built as on a foreign one", () => {
+		const honey = withRawBody(new Response(""), "")
 		const native = new Response("")
 		expect(() => withHeaders(honey, inject)).toThrow(TypeError)
 		expect(() => withHeaders(native, inject)).toThrow(TypeError)

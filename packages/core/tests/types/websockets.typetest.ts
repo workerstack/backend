@@ -12,7 +12,7 @@ import type { WSRouteBuilder, WsMeta } from "../../src/routing/ws-builder.ts"
 import type { RealtimePublisher } from "../../src/realtime/server.ts"
 import { honey } from "../../src/routing/app.ts"
 import type { WSAdapter, WSContext, WSHandler, WSReadyState } from "../../src/ws/contract.ts"
-import { nodeWebSocket } from "../../src/ws/node.ts"
+import { workersWebSocket } from "../../src/ws/workers.ts"
 import { ws } from "../../src/ws/route.ts"
 
 const withUser = createMiddleware((_ctx, next) => next({ user: "ada" as const }))
@@ -123,12 +123,11 @@ describe("the socket, the handler and the adapter", () => {
 	it("every WSHandler callback is optional; an adapter upgrades with one", () => {
 		expectTypeOf<{}>().toExtend<WSHandler>()
 		expectTypeOf<WSAdapter["upgrade"]>().parameters.toEqualTypeOf<[Request, unknown, WSHandler<unknown>]>()
-		expectTypeOf<WSAdapter["runtime"]>().toEqualTypeOf<"bun" | "node" | "workers" | undefined>()
 	})
 
 	it("wsAdapter() takes an adapter value and keeps the app", () => {
 		const app = honey<{}>()
-		expectTypeOf(app.wsAdapter(nodeWebSocket())).toEqualTypeOf(app)
+		expectTypeOf(app.wsAdapter(workersWebSocket())).toEqualTypeOf(app)
 		// @ts-expect-error an adapter needs upgrade()
 		app.wsAdapter({})
 	})

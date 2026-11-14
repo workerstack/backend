@@ -4,49 +4,32 @@
  *
  * - Cloudflare Workers: `CF-Connecting-IP`, which the edge sets and a client cannot override. It
  *   is read only when running on Workers; anywhere else it is client-sent text.
- * - Bun: `server.requestIP(req)`, from the server Bun passes as fetch's env (or `env.server`).
- * - Node: the socket's `remoteAddress`, which the Node adapter's request reports under
- *   `PEER_ADDRESS`.
- *
- * Behind a self-hosted reverse proxy that is the proxy's address.
+ * - In process (`testClient`'s `ip`): the request carries its peer under `PEER_ADDRESS`, a symbol no
+ *   client can send, so `ctx.ip` stays unspoofable off Workers.
  */
 
-/** A request that knows its peer reports it under this key, allocation-free (the Node adapter's request). */
+/** A request that knows its peer reports it under this key, allocation-free (`testClient`'s `ip`). */
 export const PEER_ADDRESS: unique symbol = /* @__PURE__ */ Symbol.for("honey.peerAddress")
-
-type BunServerLike = { requestIP?: (req: Request) => { address?: string } | null }
 
 /** Workers is the one runtime whose edge reports the peer in a header a client cannot send. */
 function onWorkers(): boolean {
 	return (globalThis as { navigator?: { userAgent?: string } }).navigator?.userAgent === "Cloudflare-Workers"
 }
 
-/** The peer address as the runtime reports it, unparsed, or `null` when nothing reports one. */
-export function peerAddressOf(req: Request, env: unknown): string | null {
+/** The peer address as the platform reports it, unparsed, or `null` when nothing reports one. */
+export function peerAddressOf(req: Request): string | null {
 	const own = (req as unknown as Record<symbol, unknown>)[PEER_ADDRESS]
 	if (typeof own === "string") return own === "" ? null : own
-	if (env !== null && typeof env === "object") {
-		const e = env as BunServerLike & { server?: BunServerLike }
-		const server = typeof e.requestIP === "function" ? e : e.server
-		if (typeof server?.requestIP === "function") {
-			try {
-				return server.requestIP(req)?.address ?? null
-			} catch {
-				/* a request Bun did not see (a test or a shim): there is no peer, which is the answer */
-				return null
-			}
-		}
-	}
 	return onWorkers() ? req.headers.get("cf-connecting-ip") : null
 }
 
-/** What a request carries for `ctx.ip`: the request, the env (which may be a Bun server), and the address once read. */
-export type PeerSource = { readonly env: unknown; readonly req: Request; ip?: string | null }
+/** What a request carries for `ctx.ip`: the request, and the address once read. */
+export type PeerSource = { readonly req: Request; ip?: string | null }
 
 /** The request's canonical peer, read on first ask and kept on its state. */
 export function ipOf(source: PeerSource): string | null {
 	if (source.ip === undefined) {
-		const peer = peerAddressOf(source.req, source.env)
+		const peer = peerAddressOf(source.req)
 		source.ip = peer === null ? null : canonicalIp(peer)
 	}
 	return source.ip

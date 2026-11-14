@@ -20,29 +20,21 @@ async function ipOf(req: Request, env: object = {}): Promise<unknown> {
 	return ((await res.json()) as { ip: unknown }).ip
 }
 
-/** A request as the Node adapter hands it over: its peer under PEER_ADDRESS. */
-function fromNode(peer: string, headers: Record<string, string> = {}): Request {
+/** A request as a test driver hands it over: its peer under PEER_ADDRESS (testClient's `ip`). */
+function withPeer(peer: string, headers: Record<string, string> = {}): Request {
 	const req = new Request("http://app.internal/who", { headers })
 	Object.defineProperty(req, PEER_ADDRESS, { value: peer })
 	return req
 }
 
-/** A Bun server whose socket reports `address`. */
-const bunServer = (address: string) => ({ requestIP: () => ({ address }) })
-
 afterEach(() => {
 	vi.unstubAllGlobals()
 })
 
-describe("the peer each runtime reports", () => {
+describe("the peer each platform reports", () => {
 	// v0: fc369c9b18
-	it("on Bun, the server passed as the env, or as env.server", async () => {
-		expect(await ipOf(new Request("http://h/who"), bunServer("192.0.2.1"))).toBe("192.0.2.1")
-		expect(await ipOf(new Request("http://h/who"), { server: bunServer("192.0.2.1") })).toBe("192.0.2.1")
-	})
-
-	it("on Node, the socket address the adapter's request reports", async () => {
-		expect(await ipOf(fromNode("198.51.100.7"))).toBe("198.51.100.7")
+	it("off Workers, the peer a test driver injects", async () => {
+		expect(await ipOf(withPeer("198.51.100.7"))).toBe("198.51.100.7")
 	})
 
 	it("on Workers, CF-Connecting-IP, which the edge sets and a client cannot", async () => {
@@ -58,10 +50,9 @@ describe("the peer each runtime reports", () => {
 	})
 })
 
-describe("one spelling per client, whichever runtime reported it", () => {
+describe("one spelling per client, whichever platform reported it", () => {
 	it.each([
-		["Node, IPv4-mapped", () => ipOf(fromNode("::ffff:203.0.113.7"))],
-		["Bun, plain IPv4", () => ipOf(new Request("http://h/who"), bunServer("203.0.113.7"))],
+		["an injected peer, IPv4-mapped", () => ipOf(withPeer("::ffff:203.0.113.7"))],
 		[
 			"Workers, plain IPv4",
 			() => {
@@ -73,9 +64,9 @@ describe("one spelling per client, whichever runtime reported it", () => {
 		expect(await read()).toBe("203.0.113.7")
 	})
 
-	it("an IPv6 peer is lowercase RFC 5952 on every runtime", async () => {
-		expect(await ipOf(fromNode("2001:0DB8:0000:0000:0000:0000:0000:0001"))).toBe("2001:db8::1")
-		expect(await ipOf(new Request("http://h/who"), bunServer("2001:DB8::1"))).toBe("2001:db8::1")
+	it("an IPv6 peer is lowercase RFC 5952", async () => {
+		expect(await ipOf(withPeer("2001:0DB8:0000:0000:0000:0000:0000:0001"))).toBe("2001:db8::1")
+		expect(await ipOf(withPeer("2001:DB8::1"))).toBe("2001:db8::1")
 	})
 })
 
@@ -88,20 +79,20 @@ describe("behind a self-hosted reverse proxy", () => {
 			"x-forwarded-for": "1.1.1.1, 2.2.2.2",
 			"x-real-ip": "3.3.3.3",
 		}
-		expect(await ipOf(fromNode("10.0.0.1", headers))).toBe("10.0.0.1")
-		expect(await ipOf(new Request("http://h/who", { headers }), bunServer("10.0.0.1"))).toBe("10.0.0.1")
+		expect(await ipOf(withPeer("10.0.0.1", headers))).toBe("10.0.0.1")
 	})
 })
 
 describe("ctx.ip is read once per request", () => {
-	it("however many readers ask, the runtime is asked once", async () => {
+	it("however many readers ask, the platform is asked once", async () => {
 		let asks = 0
-		const server = {
-			requestIP: () => {
+		const req = new Request("http://h/who")
+		Object.defineProperty(req, PEER_ADDRESS, {
+			get() {
 				asks++
-				return { address: "192.0.2.1" }
+				return "192.0.2.1"
 			},
-		}
+		})
 		const seen: unknown[] = []
 		const app = honey<{}>()
 		app
@@ -113,7 +104,7 @@ describe("ctx.ip is read once per request", () => {
 			)
 			.get("/who")
 			.handler((ctx) => ctx.res.json("ok", { ip: ctx.ip }))
-		const res = await app.fetch(new Request("http://h/who"), server)
+		const res = await app.fetch(req, {})
 		expect([await res.json(), seen, asks]).toEqual([{ ip: "192.0.2.1" }, ["192.0.2.1", "192.0.2.1"], 1])
 	})
 })
@@ -127,6 +118,6 @@ describe("ip is a framework key", () => {
 			.use(createMiddleware((_ctx, next) => next({ ip: "6.6.6.6" } as {})))
 			.get("/who")
 			.handler((ctx) => ctx.res.json("ok", { ip: ctx.ip }))
-		expect(await (await app.fetch(fromNode("10.0.0.1"), {})).json()).toEqual({ ip: "10.0.0.1" })
+		expect(await (await app.fetch(withPeer("10.0.0.1"), {})).json()).toEqual({ ip: "10.0.0.1" })
 	})
 })

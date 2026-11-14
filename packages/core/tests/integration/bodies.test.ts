@@ -2,28 +2,12 @@
  * Request and response bodies through the app. JSON, form, multipart, binary and text request
  * bodies read through ctx.req arrive intact (size, nesting, unicode, escapes, files); a body the
  * handler cannot parse is its own to catch; every response helper and status key answers as
- * declared, in process and on the wire.
+ * declared, in process.
  */
-import type { AddressInfo } from "node:net"
-import { afterEach, describe, expect, it } from "vitest"
-import { type HoneyServer, createNodeServer } from "../../src/adapters/node/server.ts"
+import { describe, expect, it } from "vitest"
 import { honey } from "../../src/routing/app.ts"
 
 type App = { fetch(request: Request, env: {}): Response | Promise<Response> }
-
-const servers: HoneyServer[] = []
-
-afterEach(async () => {
-	await Promise.all(servers.splice(0).map((server) => server.shutdown(0)))
-})
-
-/** Serve `app` on a free loopback port; the base URL to reach it. */
-async function listen(app: App): Promise<string> {
-	const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-	servers.push(server)
-	await new Promise((resolve) => server.once("listening", resolve))
-	return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-}
 
 function send(app: App, path: string, init?: RequestInit) {
 	return app.fetch(new Request(`http://localhost${path}`, init), {})
@@ -407,7 +391,7 @@ function helpersApp() {
 	return app
 }
 
-describe("every response helper on the wire", () => {
+describe("every response helper", () => {
 	// v0: c6ab40fa9b
 	// v0: 078f772779
 	// v0: 2d8c562a10
@@ -421,9 +405,9 @@ describe("every response helper on the wire", () => {
 	// v0: cece5f9337
 	// v0: b338d4fd38
 	it("each answers its status, content type, headers and exact body", async () => {
-		const base = await listen(helpersApp())
+		const app = helpersApp()
 		const wire = async (path: string, method = "GET") => {
-			const res = await fetch(`${base}${path}`, { method, redirect: "manual" })
+			const res = await send(app, path, { method, redirect: "manual" })
 			const named = ["content-type", "x-custom", "location"].map((name) => res.headers.get(name))
 			return [res.status, ...named, await res.text()]
 		}
@@ -451,15 +435,15 @@ describe("every response helper on the wire", () => {
 	})
 })
 
-describe("large and composed answers on the wire", () => {
+describe("large and composed answers", () => {
 	// v0: 72b84ca04f
 	// v0: b09e3c4c13
 	// v0: 1e898740b7
 	// v0: 3e905d43b3
 	it("a 1MB json object and a 250KB text arrive whole", async () => {
-		const base = await listen(helpersApp())
-		const big = await fetch(`${base}/big-json`)
-		const text = await fetch(`${base}/big-text`)
+		const app = helpersApp()
+		const big = await send(app, "/big-json")
+		const text = await send(app, "/big-text")
 		expect([big.headers.get("content-type"), await big.json(), (await text.text()) === BIG_TEXT]).toEqual([
 			"application/json",
 			BIG_OBJECT,
@@ -482,9 +466,8 @@ describe("large and composed answers on the wire", () => {
 			.handler(async (ctx) => ctx.res.html("ok", `<h1>${((await ctx.req.json()) as { t: string }).t}</h1>`))
 		app.post("/text").handler(async (ctx) => ctx.res.text("ok", `Hello ${((await ctx.req.json()) as { n: string }).n}`))
 		app.post("/login").handler(async (ctx) => ctx.res.json("ok", Object.fromEntries(await ctx.req.formData())))
-		const base = await listen(app)
 		const wire = async (path: string, body: string, type: string) => {
-			const res = await fetch(`${base}${path}`, { body, headers: { "content-type": type }, method: "POST" })
+			const res = await send(app, path, { body, headers: { "content-type": type }, method: "POST" })
 			return [res.status, res.headers.get("content-type"), await res.text()]
 		}
 		const items = [

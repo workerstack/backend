@@ -1,7 +1,7 @@
 /**
- * `honey init`: a new project's app, server and Vite config, and with `--workers` a Worker and its wrangler.jsonc. An
- * existing file is refused unless `--force`; an existing package.json keeps its own scripts and `type` unless
- * `--force`, each kept value reported. Lines go to `out` (the CLI's stdout): core prints only through it.
+ * `honey init`: a new project's app, its Worker and wrangler.jsonc (apps run on Cloudflare Workers only, D16), and a
+ * Vite config. An existing file is refused unless `--force`; an existing package.json keeps its own scripts, `wrangler`
+ * and `type` unless `--force`, each kept script reported. Lines go to `out` (the CLI's stdout): core prints only through it.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, dirname, join } from "node:path"
@@ -9,6 +9,7 @@ import type { InitFlags } from "./cli-args.ts"
 
 type PackageJson = {
 	dependencies?: Record<string, string>
+	devDependencies?: Record<string, string>
 	name?: string
 	private?: boolean
 	scripts?: Record<string, string>
@@ -25,12 +26,6 @@ export const app = serveOpenApi(
 		.handler((ctx) => ctx.res.text("ok", "ok")),
 	{ docs: { "/docs": scalar }, title: "Honey", version: "0.0.1" },
 )
-`
-
-const SERVER_TS = `import { serve } from "@workerstack/backend/bun"
-import { app } from "./app.ts"
-
-await serve(app, { port: Number(process.env.PORT ?? 3000) })
 `
 
 const VITE_CONFIG_TS = `import { honeyPlugin } from "@workerstack/backend/plugin"
@@ -57,18 +52,17 @@ export default {
 /** The scoped package the templates import: unscoped `honey` on npm is someone else's. */
 const PACKAGE_NAME = "@workerstack/backend"
 
-const SCRIPTS: Readonly<Record<string, string>> = { dev: "bun --watch src/server.ts", generate: "honey generate" }
+const SCRIPTS: Readonly<Record<string, string>> = { dev: "wrangler dev", generate: "honey generate" }
+/** The range `wrangler dev` runs from: its major, so a new project takes the current release. */
+const WRANGLER = "^4"
 
 /** Scaffold `cwd`; an existing file is refused, naming it, unless `flags.force`. */
 export function runInit(cwd: string, flags: InitFlags, out: (line: string) => void): void {
 	const files: Record<string, string> = {
 		"src/app.ts": APP_TS,
-		"src/server.ts": SERVER_TS,
+		"src/worker.ts": WORKER_TS,
 		"vite.config.ts": VITE_CONFIG_TS,
-	}
-	if (flags.workers) {
-		files["src/worker.ts"] = WORKER_TS
-		files["wrangler.jsonc"] = wranglerJsonc(packageNameOf(cwd))
+		"wrangler.jsonc": wranglerJsonc(packageNameOf(cwd)),
 	}
 	const collision = Object.keys(files).find((rel) => existsSync(join(cwd, rel)))
 	if (collision !== undefined && !flags.force)
@@ -103,7 +97,9 @@ function writePackageJson(cwd: string, force: boolean): string[] {
 	}
 	const dependencies = { ...existing.dependencies }
 	if (dependencies[PACKAGE_NAME] === undefined || force) dependencies[PACKAGE_NAME] = `^${honeyVersion()}`
-	const next: PackageJson = { ...existing, dependencies, scripts }
+	const devDependencies = { ...existing.devDependencies }
+	if (devDependencies.wrangler === undefined || force) devDependencies.wrangler = WRANGLER
+	const next: PackageJson = { ...existing, dependencies, devDependencies, scripts }
 	if (!exists) Object.assign(next, { name: packageNameOf(cwd), private: true })
 	/* an explicit `type` is the project's choice, kept even under --force */
 	if (existing.type === undefined && (!exists || force)) next.type = "module"

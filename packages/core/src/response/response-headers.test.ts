@@ -22,16 +22,12 @@ describe("compileResponseHeaders: the check a declaration compiles to", () => {
 		expect([compileResponseHeaders(undefined), compileResponseHeaders({})]).toEqual([null, null])
 	})
 
-	it("reads the answer's headers by lowercased name, on the native and the Node path", async () => {
+	it("reads the answer's headers by lowercased name", async () => {
 		const seen = vi.fn((value: unknown) => ({ value }))
 		const check = compileResponseHeaders({ created: { "~standard": { validate: seen, vendor: "test", version: 1 } } })
-		for (const res of [new HoneyRes(), new HoneyRes(true)]) {
-			check?.(res.json("created", {}, { headers: { ETag: '"v1"', Location: "/users/1" } }))
-		}
-		expect(seen.mock.calls).toEqual([
-			[{ "content-type": "application/json", etag: '"v1"', location: "/users/1" }],
-			[{ "content-type": "application/json", etag: '"v1"', location: "/users/1" }],
-		])
+		const res = new HoneyRes()
+		check?.(res.json("created", {}, { headers: { ETag: '"v1"', Location: "/users/1" } }))
+		expect(seen.mock.calls).toEqual([[{ "content-type": "application/json", etag: '"v1"', location: "/users/1" }]])
 	})
 
 	it("passes a status no status key names, and one declaring no headers, unread", () => {

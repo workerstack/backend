@@ -2,16 +2,11 @@
  * The mutants the mutation harness swaps in for a guard: each is the guarded code with the one check
  * it exists for taken out. Split from mutation-harness.ts, which keeps the guard list and the runner.
  */
-import type { ServerResponse } from "node:http"
 import type { TapCall } from "../../src/context/context.ts"
-import type { CronDefinition } from "../../src/cron/define.ts"
-import type { CronHandle, ServeCronOptions } from "../../src/cron/serve.ts"
 import type { ParsedUserAgent } from "../../src/context/user-agent.ts"
 import type { CompressOptions } from "../../src/middleware/compress.ts"
 import type { CompiledChain } from "../../src/middleware/middleware.ts"
 import type { StaticConfig } from "../../src/response/static.ts"
-import type { QueueConsumer } from "../../src/queue/define.ts"
-import type { QueueHandle, ServeQueueOptions } from "../../src/queue/serve.ts"
 import type { IpLists, IpRestrictOptions } from "../../src/middleware/ip-restrict.ts"
 import type { MemoryRateLimitStoreOptions, RateLimitOptions } from "../../src/middleware/rate-limit.ts"
 import type { JwtVerifyResult, VerifyJwtOptions } from "../../src/security/jwt.ts"
@@ -21,27 +16,6 @@ import { type ProducerOptions, type ProducerSink, producerStream } from "../../s
 import type { JsonSchema, jsonSchemaOf } from "../../src/schema/to-json-schema.ts"
 import type { WSContext, WSHandler } from "../../src/ws/contract.ts"
 export type NormalizePath = (raw: string, encodedSlashes?: "allow" | "reject") => string | null
-
-export const HOP_BY_HOP = /^(?:connection|keep-alive|proxy-connection|te|trailer|transfer-encoding|upgrade)$/
-
-/**
- * A response writer without one of the bridge's framing checks: every header the response carries
- * goes out (`keepHopByHop`), or a stream keeps the length it declares (`trustLength`).
- */
-export function naiveWriter(mutation: { keepHopByHop: boolean; trustLength: boolean }) {
-	return async (response: Response, res: ServerResponse): Promise<void> => {
-		const named = (response.headers.get("connection") ?? "").toLowerCase().split(/\s*,\s*/)
-		const headers: Record<string, string> = {}
-		response.headers.forEach((value, name) => {
-			if (mutation.keepHopByHop || !(HOP_BY_HOP.test(name) || named.includes(name))) headers[name] = value
-		})
-		const body = response.body
-		if (!mutation.trustLength && body !== null) delete headers["content-length"]
-		res.writeHead(response.status, headers)
-		if (body !== null) for await (const chunk of body) res.write(chunk)
-		res.end()
-	}
-}
 
 export type Mw = (
 	ctx: { req: Request },
@@ -118,32 +92,6 @@ export function cubicParseUserAgent(real: ParseUserAgent): ParseUserAgent {
 	}
 }
 
-export type ServeCron = (cron: CronDefinition<unknown>, options: ServeCronOptions<unknown>) => CronHandle
-
-/** serveCron whose jobs answer at once and work on behind it, so nothing looks to be still running. */
-export function overlappingServeCron(real: ServeCron): ServeCron {
-	return (cron, options) => {
-		const schedules = cron.schedules.map((schedule) => ({
-			...schedule,
-			jobs: schedule.jobs.map(([name, handler]) => [name, async (job) => void handler(job)] as const),
-		})) as CronDefinition<unknown>["schedules"]
-		return real({ ...cron, schedules }, options)
-	}
-}
-
-/** serveCron that asks for a claim and runs the job whatever it answered. */
-export function claimIgnoringServeCron(real: ServeCron): ServeCron {
-	return (cron, options) =>
-		real(cron, {
-			...options,
-			claim: async (key, scheduledAt) => {
-				await options.claim?.(key, scheduledAt)
-				return true
-			},
-			singleInstance: undefined,
-		} as ServeCronOptions<unknown>)
-}
-
 export type Deliver = typeof import("../../src/queue/deliver.ts").deliver<unknown>
 
 /** deliver that acks a type the contract lacks, as the runner it was ported from did. */
@@ -171,13 +119,6 @@ export function resettlingDeliver(real: Deliver): Deliver {
 		const handlers = Object.fromEntries(Object.entries(consumer.handlers).map(([type, h]) => [type, direct(h)]))
 		return real({ ...consumer, handlers }, delivery, env, background)
 	}
-}
-
-export type ServeQueue = (consumer: QueueConsumer<unknown>, options: ServeQueueOptions<unknown>) => QueueHandle
-
-/** serveQueue with no limit on attempts, so a message that always fails never leaves. */
-export function unboundedServeQueue(real: ServeQueue): ServeQueue {
-	return (consumer, options) => real(consumer, { ...options, maxAttempts: Number.MAX_SAFE_INTEGER })
 }
 
 export type SignWebhook = (options: SignWebhookOptions) => Promise<WebhookHeaders>
@@ -255,51 +196,6 @@ export function forwardedKey(real: RateLimit): RateLimit {
 /** memoryRateLimitStore with no cap on its windows. */
 export function uncappedStore(real: MemoryRateLimitStoreFactory): MemoryRateLimitStoreFactory {
 	return (options) => real({ ...options, maxKeys: Number.MAX_SAFE_INTEGER })
-}
-
-export type HeaderMap = Record<string, string | string[]>
-
-/** HoneyOutHeaders without Fetch's name and value checks: a plain map that takes anything. */
-export class NaiveOutHeaders {
-	#map: HeaderMap
-	constructor(map: HeaderMap) {
-		this.#map = { ...map }
-	}
-	append(name: string, value: string): void {
-		const key = name.toLowerCase()
-		const old = this.#map[key]
-		this.#map[key] = old === undefined ? value : [...(Array.isArray(old) ? old : [old]), value]
-	}
-	delete(name: string): void {
-		delete this.#map[name.toLowerCase()]
-	}
-	get(name: string): string | null {
-		const value = this.#map[name.toLowerCase()]
-		if (value === undefined) return null
-		return Array.isArray(value) ? value.join(", ") : value
-	}
-	getSetCookie(): string[] {
-		const value = this.#map["set-cookie"]
-		return value === undefined ? [] : Array.isArray(value) ? value : [value]
-	}
-	has(name: string): boolean {
-		return this.get(name) !== null
-	}
-	set(name: string, value: string): void {
-		this.#map[name.toLowerCase()] = value
-	}
-	toRecord(): HeaderMap {
-		return this.#map
-	}
-	forEach(callback: (value: string, key: string) => void): void {
-		for (const [key, value] of this) callback(value, key)
-	}
-	*[Symbol.iterator](): IterableIterator<[string, string]> {
-		for (const key in this.#map) {
-			const value = this.#map[key] as string | string[]
-			for (const item of Array.isArray(value) ? value : [value]) yield [key, item]
-		}
-	}
 }
 
 export type CreateWsSession = (options: never) => WSHandler<unknown>

@@ -85,8 +85,7 @@ export function defaultsFor(env: string | undefined): {
 }
 
 /**
- * Whether this runtime is Workers, by the same mark `detectRuntime` reads (never by calling it: that one throws
- * where it cannot tell, and a logger must not throw as it is made).
+ * Whether this runtime is Workers, by its `navigator.userAgent` mark (a logger must not throw as it is made).
  */
 function onWorkers(): boolean {
 	const agent = (globalThis as { navigator?: { userAgent?: string } }).navigator?.userAgent ?? ""

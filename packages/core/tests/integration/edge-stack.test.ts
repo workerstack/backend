@@ -1,14 +1,11 @@
 /**
- * The edge middleware over a real node:http listen: what a client gets on the wire from an app
- * with security headers, CORS, request ids and server timing (on a route and on a 404), a CORS
- * preflight, ipRestrict deciding on the socket's own peer whatever the client claims, context
- * values, concurrent mixed requests each answered as their own, csrf on a form POST, and each
- * header middleware over a redirect, an upgrade and an immutable fetch() answer; and an app with all
+ * The edge middleware through `app.fetch`: what a client gets from an app with security headers,
+ * CORS, request ids and server timing (on a route and on a 404), a CORS preflight, ipRestrict
+ * deciding on the peer the platform reports whatever the client claims, context values, concurrent mixed requests each answered as their own, csrf on a form POST, and each
+ * header middleware over a redirect, an upgrade and an immutable answer; and an app with all
  * of it at once beside bodyLimit, etag, validation, translated errors and telemetry.
  */
-import type { AddressInfo } from "node:net"
-import { afterEach, describe, expect, it } from "vitest"
-import { type HoneyServer, createNodeServer } from "../../src/adapters/node/server.ts"
+import { describe, expect, it } from "vitest"
 import { cors } from "../../src/middleware/cors.ts"
 import { csrf } from "../../src/middleware/csrf.ts"
 import { ipRestrict } from "../../src/middleware/ip-restrict.ts"
@@ -16,6 +13,7 @@ import { poweredBy } from "../../src/middleware/powered-by.ts"
 import { requestId } from "../../src/middleware/request-id.ts"
 import { secureHeaders } from "../../src/middleware/secure-headers.ts"
 import { serverTiming } from "../../src/middleware/server-timing.ts"
+import { testClient } from "../../src/testing/testing.ts"
 import * as z from "zod"
 import { HoneyError } from "../../src/errors/error.ts"
 import { defineErrors } from "../../src/errors/errors.ts"
@@ -29,18 +27,9 @@ import { ws } from "../../src/ws/route.ts"
 
 type App = { fetch(request: Request, env: {}): Response | Promise<Response> }
 
-const servers: HoneyServer[] = []
-
-afterEach(async () => {
-	await Promise.all(servers.splice(0).map((server) => server.shutdown(0)))
-})
-
-/** Serve `app` on a free loopback port; the base URL to reach it. */
-async function listen(app: App): Promise<string> {
-	const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-	servers.push(server)
-	await new Promise((resolve) => server.once("listening", resolve))
-	return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+/** Ask `app` for `path` the way a Workers runtime would: one request, no socket. */
+function send(app: App, path: string, init?: RequestInit) {
+	return app.fetch(new Request(`http://localhost${path}`, init), {})
 }
 
 /** An app with the whole edge stack in front of a health route. */
@@ -57,11 +46,11 @@ function edgeApp() {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
-describe("the edge stack on the wire", () => {
+describe("the edge stack in process", () => {
 	// v0: 83aaa2098d
 	it("a route and an unknown path both carry the security headers and a fresh request id", async () => {
-		const base = await listen(edgeApp())
-		const [ok, missing] = [await fetch(`${base}/health`), await fetch(`${base}/nonexistent`)]
+		const app = edgeApp()
+		const [ok, missing] = [await send(app, "/health"), await send(app, "/nonexistent")]
 		const edge = (res: Response) => [
 			res.headers.get("x-content-type-options"),
 			res.headers.get("x-frame-options"),
@@ -88,8 +77,8 @@ describe("the edge stack on the wire", () => {
 
 	// v0: 0b3b0b7584
 	it("a preflight from the allowed origin is 204, naming it and varying on Origin", async () => {
-		const base = await listen(edgeApp())
-		const res = await fetch(`${base}/health`, {
+		const app = edgeApp()
+		const res = await send(app, "/health", {
 			headers: { "access-control-request-method": "GET", origin: "http://allowed.com" },
 			method: "OPTIONS",
 		})
@@ -138,7 +127,7 @@ function itemsApp() {
 describe("a resource's whole life behind the edge stack", () => {
 	// v0: f69441538b
 	it("list, create, read, miss, wrong method, delete and list again, each answer carrying the edge headers", async () => {
-		const base = await listen(itemsApp())
+		const app = itemsApp()
 		const steps: [string, string, string | undefined][] = [
 			["GET", "/items", undefined],
 			["POST", "/items", JSON.stringify({ name: "Widget" })],
@@ -151,7 +140,7 @@ describe("a resource's whole life behind the edge stack", () => {
 		const answers = []
 		for (const [method, path, body] of steps) {
 			const headers = { origin: "http://app.example", ...(body && { "content-type": "application/json" }) }
-			const res = await fetch(`${base}${path}`, { body, headers, method })
+			const res = await send(app, path, { body, headers, method })
 			answers.push([
 				method,
 				path,
@@ -187,10 +176,9 @@ describe("a redirect the handler builds, under the header middleware", () => {
 			.use(serverTiming())
 		stamped.get("/go").handler(() => Response.redirect("https://example.com/", 302) as never)
 		stamped.get("/asset").handler((ctx) => ctx.res.raw(Response.redirect("https://example.com/asset.json", 302)))
-		const base = await listen(app)
 		const answers = []
 		for (const path of ["/go", "/asset"]) {
-			const res = await fetch(`${base}${path}`, { headers: { "x-request-id": "rid-1" }, redirect: "manual" })
+			const res = await send(app, path, { headers: { "x-request-id": "rid-1" }, redirect: "manual" })
 			answers.push([
 				res.status,
 				res.headers.get("location"),
@@ -207,33 +195,28 @@ describe("a redirect the handler builds, under the header middleware", () => {
 	})
 })
 
-describe("ipRestrict on a real socket", () => {
+describe("ipRestrict in process", () => {
 	// v0: 8345fd903e
 	// v0: 3cd87b9b79
-	it("decides on the socket's peer: loopback allowed or refused by the list, a forwarded claim changing nothing", async () => {
-		const allowing = honey<{}>()
-		allowing
-			.use(ipRestrict({ allowList: ["127.0.0.1"] }))
-			.get("/admin")
-			.handler((ctx) => ctx.res.json("ok", { admin: true }))
-		const refusing = honey<{}>()
-		refusing
-			.use(ipRestrict({ allowList: ["10.0.0.0/8"] }))
-			.get("/admin")
-			.handler((ctx) => ctx.res.json("ok", { admin: true }))
-		const [allowed, refused] = [await listen(allowing), await listen(refusing)]
-		const statuses = []
-		for (const [base, claim] of [
-			[allowed, "203.0.113.50"],
-			[refused, "10.0.0.1"],
-		] as const) {
-			statuses.push((await fetch(`${base}/admin`, { headers: { "x-forwarded-for": claim } })).status)
+	it("decides on the peer the platform reports: the list allows or refuses it, a forwarded claim changing nothing", async () => {
+		const guarded = (allowList: string[]) => {
+			const app = honey<{}>()
+			app
+				.use(ipRestrict({ allowList }))
+				.get("/admin")
+				.handler((ctx) => ctx.res.json("ok", { admin: true }))
+			return testClient(app, { env: {}, ip: "127.0.0.1" })
 		}
+		const claim = { headers: { "x-forwarded-for": "10.0.0.1" } }
+		const statuses = [
+			(await guarded(["127.0.0.1"]).get("/admin", claim)).status,
+			(await guarded(["10.0.0.0/8"]).get("/admin", claim)).status,
+		]
 		expect(statuses).toEqual([200, 403])
 	})
 })
 
-describe("request ids on a real socket", () => {
+describe("request ids in process", () => {
 	// v0: 0e6419f4a8
 	it("10 concurrent requests each get their own request id", async () => {
 		const app = honey<{}>()
@@ -241,10 +224,9 @@ describe("request ids on a real socket", () => {
 			.use(requestId())
 			.get("/ping")
 			.handler((ctx) => ctx.res.json("ok", { pong: true }))
-		const base = await listen(app)
 		const answers = await Promise.all(
 			Array.from({ length: 10 }, async () => {
-				const res = await fetch(`${base}/ping`)
+				const res = await send(app, "/ping")
 				return { body: (await res.json()) as unknown, id: res.headers.get("x-request-id") ?? "", status: res.status }
 			}),
 		)
@@ -257,12 +239,12 @@ describe("request ids on a real socket", () => {
 	})
 })
 
-describe("context values and concurrency on a real socket", () => {
+describe("context values and concurrency in process", () => {
 	// v0: 0c1527197c
 	it("app.context() values reach the handler", async () => {
 		const app = honey<{}>().context({ appName: "test-app", version: 42 })
 		app.get("/info").handler((ctx) => ctx.res.json("ok", { app: ctx.appName, v: ctx.version }))
-		const res = await fetch(`${await listen(app)}/info`)
+		const res = await send(app, "/info")
 		expect([res.status, await res.json()]).toEqual([200, { app: "test-app", v: 42 }])
 	})
 
@@ -277,7 +259,6 @@ describe("context values and concurrency on a real socket", () => {
 			.handler(async (ctx) =>
 				ctx.res.json("created", { body: (await ctx.req.json()) as unknown, id: ctx.params.id, method: "POST" }),
 			)
-		const base = await listen(app)
 		const answers = await Promise.all(
 			Array.from({ length: 50 }, async (_, i) => {
 				const init: RequestInit =
@@ -288,7 +269,7 @@ describe("context values and concurrency on a real socket", () => {
 								headers: { "content-type": "application/json", origin: "http://app.com" },
 								method: "POST",
 							}
-				const res = await fetch(`${base}/echo/${i}`, init)
+				const res = await send(app, `/echo/${i}`, init)
 				return [res.status, res.headers.get("access-control-allow-origin"), await res.json()]
 			}),
 		)
@@ -302,7 +283,7 @@ describe("context values and concurrency on a real socket", () => {
 	})
 })
 
-describe("csrf on a real socket", () => {
+describe("csrf in process", () => {
 	// v0: 2700653e0c
 	it("a same-origin form POST reaches the handler; a cross-site one is refused before it", async () => {
 		const app = honey<{}>()
@@ -310,9 +291,8 @@ describe("csrf on a real socket", () => {
 			.use(csrf())
 			.post("/echo")
 			.handler(async (ctx) => ctx.res.text("ok", await ctx.req.text()))
-		const base = await listen(app)
 		const post = async (site: string) => {
-			const res = await fetch(`${base}/echo`, {
+			const res = await send(app, "/echo", {
 				body: "data=safe",
 				headers: { "content-type": "application/x-www-form-urlencoded", "sec-fetch-site": site },
 				method: "POST",
@@ -356,10 +336,7 @@ describe("header middleware over answers it cannot edit in place", () => {
 	})
 
 	// v0: f411af65ff
-	it("all of them on Node over a fetch() answer, whose headers are immutable, add every header", async () => {
-		const origin = honey<{}>()
-		origin.get("/").handler((ctx) => ctx.res.text("ok", "from upstream"))
-		const upstream = await listen(origin)
+	it("all of them over an answer built outside honey, whose headers are immutable, add every header", async () => {
 		const app = honey<{}>()
 		app
 			.use(requestId())
@@ -368,8 +345,8 @@ describe("header middleware over answers it cannot edit in place", () => {
 			.use(serverTiming())
 			.use(cors({ origin: "http://app.test" }))
 			.get("/p")
-			.handler(() => fetch(`${upstream}/`) as never)
-		const res = await fetch(`${await listen(app)}/p`, { headers: { origin: "http://app.test" } })
+			.handler(() => new Response("from upstream", { headers: { "content-type": "text/plain" } }) as never)
+		const res = await send(app, "/p", { headers: { origin: "http://app.test" } })
 		expect([
 			res.status,
 			await res.text(),
@@ -436,23 +413,22 @@ function productionApp() {
 	return { app, spans }
 }
 
-describe("a production-shaped app on the wire", () => {
+describe("a production-shaped app in process", () => {
 	// v0: e5e2ce62c3
 	it("answers public, authed, conditional, created, missing, refused, wrong-method and preflight requests, traced", async () => {
 		const { app, spans } = productionApp()
-		const base = await listen(app)
 		const auth = { authorization: "Bearer tok", origin: "http://app.com" }
-		const health = await fetch(`${base}/api/health`)
-		const list = await fetch(`${base}/api/items`, { headers: auth })
+		const health = await send(app, "/api/health")
+		const list = await send(app, "/api/items", { headers: auth })
 		const tag = list.headers.get("etag") ?? ""
-		const again = await fetch(`${base}/api/items`, { headers: { ...auth, "if-none-match": tag } })
-		const created = await fetch(`${base}/api/items`, {
+		const again = await send(app, "/api/items", { headers: { ...auth, "if-none-match": tag } })
+		const created = await send(app, "/api/items", {
 			body: '{"name":"Gadget"}',
 			headers: { ...auth, "content-type": "application/json" },
 			method: "POST",
 		})
-		const notFound = await fetch(`${base}/api/items/0`, { headers: auth })
-		const preflight = await fetch(`${base}/api/items`, {
+		const notFound = await send(app, "/api/items/0", { headers: auth })
+		const preflight = await send(app, "/api/items", {
 			headers: {
 				"access-control-request-headers": "content-type, authorization",
 				"access-control-request-method": "POST",
@@ -477,8 +453,8 @@ describe("a production-shaped app on the wire", () => {
 			[again.status, again.headers.get("access-control-allow-origin")],
 			[created.status, await created.json()],
 			[notFound.status, ((await notFound.json()) as { message: string }).message],
-			(await fetch(`${base}/api/items`)).status,
-			[(await fetch(`${base}/api/items`, { method: "PATCH" })).headers.has("allow")],
+			(await send(app, "/api/items")).status,
+			[(await send(app, "/api/items", { method: "PATCH" })).headers.has("allow")],
 			[preflight.status, preflight.headers.get("access-control-allow-headers")?.includes("content-type")],
 			spans.some((span) => span.name.startsWith("GET") || span.name.startsWith("http")),
 		]).toEqual([

@@ -14,7 +14,6 @@
  *   bun run packages/core/tests/e2e/run-strict-consumer.ts --keep     # leave the sandbox for inspection
  */
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs"
-import { type AddressInfo, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -74,18 +73,6 @@ const PINNED_USER_AGENTS = [
 		"14",
 	],
 ]
-
-/**
- * `count` distinct ports the OS holds free now, all bound at once so none repeats: a fixed port in the
- * ephemeral range is any outbound socket's on a shared machine.
- */
-async function freePorts(count: number): Promise<number[]> {
-	const servers = Array.from({ length: count }, () => createServer())
-	await Promise.all(servers.map((server) => new Promise<void>((done) => server.listen(0, "0.0.0.0", done))))
-	const ports = servers.map((server) => (server.address() as AddressInfo).port)
-	await Promise.all(servers.map((server) => new Promise((done) => server.close(done))))
-	return ports
-}
 
 async function run(cmd: string[], cwd: string): Promise<{ code: number; out: string }> {
 	const proc = Bun.spawn(cmd, { cwd, stderr: "pipe", stdin: "ignore", stdout: "pipe" })
@@ -304,16 +291,13 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	if (imported.code !== 0) return fail("the core entry does not import on plain Node", imported.out)
 	console.log("runtime smoke ok (node)")
 
-	/* an app in the README "Start" shape: it serves at top level, which generation must survive */
-	const [port, served] = await freePorts(2)
+	/* an app in the README "Start" shape: its default export is the Worker */
 	await Bun.write(
 		join(dir, "src", "server-app.ts"),
 		[
 			'import { honey } from "@workerstack/backend"',
-			'import { serve } from "@workerstack/backend/node"',
 			'export const app = honey().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))',
 			"export default app",
-			`await serve(app, { port: ${port} })`,
 		].join("\n"),
 	)
 	await Bun.write(
@@ -337,7 +321,7 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 			"export default {",
 			"  ...base,",
 			'  logLevel: "error",',
-			'  plugins: [...base.plugins, createBuildPlugin({ outDir: "out", target: "node" }, { entry: "src/server-app.ts", export: "app" })],',
+			'  plugins: [...base.plugins, createBuildPlugin({ outDir: "out", target: "workers" }, { entry: "src/server-app.ts", export: "default" })],',
 			"}",
 		].join("\n"),
 	)
@@ -347,30 +331,19 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 	)
 	if (built.code !== 0) return fail("vite build with the honey plugins on Node", built.out)
 
-	const server = Bun.spawn(["node", "--unhandled-rejections=strict", join("out", "index.js")], {
-		cwd: dir,
-		env: { ...process.env, PORT: String(served) },
-		stderr: "pipe",
-		stdout: "pipe",
-	})
-	try {
-		const deadline = Date.now() + 10_000
-		while (Date.now() < deadline) {
-			/* bounded: a listener that takes the connection and never answers must not hang the tier */
-			const res = await fetch(`http://127.0.0.1:${served}/health`, { signal: AbortSignal.timeout(1000) }).catch(
-				() => undefined,
-			)
-			if (res?.status === 200) {
-				console.log("vite build ok (node)")
-				return true
-			}
-			await Bun.sleep(100)
-		}
-		server.kill()
-		return fail("the built server never answered /health", await new Response(server.stderr).text())
-	} finally {
-		server.kill()
-	}
+	/* the built Worker module, called as workerd calls its default export */
+	await Bun.write(
+		join(dir, "call-worker.mjs"),
+		[
+			'const worker = await import("./out/index.js")',
+			'const res = await worker.default.fetch(new Request("http://x/health"), {}, { passThroughOnException() {}, waitUntil() {} })',
+			'if (res.status !== 200 || (await res.text()) !== "ok") throw new Error(`/health returned ${res.status}`)',
+		].join("\n"),
+	)
+	const called = await run(["node", "--unhandled-rejections=strict", "call-worker.mjs"], dir)
+	if (called.code !== 0) return fail("the built Worker never answered /health", called.out)
+	console.log("vite build ok (node)")
+	return true
 }
 
 if (inPackage.length > 0 || inGenerated.length > 0 || inConsumer.length > 0) process.exit(1)

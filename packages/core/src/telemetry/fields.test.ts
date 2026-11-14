@@ -40,7 +40,6 @@ describe("the request-log field catalog", () => {
 			"path",
 			"requestId",
 			"routeId",
-			"runtime",
 			"status",
 		])
 		expect(Object.isFrozen(REQUEST_LOG_FIELDS)).toBe(true)

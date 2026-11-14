@@ -12,7 +12,7 @@ export type WSReadyState = 0 | 1 | 2 | 3
 /** Messages kept while a socket is still opening; past this the oldest goes. */
 export const WS_SEND_BUFFER_MAX = 32
 
-/** The socket a WebSocket handler talks to, the same on Node, Bun and Workers. `T` is the runtime's own socket type. */
+/** The socket a WebSocket handler talks to, `T` is the runtime's own socket type. */
 export type WSContext<T = unknown> = {
 	/** Outbound bytes the runtime holds unsent, when it reports them (0 otherwise). */
 	readonly bufferedAmount?: number
@@ -52,7 +52,7 @@ export type WSHandler<TCtx = unknown> = {
 
 /**
  * What a runtime adapter provides: it upgrades a request to a WebSocket and wires the socket to a handler. Use
- * `nodeWebSocket()`, `bunWebSocket()` or `workersWebSocket()`.
+ * `workersWebSocket()`.
  */
 export type WSAdapter = {
 	/**
@@ -65,23 +65,19 @@ export type WSAdapter = {
 		handler: WSHandler<unknown>,
 	):
 		| Promise<{
-				/** The 101 for this request. Only Workers sends it; Node and Bun write the handshake themselves. */
+				/** The 101 for this request. */
 				response: Response
-				/** The connection's context. `undefined` on Bun, which opens the socket later and passes it to `handler`. */
+				/** The connection's context. */
 				socket: WSContext
 		  }>
 		| {
-				/** The 101 for this request. Only Workers sends it; Node and Bun write the handshake themselves. */
+				/** The 101 for this request. */
 				response: Response
-				/** The connection's context. `undefined` on Bun, which opens the socket later and passes it to `handler`. */
+				/** The connection's context. */
 				socket: WSContext
 		  }
-	/** Close every open connection (graceful shutdown). */
-	closeAll?(code: number, reason: string): void
 	/** The adapter's options with defaults applied. */
 	readonly options?: ResolvedWSOptions
-	/** The runtime the adapter upgrades on; `serve(app)` refuses another runtime's adapter. */
-	readonly runtime?: "bun" | "node" | "workers"
 }
 
 export type RawSocket = {

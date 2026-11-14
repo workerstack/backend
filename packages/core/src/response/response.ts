@@ -1,23 +1,12 @@
 /**
  * `HoneyRes`: the `ctx.res` helpers. Each builds a buffered response from a status key, records
- * its raw body for later readers, and types it with a phantom content type and status key. On
- * Node it builds the `HoneyResponse` bag instead of a Fetch `Response`.
+ * its raw body for later readers, and types it with a phantom content type and status key.
  */
 import { type CookieOptions, serializeCookie } from "../context/cookie.ts"
 import { generatorStream, type ProducerOptions, producerStream } from "../streaming/producer-stream.ts"
 import type { Logger } from "../telemetry/logger.ts"
-import {
-	createHoneyResponse,
-	isHoneyResponse,
-	isProducedStream,
-	rawBodyOf,
-	type RawBody,
-	withForwarded,
-	withProducedBody,
-	withRawBody,
-} from "./builder.ts"
+import { isProducedStream, rawBodyOf, type RawBody, withForwarded, withProducedBody, withRawBody } from "./builder.ts"
 import { BINARY_HEADERS, type BinaryBody, binaryBytes, binaryHeaders, type BinaryOptions } from "./binary.ts"
-import type { HeaderMap } from "./out-headers.ts"
 import { SSE_HEADERS, type SSEOptions, type SSEStream, sseBody } from "./sse.ts"
 import { type RedirectKey, type StatusKey, statusKeyToCode } from "./status.ts"
 
@@ -84,18 +73,6 @@ function applyNative(headers: Headers, opts: ResponseOptions | undefined): Heade
 	return headers
 }
 
-function applyPlain(headers: HeaderMap, opts: ResponseOptions | undefined): HeaderMap {
-	for (const [name, value] of Object.entries(opts?.headers ?? {})) headers[name.toLowerCase()] = value
-	if (opts?.cookies) {
-		/* append, as `Headers.append` does on the native path: a `set-cookie` in `opts.headers` stays */
-		const existing = headers["set-cookie"]
-		const cookies = existing === undefined ? [] : [existing].flat()
-		for (const [name, cookie] of Object.entries(opts.cookies)) cookies.push(serializeCookie(name, cookie))
-		headers["set-cookie"] = cookies
-	}
-	return headers
-}
-
 /** The statuses of the vocabulary whose responses never carry a body (Fetch "null body status"). */
 function isNullBodyStatus(status: number): boolean {
 	return status === 204 || status === 205 || status === 304
@@ -153,12 +130,10 @@ function writableOver(write: (bytes: Uint8Array) => Promise<void>, end: { close(
  * native Response through. A status is always a key, never a number, so the answer is the one the document names.
  */
 export class HoneyRes {
-	protected readonly nodeOut: boolean
 	readonly #link: ResLink | undefined
 
 	/** `link` is the request a per-request res streams for; a bare res has none (no signal, no Last-Event-ID). */
-	constructor(nodeOut = false, link?: ResLink) {
-		this.nodeOut = nodeOut
+	constructor(link?: ResLink) {
 		this.#link = link
 	}
 
@@ -195,17 +170,12 @@ export class HoneyRes {
 			throw new TypeError(`A ${status} response cannot have a body; use ctx.res.noContent() or another status`)
 		}
 		if (raw instanceof ReadableStream) return typed(this.#streamed(raw, headers, opts, status))
-		if (this.nodeOut) {
-			const map = hasOptions(opts) ? applyPlain({ ...headers }, opts) : (headers as HeaderMap)
-			return typed(createHoneyResponse({ headers: map, raw, status }))
-		}
 		const init = hasOptions(opts) ? applyNative(new Headers(headers), opts) : headers
 		return typed(withRawBody(new Response(raw as BodyInit, { headers: init, status }), raw))
 	}
 
 	/** A response with no body. */
 	#empty(status: number, headers: Record<string, string>, opts?: ResponseOptions): Response {
-		if (this.nodeOut) return createHoneyResponse({ headers: applyPlain(headers, opts), raw: null, status })
 		return new Response(null, { headers: applyNative(new Headers(headers), opts), status })
 	}
 
@@ -280,7 +250,7 @@ export class HoneyRes {
 	raw(response: Response): TypedResponse {
 		if (response.bodyUsed)
 			throw new TypeError("raw(): this response's body was already read — build a new Response per request")
-		const built = isHoneyResponse(response) || rawBodyOf(response) !== null || isProducedStream(response)
+		const built = rawBodyOf(response) !== null || isProducedStream(response)
 		if (response.status === 101 || built) return typed(response)
 		return typed(new Response(response.body, response))
 	}

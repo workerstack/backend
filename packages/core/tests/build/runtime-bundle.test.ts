@@ -1,6 +1,6 @@
 /**
  * What an app's bundle carries from the installed package (bit 19 i, ported from v0's runtime-bundle.test.ts): the
- * real core tarball, installed beside honey-clients at the version core pins and every optional peer (ws, oxfmt, ts-morph; jiti is core's own
+ * real core tarball, installed beside honey-clients at the version core pins and every build-time package (oxfmt, ts-morph; jiti is core's own
  * dependency), so a leak would be bundled rather than fail to resolve. A bundle of `honey()` leaves out the tooling
  * and every optional feature until its subpath is imported; a Worker built by the build plugin carries none of the
  * build-time packages; and a core-only install loads the plugin, failing by name only when it is asked to generate.
@@ -29,15 +29,14 @@ const OPTIONAL_FEATURES: Readonly<Record<string, string>> = {
 }
 
 /*
- * what a build-time or Node-only package leaves in a bundle, by its own text rather than a region path (a linked
- * package is inlined without one); under a Worker's conditions ws resolves to its browser stub, which throws
+ * what a build-time package leaves in a bundle, by its own text rather than a region path (a linked package is
+ * inlined without one)
  */
 const BUILD_TIME: Readonly<Record<string, RegExp>> = {
 	"@workerstack/clients": /honey-clients/,
 	jiti: /\bjiti\b|createJiti/,
 	oxfmt: /oxfmt/,
 	"ts-morph": /ts-morph/,
-	ws: /WebSocketServer|ws does not work in the browser/,
 }
 
 beforeAll(() => {
@@ -45,7 +44,7 @@ beforeAll(() => {
 	full = consumer(
 		join(files.out, "full"),
 		{ "@workerstack/backend": `file:${tarball}`, "@workerstack/clients": CLIENTS },
-		["ws", "oxfmt", "ts-morph"],
+		["oxfmt", "ts-morph"],
 	)
 }, 180_000)
 afterAll(() => files.done())
@@ -137,6 +136,9 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * ctx the check now reads, and validation/projection's walk of an issue's path, behind #output-check, so a
 			 * build that drops the check drops it too. Locked at 27,100, then 27,200: CI's Node 26.13.0 (its zlib
 			 * 1.3.2.1-motley) gzips the same 27,023 bytes of 26.12.0's measure to 27,094, so a lock is read off CI's Node.
+			 * Plan 53 (D16) took 1,568 off (27,094 to 25,526 on CI's Node 26.13.1): apps run on Workers only, so the
+			 * builder's Node out-headers path, runtime detection and the request log's runtime field are gone. Locked
+			 * at 25,600.
 			 */
 			const gzipped = gzipSync(js, { level: 9 }).length
 			const builtBy = run(BUN as string, ["--version"], full).out.trim()
@@ -145,7 +147,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					leaked,
 					features,
 					routeModules("minimal", entry, [...WS_ROUTE, ...MCP_ROUTE, ...GENERATION_ONLY]),
-					gzipped < 27_200,
+					gzipped < 25_600,
 					builtBy,
 				],
 				`${gzipped} bytes gzipped`,
@@ -274,7 +276,8 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * 28,035): ctx.res.forward() and its check, and json and sse taking a stream, as in the minimal bundle.
 			 * Locked at 28,100. Plan 48 added 341 (28,035 to 28,376): .output()'s projection and its check, as in the
 			 * minimal bundle. Locked at 28,500: CI's Node
-			 * 26.13.0 gzips it to 28,441.
+			 * 26.13.0 gzips it to 28,441. Plan 53 (D16) took 1,575 off (28,441 to 26,866 on CI's Node 26.13.1): the
+			 * Node and Bun runtime paths, as in the minimal bundle. Locked at 26,900.
 			 */
 			const gzipped = gzipSync(bunBundle("static-doc", served), { level: 9 }).length
 			expect(
@@ -282,7 +285,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					routeModules("static-doc", served, [...GENERATOR, ...PAGES]),
 					routeModules("static-page", withPage, [...GENERATOR, ...PAGES]),
 					routeModules("generated-doc", generated, PAGES),
-					gzipped < 28_500,
+					gzipped < 26_900,
 				],
 				`${gzipped} bytes gzipped`,
 			).toEqual([[], ["openapi/scalar"], [], true])
@@ -343,7 +346,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		60_000,
 	)
 
-	it("a Worker built by the build plugin carries none of ts-morph, ws, oxfmt, jiti or honey-clients", async () => {
+	it("a Worker built by the build plugin carries none of ts-morph, oxfmt, jiti or honey-clients", async () => {
 		write(full, {
 			"src/worker-app.ts": [
 				'import { honey } from "@workerstack/backend"',

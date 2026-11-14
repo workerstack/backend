@@ -13,7 +13,7 @@
  * an answer to a credentialed request (a `Cookie` or `Authorization`) or one that sets a cookie is
  * not compressed; `credentialed: true` opts in.
  */
-import { isHoneyResponse, rawBodyOf, replaceResponse, type RawBody, withRawBody } from "../response/builder.ts"
+import { rawBodyOf, replaceResponse, type RawBody, withRawBody } from "../response/builder.ts"
 import { addVary, withHeaders } from "../response/with-headers.ts"
 import { type MiddlewareFn, namedMiddleware } from "./middleware.ts"
 
@@ -97,8 +97,7 @@ export function compress(options: CompressOptions = {}): MiddlewareFn<{
 			return withHeaders(response, (headers) => addVary(headers, "accept-encoding"))
 		}
 		const bytes = await gzip(raw)
-		const encoded = replaceResponse(response, { body: bytes })
-		if (!isHoneyResponse(encoded)) withRawBody(encoded, bytes)
+		const encoded = withRawBody(replaceResponse(response, { body: bytes }), bytes)
 		return withHeaders(encoded, (headers) => {
 			headers.set("content-encoding", "gzip")
 			headers.delete("content-length")

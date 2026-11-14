@@ -62,11 +62,6 @@
 			"types": "./dist/build/index.d.ts",
 			"default": "./dist/build/index.js"
 		},
-		"./bun": {
-			"honey-source": "./src/adapters/bun/serve.ts",
-			"types": "./dist/adapters/bun/serve.d.ts",
-			"default": "./dist/adapters/bun/serve.js"
-		},
 		"./cache-control": {
 			"honey-source": "./src/response/cache-control.ts",
 			"types": "./dist/response/cache-control.d.ts",
@@ -156,11 +151,6 @@
 			"honey-source": "./src/mcp/url-files.ts",
 			"types": "./dist/mcp/url-files.d.ts",
 			"default": "./dist/mcp/url-files.js"
-		},
-		"./node": {
-			"honey-source": "./src/adapters/node/serve.ts",
-			"types": "./dist/adapters/node/serve.d.ts",
-			"default": "./dist/adapters/node/serve.js"
 		},
 		"./openapi": {
 			"honey-source": "./src/openapi/register.ts",
@@ -277,11 +267,6 @@
 			"types": "./dist/cron/define.d.ts",
 			"default": "./dist/cron/define.js"
 		},
-		"./cron/serve": {
-			"honey-source": "./src/cron/serve.ts",
-			"types": "./dist/cron/serve.d.ts",
-			"default": "./dist/cron/serve.js"
-		},
 		"./cron/workers": {
 			"honey-source": "./src/cron/workers.ts",
 			"types": "./dist/cron/workers.d.ts",
@@ -291,11 +276,6 @@
 			"honey-source": "./src/queue/define.ts",
 			"types": "./dist/queue/define.d.ts",
 			"default": "./dist/queue/define.js"
-		},
-		"./queue/serve": {
-			"honey-source": "./src/queue/serve.ts",
-			"types": "./dist/queue/serve.d.ts",
-			"default": "./dist/queue/serve.js"
 		},
 		"./queue/workers": {
 			"honey-source": "./src/queue/workers.ts",
@@ -312,25 +292,10 @@
 			"types": "./dist/security/webhook.d.ts",
 			"default": "./dist/security/webhook.js"
 		},
-		"./ws/bun": {
-			"honey-source": "./src/ws/bun.ts",
-			"types": "./dist/ws/bun.d.ts",
-			"default": "./dist/ws/bun.js"
-		},
 		"./ws/workers": {
 			"honey-source": "./src/ws/workers.ts",
 			"types": "./dist/ws/workers.d.ts",
 			"default": "./dist/ws/workers.js"
-		},
-		"./ws/node": {
-			"honey-source": "./src/ws/node.ts",
-			"types": "./dist/ws/node.d.ts",
-			"default": "./dist/ws/node.js"
-		},
-		"./ws/session": {
-			"honey-source": "./src/ws/session.ts",
-			"types": "./dist/ws/session.d.ts",
-			"default": "./dist/ws/session.js"
 		},
 		"./package.json": "./package.json"
 	},
@@ -366,19 +331,14 @@
 		"valibot": "catalog:",
 		"vite": "catalog:",
 		"vitest": "catalog:",
-		"ws": "catalog:",
 		"yup": "catalog:",
 		"zod": "catalog:"
 	},
 	"peerDependencies": {
-		"@workerstack/clients": ">=1.0.0-0",
-		"ws": ">=8.21.0"
+		"@workerstack/clients": ">=1.0.0-0"
 	},
 	"peerDependenciesMeta": {
 		"@workerstack/clients": {
-			"optional": true
-		},
-		"ws": {
 			"optional": true
 		}
 	},

@@ -51,10 +51,9 @@ sees it. Same machine and pinning, 2026-10-14:
 Bit 02 (dispatch + finalize split) holds or improves these; it is a measurement, not yet a gate.
 (The finalize/dispatch split is bit 02, re-cut from bit 01 by dependency; bit 01 is the pure route model with no app.fetch path.)
 
-== Competitive throughput (bench/src/run.sh) ==
-honey vs hono / elysia / express / nest, naked + zod, bun + node, json/params/validate/middleware,
-bombardier 10s x 100 connections: `bun run bench`, `bun run bench:node`. The steady-state
-absolute gate (00-rules "Perf gate" step 3); run in CI.
+== Competitive throughput (retired) ==
+The honey vs hono / elysia / express / nest bombardier harness (bench/src/run.sh) is gone with the Node and Bun
+server paths; its last snapshot is bench/RESULTS.md. The in-process ratio gates (hotpath, finalize, streaming) remain.
 
 == Rule ==
 A v1 change may not regress a scenario significantly (hotpath.ts exits 1). An intended move is a

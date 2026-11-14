@@ -1,13 +1,9 @@
-import type { AddressInfo } from "node:net"
-import { connect } from "node:net"
-import { afterEach, describe, expect, it } from "vitest"
-import { type HoneyServer, createNodeServer } from "../adapters/node/server.ts"
+import { describe, expect, it } from "vitest"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { requestId } from "../middleware/request-id.ts"
-import { createHoneyResponse, isHoneyResponse } from "../response/builder.ts"
-import { type Honey, honey } from "../routing/app.ts"
+import { withRawBody } from "../response/builder.ts"
+import { honey } from "../routing/app.ts"
 import { createLogger } from "./logger.ts"
-import { runtimeOf } from "./request-log.ts"
 import { ws } from "../ws/route.ts"
 
 /** A json logger at trace whose lines are parsed into `lines`. */
@@ -57,27 +53,6 @@ function app(log = true) {
 
 const get = (path: string, init?: RequestInit) => new Request(`https://app.example.com${path}`, init)
 
-const servers: HoneyServer[] = []
-afterEach(async () => {
-	await Promise.all(servers.splice(0).map((server) => server.shutdown(0)))
-})
-
-/** The raw bytes a real node:http server writes for `path`, without the Date header. */
-async function onTheWire(served: Honey<{}>, request: string): Promise<string> {
-	const server = createNodeServer(served, { env: {}, hostname: "127.0.0.1", port: 0 })
-	servers.push(server)
-	await new Promise((resolve) => server.once("listening", resolve))
-	const { port } = server.address() as AddressInfo
-	const out = await new Promise<string>((resolve) => {
-		const socket = connect(port, "127.0.0.1")
-		let text = ""
-		socket.on("data", (chunk) => (text += chunk.toString("latin1")))
-		socket.on("close", () => resolve(text))
-		socket.write(request)
-	})
-	return out.replace(/^date: .*\r\n/im, "")
-}
-
 describe("requestLog: off by default", () => {
 	it("an app that never turned it on writes no request line", async () => {
 		const { lines, logger } = recording()
@@ -95,14 +70,14 @@ describe("requestLog: one line per request, from the field catalog", () => {
 	// v0: 28c838ff81
 	// v0: 238cf0a144
 	// v0: dfd70438f2
-	it("a buffered body: method, path without its query, status, error key, route id, kind, bytes, runtime, a duration", async () => {
+	it("a buffered body: method, path without its query, status, error key, route id, kind, bytes, a duration", async () => {
 		const { app: a, lines } = app()
 		await (await a.fetch(get("/json/7?token=secret"), {})).text()
 		await (await a.fetch(get("/text"), {})).text()
 		await (await a.fetch(get("/empty"), {})).text()
 		await (await a.fetch(get("/fail"), {})).text()
 		await (await a.fetch(get("/nowhere"), {})).text()
-		const common = { method: "GET", runtime: "node", timed: true }
+		const common = { method: "GET", timed: true }
 		expect(entries(lines)).toEqual([
 			{ ...common, bytes: 10, kind: "json", path: "/json/7", routeId: "GET /json/:id", status: 200 },
 			{ ...common, bytes: 6, kind: "text", path: "/text", routeId: "GET /text", status: 200 },
@@ -245,14 +220,17 @@ describe("requestLog: a streamed body is logged when it ends", () => {
 
 describe("requestLog: never changes what goes out", () => {
 	it.each([
-		["a buffered JSON body", "GET /json/1 HTTP/1.1"],
-		["a streamed body", "GET /stream HTTP/1.1"],
-		["an SSE body", "GET /sse HTTP/1.1"],
-		["a HEAD", "HEAD /stream HTTP/1.1"],
-	])("%s: the bytes on the wire are the same with it on and off", async (_name, line) => {
-		const request = `${line}\r\nHost: localhost\r\nConnection: close\r\n\r\n`
-		const [off, on] = [await onTheWire(app(false).app, request), await onTheWire(app(true).app, request)]
-		expect(on).toBe(off)
+		["a buffered JSON body", "GET /json/1"],
+		["a streamed body", "GET /stream"],
+		["an SSE body", "GET /sse"],
+		["a HEAD", "HEAD /stream"],
+	])("%s: the answer is the same with it on and off", async (_name, line) => {
+		const [method = "GET", path = "/"] = line.split(" ")
+		const answer = async (on: boolean) => {
+			const res = await app(on).app.fetch(get(path, { method }), {})
+			return [res.status, [...res.headers], await res.text()]
+		}
+		expect(await answer(true)).toEqual(await answer(false))
 	})
 
 	it("a HEAD is logged at once, with no bytes", async () => {
@@ -280,7 +258,7 @@ describe("requestLog: never changes what goes out", () => {
 	})
 })
 
-describe("requestLog: the kind, the runtime and a broken body", () => {
+describe("requestLog: the kind and a broken body", () => {
 	it.each([["a +json type is json", { "content-type": "application/problem+json; charset=utf-8" }, "json"]])(
 		"%s",
 		async (_name, headers, kind) => {
@@ -291,17 +269,13 @@ describe("requestLog: the kind, the runtime and a broken body", () => {
 		},
 	)
 
-	it("a native response's own request id and type are read without a HoneyResponse", async () => {
+	it("a native response's own request id and type are read off the headers", async () => {
 		const { app: a, lines } = app()
 		a.get("/native").handler(
 			() => new Response("{}", { headers: { "content-type": "application/json", "x-request-id": "n-1" } }) as never,
 		)
 		await (await a.fetch(get("/native"), {})).text()
 		expect(entries(lines)[0]).toMatchObject({ kind: "stream", requestId: "n-1" })
-	})
-
-	it("a runtime serve() does not know is named unknown", () => {
-		expect([runtimeOf({}), runtimeOf()]).toEqual(["unknown", "node"])
 	})
 
 	it("a body that breaks mid-stream is logged as aborted, and its reader still sees the failure", async () => {
@@ -322,16 +296,15 @@ describe("requestLog: the kind, the runtime and a broken body", () => {
 	})
 })
 
-describe("requestLog: bytes, early answers and a HoneyResponse stream", () => {
+describe("requestLog: bytes and early answers", () => {
 	it("a raw byte body is binary, its bytes counted", async () => {
 		const { app: a, lines } = app()
 		a.get("/bytes").handler(
 			() =>
-				createHoneyResponse({
-					headers: { "content-type": "application/octet-stream" },
-					raw: new Uint8Array([1, 2, 3]),
-					status: 200,
-				}) as never,
+				withRawBody(
+					new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "application/octet-stream" } }),
+					new Uint8Array([1, 2, 3]),
+				) as never,
 		)
 		await (await a.fetch(get("/bytes"), {})).arrayBuffer()
 		expect(entries(lines).map((entry) => [entry.kind, entry.bytes])).toEqual([["binary", 3]])
@@ -347,20 +320,6 @@ describe("requestLog: bytes, early answers and a HoneyResponse stream", () => {
 			[400, ""],
 			[308, ""],
 		])
-	})
-
-	it("a HoneyResponse stream stays a HoneyResponse, so the writer takes the same path", async () => {
-		const { app: a, lines } = app()
-		const stream = new ReadableStream<Uint8Array>({
-			start(controller) {
-				controller.enqueue(new Uint8Array([7]))
-				controller.close()
-			},
-		})
-		a.get("/honey-stream").handler(() => createHoneyResponse({ headers: {}, status: 200, stream }) as never)
-		const res = await a.fetch(get("/honey-stream"), {})
-		await res.arrayBuffer()
-		expect([isHoneyResponse(res), entries(lines).map((entry) => entry.bytes)]).toEqual([true, [1]])
 	})
 
 	it("a cancel while a read is pending logs once, as aborted", async () => {

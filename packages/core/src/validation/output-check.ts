@@ -6,8 +6,8 @@
  * response headers are checked first. Failures are a 500 that names the status key and nothing of the issues.
  *
  * This module is what `#output-check` resolves to by default (package.json `imports`). A Vite production build
- * through `honeyPlugin()`, or a node or bun run started with `--conditions=honey-no-output-check`, resolves
- * output-check-off.ts instead, so none of this is in that bundle or process.
+ * through `honeyPlugin()`, or a bundler given the `honey-no-output-check` condition, resolves output-check-off.ts
+ * instead, so none of this is in that bundle.
  */
 import { EK, HoneyError } from "../errors/error.ts"
 import type { MaybePromise } from "../middleware/middleware.ts"

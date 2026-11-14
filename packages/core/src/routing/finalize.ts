@@ -68,7 +68,7 @@ export type FinalizeHooks = {
 	/** The 404 or 405 answer, run as a chain's final step. */
 	readonly miss: (ctx: object) => MaybePromise<Response>
 	/** the fixed 404, for a miss whose chain runs nothing */
-	readonly notFound: (nodeOut: boolean) => Response
+	readonly notFound: () => Response
 }
 
 /** What one graph serves. */
@@ -78,7 +78,7 @@ export type FinalTable = {
 	/** The plan a 404 or 405 runs when no route answers the request. */
 	readonly miss: Plan
 	/** Builds the fixed 404 for a miss whose chain runs nothing, or `null` when middleware must run first. */
-	readonly notFound: ((nodeOut: boolean) => Response) | null
+	readonly notFound: (() => Response) | null
 	/** Every route's plan, by route id. */
 	readonly plans: ReadonlyMap<RouteId, Plan>
 	/** method → path → plan, for patterns without params or wildcards */

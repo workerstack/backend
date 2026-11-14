@@ -1,33 +1,5 @@
 {
 	"benches": {
-		"adapter": {
-			"node 26.12": {
-				"native-json": {
-					"baseline": 2.655,
-					"catches": "+65%",
-					"ceiling": 4.382,
-					"reason": "its level differs by CPU model (per-model medians: EPYC 7763 2.800, EPYC 9V45 2.400, EPYC 9V74 2.560, Xeon 6973P-C 3.060); a ratio cancels runner speed, not microarchitecture, so this pooled ceiling covers every model and catches only +83% on the lowest one. Tight again under the same-runner A/B gate that replaces these ceilings."
-				},
-				"post-1kib": {
-					"baseline": 3.085,
-					"catches": "+318%",
-					"ceiling": 12.905,
-					"reason": "bimodal on CI, its levels not shown to be the raw twin's; reportOnly since bit 20 e3; its level differs by CPU model (per-model medians: EPYC 7763 4.120, EPYC 9V45 2.150, EPYC 9V74 3.085, Xeon 6973P-C 2.620); a ratio cancels runner speed, not microarchitecture, so this pooled ceiling covers every model and catches only +500% on the lowest one. Tight again under the same-runner A/B gate that replaces these ceilings.",
-					"reportOnly": true
-				},
-				"routed-json": {
-					"baseline": 1.43,
-					"catches": "+52%",
-					"ceiling": 2.174
-				},
-				"stacked-json": {
-					"baseline": 1.775,
-					"catches": "+47%",
-					"ceiling": 2.606,
-					"reason": "its level differs by CPU model (per-model medians: EPYC 7763 1.880, EPYC 9V45 1.800, EPYC 9V74 1.650, Xeon 6973P-C 1.750); a ratio cancels runner speed, not microarchitecture, so this pooled ceiling covers every model and catches only +58% on the lowest one. Tight again under the same-runner A/B gate that replaces these ceilings."
-				}
-			}
-		},
 		"finalize": {
 			"bun 1.4": {
 				"1000x10": {
@@ -138,32 +110,6 @@
 					"baseline": 1.41,
 					"catches": "+181%",
 					"ceiling": 3.958
-				}
-			}
-		},
-		"websockets": {
-			"bun 1.4": {
-				"message-100k": {
-					"baseline": 6.165,
-					"catches": "+62%",
-					"ceiling": 9.986,
-					"reason": "its level differs by CPU model (per-model medians: EPYC 7763 6.120, EPYC 9V45 6.870, EPYC 9V74 5.720, Xeon 6973P-C 6.130); a ratio cancels runner speed, not microarchitecture, so this pooled ceiling covers every model and catches only +75% on the lowest one. Tight again under the same-runner A/B gate that replaces these ceilings."
-				},
-				"realtime-fanout": {
-					"baseline": 3.155,
-					"catches": "+41%",
-					"ceiling": 4.442
-				},
-				"realtime-inbound-10k": {
-					"baseline": 4.67,
-					"catches": "+46%",
-					"ceiling": 6.817,
-					"reason": "its level differs by CPU model (per-model medians: EPYC 7763 4.840, EPYC 9V45 4.710, EPYC 9V74 4.595, Xeon 6973P-C 4.710); a ratio cancels runner speed, not microarchitecture, so this pooled ceiling covers every model and catches only +48% on the lowest one. Tight again under the same-runner A/B gate that replaces these ceilings."
-				},
-				"upgrade-1k": {
-					"baseline": 2.795,
-					"catches": "+47%",
-					"ceiling": 4.104
 				}
 			}
 		}

@@ -82,17 +82,15 @@ A file that would pass a limit by growing is split in the blueprint first: new r
 
 ## Environments
 
-`packages/core` targets the Fetch platform and must run on Node, Bun, and Cloudflare Workers from one source. Deno is removed in v1 (bit 00).
+`packages/core` targets the Fetch platform and runs on Cloudflare Workers only (D16). Deno is removed in v1 (bit 00).
 
 | folder | may use | must not use |
 | --- | --- | --- |
 | `src/` (portable core) | ECMAScript, `URL`, `TextEncoder`, `Request`/`Response`/`Headers`, Web Streams, `crypto.subtle` | `process`, `Buffer`, `node:*`, `Bun`, DOM globals |
-| `src/adapters/node/` | portable core, plus `node:*` | `Bun`, Workers-only globals |
-| `src/adapters/bun/` | portable core, plus `Bun` | `node:*` builtins beyond what Bun polyfills, Workers-only globals |
 | `src/adapters/workers/` | portable core, plus Workers runtime | `node:*`, `Bun` |
 | `packages/gen/src/` | Node (it is a build-time tool) | runtime coupling to a served request |
 
-Runtime detection (`detect-runtime`) returns a pure value; adapters branch on it. A portable-core file never imports an adapter. `ts-morph` is imported only by the type-extraction entry of `honey-clients`, and `ws` only by the Node WebSocket adapter — both optional peers (see Dependencies).
+A portable-core file never imports an adapter. `ts-morph` is imported only by the type-extraction entry of `honey-clients`, an optional peer (see Dependencies).
 
 ## Dependencies
 
@@ -101,7 +99,6 @@ Runtime detection (`detect-runtime`) returns a pure value; adapters branch on it
 | package | role | manifest | devDependency (exact) | peerDependency | imported from |
 | --- | --- | --- | --- | --- | --- |
 | `jiti` | runtime dep | core | 2.7.0 | — | config/plugin loading |
-| `ws` | optional peer | **core** | the exact tested version | `>=` that version | the Node WebSocket adapter only |
 | `ts-morph` | optional peer | **gen** (not core) | the exact tested version | `>=` that version | `honey-clients` type-extraction entry only — `honey/boundaries` keeps it out of core |
 | `oxfmt` | optional peer | **gen** | the exact tested version | `>=` that version | `honey-clients`'s CLI only, imported lazily for the TS post-pass (Q12); absent, TS goes out as emitted |
 | `@lovrozagar/honey-clients` | optional peer | **core** | `workspace:*` | `>=` the release | `src/build/` only, through `import()` or a type-only import (Q2) |

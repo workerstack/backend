@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
-import { detectRuntime } from "../../src/runtime/detect-runtime.ts"
 import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 
 const REPO = resolve(import.meta.dirname, "../../../..")
@@ -51,29 +50,5 @@ describe("Deno is gone (H15)", () => {
 			exports: Record<string, unknown>
 		}
 		expect(Object.keys(pkg.exports)).not.toContain("./ws/deno")
-	})
-})
-
-describe("node, bun and workers detection still resolves", () => {
-	it("detects node from process.versions", () => {
-		expect(detectRuntime({ process: { versions: { node: "22.0.0" } } })).toBe("node")
-	})
-
-	it("detects bun from the Bun global", () => {
-		expect(detectRuntime({ Bun: {} })).toBe("bun")
-	})
-
-	it("detects workers from the workers user agent", () => {
-		expect(detectRuntime({ navigator: { userAgent: "Cloudflare-Workers" } })).toBe("workers")
-	})
-
-	it("a Deno global no longer selects a runtime", () => {
-		const g = { Deno: {}, process: { versions: { node: "22.0.0" } } }
-		expect(detectRuntime(g)).toBe("node")
-	})
-
-	it("a Deno global alone is not a runtime", () => {
-		const g = { Deno: {}, navigator: { userAgent: "" } }
-		expect(() => detectRuntime(g)).toThrow(/could not detect the runtime/)
 	})
 })

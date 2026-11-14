@@ -1,6 +1,4 @@
-import type { AddressInfo } from "node:net"
 import { describe, expect, it, vi } from "vitest"
-import { createNodeServer } from "../adapters/node/server.ts"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { createLogger } from "../telemetry/logger.ts"
@@ -284,46 +282,5 @@ describe("taps beside errorI18n", () => {
 			"missing 0",
 			[{ action: "get" }, { action: "ok", id: "7" }],
 		])
-	})
-})
-
-describe("over a real listen", () => {
-	// v0: b8231ea031
-	it("a 200 fires the meta tap and ctx.tap; an error answer fires none", async () => {
-		const seen: unknown[] = []
-		const app = honey<{}>()
-			.errorFactory(defineErrors({ nope: "bad_request" }))
-			.metaType<{ audit?: { action: string } }>()
-			.tap("audit", (_ctx, payload) => void seen.push(payload))
-		app
-			.get("/ok")
-			.meta({ audit: { action: "list" } })
-			.handler((ctx) => {
-				ctx.tap("audit", { action: "dynamic" })
-				return ctx.res.json("ok", { ok: true })
-			})
-		app
-			.get("/boom")
-			.errors("nope")
-			.handler((ctx) => {
-				ctx.tap("audit", { action: "should-not-fire" })
-				throw ctx.errors.nope()
-			})
-		const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-		await new Promise((resolve) => server.once("listening", resolve))
-		const { port } = server.address() as AddressInfo
-		try {
-			const ok = await fetch(`http://127.0.0.1:${port}/ok`)
-			const boom = await fetch(`http://127.0.0.1:${port}/boom`)
-			await settle()
-			expect([ok.status, await ok.json(), boom.status, seen]).toEqual([
-				200,
-				{ ok: true },
-				400,
-				[{ action: "list" }, { action: "dynamic" }],
-			])
-		} finally {
-			await server.shutdown(0)
-		}
 	})
 })

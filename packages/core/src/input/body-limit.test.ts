@@ -1,6 +1,4 @@
-import type { AddressInfo } from "node:net"
-import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest"
-import { type HoneyServer, createNodeServer } from "../adapters/node/server.ts"
+import { describe, expect, expectTypeOf, it, vi } from "vitest"
 import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
@@ -10,6 +8,7 @@ import { timeout } from "../middleware/timeout.ts"
 import { type CurlLogData, curlLogger } from "../observability/curl-logger.ts"
 import { generateOpenApi } from "../openapi/generate.ts"
 import { honey } from "../routing/app.ts"
+import { testClient } from "../testing/testing.ts"
 import { type BodyLimitOptions, bodyLimit } from "./body-limit.ts"
 
 /** A handler answering with the body's byte length. */
@@ -385,73 +384,11 @@ describe("bodyLimit beside other middleware", () => {
 			.use(ipRestrict({ allowList: ["127.0.0.1"] }))
 			.post("/ping")
 			.handler(async (ctx) => ctx.res.json("ok", { body: (await ctx.req.json()) as object }))
-		const base = await listen(app)
-		const res = await fetch(`${base}/ping`, {
-			body: '{"a":1}',
-			headers: { "content-type": "application/json" },
-			method: "POST",
-		})
+		const res = await testClient(app, { env: {}, ip: "127.0.0.1" }).post("/ping", { json: { a: 1 } })
 		expect([res.status, await res.json(), res.headers.get("x-request-id") !== null]).toEqual([
 			200,
 			{ body: { a: 1 } },
 			true,
-		])
-	})
-})
-
-const servers: HoneyServer[] = []
-
-afterEach(async () => {
-	await Promise.all(servers.splice(0).map((server) => server.shutdown(0)))
-})
-
-/** Serve `app` on a free loopback port; the base URL to reach it. */
-async function listen(app: { fetch(request: Request, env: {}): Response | Promise<Response> }): Promise<string> {
-	const server = createNodeServer(app, { env: {}, hostname: "127.0.0.1", port: 0 })
-	servers.push(server)
-	await new Promise((resolve) => server.once("listening", resolve))
-	return `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-}
-
-describe("bodyLimit on a real socket", () => {
-	// v0: 9f87d702c3
-	// v0: 0c89a1ac58
-	// v0: 6998bb3ec2
-	// v0: 3b5e030334
-	// v0: 3e3af178d9
-	// v0: 28667ab92e
-	it("limits a Node request in place, keeping its method, headers and body", async () => {
-		const app = honey<{}>().use(bodyLimit({ maxSize: 1024 }))
-		app.on(["POST", "PUT", "PATCH"], "/echo").handler(async (ctx) =>
-			ctx.res.json("ok", {
-				auth: ctx.req.headers.get("authorization"),
-				body: await ctx.req.text(),
-				method: ctx.req.method,
-			}),
-		)
-		app
-			.post("/users")
-			.input({ json: z.object({ name: z.string() }) })
-			.handler((ctx) => ctx.res.json("created", ctx.input))
-		const base = await listen(app)
-		const send = async (path: string, init: RequestInit) => {
-			const res = await fetch(`${base}${path}`, init)
-			return [res.status, (await res.json()) as unknown]
-		}
-		const headers = { authorization: "Bearer tok-123", "content-type": "text/plain" }
-		const json = { "content-type": "application/json" }
-		expect([
-			await send("/echo", { body: "hello", headers, method: "POST" }),
-			await send("/echo", { body: "hi", headers, method: "PUT" }),
-			await send("/echo", { body: "x", headers, method: "PATCH" }),
-			await send("/users", { body: '{"name":"Bob"}', headers: json, method: "POST" }),
-			(await send("/echo", { body: "x".repeat(2000), headers, method: "POST" }))[0],
-		]).toEqual([
-			[200, { auth: "Bearer tok-123", body: "hello", method: "POST" }],
-			[200, { auth: "Bearer tok-123", body: "hi", method: "PUT" }],
-			[200, { auth: "Bearer tok-123", body: "x", method: "PATCH" }],
-			[201, { json: { name: "Bob" } }],
-			413,
 		])
 	})
 })

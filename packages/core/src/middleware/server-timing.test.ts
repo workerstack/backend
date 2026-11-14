@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest"
-import { isHoneyResponse, NODE_OUTBOUND } from "../response/builder.ts"
-import type { HoneyOutHeaders } from "../response/out-headers.ts"
 import { honey } from "../routing/app.ts"
 import { serverTiming, type Timing } from "./server-timing.ts"
 
@@ -68,21 +66,6 @@ describe("serverTiming(): the header", () => {
 	it("keeps a Server-Timing the handler or an upstream set, adding to it", async () => {
 		const { header } = await timings(() => {}, { upstream: "cdn;dur=1.5" })
 		expect(header.startsWith("cdn;dur=1.5, total;dur=")).toBe(true)
-	})
-})
-
-describe("serverTiming(): the plain path", () => {
-	it("on a Node-bridge answer, the timing joins the handler's value on the plain header map", async () => {
-		const app = honey<{}>()
-		app
-			.use(serverTiming())
-			.get("/t")
-			.handler((ctx) => ctx.res.text("ok", "x", { headers: { "server-timing": "cdn;dur=1.5" } }))
-		const request = new Request("https://app.example.com/t")
-		Object.defineProperty(request, NODE_OUTBOUND, { value: true })
-		const res = await app.fetch(request, {})
-		const value = (res.headers as unknown as HoneyOutHeaders).toRecord()["server-timing"]
-		expect([isHoneyResponse(res), String(value).startsWith("cdn;dur=1.5, total;dur=")]).toEqual([true, true])
 	})
 })
 

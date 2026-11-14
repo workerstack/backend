@@ -2,9 +2,8 @@
 
 `honey()` builds an app: a Fetch handler with its routes, middleware and settings. Settings chain on the
 app (`.basePath()`, `.context()`, `.use()`, `.onError()`), and every route registered below a handle carries what
-the handle added. The app is a plain `fetch(request, env, ctx)` function, so any runtime that speaks Fetch runs it:
-`serve(app)` from `@workerstack/backend/node` on Node or `@workerstack/backend/bun` on Bun, or the app itself as a
-Cloudflare Worker.
+the handle added. The app is a plain `fetch(request, env, ctx)` function, so it runs as a
+Cloudflare Worker: `export default app`.
 
 `telemetry` and `otelAdapter` observe each request: `onRequest`, `onResponse` and `onError` fire once each, and with
 OpenTelemetry the spans nest (`http.request`, then each middleware, then the handler).

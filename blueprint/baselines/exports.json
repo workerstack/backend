@@ -91,12 +91,6 @@
 		"HoneyBuildConfig",
 		"createBuildPlugin"
 	],
-	"./bun": [
-		"BunServeOptions",
-		"BunServer",
-		"ServeHandle",
-		"serve"
-	],
 	"./cache-control": [
 		"CacheControlOptions",
 		"cacheControl",
@@ -129,12 +123,6 @@
 		"CronJob",
 		"CronSchedule",
 		"defineCron"
-	],
-	"./cron/serve": [
-		"CronFailure",
-		"CronHandle",
-		"ServeCronOptions",
-		"serveCron"
 	],
 	"./cron/workers": [
 		"WorkersScheduledController",
@@ -247,11 +235,6 @@
 		"McpUrlFilesOptions",
 		"urlFiles"
 	],
-	"./node": [
-		"NodeServeOptions",
-		"ServeHandle",
-		"serve"
-	],
 	"./openapi": [
 		"DocsConfig",
 		"DocsPage",
@@ -334,18 +317,6 @@
 		"defineConsumer",
 		"queueContract",
 		"queueMessage"
-	],
-	"./queue/serve": [
-		"ClaimedMessage",
-		"MemoryDeadLetter",
-		"MemoryQueueStore",
-		"QueueClaim",
-		"QueueFailure",
-		"QueueHandle",
-		"QueueStore",
-		"ServeQueueOptions",
-		"memoryQueueStore",
-		"serveQueue"
 	],
 	"./queue/workers": [
 		"WorkersQueueBatch",
@@ -444,22 +415,6 @@
 		"AnyHoneyHandle",
 		"WsRouteOf",
 		"ws"
-	],
-	"./ws/bun": [
-		"BunWSAdapter",
-		"BunWebSocketHandlers",
-		"bunWebSocket"
-	],
-	"./ws/node": [
-		"NODE_UPGRADE",
-		"NodeUpgrade",
-		"NodeWebSocketOptions",
-		"nodeWebSocket"
-	],
-	"./ws/session": [
-		"WS_PENDING_MAX",
-		"WsSessionOptions",
-		"createWsSession"
 	],
 	"./ws/workers": [
 		"workersWebSocket"

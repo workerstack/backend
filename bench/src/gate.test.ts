@@ -63,10 +63,10 @@ describe("the judge reads its ceilings from bench.json (bit 20 e3)", () => {
 	})
 
 	it("prints a reportOnly scenario over its ceiling without failing the run, while a blocking one still fails it", () => {
-		/* adapter post-1kib, bimodal on CI (bench.json's reason), against finalize 100x10 over its ceiling */
-		const postOwn = ceilingsOf("adapter", "node 26.12")?.["post-1kib"]
+		/* a scenario bimodal on CI (a `reportOnly` ceiling, as derive-ceilings keeps it), against finalize 100x10 over its ceiling */
+		const postOwn: Ceiling = { baseline: 3.085, catches: "+318%", ceiling: 12.905, reportOnly: true }
 		const post = rowOf("post-1kib", around(13.5), postOwn).status
-		expect([postOwn?.reportOnly, postOwn?.ceiling, post]).toEqual([true, 12.905, "report-only: over"])
+		expect([postOwn.reportOnly, postOwn.ceiling, post]).toEqual([true, 12.905, "report-only: over"])
 		expect([exitCode("judge", true, [row("ok"), row(post)]), exitCode("judge", true, [row(post), row(over)])]).toEqual([
 			0, 1,
 		])
@@ -74,7 +74,7 @@ describe("the judge reads its ceilings from bench.json (bit 20 e3)", () => {
 })
 
 /*
- * bit 21 k-pass: a runner burst as CI meets it, a window of wall time over the run (CI 40913885826: adapter's four
+ * bit 21 k-pass: a runner burst as CI meets it, a window of wall time over the run (CI 40913885826: a former bench's four
  * scenarios high together, v1 unchanged). The fixture's clock is its own: every timed sample, either side, advances it
  * `step` ms (1 by default) and the round floor's idle advances it too. `burst` covers its first ms: with step 1, PASS of
  * them is one whole pass of A (a k=1 measurement of A, all of it), 2 × PASS one pass of A and one of B. In it v1 costs
@@ -84,9 +84,9 @@ const SAMPLES = 5
 const PASS = 2 + 2 * SAMPLES
 const CEILING: Ceiling = { baseline: 2, catches: "+10%", ceiling: 2.2 }
 
-type Shape = { drift?: number; slowdown?: number; step?: number; warmup?: number }
+type Shape = { drift?: number; slowdown?: number; step?: number }
 
-function fixture(burst: number, { drift = 0, slowdown = 1, step = 1, warmup }: Shape = {}) {
+function fixture(burst: number, { drift = 0, slowdown = 1, step = 1 }: Shape = {}) {
 	let now = 0
 	let v1Calls = 0
 	const tick = () => {
@@ -107,7 +107,6 @@ function fixture(burst: number, { drift = 0, slowdown = 1, step = 1, warmup }: S
 			return 1
 		},
 		v1: async () => 2 * slowdown * tick() + drift * v1Calls++,
-		warmup,
 	}))
 	return { clock, scenarios, v1Calls: () => v1Calls }
 }
@@ -149,7 +148,7 @@ describe("k passes interleaved across the scenarios, judged on the median of the
 	})
 
 	it("a 2 s burst over two 1.2 s rounds reds A without the round floor and leaves both ok with ROUND_FLOOR_MS", async () => {
-		/* 50 ms a sample: a pass is 600 ms, a round of A and B 1.2 s, adapter's on CI; the burst covers rounds 1 and 2 */
+		/* 50 ms a sample: a pass is 600 ms, a round of A and B 1.2 s, a short bench's on CI; the burst covers rounds 1 and 2 */
 		expect([
 			await statuses(PASSES, 2000, { floorMs: 0, step: 50 }),
 			await statuses(PASSES, 2000, { step: 50 }),
@@ -183,7 +182,7 @@ describe("a record run refuses a scenario whose pass medians disagree (bit 21 k-
 	})
 })
 
-describe("the passes behind it: their count, warm-up, floor, override and band (bit 21 k-pass)", () => {
+describe("the passes behind it: their count, floor, override and band (bit 21 k-pass)", () => {
 	it("takes PASSES passes of SAMPLES samples from every scenario and keeps every v1 and raw cost", async () => {
 		const { clock, scenarios } = fixture(0)
 		const [a] = (await measure(scenarios, { clock, passes: PASSES, samples: SAMPLES })).measured
@@ -196,12 +195,12 @@ describe("the passes behind it: their count, warm-up, floor, override and band (
 		])
 	})
 
-	it("runs a scenario's warm-up pairs once before its first pass, and idles every round but the last to the floor", async () => {
-		const { clock, scenarios, v1Calls } = fixture(0, { warmup: 4 })
+	it("idles every round but the last to the floor", async () => {
+		const { clock, scenarios, v1Calls } = fixture(0)
 		const three = await measure(scenarios, { clock, passes: 3, samples: SAMPLES })
 		const one = await measure(fixture(0).scenarios, { clock: fixture(0).clock, passes: 1, samples: SAMPLES })
-		/* each scenario: 4 warm-up v1 calls, then per pass 1 + SAMPLES; a round of A and B is 4 × 6 = 24 ms */
-		expect([v1Calls(), three.idleMs, one.idleMs, ROUND_FLOOR_MS]).toEqual([2 * (4 + 3 * 6), 2 * (2600 - 24), 0, 2600])
+		/* each scenario: per pass 1 + SAMPLES v1 calls; a round of A and B is 4 × 6 = 24 ms */
+		expect([v1Calls(), three.idleMs, one.idleMs, ROUND_FLOOR_MS]).toEqual([2 * (3 * 6), 2 * (2600 - 24), 0, 2600])
 	})
 
 	it("reads BENCH_PASSES as a positive integer, PASSES when unset, and refuses anything else", () => {

@@ -1,14 +1,10 @@
 /**
  * The build gate's honey-free reference (bit 21 cfb): the same `vite build` an e2e app's prod build runs, on the same
- * runtime and for the same target, with no honey plugin in it. The options are createBuildPlugin's own per target
- * (src/build/targets.ts): an SSR build, minified, builtins external, webworker and everything inlined for cloudflare.
- * An app build's time over this one's is the ratio the gate judges, so the runner's speed cancels and a slower honey
- * generate, shared by every app, does not. Target set by run-build.ts.
+ * runtime, with no honey plugin in it. The options are createBuildPlugin's own (src/build/targets.ts): an SSR build,
+ * minified, builtins external, webworker and everything inlined for cloudflare. An app build's time over this one's is
+ * the ratio the gate judges, so the runner's speed cancels and a slower honey generate, shared by every app, does not.
  */
 import { builtinModules } from "node:module"
-
-const target = (process.env.HONEY_BUILD_TARGET ?? "node") as "bun" | "workers" | "node"
-const worker = target === "workers"
 
 /**
  * Units of honey-free, single-threaded JS work the reference does at buildStart (bit 21 bref), as an app build's
@@ -44,7 +40,7 @@ export default {
 	build: {
 		emptyOutDir: true,
 		minify: true,
-		outDir: `dist/${target}`,
+		outDir: "dist/workers",
 		rolldownOptions: {
 			external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
 			input: "entry.ts",
@@ -54,5 +50,5 @@ export default {
 	},
 	logLevel: "error",
 	plugins: [{ buildStart: () => void work(REFERENCE_WORK), name: "reference-work" }],
-	ssr: { ...(worker ? { noExternal: true } : {}), target: worker ? "webworker" : "node" },
+	ssr: { noExternal: true, target: "webworker" },
 }

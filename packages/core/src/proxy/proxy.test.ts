@@ -2,19 +2,12 @@ import { describe, expect, expectTypeOf, it } from "vitest"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { requestId } from "../middleware/request-id.ts"
-import { isHoneyResponse, NODE_OUTBOUND } from "../response/builder.ts"
 import type { TypedResponse } from "../response/response.ts"
 import { generateOpenApi } from "../openapi/generate.ts"
 import { honey } from "../routing/app.ts"
 import { proxy } from "./proxy.ts"
 
 const req = (path: string, init: RequestInit = {}) => new Request(`http://app.test${path}`, init)
-
-function nodeReq(path: string): Request {
-	const request = req(path)
-	Object.defineProperty(request, NODE_OUTBOUND, { value: true })
-	return request
-}
 
 describe("proxy(config): a plain route handler", () => {
 	it("is mounted with .handler(), on any method a route takes", async () => {
@@ -248,8 +241,8 @@ describe("proxy: the answer's shape", () => {
 	})
 })
 
-describe("proxy: the plain path on the Node bridge", () => {
-	it("the answer is a HoneyResponse: the header middleware in front stay on the plain map", async () => {
+describe("proxy: the client's copy of the answer", () => {
+	it("drops hop-by-hop headers, keeps each Set-Cookie, and lets onResponse edit what is left", async () => {
 		const app = honey<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
@@ -264,21 +257,13 @@ describe("proxy: the plain path on the Node bridge", () => {
 				},
 			}),
 		)
-		const res = await app.fetch(nodeReq("/api/x"), {})
+		const res = await app.fetch(req("/api/x"), {})
 		expect([
-			isHoneyResponse(res),
 			res.headers.get("connection"),
 			res.headers.get("x-up"),
 			res.headers.getSetCookie(),
 			await res.text(),
-		]).toEqual([true, null, null, ["a=1", "b=2"], "streamed"])
-	})
-
-	it("a bodiless upstream answer is a bodiless HoneyResponse", async () => {
-		const app = honey<{}>()
-		app.all("/api/*rest").handler(proxy({ destination: () => new Response(null, { status: 304 }) }))
-		const res = await app.fetch(nodeReq("/api/x"), {})
-		expect([isHoneyResponse(res), res.status, res.body]).toEqual([true, 304, null])
+		]).toEqual([null, null, ["a=1", "b=2"], "streamed"])
 	})
 })
 

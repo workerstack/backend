@@ -1,6 +1,4 @@
-import type { AddressInfo } from "node:net"
 import { describe, expect, it, vi } from "vitest"
-import { createNodeServer } from "../adapters/node/server.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { requestId } from "../middleware/request-id.ts"
 import { honey } from "../routing/app.ts"
@@ -299,24 +297,7 @@ describe("curlLogger(): a later reader still gets the whole body", () => {
 	// v0: 3ebebd9f3b
 	// v0: efc1b0fa61
 	// v0: 51c3ae9846
-	it("on the Node bridge: the handler reads the body the logger also logged", async () => {
-		const a = app({ body: true })
-		const server = createNodeServer(a, { env: {}, hostname: "127.0.0.1", port: 0 })
-		await new Promise((resolve) => server.once("listening", resolve))
-		const { port } = server.address() as AddressInfo
-		try {
-			const res = await fetch(`http://127.0.0.1:${port}/users`, {
-				body: '{"name":"ada"}',
-				headers: { "content-type": "application/json" },
-				method: "POST",
-			})
-			expect([res.status, await res.text(), a.logged[0]?.bodyIncluded]).toEqual([200, '{"name":"ada"}', true])
-		} finally {
-			await server.shutdown(0)
-		}
-	})
-
-	it("in process too", async () => {
+	it("the handler reads the body the logger also logged", async () => {
 		const a = app({ body: true })
 		const res = await a.fetch(
 			new Request("http://app.test/users", {

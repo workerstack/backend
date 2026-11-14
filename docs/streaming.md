@@ -11,10 +11,9 @@ When the client leaves, the stream closes, `stream.closed` turns true, a waiting
 ## A producer that does no I/O should yield per send
 
 A producer that never awaits anything but `send` keeps the event loop busy until the connection's buffers fill.
-Its first event reaches the client only then: about 0.7 s for small events on Node, longer under load. A producer
+Its first event reaches the client only then: about 0.7 s for small events, longer under load. A producer
 that awaits real work (a query, a queue, a timer) yields on its own. One that only computes should yield a turn per
-send, with `await new Promise((resolve) => setImmediate(resolve))` on Node and Bun, or a `setTimeout(resolve, 0)`
-anywhere.
+send, with `await new Promise((resolve) => setTimeout(resolve, 0))`.
 
 ## Example: an SSE producer that cleans up when the client leaves
 
@@ -23,7 +22,6 @@ ends on its own or the client goes away. This block runs as part of the docs' te
 
 ```ts run
 import { honey } from "@workerstack/backend"
-import { serve } from "@workerstack/backend/node"
 
 let ended = (_: string) => {}
 const cleanedUp = new Promise<string>((resolve) => (ended = resolve))
@@ -47,15 +45,13 @@ app.get("/ticks").handler((ctx) =>
 	),
 )
 
-const server = await serve(app, { hostname: "127.0.0.1", port: 0 })
 const leave = new AbortController()
-const response = await fetch(`${server.url}/ticks`, { signal: leave.signal })
+const response = await app.fetch(new Request("http://localhost/ticks", { signal: leave.signal }), {})
 const reader = (response.body as ReadableStream<Uint8Array>).getReader()
 const first = new TextDecoder().decode((await reader.read()).value)
 console.log(first.includes("retry: 3000") ? "retry sent" : "no retry")
 leave.abort()
 console.log(await cleanedUp)
-await server.close()
 // prints: retry sent
 // prints: cleaned up
 ```

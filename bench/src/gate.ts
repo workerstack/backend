@@ -12,11 +12,9 @@ import { readFileSync } from "node:fs"
 import { halfWidth, median } from "./significance.ts"
 
 /**
- * One scenario: each call times one sample of its side and returns that sample's cost, in any one unit. `warmup` is
- * how many throwaway v1 + raw pairs run before its first pass, for one that reaches steady state only after many
- * (websockets.ts says why); a pass's own warm-up pair still runs.
+ * One scenario: each call times one sample of its side and returns that sample's cost, in any one unit.
  */
-export type Scenario = { name: string; raw(): Promise<number>; v1(): Promise<number>; warmup?: number }
+export type Scenario = { name: string; raw(): Promise<number>; v1(): Promise<number> }
 
 /**
  * A scenario's recorded ratios: the CI median, and the ceiling a run's median must not pass. A `reportOnly` one is
@@ -67,8 +65,8 @@ export function spreadOf(medians: readonly number[]): number {
  * so its ratio depends on how long the run is: it is fixed in its bench, never recorded, never widened here. Measured
  * on 5 local k=3 record runs of the five benches, all 27 scenarios (Bun 1.3.11, Node 26.12.1, bit 21 k-pass): steady
  * scenarios spread 0.06 at the median, 0.22 at p95 and 0.457 at most (finalize 500x50); the drift this refuses read
- * 0.91-1.46 (websockets' echo: 1.15-1.46 on the feed loop it shared with realtime-inbound, 0.91 once before each
- * sample closed its connection; websockets.ts has both fixes).
+ * 0.91-1.46 (the since-removed websockets echo: 1.15-1.46 on the feed loop it shared with realtime-inbound, 0.91 once
+ * before each sample closed its connection).
  * On CI's runners steady scenarios spread wider: stream-1mb printed 0.67 (41401699590), 0.643 (41397685122), 0.622
  * (40992951769) and 0.546 (41483452655, whose whole record was lost to the old 0.5). Plan 37 sets the tolerance
  * the way it sets the ceilings' floor (ceiling-rule.ts WORST_MARGIN): the worst spread any of 46 CI runs printed,
@@ -84,8 +82,8 @@ function statusOf(ratio: number, own: Ceiling | undefined): string {
 
 /**
  * k, the passes each scenario is measured in (bit 21 k-pass). A short bench measures in well under two seconds (CI
- * 40913885826: the whole adapter step, node's start included, spanned 1.72 s), so a runner burst of a second or two
- * covered a whole k=1 measurement and moved every ratio at once (adapter's four scenarios high together, stacked-json
+ * 40913885826: the whole adapter step (since removed), node's start included, spanned 1.72 s), so a runner burst of a
+ * second or two covered a whole k=1 measurement and moved every ratio at once (adapter's four scenarios high together, stacked-json
  * 2.36 over its 2.354 ceiling, v1 unchanged). With the passes interleaved across the scenarios and every round but the
  * last held to ROUND_FLOOR_MS, such a burst inflates one pass of each, and the median of three outvotes it: the build
  * gate's k=3 (build-gate.ts) for the same class of red. BENCH_PASSES overrides it, for a local run.
@@ -94,9 +92,9 @@ export const PASSES = 3
 
 /**
  * The least a round (one pass of every scenario) lasts before the next starts, idle when its work is shorter; the last
- * round never waits. Source: the longest burst seen, 1.72 s, the span of CI 40913885826's adapter step, whose four
- * scenarios all read high; across the 30 runs of ci-f/r6/history.txt the 7 with all four adapter scenarios above their
- * median spanned 1.35-1.72 s, and none lifted websockets, measured ~4.5 s before (1.07 at most). Plus a 50% margin:
+ * round never waits. Source: the longest burst seen, 1.72 s, the span of CI 40913885826's adapter step (since
+ * removed), whose four scenarios all read high; across the 30 runs of ci-f/r6/history.txt the 7 with all four adapter
+ * scenarios above their median spanned 1.35-1.72 s, and none lifted websockets, measured ~4.5 s before (1.07 at most). Plus a 50% margin:
  * 1.72 x 1.5 = 2.58, so 2.6 s. Time-based on purpose, so it holds on either runner class; hotpath's and finalize's
  * rounds already last longer and never wait.
  */
@@ -141,8 +139,7 @@ async function passOf(scenario: Scenario, samples: number, into: Measured): Prom
 type Options = { clock?: Clock; floorMs?: number; passes: number; samples: number }
 
 /**
- * Measures the scenarios in `passes` rounds, each one pass of every scenario in order (A B C, A B C, ...), after each
- * one's `warmup`; every round but the last lasts at least `floorMs` (idle when shorter), so each scenario's passes
+ * Measures the scenarios in `passes` rounds, each one pass of every scenario in order (A B C, A B C, ...); every round but the last lasts at least `floorMs` (idle when shorter), so each scenario's passes
  * spread over the whole run rather than one stretch of it. Each result keeps its scenario's order and name; `idleMs`
  * is the time spent waiting on the floor.
  */
@@ -154,7 +151,6 @@ export async function measure(
 		const measured: Measured = { name: scenario.name, passes: [], raw: [], v1: [] }
 		return { measured, scenario }
 	})
-	for (const { scenario } of runs) await warm(scenario)
 	let idleMs = 0
 	for (let pass = 0; pass < passes; pass++) {
 		const started = clock.now()
@@ -166,13 +162,6 @@ export async function measure(
 		}
 	}
 	return { idleMs, measured: runs.map(({ measured }) => measured) }
-}
-
-async function warm(scenario: Scenario): Promise<void> {
-	for (let w = 0; w < (scenario.warmup ?? 0); w++) {
-		await scenario.v1()
-		await scenario.raw()
-	}
 }
 
 /** How a run sampled, for its header: `median of 3 interleaved passes of 15 samples, rounds of >= 2.6 s (idle 4.1 s)`. */

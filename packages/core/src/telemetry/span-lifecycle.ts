@@ -9,7 +9,7 @@
  */
 import { ipOf, type PeerSource } from "../context/peer.ts"
 import { HoneyError } from "../errors/error.ts"
-import { isHoneyResponse, type RawBody, rawBodyOf } from "../response/builder.ts"
+import { type RawBody, rawBodyOf } from "../response/builder.ts"
 import type { AppSettings } from "../routing/settings.ts"
 import { pathOf } from "./fields.ts"
 import { requestLine, type Seen } from "./request-log.ts"
@@ -30,14 +30,9 @@ const UNRECORDED: Span = /* @__PURE__ */ Object.freeze({
 })
 
 /** The root span of `request`, under or linked to its inbound trace as the hop is trusted. */
-export function startTrace(
-	s: AppSettings<unknown>,
-	telemetry: Telemetry,
-	request: Request,
-	env: unknown,
-): RequestTrace {
+export function startTrace(s: AppSettings<unknown>, telemetry: Telemetry, request: Request): RequestTrace {
 	const started = performance.now()
-	const peer: PeerSource = { env, req: request }
+	const peer: PeerSource = { req: request }
 	const source = {
 		get ip() {
 			return ipOf(peer)
@@ -121,7 +116,6 @@ export function observed(request: Request, response: Response, done: BodyEnd): R
 		return response
 	}
 	const stream = counted(body, done)
-	if (isHoneyResponse(response)) return response.derive({ stream }) as unknown as Response
 	return new Response(stream, { headers: response.headers, status: response.status, statusText: response.statusText })
 }
 

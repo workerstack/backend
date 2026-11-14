@@ -31,8 +31,7 @@ honey-clients generate --spec openapi.json --target mcp --out ./mcp
 
 There are two ways to serve the tools, and they run in different places:
 
-- **The mounted endpoint, `mcp()` in your app** ([Mounting in your app](#mounting-in-your-app)), runs wherever the
-  app runs: Workers, Node or Bun. It uses web APIs only, dispatches each call in process through the app, and the
+- **The mounted endpoint, `mcp()` in your app** ([Mounting in your app](#mounting-in-your-app)), runs on Workers. It uses web APIs only, dispatches each call in process through the app, and the
   app's own auth guards it. **It's the recommended way to serve MCP remotely.**
 - **The standalone package (`<name>-mcp`) needs Node.** Use it for local stdio installs (Claude Desktop, Claude Code,
   Cursor), or run `--http` as a long-running process on a server or container platform. Never on serverless or
@@ -355,7 +354,7 @@ tool error. No shipping client implements the extension yet.
 | `options.maxBytes`           | the most bytes one file may declare: 52428800 (50 MiB) by default; a larger one is a tool error before any upload                                         |
 | `options.origin`             | the endpoint's public origin, for an app whose requests don't carry it (behind a proxy); the request's own by default                                     |
 | `UploadStore`                | `{ claim(id, expires), put(id, bytes, expires), take(id) }`, each sync or async; `claim` true for the first caller alone, `take` removing what it returns |
-| `memoryUploadStore()`        | an in-memory `UploadStore` for one process: development, tests, a single Node or Bun server                                                               |
+| `memoryUploadStore()`        | an in-memory `UploadStore` for one process: development and tests                                                                                         |
 | `PUT <path>/uploads/<token>` | the upload route `mcp()` registers: 204 when the bytes are taken                                                                                          |
 
 ```ts

@@ -1,7 +1,7 @@
 # @workerstack/backend
 
 A typed web framework for the Fetch API whose routes are the source of its clients. You write a route once, with its
-input and output schemas; honey serves it on Node, Bun or Cloudflare Workers, and
+input and output schemas; honey runs it on Cloudflare Workers, and
 [`@workerstack/clients`](https://www.npmjs.com/package/@workerstack/clients) turns the same routes into an
 OpenAPI 3.1 document, typed SDKs for six languages, a command-line client and an MCP server.
 
@@ -22,7 +22,7 @@ package, so nothing here is pseudocode.
 - [The request context](#the-request-context)
 - [Cookies](#cookies)
 - [Streaming, WebSockets and realtime](#streaming-websockets-and-realtime)
-- [Serving on Node, Bun and Cloudflare Workers](#serving-on-node-bun-and-cloudflare-workers)
+- [Running on Cloudflare Workers](#running-on-cloudflare-workers)
 - [Static files and proxying](#static-files-and-proxying)
 - [The OpenAPI document](#the-openapi-document)
 - [Serving a prebuilt or external document](#serving-a-prebuilt-or-external-document)
@@ -49,12 +49,12 @@ npm install @workerstack/backend@next
 npx honey init
 ```
 
-Node 22.12 or later, Bun 1.3 or later, or Cloudflare Workers. A schema library is yours to pick: honey validates
+Apps run on Cloudflare Workers; the tooling needs Node 22.12 or later or Bun 1.3 or later. A schema library is yours to pick: honey validates
 through [Standard Schema](https://standardschema.dev), so Zod, Valibot, ArkType, Effect Schema and Yup all work. The
 examples here use Zod.
 
-`honey init` writes `src/app.ts`, `src/server.ts` and a Vite config; `honey init --workers` adds a Worker entry and a
-`wrangler.jsonc`.
+`honey init` writes `src/app.ts`, a Worker entry in `src/worker.ts`, a `wrangler.jsonc` and a Vite config;
+`npm run dev` runs it with `wrangler dev`.
 
 ## A route, end to end
 
@@ -87,24 +87,24 @@ app
 export default app
 ```
 
-Serving is the same for any app, and the reference UI comes from the document the routes already describe:
+The reference UI comes from the document the routes already describe:
 
 ```ts
 import { honey } from "@workerstack/backend"
 import { serveOpenApi } from "@workerstack/backend/openapi"
-import { serve } from "@workerstack/backend/node"
 import { scalar } from "@workerstack/backend/openapi/scalar"
 
 const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
 
-await serve(serveOpenApi(app, { docs: { "/docs": scalar }, title: "Books", version: "1.0.0" }), { port: 3000 })
+export default serveOpenApi(app, { docs: { "/docs": scalar }, title: "Books", version: "1.0.0" })
 ```
 
 ```sh
-curl http://127.0.0.1:3000/health
+npx wrangler dev
+curl http://127.0.0.1:8787/health
 # ok
-# the API reference: open http://127.0.0.1:3000/docs
+# the API reference: open http://127.0.0.1:8787/docs
 ```
 
 Then generate a client from the app module itself, with no document to keep in step by hand:
@@ -166,7 +166,7 @@ app.get("/").handler((ctx) => ctx.res.text("ok", "up"))
 | `errorFormat(format)`                            | `"honey"` (the default) or `"problem+json"` (RFC 9457)                 |
 | `defaultErrorFormatter`, `payloadErrorFormatter` | your own error body, schema-checked                                    |
 | `trailingSlash`, `encodedSlashes`, `stripPrefix` | path normalization, and the prefix a gateway already consumed          |
-| `wsAdapter(adapter)`                             | the WebSocket adapter, when `serve()` does not pick one                |
+| `wsAdapter(adapter)`                             | the WebSocket adapter (`workersWebSocket()`)                           |
 | `fetch(request, env, ctx)`                       | the Fetch handler an adapter calls                                     |
 
 Apps that share their settings write them once with `definePreset<TEnv>()`, which takes the same setters and
@@ -358,7 +358,6 @@ Streaming bodies clean up when the client leaves — the generator's `finally` r
 
 ```ts run
 import { honey } from "@workerstack/backend"
-import { serve } from "@workerstack/backend/node"
 
 let ended = (_: string) => {}
 const cleanedUp = new Promise<string>((resolve) => (ended = resolve))
@@ -382,15 +381,13 @@ app.get("/ticks").handler((ctx) =>
 	),
 )
 
-const server = await serve(app, { hostname: "127.0.0.1", port: 0 })
 const leave = new AbortController()
-const response = await fetch(`${server.url}/ticks`, { signal: leave.signal })
+const response = await app.fetch(new Request("http://localhost/ticks", { signal: leave.signal }), {})
 const reader = (response.body as ReadableStream<Uint8Array>).getReader()
 const first = new TextDecoder().decode((await reader.read()).value)
 console.log(first.includes("retry: 3000") ? "retry sent" : "no retry")
 leave.abort()
 console.log(await cleanedUp)
-await server.close()
 // prints: retry sent
 // prints: cleaned up
 ```
@@ -674,49 +671,21 @@ const prices = realtime(app, "/prices", {
 setInterval(() => prices.publish("ticker", { eur: 1.08, at: Date.now() }), 1000)
 ```
 
-`serve()` picks the adapter for Node and Bun; a Worker sets one itself. `createWsSession` from
-`@workerstack/backend/ws/session` is the session runtime those adapters share, for an adapter of your own:
+A WebSocket route needs the Workers adapter, `workersWebSocket()` from `@workerstack/backend/ws/workers`, set with
+`app.wsAdapter(workersWebSocket())` in the Worker entry.
 
-```ts
-import { createWsSession } from "@workerstack/backend/ws/session"
-import { bunWebSocket } from "@workerstack/backend/ws/bun"
-import { workersWebSocket } from "@workerstack/backend/ws/workers"
-import { nodeWebSocket } from "@workerstack/backend/ws/node"
-import { honey } from "@workerstack/backend"
-
-/* each runtime's adapter; serve() sets the first two, a Worker entry the third */
-const adapters = [bunWebSocket(), nodeWebSocket(), workersWebSocket()]
-const app = honey().wsAdapter(workersWebSocket())
-
-/* the ordered lane a custom adapter drives: open, then messages, then close */
-const session = createWsSession({
-	callbacks: { onMessage: (_ctx, socket, data) => socket.send(data) },
-	ctx: {},
-	log: null,
-	reconnectToken: null,
-	route: "/echo",
-})
-```
-
-`nodeWebSocket()` needs the optional `ws` peer installed; the Bun and Workers adapters use their runtime's own
-sockets. A resumed connection replays from the client's `Last-Event-ID` or `reconnect_token`.
+A resumed connection replays from the client's `Last-Event-ID` or `reconnect_token`.
 
 Full reference: [WebSockets, realtime and SSE](https://github.com/workerstack/backend/blob/main/docs/realtime.md) and
 [realtime resume](https://github.com/workerstack/backend/blob/main/docs/capabilities/realtime-resume.md).
 
-## Serving on Node, Bun and Cloudflare Workers
+## Running on Cloudflare Workers
 
-One app runs on each of them; only how it is served differs.
-
-| Runtime            | How it runs                                                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| Node               | `serve(app)` from `@workerstack/backend/node`                                                                                    |
-| Bun                | `serve(app)` from `@workerstack/backend/bun`, or `Bun.serve({ fetch: app.fetch })`                                               |
-| Cloudflare Workers | `export default app` — the Worker's `fetch` handler, with named exports beside it; `scheduled` and `queue` move onto the default |
+An app runs as a Cloudflare Worker: `export default app` is the Worker's `fetch` handler, with named exports beside it,
+and `scheduled` and `queue` move onto the default.
 
 ```ts
 import { honey, toFetchRequest } from "@workerstack/backend"
-import { serve } from "@workerstack/backend/node"
 
 const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
@@ -724,30 +693,9 @@ app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
 /* a request from an adapter that handed you its own Request subclass */
 declare const incoming: Request
 const request = toFetchRequest(incoming)
-
-const server = await serve(app, { hostname: "127.0.0.1", maxRequestBodySize: 8 * 1024 * 1024, port: 0 })
-console.log(server.url)
-await server.close()
 ```
 
-A server process knows its runtime, so each runtime has its own entry and nothing is detected. Each takes only its
-own runtime's options (`headersTimeout`, `keepAliveTimeout` and the rest are Node's) and resolves, once the server
-listens, to a `ServeHandle`: the bound `port` and `url`, a `close()` that drains, and the runtime's own server on
-`server`, typed as that runtime types it (Node's `http.Server`, Bun's `Server`):
-
-```ts
-import { honey } from "@workerstack/backend"
-import { serve } from "@workerstack/backend/bun"
-
-const app = honey()
-app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
-
-const server = await serve(app, { port: 0 })
-console.log(server.url)
-await server.close()
-```
-
-On Workers the app is the default export, and `app.fetch` the handler to wrap when you need to:
+The app is the default export, and `app.fetch` the handler to wrap when you need to:
 
 ```ts
 import { honey } from "@workerstack/backend"
@@ -941,8 +889,8 @@ export default {
 
 A document is loaded once per process or isolate and kept with its ETag — the upstream's strong `etag` when it sent
 one, else honey's own SHA-256 tag — and concurrent first requests share that one load. A load that failed is not
-kept, so the next request tries again, but a load that succeeded is never refreshed: a long-running Node or Bun
-server serving a `url` source keeps the document it first fetched until it restarts or redeploys. A failing asset,
+kept, so the next request tries again, but a load that succeeded is never refreshed: a long-lived isolate
+serving a `url` source keeps the document it first fetched until it restarts or redeploys. A failing asset,
 an unbound binding and a failing loader are a 500; a URL that fails or answers non-2xx is a 502.
 
 Full reference: [the OpenAPI document](https://github.com/workerstack/backend/blob/main/docs/openapi.md).
@@ -1119,8 +1067,7 @@ Full reference: [internationalization](https://github.com/workerstack/backend/bl
 
 ## Testing
 
-`testClient(app, options)` calls the app the way a client would, in process by default — no port, no server — and
-over real HTTP when you ask for it. Request fields a handler reads but a test cannot easily forge, such as `ip`, are
+`testClient(app, options)` calls the app the way a client would, in process — no port, no server. Request fields a handler reads but a test cannot easily forge, such as `ip`, are
 options rather than mocks.
 
 ```ts run
@@ -1200,7 +1147,7 @@ honey generate                       # reads vite.config.* and the honeyPlugin()
 honey generate --app src/app.ts --tree --types --manifest
 honey generate --config vite.config.ts --plugin 0 --watch
 honey generate --merge-tree src/_gen/routes.gen.ts   # a gateway's merged tree
-honey init --workers --force
+honey init --force
 ```
 
 | Flag                  | What it does                                                                     |
@@ -1277,21 +1224,14 @@ generator.
 | Export                                 | What it holds                                                                                                            |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `@workerstack/backend`                 | `honey`, `HoneyError`, `defineErrors`, `createMiddleware`, `mergeTree`, and the type helpers below                       |
-| `@workerstack/backend/node`            | `serve(app, options)` on Node's `node:http`                                                                              |
-| `@workerstack/backend/bun`             | `serve(app, options)` on `Bun.serve`                                                                                     |
 | `@workerstack/backend/ws`              | `ws(app, path)`, a WebSocket route                                                                                       |
-| `@workerstack/backend/ws/bun`          | `bunWebSocket`                                                                                                           |
-| `@workerstack/backend/ws/node`         | `nodeWebSocket` (with the optional `ws` peer)                                                                            |
 | `@workerstack/backend/webhook`         | `signWebhook`                                                                                                            |
 | `@workerstack/backend/cron`            | `defineCron`, `CronConfig`, `CronDefinition`, `CronHandler`, `CronJob`, `CronSchedule`                                   |
-| `@workerstack/backend/cron/serve`      | `serveCron`, `ServeCronOptions`, `CronHandle`, `CronFailure`                                                             |
 | `@workerstack/backend/cron/workers`    | `workersCron`, `WorkersScheduledController`                                                                              |
 | `@workerstack/backend/queue`           | `queueContract`, `queueMessage`, `defineConsumer`, `deadLetter`, `QueueBodyError`, `QueueDeadLetter`, and their types    |
-| `@workerstack/backend/queue/serve`     | `serveQueue`, `memoryQueueStore`, `QueueStore`, `ServeQueueOptions`, `QueueHandle`, `QueueFailure` and the store's types |
 | `@workerstack/backend/queue/workers`   | `workersQueue`, `WorkersQueueOptions` and the binding's types                                                            |
 | `@workerstack/backend/user-agent`      | `parseUserAgent`, `ParsedUserAgent`, `DeviceType`                                                                        |
 | `@workerstack/backend/ws/workers`      | `workersWebSocket`                                                                                                       |
-| `@workerstack/backend/ws/session`      | `createWsSession`: the session runtime a custom WebSocket adapter builds on                                              |
 | `@workerstack/backend/realtime`        | `realtime(app, path, options)`: a resumable connection over WebSocket, SSE and long-poll                                 |
 | `@workerstack/backend/mcp`             | `mcp(app, path, handler, options?)`: the app's tools over MCP's Streamable HTTP, the handler `codegen.mcp` writes        |
 | `@workerstack/backend/mcp/oauth`       | `oauth(options)`: `mcp()`'s opt-in OAuth 2.1 resource server (RFC 9728 metadata, Bearer challenges)                      |
@@ -1329,7 +1269,7 @@ generator.
 | `@workerstack/backend/cookie-sign`     | `createCookieSigner`                                                                                                     |
 | `@workerstack/backend/crypto`          | `timingSafeEqual`                                                                                                        |
 | `@workerstack/backend/request-to-curl` | `requestToCurl`                                                                                                          |
-| `@workerstack/backend/testing`         | `testClient`, an app called in process or over a runtime's `serve`                                                       |
+| `@workerstack/backend/testing`         | `testClient`, an app called in process                                                                                   |
 | `@workerstack/backend/tree`            | the route tree's types                                                                                                   |
 | `@workerstack/backend/plugin`          | `honeyPlugin()`, the Vite plugin that generates the app's artifacts                                                      |
 | `@workerstack/backend/build`           | `createBuildPlugin`, a production bundle for a deploy target                                                             |
