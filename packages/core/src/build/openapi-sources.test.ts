@@ -138,7 +138,7 @@ describe("openapi-sources.gen.ts, imported by the app it is generated for (plan 
 		'import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"',
 		'import { openApiSources } from "./_gen/openapi-sources.gen.ts"',
 		"export const app = httpApp()",
-		'app.get("/health").handler((c) => c.res.text("ok", "up"))',
+		'app.get("/health").meta({ operationId: "health.list" }).handler((c) => c.res.text("ok", "up"))',
 		'serveStaticOpenApi(app, { ...openApiSources.public, path: "/v1/spec" })',
 		"",
 	].join("\n")

@@ -305,14 +305,14 @@ const META = {
 	"io.modelcontextprotocol/protocolVersion": MODERN,
 }
 const ACCEPT = "application/json, text/event-stream"
-const TOOL = "post_v1_docs"
+const TOOL = "docs_create"
 
 /** The app: POST /v1/docs takes a file and a note, answering the file's name, size, type and SHA-256. */
 function docs() {
 	const app = httpApp()
 	app
 		.post("/v1/docs")
-		.meta({ mcp: true })
+		.meta({ operationId: "docs.create", mcp: true })
 		.input({ form: z.object({ file: z.file(), note: z.string().optional() }) })
 		.output({
 			"application/json": {

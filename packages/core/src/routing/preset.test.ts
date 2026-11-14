@@ -61,10 +61,16 @@ const chainedFor = (logger: ReturnType<typeof createLogger>) =>
 /** `app` with its routes: one that answers its request id, one that throws something undeclared. */
 function served<A extends ReturnType<typeof chainedFor>>(app: A) {
 	const scoped = app.meta({ team: "core", worker: "saas" })
-	scoped.get("/id").handler((ctx) => ctx.res.json("ok", { id: ctx.requestId, worker: ctx.meta.worker }))
-	scoped.get("/boom").handler(() => {
-		throw new Error("db down")
-	})
+	scoped
+		.get("/id")
+		.meta({ operationId: "id.list" })
+		.handler((ctx) => ctx.res.json("ok", { id: ctx.requestId, worker: ctx.meta.worker }))
+	scoped
+		.get("/boom")
+		.meta({ operationId: "boom.list" })
+		.handler(() => {
+			throw new Error("db down")
+		})
 	return scoped
 }
 

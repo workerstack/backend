@@ -25,7 +25,8 @@ function init(argv: string[] = []): string[] {
 
 /**
  * A Bun child loading the scaffolded `app` through jiti onto core's source, printing what /health, /openapi.json and
- * /docs answer: in a child, so the coverage run never instruments a second copy of core.
+ * /docs answer: in a child, so the coverage run never instruments a second copy of core. `--no-install`: the scaffold's
+ * package.json names `@workerstack/backend` and no node_modules holds it, so Bun would auto-install the published one.
  */
 const served = (app: string) => `
 const { createJiti } = await import("jiti")
@@ -51,7 +52,10 @@ describe("backend init", () => {
 	it("writes app, worker, wrangler.jsonc, vite config, and package scripts", () => {
 		expect(init()).toEqual(["backend: initialized"])
 		expect({
-			app: read("src/app.ts").includes('get("/health")') && read("src/app.ts").includes("serveOpenApi("),
+			app:
+				read("src/app.ts").includes('get("/health")') &&
+				read("src/app.ts").includes('operationId: "health.check"') &&
+				read("src/app.ts").includes("serveOpenApi("),
 			pkg: pkg(),
 			server: existsSync(join(dir, "src/server.ts")),
 			vite: read("vite.config.ts").includes('from "@workerstack/backend/plugin"'),
@@ -112,7 +116,7 @@ describe("the scaffolded app", () => {
 			init()
 			const { stdout } = await promisify(execFile)(
 				"bun",
-				["--conditions=backend-source", "-e", served(join(dir, "src/app.ts"))],
+				["--no-install", "--conditions=backend-source", "-e", served(join(dir, "src/app.ts"))],
 				{
 					cwd: SRC,
 				},

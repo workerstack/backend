@@ -151,9 +151,11 @@ src/openapi/extract-schemas.ts	core	src	09	extractSchemas (per-route schema extr
 src/openapi/document.ts	core	src	10	assemble the 3.1 document	openapi/document.ts
 src/openapi/paths.ts	core	src	10	paths + operations	openapi/document.ts
 src/openapi/paths.ws.test.ts	core	test	12	the WS-route document leg (e61795b84c): an internal WS route and a filtered WS route both absent from doc.paths; split from paths.test.ts at the 500 cap; bit 18 a: a WS route's operation keys (v0 10d1ae37cb)	openapi/document.ts
+src/openapi/operation-ids.test.ts	core	test	10	D18 (rc.28): every documented route declares an operationId; MISSING_OPERATION_ID names each one that does not by method and pattern (WS, each method of a multi-method registration, an optional-param route once); internal and filterRoutes-dropped routes need none; a profile excluding operationId builds; an id only a metaSpec entry writes does not count	—
 src/openapi/components.ts	core	src	10	components/schemas	openapi/document.ts
 src/openapi/security.ts	core	src	10	security schemes + reference check	openapi/document.ts
 src/openapi/responses.ts	core	src	10	success + redirect Location + error responses by errorFormat (honey envelope / problem+json), F4	openapi/document.ts
+src/openapi/responses-errors.test.ts	core	test	10	error responses: where a key's status comes from, what a route declares and nothing more, errors left undocumented, and framework keys declared on a route without the app re-declaring them	—
 src/openapi/servers.ts	core	src	10	servers + variables (B1); plan 40 9.2: a declared list is written as declared, stripPrefix only the default with none	—
 src/openapi/tags.ts	core	src	10	tags + externalDocs (B2)	—
 src/openapi/webhooks.ts	core	src	10	webhooks (B3)	—

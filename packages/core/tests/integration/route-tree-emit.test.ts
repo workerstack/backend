@@ -117,8 +117,14 @@ const mountingApp = maker((app) => {
 })
 
 const chatApp = maker((app) => {
-	app.get("/chat").handler((c) => c.res.text("ok", "chat"))
-	app.get("/health").handler((c) => c.res.text("ok", "health"))
+	app
+		.get("/chat")
+		.meta({ operationId: "chat.list" })
+		.handler((c) => c.res.text("ok", "chat"))
+	app
+		.get("/health")
+		.meta({ operationId: "health.list" })
+		.handler((c) => c.res.text("ok", "health"))
 })
 
 describe("route-tree emit: a booted app serves as the live one", () => {
@@ -209,12 +215,12 @@ describe("route-tree emit: a booted app keeps the live app's scopes and mounts",
 	// v0: 4c53d6cec5
 	it("leaves the imported module untouched when one app serves its document and a websocket route beside it", async () => {
 		const live = chatApp()
-		ws(live, "/live").handler({})
+		ws(live, "/live").meta({ operationId: "live.connect" }).handler({})
 		const module = await emitted(live)
 		const a = chatApp(module.routeTree).wsAdapter({
 			upgrade: () => ({ response: new Response(), socket: {} as never }),
 		})
-		ws(a, "/live").handler({})
+		ws(a, "/live").meta({ operationId: "live.wsLive" }).handler({})
 		serveOpenApi(a, { title: "T", version: "1" })
 		const b = chatApp(module.routeTree)
 		expect([
@@ -234,8 +240,11 @@ describe("route-tree emit: a booted app keeps the live app's scopes and mounts",
 describe("route-tree emit: a ws route through generation (bit 19 i2)", () => {
 	it("places a ws route under its base path in the tree, gen's module and the document; the manifest stays HTTP-only", async () => {
 		const app = httpApp<{}>()
-		app.get("/health").handler((c) => c.res.text("ok", "ok"))
-		ws(app.basePath("/v1"), "/rooms/:id").handler({})
+		app
+			.get("/health")
+			.meta({ operationId: "health.list" })
+			.handler((c) => c.res.text("ok", "ok"))
+		ws(app.basePath("/v1"), "/rooms/:id").meta({ operationId: "rooms.connect" }).handler({})
 		const module = await emitted(app)
 		const doc = generateOpenApi(app, { info: { title: "T", version: "1" } })
 		expect([
@@ -288,7 +297,10 @@ describe("route-tree emit: no schema data in the module", () => {
 			.get("/items")
 			.input({ search: listQuery })
 			.handler((c) => c.res.text("ok", "ok"))
-		app.get("/health").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/health")
+			.meta({ operationId: "health.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		const { routes, text } = await emitted(app)
 		const leaked = Object.values(routes).flatMap((entry) =>
 			Object.keys(entry).filter((k) => !["bd", "bek", "ek", "es", "mt"].includes(k)),
@@ -426,6 +438,7 @@ describe("route-tree emit: route data the module carries", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/door")
+			.meta({ operationId: "door.list" })
 			.errors(defineErrors({ locked: "conflict" }), "locked")
 			.handler((c) => c.res.text("ok", "open"))
 		const { routeTree } = await emitted(app)

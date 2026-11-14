@@ -28,7 +28,7 @@ const service = (name: string, routes: readonly (readonly [string, string | stri
 		`export const ${name} = httpApp()`,
 		...routes.map(
 			([path, security, kind]) =>
-				`\t.get(${JSON.stringify(path)}).meta({ kind: ${JSON.stringify(kind)}, security: ${JSON.stringify(security)} } as never).handler((c) => c.res.text("ok", "ok"))`,
+				`\t.get(${JSON.stringify(path)}).meta({ kind: ${JSON.stringify(kind)}, operationId: ${JSON.stringify(path.slice(1).replace("/", "."))}, security: ${JSON.stringify(security)} } as never).handler((c) => c.res.text("ok", "ok"))`,
 		),
 		"",
 	].join("\n")
@@ -53,8 +53,8 @@ const FILES = {
 		'import { defineErrors, httpApp } from "@workerstack/backend/http"',
 		'export const app = httpApp().errorFactory(defineErrors({ maintenance: "service_unavailable" }))',
 		'app.metaSpec({ meta: { kind: "x-kind", worker: false } } as never)',
-		'app.get("/health").errors("maintenance").handler((c) => c.res.text("ok", "up"))',
-		'app.get("/robots.txt").handler((c) => c.res.text("ok", "User-agent: *"))',
+		'app.get("/health").meta({ operationId: "health.list" }).errors("maintenance").handler((c) => c.res.text("ok", "up"))',
+		'app.get("/robots.txt").meta({ operationId: "robotsTxt.list" }).handler((c) => c.res.text("ok", "User-agent: *"))',
 		'app.all("/*").handler((c) => c.res.text("ok", "forwarded"))',
 		"",
 	].join("\n"),

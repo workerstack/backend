@@ -80,14 +80,16 @@ function committedDocuments(): [string, Doc][] {
 
 /** An app with every shape the generator knows: the adversarial corner of the corpus. */
 function cornerCases() {
-	const Category = z.object({
-		name: z.string(),
-		get children() {
-			return z.array(Category)
-		},
-	})
+	return cornerSchemas(cornerPaths())
+}
+
+/** The corner app's path shapes: params, wildcards, optional segments, multi-method and form input. */
+function cornerPaths() {
 	const app = httpApp<{}>().stripPrefix("/api")
-	app.get("/").handler((c) => c.res.text("ok", "root"))
+	app
+		.get("/")
+		.meta({ operationId: "root.list" })
+		.handler((c) => c.res.text("ok", "root"))
 	app
 		.get("/users/:id")
 		.meta({ operationId: "getUser", summary: "One user", tags: ["users"] })
@@ -99,25 +101,54 @@ function cornerCases() {
 		})
 		.output({ "application/json": { ok: z.object({ id: z.string(), joined: z.date() }) } })
 		.handler((c) => c.res.json("ok", { id: "1", joined: new Date() }))
-	app.get("/u/:user-id").handler((c) => c.res.text("ok", "ok"))
-	app.get("/v1/books:archive").handler((c) => c.res.text("ok", "ok"))
-	app.get("/files/*path").handler((c) => c.res.text("ok", "ok"))
-	app.all("/proxy/*").handler((c) => c.res.text("ok", "ok"))
-	app.get("/opt/:id?").handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/u/:user-id")
+		.meta({ operationId: "u.retrieve" })
+		.handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/v1/books:archive")
+		.meta({ operationId: "v1.booksArchive.list" })
+		.handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/files/*path")
+		.meta({ operationId: "files.retrieve" })
+		.handler((c) => c.res.text("ok", "ok"))
+	app
+		.all("/proxy/*")
+		.meta({ operationId: "proxy.any" })
+		.handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/opt/:id?")
+		.meta({ operationId: "opt.retrieve" })
+		.handler((c) => c.res.text("ok", "ok"))
 	app
 		.on(["GET", "POST"], "/multi")
 		.meta({ operationId: "multi" })
 		.handler((c) => c.res.text("ok", "ok"))
 	app
 		.post("/upload")
+		.meta({ operationId: "upload.create" })
 		.input({ form: z.object({ file: z.file(), tags: z.array(z.string()) }) })
 		.handler((c) => c.res.text("ok", "ok"))
+	return app
+}
+
+/** The corner app's schema shapes: recursion, unions, custom and bigint, Valibot, and a WebSocket. */
+function cornerSchemas(app: ReturnType<typeof cornerPaths>) {
+	const Category = z.object({
+		name: z.string(),
+		get children() {
+			return z.array(Category)
+		},
+	})
 	app
 		.get("/tree")
+		.meta({ operationId: "tree.list" })
 		.output({ "application/json": { ok: Category } })
 		.handler((c) => c.res.json("ok", { children: [], name: "root" }))
 	app
 		.get("/union")
+		.meta({ operationId: "union.list" })
 		.output({
 			"application/json": { ok: z.union([z.object({ a: z.string() }), z.object({ b: z.number() })]) },
 			"text/csv": { ok: z.string() },
@@ -125,22 +156,32 @@ function cornerCases() {
 		.handler((c) => c.res.json("ok", { a: "x" }))
 	app
 		.get("/custom")
+		.meta({ operationId: "custom.list" })
 		.output({ "application/json": { ok: z.object({ blob: z.custom<unknown>(), n: z.bigint() }) } })
 		.handler((c) => c.res.json("ok", { blob: null, n: 1n }))
 	app
 		.get("/valibot")
+		.meta({ operationId: "valibot.list" })
 		.input({ search: v.object({ page: v.optional(v.pipe(v.number(), v.integer())) }) })
 		.output({ "application/json": { ok: v.strictObject({ items: v.tuple([v.string(), v.number()]) }) } })
 		.handler((c) => c.res.json("ok", { items: ["a", 1] }))
-	ws(app, "/live/:room").handler({ onMessage() {} })
+	ws(app, "/live/:room")
+		.meta({ operationId: "live.connect" })
+		.handler({ onMessage() {} })
 	return app
 }
 
 /** `trailingSlash("enforce")`: the documented paths carry the slash clients send. */
 function trailingSlash() {
 	const app = httpApp<{}>().trailingSlash("enforce")
-	app.get("/items/:id").handler((c) => c.res.text("ok", "ok"))
-	app.post("/items").handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/items/:id")
+		.meta({ operationId: "items.retrieve" })
+		.handler((c) => c.res.text("ok", "ok"))
+	app
+		.post("/items")
+		.meta({ operationId: "items.create" })
+		.handler((c) => c.res.text("ok", "ok"))
 	return app
 }
 
@@ -154,10 +195,12 @@ function sharedNested() {
 	const app = httpApp<{}>()
 	app
 		.post("/login")
+		.meta({ operationId: "login.create" })
 		.input({ json: z.object({ response: assertion }) })
 		.handler((c) => c.res.json("ok", {}))
 	app
 		.post("/reauth")
+		.meta({ operationId: "reauth.create" })
 		.input({ json: z.object({ passkey: assertion.optional() }) })
 		.handler((c) => c.res.json("ok", {}))
 	return app

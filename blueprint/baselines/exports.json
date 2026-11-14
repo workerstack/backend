@@ -391,6 +391,7 @@
 	],
 	"./realtime": [
 		"RealtimeCtx",
+		"RealtimeMeta",
 		"realtime"
 	],
 	"./telemetry/otel": [

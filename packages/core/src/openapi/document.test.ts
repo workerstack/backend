@@ -8,12 +8,19 @@ const INFO = { title: "Test API", version: "1.0" }
 
 function app() {
 	const a = httpApp<{}>()
-	a.get("/health").handler((c) => c.res.text("ok", "ok"))
-	a.get("/users").handler((c) => c.res.json("ok", []))
+	a.get("/health")
+		.meta({ operationId: "health.list" })
+		.handler((c) => c.res.text("ok", "ok"))
+	a.get("/users")
+		.meta({ operationId: "users.list" })
+		.handler((c) => c.res.json("ok", []))
 	a.post("/users")
+		.meta({ operationId: "users.create" })
 		.input({ json: z.object({ name: z.string() }) })
 		.handler((c) => c.res.json("created", {}))
-	a.get("/users/:id").handler((c) => c.res.json("ok", {}))
+	a.get("/users/:id")
+		.meta({ operationId: "users.retrieve" })
+		.handler((c) => c.res.json("ok", {}))
 	return a
 }
 
@@ -21,6 +28,7 @@ function app() {
 const register = (target: ReturnType<typeof httpApp<{}>>, [path, name]: [string, string]) =>
 	target
 		.get(path)
+		.meta({ operationId: `${name}.get` })
 		.output({ "application/json": { ok: z.object({ [name]: z.string() }) } })
 		.handler((c) => c.res.json("ok", { [name]: "x" } as never))
 
@@ -51,7 +59,9 @@ describe("the document: OpenAPI 3.1, assembled", () => {
 
 	it("leaves components out when there is nothing to put in it", () => {
 		const a = httpApp<{}>()
-		a.get("/health").handler((c) => c.res.text("ok", "ok"))
+		a.get("/health")
+			.meta({ operationId: "health.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		expect(generateOpenApi(a, { info: INFO })).not.toHaveProperty("components")
 	})
 
@@ -59,9 +69,11 @@ describe("the document: OpenAPI 3.1, assembled", () => {
 	it("passes x-realtime, x-websocket and x-mcp through to the operation", () => {
 		const a = httpApp<{}>()
 		a.get("/live")
-			.meta({ extensions: { "x-realtime": true }, mcp: true })
+			.meta({ operationId: "live.list", extensions: { "x-realtime": true }, mcp: true })
 			.handler((c) => c.res.text("ok", "ok"))
-		ws(a, "/socket").handler({ onMessage() {} })
+		ws(a, "/socket")
+			.meta({ operationId: "socket.connect" })
+			.handler({ onMessage() {} })
 		const doc = generateOpenApi(a, { info: INFO })
 		expect([
 			doc.paths["/live"]?.get?.["x-realtime"],

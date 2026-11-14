@@ -10,7 +10,10 @@ type Doc = ReturnType<typeof generateOpenApi>
 /** A document of one route and the webhook contract of `events`, or none. */
 function documented(events: WebhookEvents | undefined): Doc {
 	const app = httpApp<{}>()
-	app.get("/a").handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/a")
+		.meta({ operationId: "a.list" })
+		.handler((c) => c.res.text("ok", "ok"))
 	return generateOpenApi(app, { info: INFO, webhooks: events === undefined ? undefined : webhookContract(events) })
 }
 

@@ -34,30 +34,37 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 
 	const publicRoutes = base
 		.get("/health")
+		.meta({ operationId: "health.list" })
 		.handler((ctx) => ctx.res.json("ok", { cached: ctx.cache.get("health"), status: "up" }))
 		.get("/docs")
+		.meta({ operationId: "docs.list" })
 		.handler((ctx) => ctx.res.text("ok", "API documentation"))
 		.get("/feed")
+		.meta({ operationId: "feed.list" })
 		.input({ search: z.object({ page: z.number().default(1) }) })
 		.handler((ctx) => ctx.res.json("ok", { items: [], page: ctx.input.search.page }))
 
 	const accountRoutes = base
 		.get("/account")
+		.meta({ operationId: "account.list" })
 		.errors("forbidden")
 		.handler((ctx) => ctx.res.json("ok", { orgId: ctx.session.orgId, userId: ctx.session.userId }))
 		.post("/account/settings")
+		.meta({ operationId: "account.settings.create" })
 		.input({ json: z.object({ notifications: z.boolean(), theme: z.enum(["dark", "light"]) }) })
 		.errors("forbidden")
 		.handler((ctx) => ctx.res.json("ok", ctx.input.json))
 
 	const resourceRoutes = base
 		.get("/resources/:resourceId")
+		.meta({ operationId: "resources.retrieve" })
 		.errors("not_found", "forbidden")
 		.handler((ctx) => {
 			if (!ctx.session.permissions.includes("read")) throw ctx.errors.forbidden()
 			return ctx.res.json("ok", { id: ctx.params.resourceId })
 		})
 		.delete("/resources/:resourceId")
+		.meta({ operationId: "resources.delete" })
 		.output({ no_content: true })
 		.errors("not_found", "forbidden")
 		.handler((ctx) => {
@@ -65,6 +72,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 			return ctx.res.noContent()
 		})
 		.post("/resources")
+		.meta({ operationId: "resources.create" })
 		.input({ json: z.object({ name: z.string(), type: z.enum(["doc", "image", "video"]) }) })
 		.errors("forbidden", "rate_limited")
 		.handler((ctx) => {

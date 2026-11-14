@@ -45,11 +45,23 @@ describe("paths: one item per concrete path, its methods inside", () => {
 	// v0: 86316dbd8f
 	it("writes each route's path with {param}, under its method, a mounted route under the handle's base path", () => {
 		const app = httpApp<{}>()
-		app.get("/health").handler((c) => c.res.text("ok", "ok"))
-		app.post("/v1/organizations").handler((c) => c.res.text("ok", "ok"))
-		app.get("/orgs/:orgId/members/:memberId").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/health")
+			.meta({ operationId: "health.list" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.post("/v1/organizations")
+			.meta({ operationId: "v1.organizations.create" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/orgs/:orgId/members/:memberId")
+			.meta({ operationId: "orgs.members.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
 		const sub = httpApp<{}>()
-		sub.get("/users").handler((c) => c.res.text("ok", "ok"))
+		sub
+			.get("/users")
+			.meta({ operationId: "users.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		app.basePath("/v1").route(sub)
 		const doc = generateOpenApi(app, { info: INFO })
 		expect(Object.entries(doc.paths).map(([path, item]) => [path, Object.keys(item)])).toEqual([
@@ -59,15 +71,29 @@ describe("paths: one item per concrete path, its methods inside", () => {
 			["/v1/users", ["get"]],
 		])
 	})
+})
 
+describe("paths: one item per concrete path, its methods inside, continued (2)", () => {
 	// v0: 2c1b71e6c2
 	// v0: fc6222ab83
 	it("documents all() as the standard methods the path does not declare itself, and keeps the slash trailingSlash enforce makes clients send", () => {
 		const app = httpApp<{}>().trailingSlash("enforce")
-		app.get("/upstream/*path").handler((c) => c.res.text("ok", "ok"))
-		app.all("/upstream/*path").handler((c) => c.res.text("ok", "ok"))
-		app.get("/users/:id").handler((c) => c.res.text("ok", "ok"))
-		app.get("/").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/upstream/*path")
+			.meta({ operationId: "upstream.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.all("/upstream/*path")
+			.meta({ operationId: "upstream.any" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/users/:id")
+			.meta({ operationId: "users.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/")
+			.meta({ operationId: "root.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
 		expect([Object.keys(doc.paths), Object.keys(doc.paths["/upstream/{path}/"] ?? {})]).toEqual([
 			["/upstream/{path}/", "/users/{id}/", "/"],
@@ -77,10 +103,21 @@ describe("paths: one item per concrete path, its methods inside", () => {
 
 	it("marks every operation with the route id it came from: all() and an optional param share theirs, each .on() method has its own", () => {
 		const app = httpApp<{}>()
-		app.all("/any").handler((c) => c.res.text("ok", "ok"))
-		app.get("/opt/:id?").handler((c) => c.res.text("ok", "ok"))
-		app.on(["GET", "POST"], "/multi").handler((c) => c.res.text("ok", "ok"))
-		ws(app, "/socket").handler({ onMessage() {} })
+		app
+			.all("/any")
+			.meta({ operationId: "any.any" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/opt/:id?")
+			.meta({ operationId: "opt.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.on(["GET", "POST"], "/multi")
+			.meta({ operationId: "multi.any" })
+			.handler((c) => c.res.text("ok", "ok"))
+		ws(app, "/socket")
+			.meta({ operationId: "socket.connect" })
+			.handler({ onMessage() {} })
 		const doc = generateOpenApi(app, { info: INFO })
 		const route = (path: string, method = "get") => op(doc, path, method)["x-backend-route"]
 		expect([
@@ -102,8 +139,14 @@ describe("path parameters", () => {
 	// v0: 5487962aae
 	it("are each in path and required, an optional param's variant without it having none", () => {
 		const app = httpApp<{}>()
-		app.get("/v1/organizations/:orgId").handler((c) => c.res.text("ok", "ok"))
-		app.get("/opt/:id?").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/v1/organizations/:orgId")
+			.meta({ operationId: "v1.organizations.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/opt/:id?")
+			.meta({ operationId: "opt.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
 		expect([params(doc, "/v1/organizations/{orgId}"), op(doc, "/opt").parameters, params(doc, "/opt/{id}")]).toEqual([
 			[{ in: "path", name: "orgId", required: true, schema: { type: "string" } }],
@@ -111,14 +154,25 @@ describe("path parameters", () => {
 			[{ in: "path", name: "id", required: true, schema: { type: "string" } }],
 		])
 	})
+})
 
+describe("path parameters, continued (2)", () => {
 	// v0: cf07eb19e1
 	// v0: 1f452d8cdc
 	it("documents a named and an unnamed wildcard as path parameters, and keeps a hyphenated name whole", () => {
 		const app = httpApp<{}>()
-		app.get("/files/*path").handler((c) => c.res.text("ok", "ok"))
-		app.get("/star/*").handler((c) => c.res.text("ok", "ok"))
-		app.get("/u/:user-id").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/files/*path")
+			.meta({ operationId: "files.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/star/*")
+			.meta({ operationId: "star.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/u/:user-id")
+			.meta({ operationId: "u.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
 		const wildcard = {
 			description: "The rest of the path; may contain `/`.",
@@ -144,6 +198,7 @@ describe("path parameters", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/items/:id/:slug")
+			.meta({ operationId: "items.retrieve" })
 			.input({ params: { id: z.string().uuid() } })
 			.handler((c) => c.res.text("ok", "ok"))
 		expect(params(generateOpenApi(app, { info: INFO }), "/items/{id}/{slug}").map((p) => p.schema)).toEqual([
@@ -201,6 +256,7 @@ describe("request bodies", () => {
 		const app = httpApp<{}>()
 		app
 			.post("/items")
+			.meta({ operationId: "items.create" })
 			.input({ json: z.object({ j: z.number(), trace: z.string().meta({ "x-internal": true }) }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -227,18 +283,22 @@ describe("form bodies: urlencoded, and multipart when a part is binary", () => {
 		const app = httpApp<{}>()
 		app
 			.post("/extract")
+			.meta({ operationId: "extract.create" })
 			.input({ form: streamed(z.object({ columns: z.string(), file: z.file() })) })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/upload")
+			.meta({ operationId: "upload.create" })
 			.input({ form: publishing({ properties: { payload: { format: "byte", type: "string" } }, type: "object" }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/login")
+			.meta({ operationId: "login.create" })
 			.input({ form: z.object({ title: z.string() }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/notes")
+			.meta({ operationId: "notes.create" })
 			.input({ form: streamed(z.object({ title: z.string() })) })
 			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -269,10 +329,12 @@ describe("binary bodies", () => {
 		const app = httpApp<{}>()
 		app
 			.put("/avatar")
+			.meta({ operationId: "avatar.replace" })
 			.input({ binary: ["image/png", "image/jpeg"] })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.put("/blob")
+			.meta({ operationId: "blob.replace" })
 			.input({ binary: "application/octet-stream" })
 			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -294,14 +356,17 @@ describe("query and header parameters: one per property", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/zod")
+			.meta({ operationId: "zod.list" })
 			.input({ search: z.object({ limit: z.number().optional(), page: z.number() }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.get("/valibot")
+			.meta({ operationId: "valibot.list" })
 			.input({ search: v.object({ limit: v.optional(v.number()), page: v.number() }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.get("/arktype")
+			.meta({ operationId: "arktype.list" })
 			.input({ search: type({ "limit?": "number", page: "number" }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -323,6 +388,7 @@ describe("query and header parameters: one per property", () => {
 		const app = httpApp<{}>()
 		app
 			.post("/login")
+			.meta({ operationId: "login.create" })
 			.input({
 				headers: z.object({
 					"cf-connecting-ip": z.string().optional().meta({ "x-internal": true }),
@@ -354,10 +420,12 @@ describe("query parameters: the input side of a search schema", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/items")
+			.meta({ operationId: "items.list" })
 			.input({ search: ListQuery })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.get("/q")
+			.meta({ operationId: "q.list" })
 			.input({ search: z.object({ at: z.date().optional(), q: z.string(), tag: z.custom<string>() }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO, logger: SILENT })
@@ -379,20 +447,23 @@ describe("what an operation leaves out", () => {
 		app.metaSpec({ meta: {}, strict: "error" })
 		app
 			.get("/health")
-			.meta({ internal: true })
+			.meta({ operationId: "health.list", internal: true })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.meta({ internal: true })
 			.get("/metrics")
 			.handler((c) => c.res.text("ok", "ok"))
-		app.get("/users").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/users")
+			.meta({ operationId: "users.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/users")
-			.meta({ invalidate: ["GET /users"], summary: "Create user" })
+			.meta({ operationId: "users.create", invalidate: ["GET /users"], summary: "Create user" })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/sessions")
-			.meta({ invalidate: null })
+			.meta({ operationId: "sessions.create", invalidate: null })
 			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO, logger: SILENT })
 		expect([
@@ -409,14 +480,17 @@ describe("bodies and parameters whose schema lists no properties", () => {
 		const app = httpApp<{}>()
 		app
 			.post("/form")
+			.meta({ operationId: "form.create" })
 			.input({ form: publishing({ properties: { any: true, tags: { items: { type: "string" }, type: "array" } } }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/record")
+			.meta({ operationId: "record.create" })
 			.input({ form: publishing({ additionalProperties: { type: "string" }, type: "object" }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.get("/pair/:a/:b")
+			.meta({ operationId: "pair.retrieve" })
 			.input({
 				params: { a: publishing({ type: "integer" }) },
 				search: publishing({ additionalProperties: { type: "string" }, type: "object" }),

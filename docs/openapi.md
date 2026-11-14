@@ -19,7 +19,7 @@ const app = httpApp()
 
 app
 	.get("/orders")
-	.meta({ summary: "List orders", tags: ["orders"] })
+	.meta({ operationId: "orders.list", summary: "List orders", tags: ["orders"] })
 	.handler((ctx) => ctx.res.json("ok", []))
 
 serveOpenApi(app, {

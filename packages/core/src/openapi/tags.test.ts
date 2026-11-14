@@ -26,16 +26,22 @@ function tagged() {
 		.handler((c) => c.res.text("ok", "ok"))
 	app
 		.post("/zz/admin")
-		.meta({ tags: ["Admin"] })
+		.meta({ operationId: "zz.admin.create", tags: ["Admin"] })
 		.handler((c) => c.res.text("ok", "ok"))
-	app.get("/health").handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/health")
+		.meta({ operationId: "health.list" })
+		.handler((c) => c.res.text("ok", "ok"))
 	return app
 }
 
 describe("tags: the ones operations name, declared ones in their declared order, then first-seen", () => {
 	it("lists each tag an operation names once, first-seen, and none for an untagged document", () => {
 		const bare = httpApp<{}>()
-		bare.get("/a").handler((c) => c.res.text("ok", "ok"))
+		bare
+			.get("/a")
+			.meta({ operationId: "a.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		expect([generateOpenApi(tagged(), { info: INFO }).tags, generateOpenApi(bare, { info: INFO }).tags]).toEqual([
 			[{ name: "Users" }, { name: "Orders" }, { name: "Admin" }],
 			undefined,
@@ -70,7 +76,9 @@ describe("tags: the ones operations name, declared ones in their declared order,
 			[expect.stringMatching(/\[backend:openapi\] UNUSED_TAG: tag "Billing" is declared but no operation names it/)],
 		])
 	})
+})
 
+describe("tags: the ones operations name, declared ones in their declared order, then first-seen, continued (2)", () => {
 	it("keeps each operation's tags and operationId as written: grouping is the operations' own", () => {
 		const doc = generateOpenApi(tagged(), { info: INFO, tags: [{ description: "People", name: "Users" }] })
 		const op = (path: string, method = "get") => doc.paths[path]?.[method] as Record<string, unknown>

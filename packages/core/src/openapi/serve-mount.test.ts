@@ -20,9 +20,18 @@ const preflight = (path: string) =>
 /** Health and the users routes. */
 function users() {
 	const app = httpApp<{}>()
-	app.get("/health").handler((c) => c.res.text("ok", "ok"))
-	app.get("/users").handler((c) => c.res.json("ok", []))
-	app.get("/users/:id").handler((c) => c.res.json("ok", {}))
+	app
+		.get("/health")
+		.meta({ operationId: "health.list" })
+		.handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/users")
+		.meta({ operationId: "users.list" })
+		.handler((c) => c.res.json("ok", []))
+	app
+		.get("/users/:id")
+		.meta({ operationId: "users.retrieve" })
+		.handler((c) => c.res.json("ok", {}))
 	return app
 }
 
@@ -51,7 +60,10 @@ describe("serveOpenApi: mounting", () => {
 	it("is never shadowed by a root /:slug or /*rest route", async () => {
 		for (const pattern of ["/:slug", "/*rest"]) {
 			const app = httpApp<{}>()
-			app.get(pattern).handler((c) => c.res.text("ok", "user"))
+			app
+				.get(pattern)
+				.meta({ operationId: "user.get" })
+				.handler((c) => c.res.text("ok", "user"))
 			serveOpenApi(app, { docs: { "/docs": scalar }, title: "T", version: "1" })
 			expect([
 				(await json(app, "/openapi.json")).info.title,
@@ -108,7 +120,7 @@ describe("serveOpenApi: one document per call", () => {
 		app.metaSpec({ meta: { tenant: "x-secret" }, profiles: { public: { exclude: ["x-secret"] } } })
 		app
 			.get("/a")
-			.meta({ tenant: "orgId" })
+			.meta({ operationId: "a.list", tenant: "orgId" })
 			.handler((c) => c.res.text("ok", "ok"))
 		serveOpenApi(app, { docs: { "/docs": scalar }, path: "/internal/openapi", title: "Internal", version: "1" })
 		serveOpenApi(app, {

@@ -289,7 +289,7 @@ else console.log(data)
 import { DecodeError, Kitchen } from "./kitchen"
 
 const client = new Kitchen({ baseURL: "https://api.example.com" })
-const result = await client.safe.getApiHealth()
+const result = await client.safe.health.check()
 if (!result.ok) {
 	const why = result.error instanceof DecodeError ? "an unreadable body" : result.error.status
 	console.error("answered", result.response.status, why)
@@ -639,7 +639,7 @@ import { APIConnectionError, Kitchen } from "./kitchen"
 
 const client = new Kitchen({ baseURL: "https://api.example.com" })
 try {
-	await client.getApiHealth()
+	await client.health.check()
 } catch (error) {
 	if (error instanceof APIConnectionError) console.error("unreachable", error.cause)
 }
@@ -692,7 +692,7 @@ import { Kitchen, NotFoundError } from "./kitchen"
 
 const client = new Kitchen({ baseURL: "https://api.example.com" })
 try {
-	await client.getApiV1OrganizationsByOrgId({ params: { orgId: "org-404" } })
+	await client.organizations.retrieve({ params: { orgId: "org-404" } })
 } catch (error) {
 	if (error instanceof NotFoundError) console.error("no such organization")
 }

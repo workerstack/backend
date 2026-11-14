@@ -16,23 +16,35 @@ describe("servers: the default, and the list a caller gives", () => {
 	// v0: 3901a90210
 	it("names the stripped prefix as the one server, and keeps the slash trailingSlash enforce makes clients send", () => {
 		const app = httpApp<{}>().stripPrefix("/api").trailingSlash("enforce")
-		app.get("/users/:id").handler((c) => c.res.text("ok", "ok"))
-		app.get("/").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/users/:id")
+			.meta({ operationId: "users.retrieve" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/")
+			.meta({ operationId: "root.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
 		expect([doc.servers, Object.keys(doc.paths).sort()]).toEqual([[{ url: "/api" }], ["/", "/users/{id}/"]])
 	})
 
 	it("has no servers without a prefix or a list", () => {
 		const app = httpApp<{}>()
-		app.get("/a").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/a")
+			.meta({ operationId: "a.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		expect(generateOpenApi(app, { info: INFO }).servers).toBeUndefined()
 	})
+})
 
+describe("servers: the default, and the list a caller gives, continued (2)", () => {
 	it("replaces the default with the list given, each URL as written and basePath left in the paths", () => {
 		const app = httpApp<{}>().stripPrefix("/api")
 		app
 			.basePath("/v1")
 			.get("/users")
+			.meta({ operationId: "users.list" })
 			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, {
 			info: INFO,
@@ -109,7 +121,10 @@ describe("servers: a list that cannot be served is refused", () => {
 
 	it("fails the document on any of them, as INVALID_SERVER, all at once", () => {
 		const app = httpApp<{}>()
-		app.get("/a").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/a")
+			.meta({ operationId: "a.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		expect(() =>
 			generateOpenApi(app, {
 				info: INFO,

@@ -39,7 +39,10 @@ describe("generateOpenApi: synchronous, and the metaSpec it is built with", () =
 	// v0: 3b5bb5fab8
 	it("writes the built-in policy's keys in its order when no metaSpec is declared, and leaves an internal route out", () => {
 		const app = httpApp<{}>()
-		app.get("/users").handler((c) => c.res.json("ok", []))
+		app
+			.get("/users")
+			.meta({ operationId: "users.list" })
+			.handler((c) => c.res.json("ok", []))
 		app
 			.post("/users")
 			.meta({
@@ -81,7 +84,7 @@ describe("generateOpenApi: synchronous, and the metaSpec it is built with", () =
 		app.metaSpec({ meta: { tenant: "x-tenant" }, profiles: { public: { exclude: ["x-tenant"] } } })
 		app
 			.get("/a")
-			.meta({ tenant: "orgId" })
+			.meta({ operationId: "a.list", tenant: "orgId" })
 			.handler((c) => c.res.text("ok", "ok"))
 		expect([
 			op(generateOpenApi(app, { info: INFO }), "/a")["x-tenant"],
@@ -97,7 +100,7 @@ describe("generateOpenApi: one diagnostics channel", () => {
 		app.metaSpec({ meta: {} } as never)
 		app
 			.get("/a")
-			.meta({ rateLimit: "ai", worker: "w" })
+			.meta({ operationId: "a.list", rateLimit: "ai", worker: "w" })
 			.handler((c) => c.res.text("ok", "ok"))
 		expect(() => generateOpenApi(app, { info: INFO })).toThrow(/2 policy error.*MISSING_ENTRY/s)
 	})
@@ -108,7 +111,8 @@ describe("generateOpenApi: one diagnostics channel", () => {
 		app.metaSpec({ meta: { permissions: "x-permissions" }, strict: "warn" } as never)
 		app
 			.get("/a")
-			.meta({ permissions: ["read"], rateLimit: "ai" } as never)
+
+			.meta({ operationId: "a.list", permissions: ["read"], rateLimit: "ai" } as never)
 			.handler((c) => c.res.text("ok", "ok"))
 		const { logger, warnings } = recording()
 		const doc = generateOpenApi(app, { info: INFO, logger })
@@ -134,6 +138,7 @@ describe("generateOpenApi: one diagnostics channel", () => {
 		const app = httpApp<{}>()
 		app
 			.post("/a")
+			.meta({ operationId: "a.create" })
 			.input({ json: broken })
 			.handler((c) => c.res.text("ok", "ok"))
 		const { logger, warnings } = recording()
@@ -155,13 +160,16 @@ describe("generateOpenApi: which routes it documents", () => {
 		const app = httpApp<{}>().metaType<{ auth?: false | string }>()
 		app
 			.get("/public")
-			.meta({ auth: false })
+			.meta({ operationId: "public.list", auth: false })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.get("/dashboard")
-			.meta({ auth: "jwt" })
+			.meta({ operationId: "dashboard.list", auth: "jwt" })
 			.handler((c) => c.res.text("ok", "ok"))
-		app.get("/plain").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/plain")
+			.meta({ operationId: "plain.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		const seen: unknown[] = []
 		const filtered = generateOpenApi(app, {
 			filterRoutes: (route) => {
@@ -173,7 +181,11 @@ describe("generateOpenApi: which routes it documents", () => {
 		expect([Object.keys(generateOpenApi(app, { info: INFO }).paths), Object.keys(filtered.paths), seen]).toEqual([
 			["/public", "/dashboard", "/plain"],
 			["/public", "/plain"],
-			[{ auth: false }, { auth: "jwt" }, {}],
+			[
+				{ auth: false, operationId: "public.list" },
+				{ auth: "jwt", operationId: "dashboard.list" },
+				{ operationId: "plain.list" },
+			],
 		])
 	})
 
@@ -186,7 +198,7 @@ describe("generateOpenApi: which routes it documents", () => {
 			w.metaSpec({ meta: { tenant: { key: "x-tenant", map: (value) => ({ column: value }) } } })
 			w.use(shard)
 				.get("/orgs/:orgId/users")
-				.meta({ summary: "List" })
+				.meta({ operationId: "orgs.users.list", summary: "List" })
 				.handler((c) => c.res.json("ok", {}))
 			return w
 		}
@@ -207,6 +219,7 @@ describe("generateOpenApi: schemas, from every vendor and the converters it is g
 		const app = httpApp<{}>()
 		app
 			.post("/items")
+			.meta({ operationId: "items.create" })
 			.input({ json: z.object({ name: z.string() }) })
 			.output({ "application/json": { ok: v.object({ id: v.string(), name: v.string() }) } })
 			.handler((c) => c.res.json("ok", { id: "1", name: "n" }))
@@ -226,6 +239,7 @@ describe("generateOpenApi: schemas, from every vendor and the converters it is g
 		const app = httpApp<{}>()
 		app
 			.post("/items")
+			.meta({ operationId: "items.create" })
 			.input({ json: Schema.standardSchemaV1(Schema.Struct({ at: Schema.Date, name: Schema.String })) })
 			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { converters: { effect: JSONSchema.make }, info: INFO })
@@ -255,11 +269,13 @@ describe("generateOpenApi: schema-derived meta reads the route's own schemas", (
 		const Search = z.object({ q: z.string().optional() }).meta({ entity: { name: "search" } })
 		app
 			.get("/both")
+			.meta({ operationId: "both.list" })
 			.input({ search: Search })
 			.output({ "application/json": { created: z.object({}).meta({ entity: { name: "late" } }), ok: User } })
 			.handler((c) => c.res.json("ok", { id: "1" }))
 		app
 			.get("/search-only")
+			.meta({ operationId: "searchOnly.list" })
 			.input({ search: Search })
 			.output({ "application/json": { ok: z.object({ id: z.string() }) } })
 			.handler((c) => c.res.json("ok", { id: "1" }))
@@ -275,8 +291,12 @@ describe("generateOpenApi: schema-derived meta reads the route's own schemas", (
 /** A mutation and the read of its path, with no invalidate declared. */
 function tables() {
 	const a = httpApp<{}>()
-	a.post("/tables").handler((c) => c.res.text("ok", "ok"))
-	a.get("/tables").handler((c) => c.res.text("ok", "ok"))
+	a.post("/tables")
+		.meta({ operationId: "tables.create" })
+		.handler((c) => c.res.text("ok", "ok"))
+	a.get("/tables")
+		.meta({ operationId: "tables.list" })
+		.handler((c) => c.res.text("ok", "ok"))
 	return a
 }
 
@@ -298,7 +318,8 @@ describe("generateOpenApi: the invalidate check over the emitted operations", ()
 		const typo = httpApp<{}>()
 		typo
 			.post("/users")
-			.meta({ invalidate: ["GET /userz"] } as never)
+
+			.meta({ operationId: "users.create", invalidate: ["GET /userz"] } as never)
 			.handler((c) => c.res.text("ok", "ok"))
 		expect(() => generateOpenApi(typo, { info: INFO })).toThrow(/INVALID_SELECTOR.*GET \/userz/s)
 		expect(() => generateOpenApi(typo, { info: INFO, invalidate: "off" })).not.toThrow()
@@ -318,9 +339,11 @@ describe("generateOpenApi: the invalidate check over the emitted operations", ()
 			},
 		})
 		a.post("/admin/provision-table")
+			.meta({ operationId: "admin.provisionTable.create" })
 			.output({ "application/json": { ok: stamped("table") } })
 			.handler((c) => c.res.json("ok", { id: "1" }))
 		a.get("/v2/tables")
+			.meta({ operationId: "v2.tables.list" })
 			.output({ "application/json": { ok: stamped("table") } })
 			.handler((c) => c.res.json("ok", { id: "1" }))
 		const { logger, warnings } = recording()
@@ -340,8 +363,14 @@ function treeOf(routes: readonly (readonly [string, string, RouteEntry?])[]): Ro
 /** A gateway's own routes beside a root /:slug and the catch-all its downstream routes delegate to. */
 function gatewayOwn(tree?: RouteTree) {
 	const app = tree === undefined ? httpApp<{}>() : httpApp<{}>().routeTree(tree)
-	app.get("/health").handler((c) => c.res.text("ok", "up"))
-	app.get("/:slug").handler((c) => c.res.text("ok", "slug"))
+	app
+		.get("/health")
+		.meta({ operationId: "health.list" })
+		.handler((c) => c.res.text("ok", "up"))
+	app
+		.get("/:slug")
+		.meta({ operationId: "root.retrieve" })
+		.handler((c) => c.res.text("ok", "slug"))
 	app.all("/*").handler((c) => c.res.text("ok", "proxy"))
 	return app
 }
@@ -354,11 +383,18 @@ describe("generateOpenApi: documents of loaded trees and gateways", () => {
 		const live = httpApp<{}>()
 		live
 			.post("/v1/projects/:project_id/suggest-schema")
+			.meta({ operationId: "v1.projects.suggestSchema.create" })
 			.input({ json: z.object({ url: z.string() }), search: z.object({ limit: z.number().optional() }) })
 			.output({ "application/json": { ok: z.object({ schema: z.string() }) } })
 			.handler((c) => c.res.json("ok", { schema: "s" }))
 		const intern = httpApp<{}>().routeTree(
-			treeOf([["POST", "/v1/projects/:project_id/suggest-schema", { mt: { summary: "Suggest" } }]]),
+			treeOf([
+				[
+					"POST",
+					"/v1/projects/:project_id/suggest-schema",
+					{ mt: { operationId: "projects.suggestSchema", summary: "Suggest" } },
+				],
+			]),
 		)
 		const fromLive = op(generateOpenApi(live, { info: INFO }), "/v1/projects/{project_id}/suggest-schema", "post")
 		const fromTree = op(generateOpenApi(intern, { info: INFO }), "/v1/projects/{project_id}/suggest-schema", "post")
@@ -367,8 +403,8 @@ describe("generateOpenApi: documents of loaded trees and gateways", () => {
 			Object.keys(fromTree),
 			(fromLive.parameters as { name: string }[]).map((p) => p.name),
 		]).toEqual([
-			["x-backend-route", "requestBody", "parameters", "responses"],
-			["summary", "x-backend-route", "parameters", "responses"],
+			["operationId", "x-backend-route", "requestBody", "parameters", "responses"],
+			["summary", "operationId", "x-backend-route", "parameters", "responses"],
 			["project_id", "limit"],
 		])
 	})
@@ -376,8 +412,14 @@ describe("generateOpenApi: documents of loaded trees and gateways", () => {
 	// v0: dc053efc6e
 	it("documents a gateway's own routes beside its downstream ones", () => {
 		const users = httpApp<{}>()
-		users.get("/users/list").handler((c) => c.res.text("ok", "remote"))
-		users.get("/users/:id").handler((c) => c.res.text("ok", "remote"))
+		users
+			.get("/users/list")
+			.meta({ operationId: "users.list.list" })
+			.handler((c) => c.res.text("ok", "remote"))
+		users
+			.get("/users/:id")
+			.meta({ operationId: "users.retrieve" })
+			.handler((c) => c.res.text("ok", "remote"))
 		const app = gatewayOwn(gatewayTree(gatewayOwn(), mergeTree([users.toRouteTree(), { worker: "users" }])))
 		expect(Object.keys(generateOpenApi(app, { info: INFO }).paths)).toEqual(
 			expect.arrayContaining(["/health", "/users/list", "/users/{id}", "/{slug}"]),
@@ -395,10 +437,12 @@ describe("generateOpenApi: schemas no converter can describe", () => {
 		const app = httpApp<{}>()
 		app
 			.post("/a")
+			.meta({ operationId: "a.create" })
 			.input({ json: standard("mystery") })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/b")
+			.meta({ operationId: "b.create" })
 			.input({
 				json: standard("x", {
 					input: () => {
@@ -424,25 +468,30 @@ describe("generateOpenApi: schema-derived meta over every shape a route takes", 
 		const app = httpApp<{}>()
 		app.metaSpec({ schema: { entity: { expand: (e: { name: string }) => ({ "x-entity": e.name }) } } })
 		ws(app, "/live")
+			.meta({ operationId: "live.connect" })
 			.input({ search: named("live") })
 			.handler({ onMessage() {} })
 		app
 			.post("/upload")
+			.meta({ operationId: "upload.create" })
 			.input({ binary: "image/png" })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/stream")
+			.meta({ operationId: "stream.create" })
 			.input({ json: streamed(named("stream")) })
 			.handler((c) => c.res.text("ok", "ok"))
 		const missing = defineErrors({ missing: { schema: named("missing"), status: "not_found" } })
 		app
 			.get("/missing")
+			.meta({ operationId: "missing.list" })
 			.errors(missing, "missing")
 			.handler(() => {
 				throw missing.missing({ id: "1" })
 			})
 		app
 			.get("/bare")
+			.meta({ operationId: "bare.list" })
 			.output({ "application/json": { ok: true } })
 			.handler((c) => c.res.json("ok", {}))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -463,6 +512,7 @@ describe("generateOpenApi: the declared errors for codegen (x-backend-errors, x-
 		const app = httpApp<{}>().errorFactory(errors)
 		app
 			.post("/items")
+			.meta({ operationId: "items.create" })
 			.errors("taken", "too_big")
 			.output({ "application/json": { created: z.object({}) } })
 			.handler((c) => c.res.json("created", {}))

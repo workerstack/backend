@@ -106,7 +106,7 @@ describe("metaSpec — running server", () => {
 	test("contributed meta is visible on ctx.meta at runtime", async () => {
 		const res = await fetchApp("/app/articles/meta/")
 		expect(res.status).toBe(200)
-		expect(await res.json()).toEqual({ meta: { tenant: "project_id" } })
+		expect(await res.json()).toEqual({ meta: { operationId: "articles.meta.list", tenant: "project_id" } })
 	})
 
 	test("the served document matches the generated internal one", async () => {

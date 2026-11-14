@@ -32,7 +32,9 @@
         "expired_token",
         "invalid_token"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "health.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -46,7 +48,9 @@
         "expired_token",
         "invalid_token"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "docs.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -71,7 +75,9 @@
           }
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "feed.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -86,7 +92,9 @@
         "forbidden",
         "invalid_token"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "account.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -122,7 +130,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "account.settings.create"
+      },
       "method": "POST",
       "middleware": [
         "anonymous",
@@ -138,7 +148,9 @@
         "invalid_token",
         "not_found"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "resources.retrieve"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -156,7 +168,9 @@
         "invalid_token",
         "not_found"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "resources.delete"
+      },
       "method": "DELETE",
       "middleware": [
         "anonymous",
@@ -201,7 +215,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "resources.create"
+      },
       "method": "POST",
       "middleware": [
         "anonymous",

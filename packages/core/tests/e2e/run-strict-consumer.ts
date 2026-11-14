@@ -219,7 +219,7 @@ if (inPackage.length === 0 && inGenerated.length === 0 && inConsumer.length === 
 			'import { parseUserAgent } from "@workerstack/backend/http/user-agent"',
 			'import * as z from "zod"',
 			"const app = httpApp<{}>()",
-			'app.get("/hi").output({ "application/json": { ok: z.object({ ok: z.boolean() }) } })',
+			'app.get("/hi").meta({ operationId: "hi.get" }).output({ "application/json": { ok: z.object({ ok: z.boolean() }) } })',
 			'\t.handler((c) => c.res.json("ok", { ok: true }))',
 			'serveOpenApi(app, { title: "T", version: "1" })',
 			'const res = await app.fetch(new Request("http://x/hi"), {})',
@@ -296,7 +296,7 @@ async function nodeConsumer(dir: string): Promise<boolean> {
 		join(dir, "src", "server-app.ts"),
 		[
 			'import { httpApp } from "@workerstack/backend/http"',
-			'export const app = httpApp().get("/health").handler((ctx) => ctx.res.text("ok", "ok"))',
+			'export const app = httpApp().get("/health").meta({ operationId: "health.check" }).handler((ctx) => ctx.res.text("ok", "ok"))',
 			"export default app",
 		].join("\n"),
 	)

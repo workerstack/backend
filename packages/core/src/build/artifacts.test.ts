@@ -37,7 +37,9 @@ const SCHEMES = {
 function app() {
 	return httpApp<{}>()
 		.get("/public")
+
 		.meta({
+			operationId: "public.list",
 			extensions: { "x-team": "growth" },
 			public: true,
 			security: ["apiKey", "jwt"],
@@ -45,10 +47,12 @@ function app() {
 		} as never)
 		.handler((c) => c.res.text("ok", "p"))
 		.get("/internal")
-		.meta({ security: "iaKey" } as never)
+
+		.meta({ operationId: "internal.list", security: "iaKey" } as never)
 		.handler((c) => c.res.text("ok", "i"))
 		.get("/contract")
-		.meta({ contract: true, security: "jwt" } as never)
+
+		.meta({ operationId: "contract.list", contract: true, security: "jwt" } as never)
 		.handler((c) => c.res.text("ok", "c"))
 }
 
@@ -143,7 +147,7 @@ const WITH_HIDDEN_ADDITION = [
 /* a ws route after the app's chain; the import hoists */
 const WITH_UNCONVERTIBLE = [
 	'\t.logger(createLogger({ level: "warn", write: (line) => void (globalThis as { appLines?: string[] }).appLines?.push(line) }))',
-	'\t.post("/custom")',
+	'\t.post("/custom").meta({ operationId: "custom.create" })',
 	'\t.input({ json: { "~standard": { validate: (value: unknown) => ({ value }), vendor: "custom", version: 1 } } })',
 	'\t.handler((c) => c.res.text("ok", "c"))',
 	'import { createLogger } from "@workerstack/backend/logger"',
@@ -151,7 +155,7 @@ const WITH_UNCONVERTIBLE = [
 
 const WITH_SECURED = [
 	'\t.get("/secured")',
-	'\t.meta({ security: "jwt" } as never)',
+	'\t.meta({ operationId: "secured.list", security: "jwt" } as never)',
 	'\t.handler((c) => c.res.text("ok", "s"))',
 ]
 
@@ -351,7 +355,7 @@ describe("sourceOf, natively (bit 19 h2)", () => {
 /* a tool requiring the `k` scheme */
 const WITH_TOOL = [
 	'\t.post("/orders")',
-	"\t.meta({ mcp: true, security: [{ k: [] }] } as never)",
+	'\t.meta({ operationId: "orders.create", mcp: true, security: [{ k: [] }] } as never)',
 	'\t.handler((c) => c.res.text("ok", "o"))',
 ]
 

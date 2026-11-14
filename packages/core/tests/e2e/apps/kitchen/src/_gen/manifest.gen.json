@@ -47,6 +47,7 @@
         }
       },
       "meta": {
+        "operationId": "root.list",
         "description": "Test route",
         "summary": "Root test route",
         "tags": [
@@ -81,7 +82,9 @@
         "api_error",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "health.check"
+      },
       "method": "GET",
       "middleware": [
         "requestId",
@@ -95,7 +98,9 @@
         "api_error",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "events.list"
+      },
       "method": "GET",
       "middleware": [
         "requestId",
@@ -116,7 +121,9 @@
         "api_error",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "eventsLive.list"
+      },
       "method": "GET",
       "middleware": [
         "requestId",
@@ -137,7 +144,9 @@
         "api_error",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "echo"
+      },
       "method": "ALL",
       "middleware": [
         "requestId",
@@ -151,7 +160,9 @@
         "api_error",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "organizations.list"
+      },
       "method": "GET",
       "middleware": [
         "requestId",
@@ -170,7 +181,9 @@
         "org_slug_taken",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "organizations.create"
+      },
       "method": "POST",
       "middleware": [
         "requestId",
@@ -186,7 +199,9 @@
         "api_error",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "organizations.retrieve"
+      },
       "method": "GET",
       "middleware": [
         "requestId",
@@ -204,7 +219,9 @@
         "api_error",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "organizations.delete"
+      },
       "method": "DELETE",
       "middleware": [
         "requestId",
@@ -227,7 +244,9 @@
         "api_error",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "realtime.broadcast.create"
+      },
       "method": "POST",
       "middleware": [
         "requestId",
@@ -244,6 +263,7 @@
         "unauthorized"
       ],
       "meta": {
+        "operationId": "servedFrom.list",
         "internal": true
       },
       "method": "GET",
@@ -272,6 +292,7 @@
         }
       },
       "meta": {
+        "operationId": "webhookSample.list",
         "internal": true
       },
       "method": "GET",
@@ -287,7 +308,9 @@
         "api_error",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "boundary.default.list"
+      },
       "method": "GET",
       "middleware": [
         "requestId",
@@ -302,7 +325,9 @@
         "org_limit_reached",
         "unauthorized"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "boundary.custom.list"
+      },
       "method": "GET",
       "middleware": [
         "requestId",

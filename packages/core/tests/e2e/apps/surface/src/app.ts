@@ -73,16 +73,19 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.handler((ctx) => ctx.res.json("ok", { results: [String(SearchService.run(ctx).page)] }))
 
 		.get("/in/headers")
+		.meta({ operationId: "in.headers.list" })
 		.input({ headers: z.object({ "x-api-key": z.string(), "x-request-id": z.string() }) })
 		.output({ "application/json": { ok: z.object({ accepted: z.boolean() }) } })
 		.handler((ctx) => ctx.res.json("ok", { accepted: true }))
 
 		.get("/in/cookies")
+		.meta({ operationId: "in.cookies.list" })
 		.input({ cookies: z.object({ locale: z.string(), sid: z.string() }) })
 		.output({ "application/json": { ok: z.object({ locale: z.string(), valid: z.boolean() }) } })
 		.handler((ctx) => ctx.res.json("ok", { locale: ctx.input.cookies.locale, valid: true }))
 
 		.get("/in/params/:orgId/members/:memberId")
+		.meta({ operationId: "in.params.members.retrieve" })
 		.input({ params: { memberId: z.string().min(1), orgId: z.string().min(1) } })
 		.output({ "application/json": { ok: z.object({ memberId: z.string(), orgId: z.string() }) } })
 		.handler((ctx) => ctx.res.json("ok", { memberId: ctx.params.memberId, orgId: ctx.params.orgId }))
@@ -93,11 +96,13 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.handler((ctx) => ctx.res.json("ok", { ping: "pong" as const }))
 
 		.post("/in/file")
+		.meta({ operationId: "in.file.create" })
 		.input({ form: z.object({ title: z.string(), upload: z.file() }) })
 		.output({ "application/json": { ok: z.object({ name: z.string(), title: z.string() }) } })
 		.handler((ctx) => ctx.res.json("ok", { name: ctx.input.form.upload.name, title: ctx.input.form.title }))
 
 		.put("/in/all/:resourceId")
+		.meta({ operationId: "in.all.replace" })
 		.input({
 			headers: z.object({ "if-match": z.string() }),
 			json: z.object({ data: z.record(z.string(), z.unknown()) }),
@@ -107,26 +112,32 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.handler((ctx) => ctx.res.json("ok", { etag: 'W/"abc"', version: ctx.input.search.version }))
 
 		.get("/out/text")
+		.meta({ operationId: "out.text.list" })
 		.output({ "text/plain": { ok: z.string() } })
 		.handler((ctx) => ctx.res.text("ok", "hello world"))
 
 		.get("/out/html")
+		.meta({ operationId: "out.html.list" })
 		.output({ "text/html": { ok: z.string() } })
 		.handler((ctx) => ctx.res.html("ok", "<h1>Hello</h1>"))
 
 		.get("/out/csv")
+		.meta({ operationId: "out.csv.list" })
 		.output({ "text/csv": { ok: z.string() } })
 		.handler((ctx) => ctx.res.csv("ok", "id,name\n1,Alice"))
 
 		.get("/out/xml")
+		.meta({ operationId: "out.xml.list" })
 		.output({ "application/xml": { ok: z.string() } })
 		.handler((ctx) => ctx.res.xml("ok", "<user><id>1</id></user>"))
 
 		.get("/out/binary")
+		.meta({ operationId: "out.binary.list" })
 		.output({ "application/octet-stream": { ok: z.instanceof(Uint8Array) } })
 		.handler((ctx) => ctx.res.binary("ok", new Uint8Array([0x48, 0x49])))
 
 		.get("/out/sse")
+		.meta({ operationId: "out.sse.list" })
 		.output({ "text/event-stream": { ok: z.string() } })
 		.handler((ctx) =>
 			ctx.res.sse(async (stream) => {
@@ -137,12 +148,14 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		)
 
 		.post("/out/multi-status")
+		.meta({ operationId: "out.multiStatus.create" })
 		.input({ json: z.object({ slug: z.string() }) })
 		.output({ "application/json": { created: z.object({ id: z.string(), slug: z.string() }) } })
 		.errors("conflict")
 		.handler((ctx) => ctx.res.json("created", { id: "1", slug: ctx.input.json.slug }))
 
 		.delete("/out/no-content/:id")
+		.meta({ operationId: "out.noContent.delete" })
 		.output({ no_content: true })
 		.errors("not_found")
 		.handler((ctx) => ctx.res.noContent())
@@ -179,24 +192,29 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.handler((ctx) => ctx.res.noContent())
 
 		.get("/status/ok")
+		.meta({ operationId: "status.ok.list" })
 		.output({ "application/json": { ok: z.object({ v: z.number() }) } })
 		.handler((ctx) => ctx.res.json("ok", { v: 1 }))
 
 		.post("/status/created")
+		.meta({ operationId: "status.created.create" })
 		.input({ json: z.object({ x: z.string() }) })
 		.output({ "application/json": { created: z.object({ id: z.string() }) } })
 		.handler((ctx) => ctx.res.json("created", { id: "1" }))
 
 		.post("/status/accepted")
+		.meta({ operationId: "status.accepted.create" })
 		.input({ json: z.object({ task: z.string() }) })
 		.output({ "application/json": { accepted: z.object({ jobId: z.string() }) } })
 		.handler((ctx) => ctx.res.json("accepted", { jobId: "j-1" }))
 
 		.delete("/status/no-content")
+		.meta({ operationId: "status.noContent.delete" })
 		.output({ no_content: true })
 		.handler((ctx) => ctx.res.noContent())
 
 		.get("/stream/filtered")
+		.meta({ operationId: "stream.filtered.list" })
 		.input({ search: z.object({ channel: z.string(), since: z.string().optional() }) })
 		.output({ "text/event-stream": { ok: z.string() } })
 		.handler((ctx) =>
@@ -207,6 +225,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		)
 
 		.post("/rs/upload")
+		.meta({ operationId: "rs.upload.create" })
 		.input({ json: streamed(z.object({ chunks: z.number(), fileName: z.string() })) })
 		.output({ "application/json": { accepted: z.object({ uploadId: z.string() }) } })
 		.handler((ctx) => ctx.res.json("accepted", { uploadId: "up-1" }))

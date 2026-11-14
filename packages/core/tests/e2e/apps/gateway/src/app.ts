@@ -150,12 +150,15 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		},
 	})
 
-	app.get("/ping/").handler((ctx) => ctx.res.text("ok", "pong"))
+	app
+		.get("/ping/")
+		.meta({ operationId: "ping.list" })
+		.handler((ctx) => ctx.res.text("ok", "pong"))
 
 	app
 		.use(shard)
 		.get("/articles/")
-		.meta({ permissions: ["articles.read"], summary: "List articles", worker: "origin" })
+		.meta({ operationId: "articles.list", permissions: ["articles.read"], summary: "List articles", worker: "origin" })
 		.input({ search: ListQuery })
 		.output({ "application/json": { ok: ArticleList } })
 		.handler((ctx) => ctx.res.json("ok", { articles: [], count: 0, hasMore: false, nextCursor: null }))
@@ -163,26 +166,34 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	app
 		.use(shard)
 		.get("/articles/meta/")
+		.meta({ operationId: "articles.meta.list" })
 		.handler((ctx) => ctx.res.json("ok", { meta: ctx.meta }))
 
 	/* own routes next to the catch-all, in a production gateway's shape: a param route and a
 	   versioned docs route the downstream services never see */
 	app
 		.get("/nl/c/:delivery/:url/")
+		.meta({ operationId: "nl.c.retrieve" })
 		.handler((ctx) => ctx.res.json("ok", { delivery: ctx.params.delivery, url: ctx.params.url }))
-	app.get("/v1/openapi/spec/").handler((ctx) => ctx.res.json("ok", { spec: "gateway" }))
+	app
+		.get("/v1/openapi/spec/")
+		.meta({ operationId: "v1.openapi.spec.list" })
+		.handler((ctx) => ctx.res.json("ok", { spec: "gateway" }))
 
 	/* every downstream route delegates here with its own pattern and meta */
-	app.all("/*").handler(
-		proxy({
-			destination: async (_ctx, url, init) => {
-				const answer = await users.fetch(new Request(new URL(url, "http://users.internal"), init), {})
-				const headers = new Headers(answer.headers)
-				headers.set("x-reached-service", "users")
-				return new Response(answer.body, { headers, status: answer.status })
-			},
-		}),
-	)
+	app
+		.all("/*")
+		.meta({ operationId: "root.any" })
+		.handler(
+			proxy({
+				destination: async (_ctx, url, init) => {
+					const answer = await users.fetch(new Request(new URL(url, "http://users.internal"), init), {})
+					const headers = new Headers(answer.headers)
+					headers.set("x-reached-service", "users")
+					return new Response(answer.body, { headers, status: answer.status })
+				},
+			}),
+		)
 
 	return serveManifest(serveOpenApi(app, { docs: { "/docs": swagger }, title: "Backend Gateway", version: "0.0.1" }))
 }

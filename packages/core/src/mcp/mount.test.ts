@@ -22,7 +22,7 @@ function shop(secured = true) {
 	const app = httpApp<Env>()
 	app
 		.post("/v1/orders")
-		.meta({ mcp: true, ...(secured ? { security: [{ apiKey: [] }] } : {}) })
+		.meta({ operationId: "orders.create", mcp: true, ...(secured ? { security: [{ apiKey: [] }] } : {}) })
 		.handler((ctx) => {
 			const authorization = ctx.req.headers.get("authorization")
 			seen.push({
@@ -56,7 +56,7 @@ const rpc = (method: string, params: object = {}, headers: Record<string, string
 		headers: { accept: ACCEPT, "content-type": "application/json", "mcp-protocol-version": "2025-11-25", ...headers },
 		method: "POST",
 	})
-const ORDER = ["tools/call", { arguments: {}, name: "post_v1_orders" }] as const
+const ORDER = ["tools/call", { arguments: {}, name: "orders_create" }] as const
 
 /** A response's status, challenge and JSON-RPC result. */
 async function read(response: Response) {
@@ -247,7 +247,7 @@ describe("mcp(app, path, handler) routes (bit 21 e), continued (2)", () => {
 		const document = generateOpenApi(app, { info: { title: "Shop", version: "1.0.0" } })
 		const { entry } = generateMcpHandler(document as unknown as Record<string, unknown>)
 		const tools = entry.match(/name: "\w+_\w+"/g)
-		expect([Object.keys(document.paths ?? {}), tools]).toEqual([["/v1/orders"], ['name: "post_v1_orders"']])
+		expect([Object.keys(document.paths ?? {}), tools]).toEqual([["/v1/orders"], ['name: "orders_create"']])
 	})
 
 	it("refuses a path with a parameter, and a taken path before registering any of its routes", async () => {

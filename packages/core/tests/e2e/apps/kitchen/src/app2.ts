@@ -15,10 +15,12 @@ import { Service } from "./service"
 
 const app = base
 	.get("/hello")
+	.meta({ operationId: "hello.list" })
 	.input({ search: z.object({ q: z.string() }) })
 	.output({ "application/json": { ok: z.object({ q: z.string() }) } })
 	.handler((c) => c.res.json("ok", { q: Service.list(c) }))
 	.post("/hello")
+	.meta({ operationId: "hello.create" })
 	.input({ json: z.object({ q: z.string() }) })
 	.output({ "application/json": { ok: z.object({ q: z.string() }) } })
 	.handler((c) => c.res.json("ok", { q: c.input.json.q }))

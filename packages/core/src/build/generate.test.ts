@@ -30,7 +30,7 @@ const SLOW = 60_000
 /* an internal route whose own middleware adds to ctx: extracted, never documented, so the types report it */
 const HIDDEN_ADDITION = [
 	'\t.get("/hidden")',
-	"\t.meta({ internal: true } as never)",
+	'\t.meta({ operationId: "hidden.list", internal: true } as never)',
 	"\t.use(createMiddleware((_c, next) => next({ hidden: 1 })))",
 	'\t.handler((c) => c.res.text("ok", "h"))',
 ]
@@ -215,7 +215,9 @@ describe("generateAndWrite (bit 19 h2), continued (3)", () => {
 		"reports a mutation's missing invalidate once, however many documents and types it writes",
 		async () => {
 			const { dir } = fresh({
-				"src/app.ts": appSource({ extra: ['\t.get("/items").handler((c) => c.res.text("ok", "ok"))'] }),
+				"src/app.ts": appSource({
+					extra: ['\t.get("/items").meta({ operationId: "items.list" }).handler((c) => c.res.text("ok", "ok"))'],
+				}),
 			})
 			const openApi = [
 				{ path: "a.json", title: "T", version: "1" },
@@ -232,7 +234,9 @@ describe("generateAndWrite (bit 19 h2), continued (3)", () => {
 		"builds the types' document with the check when no OpenAPI output ran it, so it still reports once",
 		async () => {
 			const { dir } = fresh({
-				"src/app.ts": appSource({ extra: ['\t.get("/items").handler((c) => c.res.text("ok", "ok"))'] }),
+				"src/app.ts": appSource({
+					extra: ['\t.get("/items").meta({ operationId: "items.list" }).handler((c) => c.res.text("ok", "ok"))'],
+				}),
 			})
 			const config = { app: "src/app.ts", codegen: { tree: false, types: true } }
 			expect(await invalidateReports(config, dir)).toBe(1)
@@ -399,8 +403,8 @@ describe("the MCP handler output (bit 21 e)", () => {
 			const { dir } = fresh({
 				"src/app.ts": appSource({
 					extra: [
-						'\t.post("/orders").meta({ mcp: true, security: [{ apiKey: [] }] }).handler((c) => c.res.text("ok", "ok"))',
-						'\t.get("/hidden").meta({ mcp: true }).handler((c) => c.res.text("ok", "ok"))',
+						'\t.post("/orders").meta({ operationId: "orders.create", mcp: true, security: [{ apiKey: [] }] }).handler((c) => c.res.text("ok", "ok"))',
+						'\t.get("/hidden").meta({ operationId: "hidden.list", mcp: true }).handler((c) => c.res.text("ok", "ok"))',
 					],
 				}),
 			})
@@ -425,7 +429,7 @@ describe("the MCP handler output (bit 21 e)", () => {
 				read(dir, "src/_gen/mcp/runtime.gen.ts").includes("export function mountedMcp("),
 			]).toEqual([
 				["src/_gen/mcp.gen.ts", ...MCP_COMPANIONS.map((name) => `src/_gen/mcp/${name}`)].sort(),
-				['name: "post_orders"', 'name: "gen"'],
+				['name: "orders_create"', 'name: "gen"'],
 				true,
 				true,
 			])

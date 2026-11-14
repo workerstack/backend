@@ -80,7 +80,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: { json: { data: Record<string, unknown> }; search: { version: number; force?: false | true }; headers: { "if-match": string } }
-			meta: {}
+			meta: { operationId: "in.all.replace" }
 			output: { "application/json": { ok: ReplaceInAllResponse200 } }
 		}
 	}
@@ -91,7 +91,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: { cookies: { locale: string; sid: string } }
-			meta: {}
+			meta: { operationId: "in.cookies.list" }
 			output: { "application/json": { ok: ListInCookiesResponse200 } }
 		}
 	}
@@ -102,7 +102,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: { form: { title: string; upload: import("../../../../../../../../node_modules/zod/v4/core/schemas.d.cts").File } }
-			meta: {}
+			meta: { operationId: "in.file.create" }
 			output: { "application/json": { ok: CreateInFileResponse200 } }
 		}
 	}
@@ -124,7 +124,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: { headers: { "x-api-key": string; "x-request-id": string } }
-			meta: {}
+			meta: { operationId: "in.headers.list" }
 			output: { "application/json": { ok: ListInHeadersResponse200 } }
 		}
 	}
@@ -157,7 +157,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "in.params.members.retrieve" }
 			output: { "application/json": { ok: GetInParamsMemberResponse200 } }
 		}
 	}
@@ -228,7 +228,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "out.binary.list" }
 			output: { "application/octet-stream": { ok: ListOutBinaryResponse200 } }
 		}
 	}
@@ -239,7 +239,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "out.csv.list" }
 			output: { "text/csv": { ok: ListOutCsvResponse200 } }
 		}
 	}
@@ -250,7 +250,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "out.html.list" }
 			output: { "text/html": { ok: ListOutCsvResponse200 } }
 		}
 	}
@@ -261,7 +261,7 @@ export type Routes = {
 			errorShapes: { conflict: null; unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null; 409: null }
 			input: { json: { slug: string } }
-			meta: {}
+			meta: { operationId: "out.multiStatus.create" }
 			output: { "application/json": { created: CreateOutMultiStatuResponse201 } }
 		}
 	}
@@ -272,7 +272,7 @@ export type Routes = {
 			errorShapes: { not_found: null; unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null; 404: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "out.noContent.delete" }
 			output: { "application/json": { no_content: unknown } }
 		}
 	}
@@ -283,7 +283,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "out.sse.list" }
 			output: { "text/event-stream": { ok: ListOutCsvResponse200 } }
 		}
 	}
@@ -294,7 +294,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "out.text.list" }
 			output: { "text/plain": { ok: ListOutCsvResponse200 } }
 		}
 	}
@@ -305,7 +305,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "out.xml.list" }
 			output: { "application/xml": { ok: ListOutCsvResponse200 } }
 		}
 	}
@@ -316,7 +316,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "rs.upload.create" }
 			output: { "application/json": { accepted: CreateRsResponse202 } }
 		}
 	}
@@ -327,7 +327,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: { json: { task: string } }
-			meta: {}
+			meta: { operationId: "status.accepted.create" }
 			output: { "application/json": { accepted: CreateStatuResponse202 } }
 		}
 	}
@@ -338,7 +338,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: { json: { x: string } }
-			meta: {}
+			meta: { operationId: "status.created.create" }
 			output: { "application/json": { created: CreateInJsonResponse201 } }
 		}
 	}
@@ -349,7 +349,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "status.noContent.delete" }
 			output: { "application/json": { no_content: unknown } }
 		}
 	}
@@ -360,7 +360,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "status.ok.list" }
 			output: { "application/json": { ok: ListStatusResponse200 } }
 		}
 	}
@@ -371,7 +371,7 @@ export type Routes = {
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: { search: { channel: string; since?: string } }
-			meta: {}
+			meta: { operationId: "stream.filtered.list" }
 			output: { "text/event-stream": { ok: ListOutCsvResponse200 } }
 		}
 	}

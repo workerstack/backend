@@ -20,6 +20,7 @@ export type MetaSpecDiagnosticCode =
 	| "INVALID_WEBHOOK"
 	| "MAP_THREW"
 	| "MISSING_ENTRY"
+	| "MISSING_OPERATION_ID"
 	| "RESERVED_FIELD"
 	| "SCHEMA_DEGRADED"
 	| "SCHEMA_FAILED"

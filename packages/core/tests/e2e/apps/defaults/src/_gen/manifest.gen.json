@@ -3,7 +3,9 @@
   "routes": [
     {
       "errors": [],
-      "meta": {},
+      "meta": {
+        "operationId": "health.list"
+      },
       "method": "GET",
       "middleware": [],
       "params": [],
@@ -11,7 +13,9 @@
     },
     {
       "errors": [],
-      "meta": {},
+      "meta": {
+        "operationId": "users.retrieve"
+      },
       "method": "GET",
       "middleware": [],
       "params": [
@@ -21,7 +25,9 @@
     },
     {
       "errors": [],
-      "meta": {},
+      "meta": {
+        "operationId": "echo.create"
+      },
       "method": "POST",
       "middleware": [],
       "output": {

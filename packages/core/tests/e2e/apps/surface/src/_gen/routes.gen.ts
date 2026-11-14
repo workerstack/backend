@@ -48,21 +48,40 @@ const P31 = "WS /ws/chat/:channelId"
 const A0 = [T1,T0]
 const J0 = {"unauthorized":T1,"validation_error":T2}
 const A1 = ["input"]
+const M3 = {"operationId":"in.headers.list"} as unknown as MetaShape
+const M4 = {"operationId":"in.cookies.list"} as unknown as MetaShape
+const M5 = {"operationId":"in.params.members.retrieve"} as unknown as MetaShape
+const M7 = {"operationId":"in.file.create"} as unknown as MetaShape
+const M8 = {"operationId":"in.all.replace"} as unknown as MetaShape
+const M9 = {"operationId":"out.text.list"} as unknown as MetaShape
+const M10 = {"operationId":"out.html.list"} as unknown as MetaShape
+const M11 = {"operationId":"out.csv.list"} as unknown as MetaShape
+const M12 = {"operationId":"out.xml.list"} as unknown as MetaShape
+const M13 = {"operationId":"out.binary.list"} as unknown as MetaShape
+const M14 = {"operationId":"out.sse.list"} as unknown as MetaShape
+const M15 = {"operationId":"out.multiStatus.create"} as unknown as MetaShape
+const M16 = {"operationId":"out.noContent.delete"} as unknown as MetaShape
 const A2 = ["methods"]
+const M22 = {"operationId":"status.ok.list"} as unknown as MetaShape
+const M23 = {"operationId":"status.created.create"} as unknown as MetaShape
+const M24 = {"operationId":"status.accepted.create"} as unknown as MetaShape
+const M25 = {"operationId":"status.noContent.delete"} as unknown as MetaShape
+const M26 = {"operationId":"stream.filtered.list"} as unknown as MetaShape
+const M27 = {"operationId":"rs.upload.create"} as unknown as MetaShape
 const A3 = [T5]
 const M0 = {"operationId":"input.createJson","tags":A1} as unknown as MetaShape
 const M1 = {"operationId":"input.createForm","tags":A1} as unknown as MetaShape
 const M2 = {"auth":"required","operationId":"input.search","tags":A1} as unknown as MetaShape
-const M3 = {"operationId":"input.none","tags":A1} as unknown as MetaShape
-const M4 = {"operationId":"resources.list","tags":A2} as unknown as MetaShape
-const M5 = {"operationId":"resources.create","tags":A2} as unknown as MetaShape
-const M6 = {"operationId":"resources.update","tags":A2} as unknown as MetaShape
-const M7 = {"operationId":"resources.patch","tags":A2} as unknown as MetaShape
-const M8 = {"operationId":"resources.delete","tags":A2} as unknown as MetaShape
-const M9 = {"operationId":"ws.echo","tags":A3} as unknown as MetaShape
-const M10 = {"operationId":"ws.joinRoom","tags":A3} as unknown as MetaShape
-const M11 = {"operationId":"ws.reconnect","tags":A3} as unknown as MetaShape
-const M12 = {"operationId":"ws.chat","tags":A3} as unknown as MetaShape
+const M6 = {"operationId":"input.none","tags":A1} as unknown as MetaShape
+const M17 = {"operationId":"resources.list","tags":A2} as unknown as MetaShape
+const M18 = {"operationId":"resources.create","tags":A2} as unknown as MetaShape
+const M19 = {"operationId":"resources.update","tags":A2} as unknown as MetaShape
+const M20 = {"operationId":"resources.patch","tags":A2} as unknown as MetaShape
+const M21 = {"operationId":"resources.delete","tags":A2} as unknown as MetaShape
+const M28 = {"operationId":"ws.echo","tags":A3} as unknown as MetaShape
+const M29 = {"operationId":"ws.joinRoom","tags":A3} as unknown as MetaShape
+const M30 = {"operationId":"ws.reconnect","tags":A3} as unknown as MetaShape
+const M31 = {"operationId":"ws.chat","tags":A3} as unknown as MetaShape
 
 export const tree: TreeNode = N(S({ "in": N(S({ "json": N(undefined, S({ POST: P0 })), "form": N(undefined, S({ POST: P1 })), "search": N(undefined, S({ GET: P2 })), "headers": N(undefined, S({ GET: P3 })), "cookies": N(undefined, S({ GET: P4 })), "params": N(undefined, null, { n: "orgId", c: N(S({ "members": N(undefined, null, { n: "memberId", c: N(undefined, S({ GET: P5 })) }) })) }), "none": N(undefined, S({ GET: P6 })), "file": N(undefined, S({ POST: P7 })), "all": N(undefined, null, { n: "resourceId", c: N(undefined, S({ PUT: P8 })) }) })), "out": N(S({ "text": N(undefined, S({ GET: P9 })), "html": N(undefined, S({ GET: P10 })), "csv": N(undefined, S({ GET: P11 })), "xml": N(undefined, S({ GET: P12 })), "binary": N(undefined, S({ GET: P13 })), "sse": N(undefined, S({ GET: P14 })), "multi-status": N(undefined, S({ POST: P15 })), "no-content": N(undefined, null, { n: "id", c: N(undefined, S({ DELETE: P16 })) }) })), "methods": N(S({ "resource": N(undefined, S({ GET: P17, POST: P18 }), { n: "id", c: N(undefined, S({ PUT: P19, PATCH: P20, DELETE: P21 })) }) })), "status": N(S({ "ok": N(undefined, S({ GET: P22 })), "created": N(undefined, S({ POST: P23 })), "accepted": N(undefined, S({ POST: P24 })), "no-content": N(undefined, S({ DELETE: P25 })) })), "stream": N(S({ "filtered": N(undefined, S({ GET: P26 })) })), "rs": N(S({ "upload": N(undefined, S({ POST: P27 })) })), "ws": N(S({ "echo": N(undefined, null, null, null, P28), "room": N(undefined, null, null, null, P29), "reconnect": N(undefined, null, null, null, P30), "chat": N(undefined, null, { n: "channelId", c: N(undefined, null, null, null, P31) }) })) }))
 
@@ -70,41 +89,41 @@ export const routes: RouteTree["routes"] = S<RouteTree["routes"][string]>({
 	[P0]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M0 },
 	[P1]: { bd: "form", bek: T0, ek: A0, es: J0, mt: M1 },
 	[P2]: { bek: T0, ek: A0, es: J0, mt: M2 },
-	[P3]: { bek: T0, ek: A0, es: J0 },
-	[P4]: { bek: T0, ek: A0, es: J0 },
-	[P5]: { bek: T0, ek: A0, es: J0 },
-	[P6]: { bek: T0, ek: A0, es: J0, mt: M3 },
-	[P7]: { bd: "form", bek: T0, ek: A0, es: J0 },
-	[P8]: { bd: "json", bek: T0, ek: A0, es: J0 },
-	[P9]: { bek: T0, ek: A0, es: J0 },
-	[P10]: { bek: T0, ek: A0, es: J0 },
-	[P11]: { bek: T0, ek: A0, es: J0 },
-	[P12]: { bek: T0, ek: A0, es: J0 },
-	[P13]: { bek: T0, ek: A0, es: J0 },
-	[P14]: { bek: T0, ek: A0, es: J0 },
-	[P15]: { bd: "json", bek: T0, ek: [T3,T1,T0], es: {"conflict":T3,"unauthorized":T1,"validation_error":T2} },
-	[P16]: { bek: T0, ek: [T4,T1,T0], es: {"not_found":T4,"unauthorized":T1,"validation_error":T2} },
-	[P17]: { bek: T0, ek: A0, es: J0, mt: M4 },
-	[P18]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M5 },
-	[P19]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M6 },
-	[P20]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M7 },
-	[P21]: { bek: T0, ek: A0, es: J0, mt: M8 },
-	[P22]: { bek: T0, ek: A0, es: J0 },
-	[P23]: { bd: "json", bek: T0, ek: A0, es: J0 },
-	[P24]: { bd: "json", bek: T0, ek: A0, es: J0 },
-	[P25]: { bek: T0, ek: A0, es: J0 },
-	[P26]: { bek: T0, ek: A0, es: J0 },
-	[P27]: { bd: "json", bek: T0, ek: A0, es: J0 },
-	[P28]: { bek: T0, ek: A0, es: J0, mt: M9 },
-	[P29]: { bek: T0, ek: A0, es: J0, mt: M10 },
-	[P30]: { bek: T0, ek: A0, es: J0, mt: M11 },
-	[P31]: { bek: T0, ek: A0, es: J0, mt: M12 }
+	[P3]: { bek: T0, ek: A0, es: J0, mt: M3 },
+	[P4]: { bek: T0, ek: A0, es: J0, mt: M4 },
+	[P5]: { bek: T0, ek: A0, es: J0, mt: M5 },
+	[P6]: { bek: T0, ek: A0, es: J0, mt: M6 },
+	[P7]: { bd: "form", bek: T0, ek: A0, es: J0, mt: M7 },
+	[P8]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M8 },
+	[P9]: { bek: T0, ek: A0, es: J0, mt: M9 },
+	[P10]: { bek: T0, ek: A0, es: J0, mt: M10 },
+	[P11]: { bek: T0, ek: A0, es: J0, mt: M11 },
+	[P12]: { bek: T0, ek: A0, es: J0, mt: M12 },
+	[P13]: { bek: T0, ek: A0, es: J0, mt: M13 },
+	[P14]: { bek: T0, ek: A0, es: J0, mt: M14 },
+	[P15]: { bd: "json", bek: T0, ek: [T3,T1,T0], es: {"conflict":T3,"unauthorized":T1,"validation_error":T2}, mt: M15 },
+	[P16]: { bek: T0, ek: [T4,T1,T0], es: {"not_found":T4,"unauthorized":T1,"validation_error":T2}, mt: M16 },
+	[P17]: { bek: T0, ek: A0, es: J0, mt: M17 },
+	[P18]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M18 },
+	[P19]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M19 },
+	[P20]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M20 },
+	[P21]: { bek: T0, ek: A0, es: J0, mt: M21 },
+	[P22]: { bek: T0, ek: A0, es: J0, mt: M22 },
+	[P23]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M23 },
+	[P24]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M24 },
+	[P25]: { bek: T0, ek: A0, es: J0, mt: M25 },
+	[P26]: { bek: T0, ek: A0, es: J0, mt: M26 },
+	[P27]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M27 },
+	[P28]: { bek: T0, ek: A0, es: J0, mt: M28 },
+	[P29]: { bek: T0, ek: A0, es: J0, mt: M29 },
+	[P30]: { bek: T0, ek: A0, es: J0, mt: M30 },
+	[P31]: { bek: T0, ek: A0, es: J0, mt: M31 }
 })
 
 export type MetaShape = {
 	auth?: "required"
-	operationId: "input.createJson" | "input.createForm" | "input.search" | "input.none" | "resources.list" | "resources.create" | "resources.update" | "resources.patch" | "resources.delete" | "ws.echo" | "ws.joinRoom" | "ws.reconnect" | "ws.chat"
-	tags: ["input"] | ["methods"] | ["websocket"]
+	operationId: "input.createJson" | "input.createForm" | "input.search" | "in.headers.list" | "in.cookies.list" | "in.params.members.retrieve" | "input.none" | "in.file.create" | "in.all.replace" | "out.text.list" | "out.html.list" | "out.csv.list" | "out.xml.list" | "out.binary.list" | "out.sse.list" | "out.multiStatus.create" | "out.noContent.delete" | "resources.list" | "resources.create" | "resources.update" | "resources.patch" | "resources.delete" | "status.ok.list" | "status.created.create" | "status.accepted.create" | "status.noContent.delete" | "stream.filtered.list" | "rs.upload.create" | "ws.echo" | "ws.joinRoom" | "ws.reconnect" | "ws.chat"
+	tags?: ["input"] | ["methods"] | ["websocket"]
 } & Record<string, unknown>
 
 
@@ -114,16 +133,35 @@ export const meta: Record<string, MetaShape> = S({
 	[P0]: M0,
 	[P1]: M1,
 	[P2]: M2,
-	[P6]: M3,
-	[P17]: M4,
-	[P18]: M5,
-	[P19]: M6,
-	[P20]: M7,
-	[P21]: M8,
-	[P28]: M9,
-	[P29]: M10,
-	[P30]: M11,
-	[P31]: M12
+	[P3]: M3,
+	[P4]: M4,
+	[P5]: M5,
+	[P6]: M6,
+	[P7]: M7,
+	[P8]: M8,
+	[P9]: M9,
+	[P10]: M10,
+	[P11]: M11,
+	[P12]: M12,
+	[P13]: M13,
+	[P14]: M14,
+	[P15]: M15,
+	[P16]: M16,
+	[P17]: M17,
+	[P18]: M18,
+	[P19]: M19,
+	[P20]: M20,
+	[P21]: M21,
+	[P22]: M22,
+	[P23]: M23,
+	[P24]: M24,
+	[P25]: M25,
+	[P26]: M26,
+	[P27]: M27,
+	[P28]: M28,
+	[P29]: M29,
+	[P30]: M30,
+	[P31]: M31
 })
 
 export const routeTree: RouteTree = { v: 2, root: tree, routes, meta }

@@ -20,7 +20,7 @@ export type Routes = {
 			ctx: WithOutput<BaseCtx & { readonly input: { search: { cursor?: string } }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/articles" }, { "application/json": { ok: ListArticlesResponse200 } }>
 			errors: never
 			input: { search: { cursor?: string } }
-			meta: { tenant: "project_id"; permissions: ["articles.read"]; summary: "List articles"; worker: "origin" }
+			meta: { tenant: "project_id"; operationId: "articles.list"; permissions: ["articles.read"]; summary: "List articles"; worker: "origin" }
 			output: { "application/json": { ok: ListArticlesResponse200 } }
 		}
 	}
@@ -29,7 +29,7 @@ export type Routes = {
 			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/articles/meta" }, never>
 			errors: never
 			input: {}
-			meta: { tenant: "project_id" }
+			meta: { tenant: "project_id"; operationId: "articles.meta.list" }
 			output: {}
 		}
 	}
@@ -38,7 +38,7 @@ export type Routes = {
 			ctx: WithOutput<BaseCtx & { readonly params: { delivery: string; url: string }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/nl/c/:delivery/:url" }, never>
 			errors: never
 			input: {}
-			meta: {}
+			meta: { operationId: "nl.c.retrieve" }
 			output: {}
 		}
 	}
@@ -47,7 +47,7 @@ export type Routes = {
 			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/ping" }, never>
 			errors: never
 			input: {}
-			meta: {}
+			meta: { operationId: "ping.list" }
 			output: {}
 		}
 	}
@@ -56,14 +56,14 @@ export type Routes = {
 			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/users" }, never>
 			errors: never
 			input: {}
-			meta: { worker: "origin" }
+			meta: { operationId: "users.list"; worker: "origin" }
 			output: {}
 		}
 		post: {
 			ctx: WithOutput<BaseCtx & { readonly input: { json: CreateUserRequest }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/users" }, never>
 			errors: never
 			input: { json: CreateUserRequest }
-			meta: { worker: "origin" }
+			meta: { operationId: "users.create"; worker: "origin" }
 			output: {}
 		}
 	}
@@ -72,7 +72,7 @@ export type Routes = {
 			ctx: WithOutput<BaseCtx & { readonly params: { id: string }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/users/:id" }, never>
 			errors: never
 			input: {}
-			meta: { worker: "origin" }
+			meta: { operationId: "users.retrieve"; worker: "origin" }
 			output: {}
 		}
 	}
@@ -81,7 +81,7 @@ export type Routes = {
 			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/v1/openapi/spec" }, never>
 			errors: never
 			input: {}
-			meta: {}
+			meta: { operationId: "v1.openapi.spec.list" }
 			output: {}
 		}
 	}

@@ -33,13 +33,15 @@ describe("WebSocket operations", () => {
 		app.metaSpec({ meta: { tenant: { key: "x-tenant", on: "http" } } })
 		app
 			.get("/a")
-			.meta({ tenant: "orgId" })
+			.meta({ operationId: "a.list", tenant: "orgId" })
 			.handler((c) => c.res.text("ok", "ok"))
 		ws(app, "/live")
-			.meta({ tenant: "orgId" } as never)
+			.meta({ operationId: "live.connect", tenant: "orgId" } as never)
 			.input({ search: z.object({ secret: z.string().meta({ "x-internal": true }), token: z.string() }) })
 			.handler({ onMessage() {} })
-		ws(app, "/ws/chat/:channelId").handler({ onMessage() {} })
+		ws(app, "/ws/chat/:channelId")
+			.meta({ operationId: "ws.chat.connect" })
+			.handler({ onMessage() {} })
 		const doc = generateOpenApi(app, { info: INFO })
 		expect(params(doc, "/ws/chat/{channelId}").map((p) => [p.name, p.in])).toEqual([["channelId", "path"]])
 		expect([
@@ -50,10 +52,15 @@ describe("WebSocket operations", () => {
 			op(doc, "/live").responses,
 		]).toEqual(["orgId", undefined, true, ["token"], { "101": { description: "WebSocket upgrade" } }])
 	})
+})
 
+describe("WebSocket operations, continued (2)", () => {
 	it("leaves out a WS route an HTTP GET of the same path shadows, and says so through the logger", () => {
 		const app = httpApp<{}>()
-		app.get("/chat").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/chat")
+			.meta({ operationId: "chat.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		ws(app, "/chat").handler({ onMessage() {} })
 		const { logger, warnings } = recording()
 		const doc = generateOpenApi(app, { info: INFO, logger })
@@ -66,7 +73,9 @@ describe("WebSocket operations", () => {
 	// v0: e61795b84c
 	it("leaves out a WS route marked internal and one filterRoutes rejects, keeping the rest", () => {
 		const app = httpApp<{}>()
-		ws(app, "/open").handler({ onMessage() {} })
+		ws(app, "/open")
+			.meta({ operationId: "open.connect" })
+			.handler({ onMessage() {} })
 		ws(app, "/hidden")
 			.meta({ internal: true })
 			.handler({ onMessage() {} })
@@ -91,6 +100,7 @@ describe("a WS route's own keys", () => {
 			tags: "sockets",
 		}
 		ws(app, "/live")
+			.meta({ operationId: "live.wsLive" })
 			.meta(every as never)
 			.handler({ onMessage() {} })
 		expect(Object.keys(op(generateOpenApi(app, { info: INFO }), "/live"))).toEqual([

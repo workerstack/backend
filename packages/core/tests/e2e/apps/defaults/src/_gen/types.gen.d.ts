@@ -15,28 +15,28 @@ type CreateEchoResponse201 = string
 export type Routes = {
 	"/echo": {
 		post: {
-			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<{}>; readonly routePattern: "/echo" }, { "application/json": { created: CreateEchoResponse201 } }>
+			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<{ operationId: "echo.create" }>; readonly routePattern: "/echo" }, { "application/json": { created: CreateEchoResponse201 } }>
 			errors: never
 			input: {}
-			meta: {}
+			meta: { operationId: "echo.create" }
 			output: { "application/json": { created: CreateEchoResponse201 } }
 		}
 	}
 	"/health": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<{}>; readonly routePattern: "/health" }, never>
+			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<{ operationId: "health.list" }>; readonly routePattern: "/health" }, never>
 			errors: never
 			input: {}
-			meta: {}
+			meta: { operationId: "health.list" }
 			output: {}
 		}
 	}
 	"/users/:id": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly params: { id: string }; readonly meta: Readonly<{}>; readonly routePattern: "/users/:id" }, never>
+			ctx: WithOutput<BaseCtx & { readonly params: { id: string }; readonly meta: Readonly<{ operationId: "users.retrieve" }>; readonly routePattern: "/users/:id" }, never>
 			errors: never
 			input: {}
-			meta: {}
+			meta: { operationId: "users.retrieve" }
 			output: {}
 		}
 	}

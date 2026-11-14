@@ -315,6 +315,7 @@ describe("bodyLimit: an overflow", () => {
 			const app = httpApp<{}>().use(bodyLimit({ maxSize: 1000 }))
 			app
 				.post("/upload")
+				.meta({ operationId: "upload.create" })
 				.handler(async (ctx) => ctx.res.json("ok", { n: (await ctx.req.formData()).getAll("f").length }))
 			const form = new FormData()
 			form.append("f", new Blob(["x".repeat(500)], { type: "text/plain" }), "a.txt")
@@ -398,9 +399,13 @@ describe("bodyLimit: the error it declares", () => {
 		const app = httpApp<{}>().errorFactory(defineErrors({}))
 		app
 			.post("/upload")
+			.meta({ operationId: "upload.create" })
 			.use(bodyLimit({ maxSize: 1 }))
 			.handler((ctx) => ctx.res.text("ok", "x"))
-		app.post("/open").handler((ctx) => ctx.res.text("ok", "x"))
+		app
+			.post("/open")
+			.meta({ operationId: "open.create" })
+			.handler((ctx) => ctx.res.text("ok", "x"))
 		const { paths } = generateOpenApi(app, { info: { title: "T", version: "1" } })
 		expect([
 			Object.keys(paths["/upload"]?.post?.responses ?? {}),
