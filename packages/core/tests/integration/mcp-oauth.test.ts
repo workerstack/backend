@@ -87,8 +87,8 @@ try {
 		await client.connect(transport)
 	}
 	out.tools = (await client.listTools()).tools.map((tool) => tool.name).sort()
-	out.read = await authorized(transport, () => client.callTool({ name: "get_orders", arguments: {} }))
-	out.created = await authorized(transport, () => client.callTool({ name: "post_orders", arguments: {} }))
+	out.read = await authorized(transport, () => client.callTool({ name: "orders_list", arguments: {} }))
+	out.created = await authorized(transport, () => client.callTool({ name: "orders_create", arguments: {} }))
 	await client.close()
 } catch (error) {
 	out.failed = String(error?.message ?? error)
@@ -143,7 +143,7 @@ describe.skipIf(!withClients())("the mounted resource server under the official 
 					authorizations: ["orders:read", "orders:read orders:write"],
 					created: expect.objectContaining({ _meta: { "backend/status": 201 }, structuredContent: { created: "o-2" } }),
 					read: expect.objectContaining({ _meta: { "backend/status": 200 }, structuredContent: { orders: ["o-1"] } }),
-					tools: ["get_orders", "post_orders"],
+					tools: ["orders_create", "orders_list"],
 				},
 				[
 					"app POST /mcp 401",
