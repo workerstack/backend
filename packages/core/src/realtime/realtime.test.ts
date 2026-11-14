@@ -4,6 +4,7 @@ import { createMiddleware } from "../middleware/middleware.ts"
 import { httpApp } from "../routing/app.ts"
 import { type WSAdapter, WSContextImpl, type WSHandler } from "../ws/contract.ts"
 import { createBus } from "./bus.ts"
+import { generateOpenApi } from "../openapi/generate.ts"
 import { realtime } from "./realtime.ts"
 import type { ConnContext } from "./route.ts"
 import { ws } from "../ws/route.ts"
@@ -117,6 +118,13 @@ describe("realtime(app, path, opts): registration", () => {
 			false,
 		])
 		expect(() => realtime(app, "/rt", { handler: () => {} })).toThrow("Duplicate route: WS /rt")
+	})
+
+	it("documents the route with the operationId its meta declares", () => {
+		const { app } = appWith()
+		realtime(app, "/rt/room", { handler: () => {}, meta: { operationId: "room.connect", summary: "a room" } })
+		const get = generateOpenApi(app, { info: { title: "T", version: "1" } }).paths["/rt/room"]?.get
+		expect([get?.operationId, get?.summary]).toEqual(["room.connect", "a room"])
 	})
 
 	// v0: 96b4fcc713

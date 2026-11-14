@@ -13,6 +13,7 @@
     "/articles/": {
       "get": {
         "summary": "List articles",
+        "operationId": "articles.list",
         "x-permissions": [
           "articles.read"
         ],
@@ -69,6 +70,7 @@
     },
     "/articles/meta/": {
       "get": {
+        "operationId": "articles.meta.list",
         "x-tenant": {
           "param": "project_id"
         },
@@ -82,6 +84,7 @@
     },
     "/nl/c/{delivery}/{url}/": {
       "get": {
+        "operationId": "nl.c.retrieve",
         "x-backend-route": "GET /nl/c/:delivery/:url",
         "parameters": [
           {
@@ -110,6 +113,7 @@
     },
     "/ping/": {
       "get": {
+        "operationId": "ping.list",
         "x-backend-route": "GET /ping",
         "responses": {
           "200": {
@@ -120,6 +124,7 @@
     },
     "/users/": {
       "get": {
+        "operationId": "users.list",
         "x-backend-route": "GET /users",
         "responses": {
           "200": {
@@ -128,6 +133,7 @@
         }
       },
       "post": {
+        "operationId": "users.create",
         "x-backend-route": "POST /users",
         "requestBody": {
           "content": {
@@ -148,6 +154,7 @@
     },
     "/users/{id}/": {
       "get": {
+        "operationId": "users.retrieve",
         "x-backend-route": "GET /users/:id",
         "parameters": [
           {
@@ -168,6 +175,7 @@
     },
     "/v1/openapi/spec/": {
       "get": {
+        "operationId": "v1.openapi.spec.list",
         "x-backend-route": "GET /v1/openapi/spec",
         "responses": {
           "200": {

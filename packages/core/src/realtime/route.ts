@@ -3,6 +3,7 @@
  * the shipped transport does not implement are rejected, never silently ignored.
  */
 import type { MiddlewareFn } from "../middleware/middleware.ts"
+import type { WsMeta } from "../routing/ws-builder.ts"
 import { validateOriginPolicy, type WSOriginPolicy } from "../ws/origin.ts"
 import { createBus, type RealtimeBus } from "./bus.ts"
 
@@ -64,7 +65,7 @@ export type RealtimeLimits = {
 }
 
 /** `C` is the request context the route's middleware leaves for `identify` and `handler`. */
-export type RealtimeOptions<C = unknown> = {
+export type RealtimeOptions<C = unknown, TMeta = never> = {
 	/**
 	 * The topic bus. Default: a fresh bus for this route. Routes share topics only when they are
 	 * given the same bus and name the same namespace.
@@ -72,6 +73,12 @@ export type RealtimeOptions<C = unknown> = {
 	bus?: RealtimeBus
 	/** Route-level middleware, after the app's chain and scopes, before `identify` and the upgrade. */
 	use?: readonly MiddlewareFn<any, any>[]
+	/**
+	 * The route's metadata, as `ws(app, path).meta()` takes it: its `operationId`, which every documented route declares,
+	 * summary, tags and the app's own meta keys. The HTTP-only builtins (`invalidate`, `mcp`, `security`, `deprecated`) are
+	 * refused.
+	 */
+	meta?: WsMeta<TMeta>
 	/** Topic namespace within the bus. Default: the path given to `realtime()`. */
 	namespace?: string
 	/** Runs after the route's middleware, before the upgrade. Its result becomes `conn.userId`; a throw rejects the upgrade. */
@@ -100,6 +107,7 @@ export type RealtimeConfig = {
 	readonly handler: (ctx: unknown, conn: ConnContext) => Promise<void> | void
 	readonly identify: ((ctx: unknown) => Promise<string | null | undefined> | string | null | undefined) | null
 	readonly limits: Readonly<Required<RealtimeLimits>>
+	readonly meta: Readonly<Record<string, unknown>> | null
 	readonly namespace: string
 	readonly onError: ((error: unknown, conn: ConnContext) => Promise<void> | void) | null
 	readonly path: string
@@ -136,9 +144,11 @@ function resolveLimits(limits: RealtimeLimits): Required<RealtimeLimits> {
 	}
 }
 
-/** Validate `realtime()` options and apply every default. */
-export function resolveRealtimeConfig<C>(path: string, options: RealtimeOptions<C>): RealtimeConfig {
-	const opts = options as unknown as RealtimeOptions & { reconnectBuffer?: unknown; transports?: unknown }
+/** Refuse a `realtime()` option that is missing, removed or malformed. */
+function checkRealtimeOptions(
+	path: string,
+	opts: RealtimeOptions & { reconnectBuffer?: unknown; transports?: unknown },
+): void {
 	if (typeof opts?.handler !== "function") throw new TypeError(`realtime("${path}"): handler must be a function`)
 	if (opts.reconnectBuffer !== undefined) {
 		throw new TypeError(
@@ -151,12 +161,19 @@ export function resolveRealtimeConfig<C>(path: string, options: RealtimeOptions<
 	if (opts.namespace !== undefined && (typeof opts.namespace !== "string" || opts.namespace === "")) {
 		throw new TypeError(`realtime("${path}"): namespace must be a non-empty string`)
 	}
+}
+
+/** Validate `realtime()` options and apply every default. */
+export function resolveRealtimeConfig<C, TMeta>(path: string, options: RealtimeOptions<C, TMeta>): RealtimeConfig {
+	const opts = options as unknown as RealtimeOptions & { reconnectBuffer?: unknown; transports?: unknown }
+	checkRealtimeOptions(path, opts)
 	return {
 		allowedOrigins: opts.allowedOrigins === undefined ? null : validateOriginPolicy(opts.allowedOrigins),
 		bus: opts.bus ?? createBus(),
 		handler: opts.handler,
 		identify: opts.identify ?? null,
 		limits: Object.freeze(resolveLimits(opts.limits ?? {})),
+		meta: (opts.meta as Readonly<Record<string, unknown>> | undefined) ?? null,
 		namespace: opts.namespace ?? path,
 		onError: opts.onError ?? null,
 		path,

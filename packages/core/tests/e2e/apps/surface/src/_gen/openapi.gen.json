@@ -7,6 +7,7 @@
   "paths": {
     "/in/all/{resourceId}": {
       "put": {
+        "operationId": "in.all.replace",
         "x-backend-route": "PUT /in/all/:resourceId",
         "requestBody": {
           "content": {
@@ -98,6 +99,7 @@
     },
     "/in/cookies": {
       "get": {
+        "operationId": "in.cookies.list",
         "x-backend-route": "GET /in/cookies",
         "parameters": [
           {
@@ -163,6 +165,7 @@
     },
     "/in/file": {
       "post": {
+        "operationId": "in.file.create",
         "x-backend-route": "POST /in/file",
         "requestBody": {
           "content": {
@@ -286,6 +289,7 @@
     },
     "/in/headers": {
       "get": {
+        "operationId": "in.headers.list",
         "x-backend-route": "GET /in/headers",
         "parameters": [
           {
@@ -463,6 +467,7 @@
     },
     "/in/params/{orgId}/members/{memberId}": {
       "get": {
+        "operationId": "in.params.members.retrieve",
         "x-backend-route": "GET /in/params/:orgId/members/:memberId",
         "parameters": [
           {
@@ -911,6 +916,7 @@
     },
     "/out/binary": {
       "get": {
+        "operationId": "out.binary.list",
         "x-backend-route": "GET /out/binary",
         "responses": {
           "200": {
@@ -958,6 +964,7 @@
     },
     "/out/csv": {
       "get": {
+        "operationId": "out.csv.list",
         "x-backend-route": "GET /out/csv",
         "responses": {
           "200": {
@@ -1005,6 +1012,7 @@
     },
     "/out/html": {
       "get": {
+        "operationId": "out.html.list",
         "x-backend-route": "GET /out/html",
         "responses": {
           "200": {
@@ -1052,6 +1060,7 @@
     },
     "/out/multi-status": {
       "post": {
+        "operationId": "out.multiStatus.create",
         "x-backend-route": "POST /out/multi-status",
         "requestBody": {
           "content": {
@@ -1123,6 +1132,7 @@
     },
     "/out/no-content/{id}": {
       "delete": {
+        "operationId": "out.noContent.delete",
         "x-backend-route": "DELETE /out/no-content/:id",
         "parameters": [
           {
@@ -1187,6 +1197,7 @@
     },
     "/out/sse": {
       "get": {
+        "operationId": "out.sse.list",
         "x-backend-route": "GET /out/sse",
         "responses": {
           "200": {
@@ -1234,6 +1245,7 @@
     },
     "/out/text": {
       "get": {
+        "operationId": "out.text.list",
         "x-backend-route": "GET /out/text",
         "responses": {
           "200": {
@@ -1281,6 +1293,7 @@
     },
     "/out/xml": {
       "get": {
+        "operationId": "out.xml.list",
         "x-backend-route": "GET /out/xml",
         "responses": {
           "200": {
@@ -1328,6 +1341,7 @@
     },
     "/rs/upload": {
       "post": {
+        "operationId": "rs.upload.create",
         "x-backend-route": "POST /rs/upload",
         "requestBody": {
           "content": {
@@ -1385,6 +1399,7 @@
     },
     "/status/accepted": {
       "post": {
+        "operationId": "status.accepted.create",
         "x-backend-route": "POST /status/accepted",
         "requestBody": {
           "content": {
@@ -1442,6 +1457,7 @@
     },
     "/status/created": {
       "post": {
+        "operationId": "status.created.create",
         "x-backend-route": "POST /status/created",
         "requestBody": {
           "content": {
@@ -1499,6 +1515,7 @@
     },
     "/status/no-content": {
       "delete": {
+        "operationId": "status.noContent.delete",
         "x-backend-route": "DELETE /status/no-content",
         "responses": {
           "204": {
@@ -1539,6 +1556,7 @@
     },
     "/status/ok": {
       "get": {
+        "operationId": "status.ok.list",
         "x-backend-route": "GET /status/ok",
         "responses": {
           "200": {
@@ -1586,6 +1604,7 @@
     },
     "/stream/filtered": {
       "get": {
+        "operationId": "stream.filtered.list",
         "x-backend-route": "GET /stream/filtered",
         "parameters": [
           {

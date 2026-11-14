@@ -265,7 +265,7 @@ const refused = (status: number, challenge: string) =>
 const app = httpApp<Env>()
 app
 	.post("/orders")
-	.meta({ mcp: true, security: [{ oauth: ["mcp:write"] }] })
+	.meta({ mcp: true, operationId: "orders.create", security: [{ oauth: ["mcp:write"] }] })
 	.handler(async (ctx) => {
 		/* the route checks the token again, for the endpoint as its audience, and names every scope it needs */
 		const granted = await ctx.env.AUTH_SERVER.validateToken(ENDPOINT, bearer(ctx.req))

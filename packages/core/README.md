@@ -95,7 +95,10 @@ import { serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
 const app = httpApp()
-app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
+app
+	.get("/health")
+	.meta({ operationId: "health.check" })
+	.handler((ctx) => ctx.res.text("ok", "ok"))
 
 export default serveOpenApi(app, { docs: { "/docs": scalar }, title: "Books", version: "1.0.0" })
 ```
@@ -208,7 +211,10 @@ app
 	.meta({ operationId: "users.get", summary: "One user", tags: ["users"] })
 	.handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
 
-app.delete("/users/:id").handler((ctx) => ctx.res.noContent())
+app
+	.delete("/users/:id")
+	.meta({ operationId: "users.delete" })
+	.handler((ctx) => ctx.res.noContent())
 
 serveOpenApi(app, { title: "Users", version: "1.0.0", docs: { "/docs": scalar } })
 ```
@@ -778,7 +784,7 @@ const app = httpApp()
 
 app
 	.get("/orders")
-	.meta({ summary: "List orders", tags: ["orders"] })
+	.meta({ operationId: "orders.list", summary: "List orders", tags: ["orders"] })
 	.handler((ctx) => ctx.res.json("ok", []))
 
 serveOpenApi(app, {
@@ -799,7 +805,10 @@ import { scalar } from "@workerstack/backend/http/openapi/scalar"
 import { swagger } from "@workerstack/backend/http/openapi/swagger"
 
 const app = httpApp()
-app.get("/orders").handler((ctx) => ctx.res.json("ok", []))
+app
+	.get("/orders")
+	.meta({ operationId: "orders.list" })
+	.handler((ctx) => ctx.res.json("ok", []))
 
 const document = generateOpenApi(app, { info: { title: "Shop", version: "1.2.0" } })
 const manifest = generateManifest(app, {})
@@ -1206,7 +1215,7 @@ export function newClient(): Kitchen {
 
 export async function organization(client: Kitchen, orgId: string): Promise<string | null> {
 	try {
-		await client.getApiV1OrganizationsByOrgId({ params: { orgId } })
+		await client.organizations.retrieve({ params: { orgId } })
 		return orgId
 	} catch (error) {
 		if (error instanceof NotFoundError) return null
@@ -1215,7 +1224,7 @@ export async function organization(client: Kitchen, orgId: string): Promise<stri
 }
 
 export async function health(client: Kitchen): Promise<string> {
-	const result = await client.safe.getApiHealth()
+	const result = await client.safe.health.check()
 	if (result.ok) return "up"
 	if (result.error instanceof DecodeError) return `unreadable answer: ${result.error.message}`
 	return `answered ${result.error.status}`

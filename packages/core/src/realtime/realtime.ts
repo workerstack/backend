@@ -27,6 +27,14 @@ export type RealtimeCtx<TApp, TPath extends string> =
 		? WSRouteCtx<TCtx, TFull>
 		: never
 
+/** The app meta type `ws(app, path).meta()` holds a route to, which `options.meta` takes. */
+export type RealtimeMeta<TApp, TPath extends string> =
+	WsRouteOf<TApp, TPath> extends WSRouteBuilder<any, any, infer TParent>
+		? TParent extends { readonly $meta: infer TMeta }
+			? TMeta
+			: never
+		: never
+
 /**
  * Add a realtime route at `path` on `app`. Returns the publisher for the route's namespace, which REST handlers use
  * to push frames to connected clients. Throws a `TypeError` for an invalid option.
@@ -34,7 +42,7 @@ export type RealtimeCtx<TApp, TPath extends string> =
 export function realtime<TApp extends AnyHttpApp, const TPath extends string>(
 	app: TApp,
 	path: TPath,
-	options: RealtimeOptions<RealtimeCtx<TApp, TPath>>,
+	options: RealtimeOptions<RealtimeCtx<TApp, TPath>, RealtimeMeta<TApp, TPath>>,
 ): RealtimePublisher {
 	const config = resolveRealtimeConfig(path, options)
 	const { identify } = config
@@ -52,6 +60,7 @@ export function realtime<TApp extends AnyHttpApp, const TPath extends string>(
 	let route = ws(app, path) as WSRouteBuilder<unknown, string, unknown>
 	for (const mw of [...config.use, connect]) route = route.use(mw as MiddlewareFn<unknown, unknown>)
 	if (config.allowedOrigins !== null) route = route.origins(config.allowedOrigins)
+	if (config.meta !== null) route = route.meta(config.meta as never)
 	const session = (ctx: unknown) => sessions.get(ctx as object) as RealtimeSession
 	route.handler({
 		onClose: (ctx, _ws, _code, reason) => session(ctx).close(reason),

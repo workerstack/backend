@@ -23,6 +23,7 @@ function treeOf(entry: RouteEntry): RouteTree {
 function declaring(output: object, method: "get" | "post" = "get") {
 	const app = httpApp<{}>()
 	app[method]("/o")
+		.meta({ operationId: "o.get" })
 		.output(output as { no_content: true })
 		.handler((c) => c.res.noContent())
 	return app
@@ -93,6 +94,7 @@ describe("generateOpenApi: a response is keyed by its status code, never by a na
 		for (const key of keys)
 			app
 				.get(`/${key}`)
+				.meta({ operationId: `${key}.get` })
 				.output({
 					...(SUCCESS.includes(key) ? { "application/json": { [key]: z.string() } } : { redirect: { [key]: true } }),
 					headers: { [key]: z.object({ "x-a": z.string() }) },

@@ -307,7 +307,7 @@ describe("v1 adversarial: the OpenAPI document and its pages", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/a")
-			.meta({ summary: "- item: injected\n# not a comment", tags: ["a: b", "'quoted'"] })
+			.meta({ operationId: "a.list", summary: "- item: injected\n# not a comment", tags: ["a: b", "'quoted'"] })
 			.handler((c) => c.res.text("ok", "a"))
 		const info = { description: "line\nopenapi: 9.9.9\npaths: {}", title: "API: v2 # x", version: "1" }
 		const doc = generateOpenApi(app, { info })
@@ -316,7 +316,10 @@ describe("v1 adversarial: the OpenAPI document and its pages", () => {
 
 	it("refuses a server whose URL or variable would inject a control character, or a variable it never declared", () => {
 		const app = httpApp<{}>()
-		app.get("/a").handler((c) => c.res.text("ok", "a"))
+		app
+			.get("/a")
+			.meta({ operationId: "a.list" })
+			.handler((c) => c.res.text("ok", "a"))
 		const generate = (servers: unknown) => () =>
 			generateOpenApi(app, { info: { title: "T", version: "1" }, servers: servers as never })
 		expect(generate([{ url: "https://api.example.com/\r\nX-Injected: 1" }])).toThrow(/INVALID_SERVER/)

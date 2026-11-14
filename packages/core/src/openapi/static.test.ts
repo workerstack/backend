@@ -24,7 +24,10 @@ const get = (app: App, path: string, env: object = {}, init?: RequestInit) =>
 /** An app with one route of its own, so a document route is never the only one. */
 function host() {
 	const app = httpApp<{}>().logger(SILENT)
-	app.get("/health").handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/health")
+		.meta({ operationId: "health.list" })
+		.handler((c) => c.res.text("ok", "ok"))
 	return app
 }
 

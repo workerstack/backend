@@ -207,7 +207,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "in.headers.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -254,7 +256,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "in.cookies.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -307,7 +311,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "in.params.members.retrieve"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -399,7 +405,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "in.file.create"
+      },
       "method": "POST",
       "middleware": [
         "anonymous",
@@ -475,7 +483,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "in.all.replace"
+      },
       "method": "PUT",
       "middleware": [
         "anonymous",
@@ -511,7 +521,9 @@
         "unauthorized",
         "validation_error"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "out.text.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -532,7 +544,9 @@
         "unauthorized",
         "validation_error"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "out.html.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -553,7 +567,9 @@
         "unauthorized",
         "validation_error"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "out.csv.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -574,7 +590,9 @@
         "unauthorized",
         "validation_error"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "out.xml.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -595,7 +613,9 @@
         "unauthorized",
         "validation_error"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "out.binary.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -614,7 +634,9 @@
         "unauthorized",
         "validation_error"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "out.sse.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -649,7 +671,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "out.multiStatus.create"
+      },
       "method": "POST",
       "middleware": [
         "anonymous",
@@ -684,7 +708,9 @@
         "unauthorized",
         "validation_error"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "out.noContent.delete"
+      },
       "method": "DELETE",
       "middleware": [
         "anonymous",
@@ -942,7 +968,9 @@
         "unauthorized",
         "validation_error"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "status.ok.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -985,7 +1013,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "status.created.create"
+      },
       "method": "POST",
       "middleware": [
         "anonymous",
@@ -1028,7 +1058,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "status.accepted.create"
+      },
       "method": "POST",
       "middleware": [
         "anonymous",
@@ -1058,7 +1090,9 @@
         "unauthorized",
         "validation_error"
       ],
-      "meta": {},
+      "meta": {
+        "operationId": "status.noContent.delete"
+      },
       "method": "DELETE",
       "middleware": [
         "anonymous",
@@ -1093,7 +1127,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "stream.filtered.list"
+      },
       "method": "GET",
       "middleware": [
         "anonymous",
@@ -1131,7 +1167,9 @@
           ]
         }
       },
-      "meta": {},
+      "meta": {
+        "operationId": "rs.upload.create"
+      },
       "method": "POST",
       "middleware": [
         "anonymous",

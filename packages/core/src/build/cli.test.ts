@@ -93,7 +93,9 @@ describe("backend generate (bit 19 h2)", () => {
 		async () => {
 			const { dir } = fresh({
 				"src/app.ts": appSource(),
-				"src/other.ts": appSource({ extra: ['\t.get("/other").handler((c) => c.res.text("ok", "ok"))'] }),
+				"src/other.ts": appSource({
+					extra: ['\t.get("/other").meta({ operationId: "other.list" }).handler((c) => c.res.text("ok", "ok"))'],
+				}),
 				"vite.config.ts": CONFIG(
 					'{ app: "src/app.ts", codegen: { manifest: true, openApi: { title: "CLI", version: "1" } } }',
 				),
@@ -399,7 +401,7 @@ describe("backend init (bit 19 h2)", () => {
 				"src/app.ts",
 				read(made.dir, "src/app.ts").replace(
 					'.get("/health")',
-					'.get("/users")\n\t\t.handler((ctx) => ctx.res.text("ok", "users"))\n\t\t.get("/health")',
+					'.get("/users")\n\t\t.meta({ operationId: "users.list" })\n\t\t.handler((ctx) => ctx.res.text("ok", "users"))\n\t\t.get("/health")',
 				),
 			)
 			expect((await run(["generate"], made.dir)).status).toBe(0)

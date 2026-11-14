@@ -129,86 +129,102 @@ export type KitchenConfig = SDKConfig
 
 /** Every operation of the SDK, by its member path. */
 export interface KitchenOperations {
-	deleteApiEcho: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
-	deleteApiV1OrganizationsByOrgId: HttpCall<
-		{ params: { orgId: string } },
-		null,
-		{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-	>
-	/**
-	 * Root test route
-	 *
-	 * Test route
-	 */
-	getApi: HttpCall<
-		{ search: { id: string } },
-		ListApiResponse200,
-		{
-			400: ErrorEnvelope<400, "invalid_input">
-			401: ErrorEnvelope<401, "unauthorized">
-			500: ErrorEnvelope<500, "api_error">
+	boundary: {
+		custom: {
+			list: HttpCall<
+				{},
+				null,
+				{
+					401: ErrorEnvelope<401, "unauthorized">
+					403: ErrorEnvelope<403, "org_limit_reached">
+					500: ErrorEnvelope<500, "api_error">
+				}
+			>
 		}
-	>
-	getApiBoundaryCustom: HttpCall<
-		{},
-		null,
-		{
-			401: ErrorEnvelope<401, "unauthorized">
-			403: ErrorEnvelope<403, "org_limit_reached">
-			500: ErrorEnvelope<500, "api_error">
+		default: {
+			list: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 		}
-	>
-	getApiBoundaryDefault: HttpCall<
-		{},
-		null,
-		{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-	>
-	getApiEcho: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
-	getApiEchoWs(input?: WsOptions): TypedWebSocket
-	getApiEvents: HttpStream<
-		{},
-		SSEEvent,
-		{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-	>
-	getApiEventsLive: HttpStream<
-		{},
-		SSEEvent,
-		{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-	>
-	getApiHealth: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
-	getApiRealtimeChatByRoomId(input: { params: { roomId: string } } & WsOptions): TypedWebSocket
-	getApiRealtimeEcho(input?: WsOptions): TypedWebSocket
-	getApiReconnectWs(input?: WsOptions): TypedWebSocket
-	getApiV1Organizations: HttpCall<
-		{},
-		null,
-		{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-	>
-	getApiV1OrganizationsByOrgId: HttpCall<
-		{ params: { orgId: string } },
-		null,
-		{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-	>
-	getApiV1Socket(input?: WsOptions): TypedWebSocket
-	patchApiEcho: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
-	postApiEcho: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
-	postApiRealtimeBroadcastByTopic: HttpCall<
-		{ params: { topic: string } },
-		null,
-		{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-	>
-	postApiV1Organizations: HttpCall<
-		{},
-		null,
-		{
-			400: ErrorEnvelope<400, "invalid_input">
-			401: ErrorEnvelope<401, "unauthorized">
-			403: ErrorEnvelope<403, "org_limit_reached">
-			409: ErrorEnvelope<409, "org_slug_taken">
-			500: ErrorEnvelope<500, "api_error">
+	}
+	echoWs: {
+		connect(input?: WsOptions): TypedWebSocket
+	}
+	echo_delete: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+	echo_get: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+	echo_patch: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+	echo_post: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+	echo_put: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+	events: {
+		list: HttpStream<{}, SSEEvent, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+	}
+	eventsLive: {
+		list: HttpStream<{}, SSEEvent, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+	}
+	health: {
+		check: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+	}
+	organizations: {
+		create: HttpCall<
+			{},
+			null,
+			{
+				400: ErrorEnvelope<400, "invalid_input">
+				401: ErrorEnvelope<401, "unauthorized">
+				403: ErrorEnvelope<403, "org_limit_reached">
+				409: ErrorEnvelope<409, "org_slug_taken">
+				500: ErrorEnvelope<500, "api_error">
+			}
+		>
+		delete: HttpCall<
+			{ params: { orgId: string } },
+			null,
+			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
+		>
+		list: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+		retrieve: HttpCall<
+			{ params: { orgId: string } },
+			null,
+			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
+		>
+	}
+	realtime: {
+		broadcast: {
+			create: HttpCall<
+				{ params: { topic: string } },
+				null,
+				{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
+			>
 		}
-	>
-	putApiEcho: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+		chat: {
+			connect(input: { params: { roomId: string } } & WsOptions): TypedWebSocket
+		}
+		echo: {
+			connect(input?: WsOptions): TypedWebSocket
+		}
+	}
+	reconnectWs: {
+		connect(input?: WsOptions): TypedWebSocket
+	}
+	root: {
+		/**
+		 * Root test route
+		 *
+		 * Test route
+		 */
+		list: HttpCall<
+			{ search: { id: string } },
+			ListApiResponse200,
+			{
+				400: ErrorEnvelope<400, "invalid_input">
+				401: ErrorEnvelope<401, "unauthorized">
+				500: ErrorEnvelope<500, "api_error">
+			}
+		>
+	}
+	v1: {
+		socket: {
+			connect(input?: WsOptions): TypedWebSocket
+		}
+	}
 }
 
 /** `client.safe`: every operation, a call answering a Result. */

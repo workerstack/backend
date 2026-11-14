@@ -24,8 +24,14 @@ async function call(app: Fetcher, path: string, init?: RequestInit): Promise<[nu
 /** a consumer's gateway shape: its own routes and a root /:slug beside the catch-all its downstream routes delegate to. */
 function own(tree?: RouteTree) {
 	const app = tree === undefined ? httpApp<{}>() : httpApp<{}>().routeTree(tree)
-	app.get("/health").handler((c) => c.res.text("ok", "up"))
-	app.get("/:slug").handler((c) => c.res.text("ok", `slug ${c.params.slug}`))
+	app
+		.get("/health")
+		.meta({ operationId: "health.list" })
+		.handler((c) => c.res.text("ok", "up"))
+	app
+		.get("/:slug")
+		.meta({ operationId: "root.retrieve" })
+		.handler((c) => c.res.text("ok", `slug ${c.params.slug}`))
 	app
 		.all("/*")
 		.handler((c) => c.res.json("ok", { pattern: c.routePattern, worker: (c.meta as { worker?: string }).worker }))
@@ -41,7 +47,10 @@ describe("gatewayTree(): what a gateway serves", () => {
 	it("adds the gateway's own routes beside the downstream ones, keeps its root wildcard out, and refuses a shadowing route", async () => {
 		const users = httpApp<{}>()
 		users.get("/users/list").handler((c) => c.res.text("ok", "remote"))
-		users.get("/users/:id").handler((c) => c.res.text("ok", "remote"))
+		users
+			.get("/users/:id")
+			.meta({ operationId: "users.retrieve" })
+			.handler((c) => c.res.text("ok", "remote"))
 		const downstream = mergeTree([users.toRouteTree(), { worker: "users" }])
 		const app = own(gatewayTree(own(), downstream))
 		expect([
@@ -67,7 +76,10 @@ describe("gatewayTree(): what a gateway serves", () => {
 
 	it("leaves out the routes the gateway serves about itself (serveOpenApi): each app serving the tree mounts its own", async () => {
 		const users = httpApp<{}>()
-		users.get("/users/:id").handler((c) => c.res.text("ok", "remote"))
+		users
+			.get("/users/:id")
+			.meta({ operationId: "users.retrieve" })
+			.handler((c) => c.res.text("ok", "remote"))
 		const downstream = mergeTree([users.toRouteTree(), { worker: "users" }])
 		const documented = () => serveOpenApi(own(), { title: "gateway", version: "1" })
 		expect(() => gatewayTree(documented(), downstream)).not.toThrow()

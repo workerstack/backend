@@ -34,8 +34,8 @@ const downSource = (extra: readonly string[] = []) =>
 		'import { httpApp } from "@workerstack/backend/http"',
 		'import * as z from "zod"',
 		"export const app = httpApp()",
-		'\t.get("/orders").handler((c) => c.res.text("ok", "orders"))',
-		'\t.post("/items")',
+		'\t.get("/orders").meta({ operationId: "orders.list" }).handler((c) => c.res.text("ok", "orders"))',
+		'\t.post("/items").meta({ operationId: "items.create" })',
 		"\t.input({ json: z.object({ name: z.string() }) })",
 		'\t.handler((c) => c.res.text("ok", "ok"))',
 		...extra,
@@ -46,8 +46,8 @@ const downSource = (extra: readonly string[] = []) =>
 const GATEWAY_SOURCE = [
 	'import { defineErrors, httpApp } from "@workerstack/backend/http"',
 	'export const app = httpApp().errorFactory(defineErrors({ maintenance: "service_unavailable" }))',
-	'app.get("/health").errors("maintenance").handler((c) => c.res.text("ok", "up"))',
-	'app.get("/robots.txt").handler((c) => c.res.text("ok", "User-agent: *"))',
+	'app.get("/health").meta({ operationId: "health.list" }).errors("maintenance").handler((c) => c.res.text("ok", "up"))',
+	'app.get("/robots.txt").meta({ operationId: "robotsTxt.list" }).handler((c) => c.res.text("ok", "User-agent: *"))',
 	'app.all("/*").handler((c) => c.res.text("ok", "forwarded"))',
 	"",
 ].join("\n")
@@ -133,7 +133,7 @@ describe("a gateway's app (bit 19 h2)", () => {
 			expect(await generate(config, made.dir)).toEqual(ALL_WRITTEN)
 			made.write(
 				"src/gateway.ts",
-				`${read(made.dir, "src/gateway.ts")}app.get("/status").handler((c) => c.res.text("ok", "s"))\n`,
+				`${read(made.dir, "src/gateway.ts")}app.get("/status").meta({ operationId: "status.list" }).handler((c) => c.res.text("ok", "s"))\n`,
 			)
 			expect(await generate(config, made.dir)).toEqual(ALL_WRITTEN)
 			expect(routeIds(made.dir)).toEqual([
@@ -212,7 +212,10 @@ describe("a gateway over its own tree (bit 19 h2, a consumer's shape)", () => {
 		"regenerates over a tree stale only in its services' leaves, the new leaf in the tree and the document",
 		async () => {
 			const made = await seeded()
-			made.write("src/down.ts", downSource(['\t.get("/added").handler((c) => c.res.text("ok", "new"))']))
+			made.write(
+				"src/down.ts",
+				downSource(['\t.get("/added").meta({ operationId: "added.list" }).handler((c) => c.res.text("ok", "new"))']),
+			)
 			const done = await generate(SERVED, made.dir)
 			expect(done).toEqual(["src/_gen/routes.gen.ts", "src/_gen/manifest.gen.json", "src/_gen/openapi.gen.json"])
 			expect(routeIds(made.dir)).toContain("GET /added")
@@ -233,7 +236,10 @@ describe("a gateway over its own tree on Bun (bit 20 k-fix)", () => {
 		"regenerates over a tree stale in its services' leaves, the redo pass documenting the tree just written",
 		async () => {
 			const made = await seeded()
-			made.write("src/down.ts", downSource(['\t.get("/added").handler((c) => c.res.text("ok", "new"))']))
+			made.write(
+				"src/down.ts",
+				downSource(['\t.get("/added").meta({ operationId: "added.list" }).handler((c) => c.res.text("ok", "new"))']),
+			)
 			made.write(
 				"vite.config.ts",
 				`import { backendPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [backendPlugin(${JSON.stringify(SERVED)})] }\n`,
@@ -263,7 +269,7 @@ describe("a gateway over its own tree (bit 19 h2, a consumer's shape), continued
 			const tree = read(made.dir, "src/_gen/routes.gen.ts")
 			made.write(
 				"src/gateway.ts",
-				`${read(made.dir, "src/gateway.ts")}app.get("/status").handler((c) => c.res.text("ok", "s"))\n`,
+				`${read(made.dir, "src/gateway.ts")}app.get("/status").meta({ operationId: "status.list" }).handler((c) => c.res.text("ok", "s"))\n`,
 			)
 			expect(await generate(SERVED, made.dir)).toBe(
 				"src/gateway.app.ts loads the route tree generation writes (src/_gen/routes.gen.ts), and that tree is stale: re-export the gateway's app as built, before its routeTree() call, from src/route-tree.ts as app",
@@ -296,7 +302,10 @@ describe("a gateway through the plugin in dev (bit 19 h2)", () => {
 			const [plugin] = backendPlugin(config)
 			plugin.configResolved({ root: made.dir })
 			const server = { moduleGraph: { getModuleById: () => undefined } }
-			made.write("src/down.ts", downSource(['\t.get("/added").handler((c) => c.res.text("ok", "new"))']))
+			made.write(
+				"src/down.ts",
+				downSource(['\t.get("/added").meta({ operationId: "added.list" }).handler((c) => c.res.text("ok", "new"))']),
+			)
 			await plugin.hotUpdate({ file: join(made.dir, "src/down.ts"), modules: [], server, timestamp: 1 })
 			/* one generation: config.app imported to build the changed tree, which is written, then once more over it */
 			expect([routeIds(made.dir).includes("GET /added"), read(made.dir, "served.log")]).toEqual([true, "xx"])
@@ -482,6 +491,7 @@ describe("sourceOf through the generation's loader (plan 53, Node 22.12)", () =>
 	it("reads the app and the merge entry the loader serves, never a native import Node may refuse", async () => {
 		const down = httpApp()
 			.get("/orders")
+			.meta({ operationId: "orders.list" })
 			.handler((c) => c.res.text("ok", "orders"))
 		const served = new Map<string, Record<string, unknown>>([
 			[resolve("/nowhere/src/app.ts"), { app: down }],

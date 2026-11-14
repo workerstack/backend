@@ -18,7 +18,10 @@ describe("security: schemes and the requirements that name them", () => {
 	// v0: f0e6dfd0bb
 	it("emits the securitySchemes option under components", () => {
 		const app = httpApp<{}>()
-		app.get("/health").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/health")
+			.meta({ operationId: "health.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		expect(generateOpenApi(app, { info: INFO, securitySchemes: { bearerAuth: BEARER } }).components).toEqual({
 			securitySchemes: { bearerAuth: BEARER },
 		})
@@ -29,7 +32,7 @@ describe("security: schemes and the requirements that name them", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/me")
-			.meta({ security: "jwt" })
+			.meta({ operationId: "me.list", security: "jwt" })
 			.handler((c) => c.res.text("ok", "ok"))
 		const apiKey = { in: "header", name: "k", type: "apiKey" }
 		expect(() => generateOpenApi(app, { info: INFO, securitySchemes: { apiKey } })).toThrow(
@@ -44,7 +47,7 @@ describe("security: schemes and the requirements that name them", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/me")
-			.meta({ security: ["jwt", "key"] })
+			.meta({ operationId: "me.list", security: ["jwt", "key"] })
 			.handler((c) => c.res.text("ok", "ok"))
 		const { logger, warnings } = recording()
 		generateOpenApi(app, { info: INFO, logger })
@@ -63,7 +66,7 @@ describe("security: an undeclared scheme, said once", () => {
 		for (const path of ["/a", "/b"])
 			app
 				.get(path)
-				.meta({ security: "jwt" })
+				.meta({ operationId: `${path.slice(1)}.get`, security: "jwt" })
 				.handler((c) => c.res.text("ok", "ok"))
 		const { logger, warnings } = recording()
 		generateOpenApi(app, { info: INFO, logger })

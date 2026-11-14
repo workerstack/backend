@@ -12,7 +12,10 @@ const req = (path: string, init: RequestInit = {}) => new Request(`http://app.te
 describe("proxy(config): a plain route handler", () => {
 	it("is mounted with .handler(), on any method a route takes", async () => {
 		const app = httpApp<{}>()
-		app.all("/api/*rest").handler(proxy({ destination: (_ctx, url, init) => new Response(`${init.method} ${url}`) }))
+		app
+			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
+			.handler(proxy({ destination: (_ctx, url, init) => new Response(`${init.method} ${url}`) }))
 		const answers = await Promise.all(
 			["GET", "POST", "DELETE"].map(async (method) => (await app.fetch(req("/api/x", { method }), {})).text()),
 		)
@@ -39,6 +42,7 @@ describe("proxy(config): a plain route handler", () => {
 		app
 			.use(createMiddleware(async (_ctx, next) => next({ token: "abc123" })))
 			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
 			.handler(
 				proxy({
 					destination: (ctx, url) => {
@@ -54,7 +58,10 @@ describe("proxy(config): a plain route handler", () => {
 	// v0: 2a744d10f4
 	it("redirects are the client's to follow: redirect: manual", async () => {
 		const app = httpApp<{}>()
-		app.all("/api/*rest").handler(proxy({ destination: (_ctx, _url, init) => new Response(init.redirect) }))
+		app
+			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
+			.handler(proxy({ destination: (_ctx, _url, init) => new Response(init.redirect) }))
 		expect(await (await app.fetch(req("/api/x"), {})).text()).toBe("manual")
 	})
 })
@@ -67,6 +74,7 @@ describe("proxy: requestHeaders", () => {
 		app
 			.use(createMiddleware(async (_ctx, next) => next({ token: "abc123" })))
 			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
 			.handler(
 				proxy({
 					destination: (_ctx, _url, init) => new Response(new Headers(init.headers).get("x-token")),
@@ -79,15 +87,18 @@ describe("proxy: requestHeaders", () => {
 	// v0: d05f8c0e14
 	it("a record sets each entry", async () => {
 		const app = httpApp<{}>()
-		app.all("/api/*rest").handler(
-			proxy({
-				destination: (_ctx, _url, init) => {
-					const headers = new Headers(init.headers)
-					return Response.json([headers.get("x-api-version"), headers.get("x-source")])
-				},
-				requestHeaders: { "x-api-version": "2", "x-source": "gateway" },
-			}),
-		)
+		app
+			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
+			.handler(
+				proxy({
+					destination: (_ctx, _url, init) => {
+						const headers = new Headers(init.headers)
+						return Response.json([headers.get("x-api-version"), headers.get("x-source")])
+					},
+					requestHeaders: { "x-api-version": "2", "x-source": "gateway" },
+				}),
+			)
 		expect(await (await app.fetch(req("/api/x"), {})).json()).toEqual(["2", "gateway"])
 	})
 })
@@ -103,6 +114,7 @@ describe("proxy: the request id", () => {
 		app
 			.use(requestId({ generate: () => "id-1" }))
 			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
 			.handler(echoId("x-request-id"))
 		const res = await app.fetch(req("/api/x", { headers: { "x-request-id": "spoofed" } }), {})
 		expect(await res.text()).toBe("id-1")
@@ -113,6 +125,7 @@ describe("proxy: the request id", () => {
 		app
 			.use(requestId({ generate: () => "id-2", header: "cf-ray" }))
 			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
 			.handler(echoId("cf-ray"))
 		expect(await (await app.fetch(req("/api/x"), {})).text()).toBe("id-2")
 	})
@@ -122,6 +135,7 @@ describe("proxy: the request id", () => {
 		app
 			.use(requestId({ trustInbound: true }))
 			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
 			.handler(echoId("x-request-id"))
 		const res = await app.fetch(req("/api/x", { headers: { "x-request-id": "edge-7" } }), {})
 		expect(await res.text()).toBe("edge-7")
@@ -132,6 +146,7 @@ describe("proxy: the request id", () => {
 		app
 			.use(requestId())
 			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
 			.handler(
 				proxy({
 					destination: (_ctx, _url, init) => new Response(String(new Headers(init.headers).has("x-request-id"))),
@@ -161,14 +176,17 @@ describe("proxy: onResponse", () => {
 	// v0: 88bbfdd857
 	it("edits the response's headers in place", async () => {
 		const app = httpApp<{}>()
-		app.all("/api/*rest").handler(
-			proxy({
-				destination: () => new Response("ok", { headers: { "x-internal": "secret" } }),
-				onResponse: (_ctx, res) => {
-					res.headers.delete("x-internal")
-				},
-			}),
-		)
+		app
+			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
+			.handler(
+				proxy({
+					destination: () => new Response("ok", { headers: { "x-internal": "secret" } }),
+					onResponse: (_ctx, res) => {
+						res.headers.delete("x-internal")
+					},
+				}),
+			)
 		const res = await app.fetch(req("/api/x"), {})
 		expect([res.headers.get("x-internal"), await res.text()]).toEqual([null, "ok"])
 	})
@@ -176,14 +194,17 @@ describe("proxy: onResponse", () => {
 	// v0: d1c4b06bcc
 	it("can set headers even when the upstream's were immutable (a redirect, a fetch)", async () => {
 		const app = httpApp<{}>()
-		app.all("/api/*rest").handler(
-			proxy({
-				destination: () => Response.redirect("http://up.test/elsewhere", 302),
-				onResponse: (_ctx, res) => {
-					res.headers.set("x-proxied", "1")
-				},
-			}),
-		)
+		app
+			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
+			.handler(
+				proxy({
+					destination: () => Response.redirect("http://up.test/elsewhere", 302),
+					onResponse: (_ctx, res) => {
+						res.headers.set("x-proxied", "1")
+					},
+				}),
+			)
 		const res = await app.fetch(req("/api/x"), {})
 		expect([res.status, res.headers.get("x-proxied"), res.headers.get("location")]).toEqual([
 			302,
@@ -197,6 +218,7 @@ describe("proxy: onResponse", () => {
 		const app = httpApp<{}>()
 		app
 			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
 			.handler(proxy({ destination: () => new Response("original"), onResponse: async () => new Response("replaced") }))
 		expect(await (await app.fetch(req("/api/x"), {})).text()).toBe("replaced")
 	})
@@ -206,7 +228,10 @@ describe("proxy: the answer's shape", () => {
 	// v0: 3bd2bb5aa7
 	it.each([204, 304])("a %i upstream answer stays bodiless", async (status) => {
 		const app = httpApp<{}>()
-		app.all("/api/*rest").handler(proxy({ destination: () => new Response(null, { status }) }))
+		app
+			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
+			.handler(proxy({ destination: () => new Response(null, { status }) }))
 		const res = await app.fetch(req("/api/x"), {})
 		expect([res.status, res.body]).toEqual([status, null])
 	})
@@ -216,14 +241,17 @@ describe("proxy: the answer's shape", () => {
 		Object.defineProperty(upgraded, "status", { value: 101 })
 		let called = false
 		const app = httpApp<{}>()
-		app.all("/api/*rest").handler(
-			proxy({
-				destination: () => upgraded,
-				onResponse: () => {
-					called = true
-				},
-			}),
-		)
+		app
+			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
+			.handler(
+				proxy({
+					destination: () => upgraded,
+					onResponse: () => {
+						called = true
+					},
+				}),
+			)
 		const res = await app.fetch(req("/api/ws", { headers: { connection: "upgrade", upgrade: "websocket" } }), {})
 		expect([res === upgraded, called]).toEqual([true, false])
 	})
@@ -231,11 +259,14 @@ describe("proxy: the answer's shape", () => {
 	it("the upstream's error JSON reaches the client byte for byte", async () => {
 		const body = '{"error_key":"item_gone","status":410,"success":false}'
 		const app = httpApp<{}>()
-		app.all("/api/*rest").handler(
-			proxy({
-				destination: () => new Response(body, { headers: { "content-type": "application/json" }, status: 410 }),
-			}),
-		)
+		app
+			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
+			.handler(
+				proxy({
+					destination: () => new Response(body, { headers: { "content-type": "application/json" }, status: 410 }),
+				}),
+			)
 		const res = await app.fetch(req("/api/x"), {})
 		expect([res.status, await res.text()]).toEqual([410, body])
 	})
@@ -244,19 +275,22 @@ describe("proxy: the answer's shape", () => {
 describe("proxy: the client's copy of the answer", () => {
 	it("drops hop-by-hop headers, keeps each Set-Cookie, and lets onResponse edit what is left", async () => {
 		const app = httpApp<{}>()
-		app.all("/api/*rest").handler(
-			proxy({
-				destination: () => {
-					const headers = new Headers({ connection: "close", "content-type": "text/plain", "x-up": "1" })
-					headers.append("set-cookie", "a=1")
-					headers.append("set-cookie", "b=2")
-					return new Response("streamed", { headers })
-				},
-				onResponse: (_ctx, res) => {
-					res.headers.delete("x-up")
-				},
-			}),
-		)
+		app
+			.all("/api/*rest")
+			.meta({ operationId: "api.any" })
+			.handler(
+				proxy({
+					destination: () => {
+						const headers = new Headers({ connection: "close", "content-type": "text/plain", "x-up": "1" })
+						headers.append("set-cookie", "a=1")
+						headers.append("set-cookie", "b=2")
+						return new Response("streamed", { headers })
+					},
+					onResponse: (_ctx, res) => {
+						res.headers.delete("x-up")
+					},
+				}),
+			)
 		const res = await app.fetch(req("/api/x"), {})
 		expect([
 			res.headers.get("connection"),
@@ -270,8 +304,14 @@ describe("proxy: the client's copy of the answer", () => {
 describe("proxy: the errors it declares", () => {
 	it("documents 502 bad_gateway and 504 gateway_timeout on each route it handles, with no app-wide declaration", () => {
 		const app = httpApp<{}>().errorFactory(defineErrors({}))
-		app.get("/api/*rest").handler(proxy({ destination: () => new Response("x") }))
-		app.get("/own").handler((ctx) => ctx.res.text("ok", "x"))
+		app
+			.get("/api/*rest")
+			.meta({ operationId: "api.retrieve" })
+			.handler(proxy({ destination: () => new Response("x") }))
+		app
+			.get("/own")
+			.meta({ operationId: "own.list" })
+			.handler((ctx) => ctx.res.text("ok", "x"))
 		const { paths } = generateOpenApi(app, { info: { title: "T", version: "1" } })
 		expect([
 			Object.keys(paths["/api/{rest}"]?.get?.responses ?? {}),

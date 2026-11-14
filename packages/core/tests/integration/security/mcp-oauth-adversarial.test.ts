@@ -44,7 +44,7 @@ function shop(challenge = NEEDED) {
 	const app = httpApp()
 	app
 		.post("/orders")
-		.meta({ mcp: true, security: [{ oauth: ["orders:write"] }] })
+		.meta({ operationId: "orders.create", mcp: true, security: [{ oauth: ["orders:write"] }] })
 		.handler((ctx) => {
 			const authorization = ctx.req.headers.get("authorization")
 			seen.push({ authorization, url: ctx.req.url })
@@ -87,7 +87,7 @@ const rpc = (url: string, method: string, params: object = {}, headers: Record<s
 		headers: { accept: ACCEPT, "content-type": "application/json", "mcp-protocol-version": "2025-11-25", ...headers },
 		method: "POST",
 	})
-const CREATE = ["tools/call", { arguments: {}, name: "post_orders" }] as const
+const CREATE = ["tools/call", { arguments: {}, name: "orders_create" }] as const
 
 /** A response's status, its challenge and its JSON body. */
 async function read(response: Response) {
@@ -196,7 +196,7 @@ describe("mcp(..., { oauth }) protected resource metadata (bit 21 f, RFC 9728), 
 		)
 		expect([Object.keys(document.paths ?? {}), tools, absent.status]).toEqual([
 			["/orders"],
-			['name: "post_orders"'],
+			['name: "orders_create"'],
 			404,
 		])
 	})

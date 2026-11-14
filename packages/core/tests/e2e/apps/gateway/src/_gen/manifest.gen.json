@@ -4,6 +4,7 @@
     {
       "errors": [],
       "meta": {
+        "operationId": "users.list",
         "worker": "origin"
       },
       "method": "GET",
@@ -27,6 +28,7 @@
         }
       },
       "meta": {
+        "operationId": "users.create",
         "worker": "origin"
       },
       "method": "POST",
@@ -39,6 +41,7 @@
     {
       "errors": [],
       "meta": {
+        "operationId": "users.retrieve",
         "worker": "origin"
       },
       "method": "GET",
@@ -50,7 +53,9 @@
     },
     {
       "errors": [],
-      "meta": {},
+      "meta": {
+        "operationId": "ping.list"
+      },
       "method": "GET",
       "middleware": [],
       "params": [],
@@ -89,6 +94,7 @@
       },
       "meta": {
         "tenant": "project_id",
+        "operationId": "articles.list",
         "permissions": [
           "articles.read"
         ],
@@ -171,7 +177,8 @@
     {
       "errors": [],
       "meta": {
-        "tenant": "project_id"
+        "tenant": "project_id",
+        "operationId": "articles.meta.list"
       },
       "method": "GET",
       "middleware": [
@@ -182,7 +189,9 @@
     },
     {
       "errors": [],
-      "meta": {},
+      "meta": {
+        "operationId": "nl.c.retrieve"
+      },
       "method": "GET",
       "middleware": [],
       "params": [
@@ -193,7 +202,9 @@
     },
     {
       "errors": [],
-      "meta": {},
+      "meta": {
+        "operationId": "v1.openapi.spec.list"
+      },
       "method": "GET",
       "middleware": [],
       "params": [],

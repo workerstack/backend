@@ -7,11 +7,18 @@ import * as z from "zod"
  */
 export const users = httpApp()
 
-users.get("/users/").handler((ctx) => ctx.res.json("ok", { service: "users", users: [] }))
+users
+	.get("/users/")
+	.meta({ operationId: "users.list" })
+	.handler((ctx) => ctx.res.json("ok", { service: "users", users: [] }))
 
 users
 	.post("/users/")
+	.meta({ operationId: "users.create" })
 	.input({ json: z.object({ name: z.string() }) })
 	.handler((ctx) => ctx.res.json("ok", { name: ctx.input.json.name, service: "users" }))
 
-users.get("/users/:id/").handler((ctx) => ctx.res.json("ok", { id: ctx.params.id, service: "users" }))
+users
+	.get("/users/:id/")
+	.meta({ operationId: "users.retrieve" })
+	.handler((ctx) => ctx.res.json("ok", { id: ctx.params.id, service: "users" }))

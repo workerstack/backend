@@ -24,6 +24,7 @@ describe("resolveRealtimeConfig: defaults", () => {
 					maxTopics: 128,
 					slowConsumer: "close",
 				},
+				meta: null,
 				namespace: "/rt",
 				onError: null,
 				path: "/rt",
@@ -34,7 +35,7 @@ describe("resolveRealtimeConfig: defaults", () => {
 		])
 	})
 
-	it("keeps what was given: the bus, the namespace, identify, onError, use, limits, and a normalized origin list", () => {
+	it("keeps what was given: the bus, the namespace, identify, meta, onError, use, limits, and a normalized origin list", () => {
 		const bus = createBus()
 		const config = resolveRealtimeConfig("/rt", {
 			allowedOrigins: ["https://App.Example.com"],
@@ -42,6 +43,7 @@ describe("resolveRealtimeConfig: defaults", () => {
 			handler,
 			identify,
 			limits: { maxBufferedBytes: 1, maxFrameBytes: 2, maxPendingFrames: 3, maxTopics: 4, slowConsumer: "drop" },
+			meta: { operationId: "chat.connect" },
 			namespace: "chat",
 			onError,
 			use: [mw as never],
@@ -52,6 +54,7 @@ describe("resolveRealtimeConfig: defaults", () => {
 			handler,
 			identify,
 			limits: { maxBufferedBytes: 1, maxFrameBytes: 2, maxPendingFrames: 3, maxTopics: 4, slowConsumer: "drop" },
+			meta: { operationId: "chat.connect" },
 			namespace: "chat",
 			onError,
 			path: "/rt",

@@ -196,6 +196,18 @@ function responsesOf(errors: ErrorSettings): PathsContext["responses"] {
 	}
 }
 
+/** Each documented route that declares no operationId, once per method and pattern (D18). */
+function checkDeclaredIds(operations: readonly EmittedOperation[], error: (message: string) => void): void {
+	const named = new Set<string>()
+	for (const { method, route } of operations) {
+		if (typeof route.meta.operationId === "string") continue
+		const where = `${"registration" in route ? method.toUpperCase() : "WS"} ${route.pattern}`
+		if (named.has(where)) continue
+		named.add(where)
+		error(`route ${where} declares no operationId; every route needs one for OperationCtx and invalidate`)
+	}
+}
+
 /** The checks over the whole document: ids, security, invalidate selectors, then every diagnostic out. */
 function check(
 	run: Run,
@@ -204,6 +216,7 @@ function check(
 	logger: { readonly warn: (message: string) => void },
 ): void {
 	const { diagnostics, options } = run
+	checkDeclaredIds(operations, (message) => diagnostics.add("MISSING_OPERATION_ID", "error", message))
 	assignOperationIds(operations, (message) => diagnostics.add("DUPLICATE_OPERATION_ID", "error", message))
 	checkSecurity(operations, options.securitySchemes, (level, message) =>
 		diagnostics.add("UNKNOWN_SECURITY_SCHEME", level, message),

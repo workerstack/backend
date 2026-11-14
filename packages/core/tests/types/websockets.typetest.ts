@@ -210,3 +210,17 @@ describe("ws(app, path).meta(): only the meta a WebSocket route reads (bit 19 g,
 		expectTypeOf<{ team: number }>().not.toExtend<WsMeta<{ team: string }>>()
 	})
 })
+
+describe("realtime(app, path, { meta }): the meta ws().meta() takes", () => {
+	it("takes an operationId and the app's meta keys, and refuses the HTTP-only builtins", () => {
+		const app = httpApp().metaType<{ team: string }>()
+		realtime(app, "/rt/a", { handler: () => {}, meta: { operationId: "room.connect", team: "core" } })
+		// @ts-expect-error a realtime route invalidates no read
+		realtime(app, "/rt/b", { handler: () => {}, meta: { invalidate: [] } })
+		// @ts-expect-error a realtime route is no MCP tool
+		realtime(app, "/rt/c", { handler: () => {}, meta: { mcp: true } })
+		// @ts-expect-error the app's meta key keeps its type
+		realtime(app, "/rt/d", { handler: () => {}, meta: { team: 1 } })
+		expectTypeOf<{ operationId: string }>().toExtend<WsMeta>()
+	})
+})

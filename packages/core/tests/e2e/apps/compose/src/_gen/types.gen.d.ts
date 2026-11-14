@@ -25,87 +25,87 @@ type Err404NotFound = { error_key: "not_found"; fields: Record<string, { error_k
 export type Routes = {
 	"/account": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/account" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "account.list" }>; readonly routePattern: "/account" }, never>
 			errors: "expired_token" | "forbidden" | "invalid_token"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null }
 			errorsByStatus: { 401: null; 403: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "account.list" }
 			output: {}
 		}
 	}
 	"/account/settings": {
 		post: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { notifications: boolean; theme: "dark" | "light" } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/account/settings" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { notifications: boolean; theme: "dark" | "light" } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "account.settings.create" }>; readonly routePattern: "/account/settings" }, never>
 			errors: "expired_token" | "forbidden" | "invalid_token"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null }
 			errorsByStatus: { 401: null; 403: null }
 			input: { json: { notifications: boolean; theme: "dark" | "light" } }
-			meta: {}
+			meta: { operationId: "account.settings.create" }
 			output: {}
 		}
 	}
 	"/docs": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/docs" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "docs.list" }>; readonly routePattern: "/docs" }, never>
 			errors: "expired_token" | "invalid_token"
 			errorShapes: { expired_token: null; invalid_token: null }
 			errorsByStatus: { 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "docs.list" }
 			output: {}
 		}
 	}
 	"/feed": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { search: { page: number } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/feed" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { search: { page: number } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "feed.list" }>; readonly routePattern: "/feed" }, never>
 			errors: "expired_token" | "invalid_token"
 			errorShapes: { expired_token: null; invalid_token: null }
 			errorsByStatus: { 401: null }
 			input: { search: { page: number } }
-			meta: {}
+			meta: { operationId: "feed.list" }
 			output: {}
 		}
 	}
 	"/health": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/health" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "health.list" }>; readonly routePattern: "/health" }, never>
 			errors: "expired_token" | "invalid_token"
 			errorShapes: { expired_token: null; invalid_token: null }
 			errorsByStatus: { 401: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "health.list" }
 			output: {}
 		}
 	}
 	"/resources": {
 		post: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { name: string; type: "doc" | "image" | "video" } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; rate_limited: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/resources" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { json: { name: string; type: "doc" | "image" | "video" } }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; rate_limited: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "resources.create" }>; readonly routePattern: "/resources" }, never>
 			errors: "expired_token" | "forbidden" | "invalid_token" | "rate_limited"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null; rate_limited: null }
 			errorsByStatus: { 401: null; 403: null; 429: null }
 			input: { json: { name: string; type: "doc" | "image" | "video" } }
-			meta: {}
+			meta: { operationId: "resources.create" }
 			output: {}
 		}
 	}
 	"/resources/:resourceId": {
 		delete: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { resourceId: string }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/resources/:resourceId" }, { "application/json": { no_content: unknown } }>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { resourceId: string }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "resources.delete" }>; readonly routePattern: "/resources/:resourceId" }, { "application/json": { no_content: unknown } }>
 			errors: "expired_token" | "forbidden" | "invalid_token" | "not_found"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null; not_found: null }
 			errorsByStatus: { 401: null; 403: null; 404: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "resources.delete" }
 			output: { "application/json": { no_content: unknown } }
 		}
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { resourceId: string }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{}>; readonly routePattern: "/resources/:resourceId" }, never>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly params: { resourceId: string }; readonly errors: { expired_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; forbidden: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; invalid_token: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; not_found: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<{ operationId: "resources.retrieve" }>; readonly routePattern: "/resources/:resourceId" }, never>
 			errors: "expired_token" | "forbidden" | "invalid_token" | "not_found"
 			errorShapes: { expired_token: null; forbidden: null; invalid_token: null; not_found: null }
 			errorsByStatus: { 401: null; 403: null; 404: null }
 			input: {}
-			meta: {}
+			meta: { operationId: "resources.retrieve" }
 			output: {}
 		}
 	}

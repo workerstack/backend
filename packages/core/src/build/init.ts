@@ -23,6 +23,7 @@ import { scalar } from "@workerstack/backend/http/openapi/scalar"
 export const app = serveOpenApi(
 	httpApp()
 		.get("/health")
+		.meta({ operationId: "health.check" })
 		.handler((ctx) => ctx.res.text("ok", "ok")),
 	{ docs: { "/docs": scalar }, title: "Backend", version: "0.0.1" },
 )

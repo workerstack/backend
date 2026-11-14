@@ -99,7 +99,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.input({ search: z.object({ id: z.string() }) })
 		.output({ "application/json": { ok: z.object({ id: z.string() }) } })
 		.errors(errors, "invalid_input")
-		.meta({ description: "Test route", summary: "Root test route", tags: ["test"] })
+		.meta({ operationId: "root.list", description: "Test route", summary: "Root test route", tags: ["test"] })
 		.handler((ctx) => {
 			return ctx.res.json("ok", { id: ctx.input.search.id })
 		})
@@ -130,11 +130,15 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	/* ---- routes ---- */
 
 	/* health — no auth */
-	corsed.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
+	corsed
+		.get("/health")
+		.meta({ operationId: "health.check" })
+		.handler((ctx) => ctx.res.text("ok", "ok"))
 
 	/* SSE endpoint — basic */
 	corsed
 		.get("/events")
+		.meta({ operationId: "events.list" })
 		.output({ "text/event-stream": { ok: z.string() } })
 		.handler((ctx) =>
 			ctx.res.sse(async (stream) => {
@@ -147,6 +151,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	/* SSE endpoint — keepalive + retry + lastEventId */
 	corsed
 		.get("/events-live")
+		.meta({ operationId: "eventsLive.list" })
 		.output({ "text/event-stream": { ok: z.string() } })
 		.handler((ctx) =>
 			ctx.res.sse(
@@ -165,15 +170,20 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		)
 
 	/* catch-all for testing */
-	corsed.all("/echo").handler((ctx) => ctx.res.json("ok", { method: ctx.req.method }))
+	corsed
+		.all("/echo")
+		.meta({ operationId: "echo" })
+		.handler((ctx) => ctx.res.json("ok", { method: ctx.req.method }))
 
 	/* organizations CRUD */
 	authed
 		.get("/v1/organizations")
+		.meta({ operationId: "organizations.list" })
 		.handler((ctx) => ctx.res.json("ok", { items: ctx.db.orgs, total: ctx.db.orgs.length }))
 
 	authed
 		.post("/v1/organizations")
+		.meta({ operationId: "organizations.create" })
 		.errors(errors, "org_slug_taken", "org_limit_reached", "invalid_input")
 		.handler(async (ctx) => {
 			const body = (await ctx.req.json()) as { name?: string; slug?: string }
@@ -192,14 +202,18 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 			return ctx.res.json("created", org)
 		})
 
-	authed.get("/v1/organizations/:orgId").handler((ctx) => {
-		const org = ctx.db.orgs.find((o) => o.id === ctx.params.orgId)
-		if (!org) throw errors.not_found()
-		return ctx.res.json("ok", org)
-	})
+	authed
+		.get("/v1/organizations/:orgId")
+		.meta({ operationId: "organizations.retrieve" })
+		.handler((ctx) => {
+			const org = ctx.db.orgs.find((o) => o.id === ctx.params.orgId)
+			if (!org) throw errors.not_found()
+			return ctx.res.json("ok", org)
+		})
 
 	authed
 		.delete("/v1/organizations/:orgId")
+		.meta({ operationId: "organizations.delete" })
 		.output({ no_content: true })
 		.handler((ctx) => {
 			const idx = ctx.db.orgs.findIndex((o) => o.id === ctx.params.orgId)
@@ -211,38 +225,45 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	/* ---- WebSocket routes ---- */
 
 	/* unauthenticated echo — sends back whatever it receives */
-	ws(corsed, "/echo-ws").handler({
-		onMessage(_ctx, socket, data) {
-			socket.send(data)
-		},
-		onOpen(_ctx, socket) {
-			socket.send("connected")
-		},
-	})
+	ws(corsed, "/echo-ws")
+		.meta({ operationId: "echoWs.connect" })
+		.handler({
+			onMessage(_ctx, socket, data) {
+				socket.send(data)
+			},
+			onOpen(_ctx, socket) {
+				socket.send("connected")
+			},
+		})
 
 	/* authenticated socket */
-	ws(authed, "/v1/socket").handler({
-		onMessage(ctx, socket, data) {
-			socket.send({ from: ctx.user.name, msg: data })
-		},
-		onOpen(ctx, socket) {
-			socket.send({ event: "welcome", user: ctx.user.id })
-		},
-	})
+	ws(authed, "/v1/socket")
+		.meta({ operationId: "v1.socket.connect" })
+		.handler({
+			onMessage(ctx, socket, data) {
+				socket.send({ from: ctx.user.name, msg: data })
+			},
+			onOpen(ctx, socket) {
+				socket.send({ event: "welcome", user: ctx.user.id })
+			},
+		})
 
 	/* WS with reconnection protocol */
-	ws(corsed, "/reconnect-ws").handler({
-		onOpen(_ctx, socket) {
-			socket.send(JSON.stringify({ event: "open", token: "fresh-token-123" }))
-		},
-		onReconnect(_ctx, socket, token) {
-			socket.send(JSON.stringify({ event: "reconnected", token }))
-		},
-	})
+	ws(corsed, "/reconnect-ws")
+		.meta({ operationId: "reconnectWs.connect" })
+		.handler({
+			onOpen(_ctx, socket) {
+				socket.send(JSON.stringify({ event: "open", token: "fresh-token-123" }))
+			},
+			onReconnect(_ctx, socket, token) {
+				socket.send(JSON.stringify({ event: "reconnected", token }))
+			},
+		})
 
 	/* ---- realtime routes ---- */
 
 	realtime(corsed, "/realtime/echo", {
+		meta: { operationId: "realtime.echo.connect" },
 		handler: (_c, conn) => {
 			conn.send({ event: "connected", id: conn.id })
 			conn.on("message", (payload) => {
@@ -255,6 +276,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	})
 
 	const chat = realtime(corsed, "/realtime/chat/:roomId", {
+		meta: { operationId: "realtime.chat.connect" },
 		namespace: "chat",
 		handler: (_c, conn) => {
 			conn.join("room:default")
@@ -266,16 +288,19 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	})
 
 	/* REST endpoint that publishes to realtime subscribers */
-	corsed.post("/realtime/broadcast/:topic").handler(async (ctx) => {
-		const body = await ctx.req.json()
-		chat.publish(ctx.params.topic, body)
-		return ctx.res.json("ok", { published: true })
-	})
+	corsed
+		.post("/realtime/broadcast/:topic")
+		.meta({ operationId: "realtime.broadcast.create" })
+		.handler(async (ctx) => {
+			const body = await ctx.req.json()
+			chat.publish(ctx.params.topic, body)
+			return ctx.res.json("ok", { published: true })
+		})
 
 	/* where the app runs from, its bundle (dist/) or its source: the @prod-only e2e leg reads it (Q14) */
 	corsed
 		.get("/served-from")
-		.meta({ internal: true })
+		.meta({ operationId: "servedFrom.list", internal: true })
 		.handler((ctx) =>
 			ctx.res.json("ok", {
 				bundle: (import.meta as { env?: { BACKEND_BUNDLE?: boolean } }).env?.BACKEND_BUNDLE === true,
@@ -286,7 +311,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	   verify; a fixed moment without it, so the route-tree differential sees one answer */
 	corsed
 		.get("/webhook-sample")
-		.meta({ internal: true })
+		.meta({ operationId: "webhookSample.list", internal: true })
 		.input({ search: z.object({ at: z.coerce.number().int().positive().optional() }) })
 		.handler(async (ctx) => {
 			const options = {
@@ -302,13 +327,17 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	/* ---- boundary test routes ---- */
 
 	/* default boundary: unexpected throw → api_error (from defaultBoundary) */
-	corsed.get("/boundary/default").handler(() => {
-		throw new Error("unexpected db crash")
-	})
+	corsed
+		.get("/boundary/default")
+		.meta({ operationId: "boundary.default.list" })
+		.handler(() => {
+			throw new Error("unexpected db crash")
+		})
 
 	/* per-route boundary overrides default */
 	corsed
 		.get("/boundary/custom")
+		.meta({ operationId: "boundary.custom.list" })
 		.boundary("org_limit_reached")
 		.handler(() => {
 			throw new Error("something broke")

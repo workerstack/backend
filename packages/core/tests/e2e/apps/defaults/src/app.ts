@@ -15,10 +15,13 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 
 	const routed = app
 		.get("/health")
+		.meta({ operationId: "health.list" })
 		.handler((ctx) => ctx.res.text("ok", "ok"))
 		.get("/users/:id")
+		.meta({ operationId: "users.retrieve" })
 		.handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
 		.post("/echo")
+		.meta({ operationId: "echo.create" })
 		.output({ "application/json": { created: z.string() } })
 		.handler(async (ctx) => {
 			const body = await ctx.req.text()

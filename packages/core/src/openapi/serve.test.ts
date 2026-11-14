@@ -25,16 +25,28 @@ const text = async (app: App, path: string) => (await get(app, path)).text()
 /** Health and the users routes. */
 function users() {
 	const app = httpApp<{}>()
-	app.get("/health").handler((c) => c.res.text("ok", "ok"))
-	app.get("/users").handler((c) => c.res.json("ok", []))
-	app.get("/users/:id").handler((c) => c.res.json("ok", {}))
+	app
+		.get("/health")
+		.meta({ operationId: "health.list" })
+		.handler((c) => c.res.text("ok", "ok"))
+	app
+		.get("/users")
+		.meta({ operationId: "users.list" })
+		.handler((c) => c.res.json("ok", []))
+	app
+		.get("/users/:id")
+		.meta({ operationId: "users.retrieve" })
+		.handler((c) => c.res.json("ok", {}))
 	return app
 }
 
 /** GET /users serving its document and docs, loaded from `tree` when given one. */
 function usersServing(tree?: RouteTree) {
 	const app = tree === undefined ? httpApp<{}>() : httpApp<{}>().routeTree(tree)
-	app.get("/users").handler((c) => c.res.json("ok", []))
+	app
+		.get("/users")
+		.meta({ operationId: "users.list" })
+		.handler((c) => c.res.json("ok", []))
 	return serveOpenApi(app, { docs: { "/docs": scalar }, title: "T", version: "1" })
 }
 
@@ -77,13 +89,17 @@ describe("serveOpenApi: where it serves, and what", () => {
 	// v0: 6b8c24e9ee
 	it("serves under the handle's basePath and its own stem, filtered, its options kept out of info", async () => {
 		const app = httpApp<{}>().metaType<{ auth?: string }>()
-		app.get("/public").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/public")
+			.meta({ operationId: "public.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.get("/dashboard")
 			.meta({ auth: "jwt" })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/items")
+			.meta({ operationId: "items.create" })
 			.input({ json: z.object({ name: z.string() }), search: z.object({ q: z.string() }) })
 			.handler((c) => c.res.text("ok", "ok"))
 		serveOpenApi(app.basePath("/api"), {
@@ -135,13 +151,20 @@ describe("serveOpenApi: the routes it mounts are internal", () => {
 		const warnings: string[] = []
 		const logger = { ...SILENT, warn: (first: unknown) => void warnings.push(String(first)) }
 		const app = httpApp<{}>()
-		app.post("/tables").handler((c) => c.res.text("ok", "ok"))
-		app.get("/tables").handler((c) => c.res.text("ok", "ok"))
+		app
+			.post("/tables")
+			.meta({ operationId: "tables.create" })
+			.handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/tables")
+			.meta({ operationId: "tables.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		const broken = {
 			"~standard": { validate: (value: unknown) => ({ value }), vendor: "mystery", version: 1 as const },
 		}
 		app
 			.post("/odd")
+			.meta({ operationId: "odd.create" })
 			.input({ json: broken })
 			.handler((c) => c.res.text("ok", "ok"))
 		serveOpenApi(app, { logger, title: "T", version: "1" })
@@ -159,7 +182,10 @@ describe("serveOpenApi: built once per route change", () => {
 	// v0: 2b491c0f59
 	it("generates and serializes once per format until a route changes, then rebuilds both", async () => {
 		const app = httpApp<{}>()
-		app.get("/a").handler((c) => c.res.text("ok", "a"))
+		app
+			.get("/a")
+			.meta({ operationId: "a.list" })
+			.handler((c) => c.res.text("ok", "a"))
 		let generations = 0
 		serveOpenApi(app, {
 			filterRoutes: (route) => (route.path === "/a" ? ++generations : 1) > 0,
@@ -173,7 +199,10 @@ describe("serveOpenApi: built once per route change", () => {
 		const documents = stringify.mock.calls.filter(([v]) => (v as { openapi?: string } | null)?.openapi === "3.1.0")
 		stringify.mockRestore()
 		const before = [generations, documents.length, bodies.size]
-		app.get("/b").handler((c) => c.res.text("ok", "b"))
+		app
+			.get("/b")
+			.meta({ operationId: "b.list" })
+			.handler((c) => c.res.text("ok", "b"))
 		expect([
 			before,
 			Object.keys((await json(app, "/openapi.json")).paths),
@@ -204,7 +233,10 @@ describe("serveOpenApi: a failed build", () => {
 		failing = false
 		const again = (await get(app, "/openapi.json")).status
 		const sameCalls = calls
-		app.get("/later").handler((c) => c.res.text("ok", "later"))
+		app
+			.get("/later")
+			.meta({ operationId: "later.list" })
+			.handler((c) => c.res.text("ok", "later"))
 		const after = await get(app, "/openapi.json")
 		expect([
 			first,
@@ -253,7 +285,10 @@ describe("serveOpenApi: caching headers", () => {
 			]).toEqual([true, "no-cache", "nosniff", 304, "", true])
 		}
 		const before = (await get(app, "/openapi.json")).headers.get("etag") ?? ""
-		app.get("/b").handler((c) => c.res.text("ok", "b"))
+		app
+			.get("/b")
+			.meta({ operationId: "b.list" })
+			.handler((c) => c.res.text("ok", "b"))
 		const changed = await get(app, "/openapi.json", { headers: { "if-none-match": before } })
 		expect([changed.status, changed.headers.get("etag") === before]).toEqual([200, false])
 	})
@@ -262,7 +297,10 @@ describe("serveOpenApi: caching headers", () => {
 	it("gives a storm of concurrent requests one document, and the next one after a new route", async () => {
 		const app = serveOpenApi(users(), { title: "Storm", version: "1" })
 		const storm = await Promise.all(Array.from({ length: 50 }, () => text(app, "/openapi.json")))
-		app.get("/later").handler((c) => c.res.text("ok", "later"))
+		app
+			.get("/later")
+			.meta({ operationId: "later.list" })
+			.handler((c) => c.res.text("ok", "later"))
 		const later = Object.keys((await json(app, "/openapi.json")).paths)
 		expect([new Set(storm).size, later.includes("/later")]).toEqual([1, true])
 	})
@@ -399,10 +437,16 @@ describe("serving across composed apps (F15)", () => {
 		"keeps a sub's served routes with the sub: the gateway serves its own (%s)",
 		async (order) => {
 			const sub = httpApp<{}>()
-			sub.get("/users").handler((c) => c.res.text("ok", "users"))
+			sub
+				.get("/users")
+				.meta({ operationId: "users.list" })
+				.handler((c) => c.res.text("ok", "users"))
 			serveManifest(serveOpenApi(sub, { docs: { "/docs": scalar }, title: "Sub", version: "1" }))
 			const gateway = httpApp<{}>()
-			gateway.get("/health").handler((c) => c.res.text("ok", "ok"))
+			gateway
+				.get("/health")
+				.meta({ operationId: "health.list" })
+				.handler((c) => c.res.text("ok", "ok"))
 			if (order === "gateway-first")
 				serveOpenApi(gateway, { docs: { "/docs": swagger }, title: "Gateway", version: "1" })
 			gateway.route(sub)
@@ -425,7 +469,9 @@ describe("serving across composed and loaded apps (F15)", () => {
 	it("mounts two serving apps without a collision, and leaves served routes out of a snapshot an app loads and serves again", async () => {
 		const a = serveOpenApi(users(), { docs: { "/docs": scalar }, title: "A", version: "1" })
 		const b = httpApp<{}>()
-		b.get("/b").handler((c) => c.res.text("ok", "b"))
+		b.get("/b")
+			.meta({ operationId: "b.list" })
+			.handler((c) => c.res.text("ok", "b"))
 		serveOpenApi(b, { docs: { "/docs": scalar }, title: "B", version: "1" })
 		a.route(b)
 		const snapshot = usersServing().toRouteTree()
@@ -449,8 +495,14 @@ describe("serving across composed and loaded apps (F15)", () => {
 		serveOpenApi(app, { title: "t", version: "1" })
 		app.use("/openapi.json", block)
 		app.use("/admin", block)
-		app.get("/admin/x").handler((c) => c.res.json("ok", {}))
-		app.get("/public").handler((c) => c.res.json("ok", {}))
+		app
+			.get("/admin/x")
+			.meta({ operationId: "admin.x.list" })
+			.handler((c) => c.res.json("ok", {}))
+		app
+			.get("/public")
+			.meta({ operationId: "public.list" })
+			.handler((c) => c.res.json("ok", {}))
 		const doc = await json(app, "/openapi.json")
 		expect([
 			Object.keys(doc.paths["/admin/x"]?.get?.responses ?? {}),

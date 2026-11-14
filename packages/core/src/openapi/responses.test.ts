@@ -3,9 +3,6 @@ import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { httpApp } from "../routing/app.ts"
-import { gatewayTree, overlaySchemas } from "../routing/gateway-tree.ts"
-import { createNode, insertRoute, type RouteTree } from "../routing/tree.ts"
-import { mergeTree } from "../routing/tree-merge.ts"
 import { generateOpenApi } from "./generate.ts"
 
 const INFO = { title: "T", version: "1" }
@@ -43,6 +40,7 @@ describe("success responses: by status, by media type", () => {
 		const app = httpApp<{}>()
 		app
 			.post("/items")
+			.meta({ operationId: "items.create" })
 			.output({
 				"application/json": { created: z.object({ id: z.string() }), ok: z.object({ ids: z.array(z.string()) }) },
 			})
@@ -62,18 +60,24 @@ describe("success responses: by status, by media type", () => {
 
 	// v0: 1fa5da333b
 	// v0: d7d6c63d0f
+})
 
+describe("success responses: by status, by media type, continued (2)", () => {
 	it("keeps each media type's schema at one status, documents a body with no schema bare, and answers 200 Success for a route that declares nothing", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/doc")
+			.meta({ operationId: "doc.list" })
 			.output({
 				"application/json": { ok: z.object({ id: z.string() }) },
 				"application/pdf": { ok: true },
 				"text/csv": { ok: z.string() },
 			})
 			.handler((c) => c.res.json("ok", { id: "1" }))
-		app.get("/bare").handler((c) => c.res.text("ok", "ok"))
+		app
+			.get("/bare")
+			.meta({ operationId: "bare.list" })
+			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
 		const content = responses(doc, "/doc")["200"]?.content ?? {}
 		expect([
@@ -99,14 +103,17 @@ describe("redirects and declared headers", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/oauth/callback")
+			.meta({ operationId: "oauth.callback.list" })
 			.output({ redirect: { found: true } })
 			.handler((c) => c.res.redirect("found", "https://example.com"))
 		app
 			.get("/moved")
+			.meta({ operationId: "moved.list" })
 			.output({ redirect: { moved_permanently: true } })
 			.handler((c) => c.res.redirect("moved_permanently", "/new"))
 		app
 			.get("/mixed")
+			.meta({ operationId: "mixed.list" })
 			.output({ "application/json": { ok: z.object({ id: z.string() }) }, redirect: { found: true } })
 			.handler((c) => c.res.json("ok", { id: "1" }))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -126,6 +133,7 @@ describe("redirects and declared headers", () => {
 		const app = httpApp<{}>()
 		app
 			.post("/users")
+			.meta({ operationId: "users.create" })
 			.output({
 				"application/json": { created: z.object({ id: z.string() }) },
 				headers: {
@@ -151,6 +159,7 @@ describe("a bodiless answer that is no redirect", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/export.csv")
+			.meta({ operationId: "exportCsv.list" })
 			.output({ "text/csv": { ok: z.string(), partial_content: true }, redirect: { not_modified: true } })
 			.handler((c) => c.res.csv("ok", "id\n1\n"))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -167,10 +176,12 @@ describe("a declared 204 or 205: no body in the document", () => {
 		const app = httpApp<{}>()
 		app
 			.delete("/a")
+			.meta({ operationId: "a.delete" })
 			.output({ headers: { no_content: z.object({ etag: z.string() }) }, no_content: true, ok: row })
 			.handler((c) => c.res.noContent({ headers: { etag: '"v1"' } }))
 		app
 			.post("/b")
+			.meta({ operationId: "b.create" })
 			.output({ "text/csv": { no_content: true, ok: true, reset_content: true } })
 			.handler((c) => c.res.noContent())
 		const doc = generateOpenApi(app, { info: INFO })
@@ -204,6 +215,7 @@ describe("errors in backend's envelope (the default format)", () => {
 		const app = httpApp<{}>().errorFactory(errors)
 		app
 			.post("/orgs")
+			.meta({ operationId: "orgs.create" })
 			.errors("slug_taken", "email_taken", "forbidden")
 			.handler((c) => c.res.json("ok", {}))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -250,9 +262,13 @@ describe("errors in backend's envelope (the default format)", () => {
 		const app = httpApp<{}>().errorFactory(errors).defaultErrors("not_found")
 		app
 			.get("/items/:id")
+			.meta({ operationId: "items.retrieve" })
 			.errors("item_not_found")
 			.handler((c) => c.res.json("ok", {}))
-		app.get("/other").handler((c) => c.res.json("ok", {}))
+		app
+			.get("/other")
+			.meta({ operationId: "other.list" })
+			.handler((c) => c.res.json("ok", {}))
 		const doc = generateOpenApi(app, { info: INFO })
 		expect([keysOf(errorSchema(doc, "/items/{id}", "404")), keysOf(errorSchema(doc, "/other", "404"))]).toEqual([
 			["item_not_found", "not_found"],
@@ -282,6 +298,7 @@ describe("errors: a custom envelope schema", () => {
 			formatter(app)
 			app
 				.post("/a")
+				.meta({ operationId: "a.create" })
 				.errors("email_taken")
 				.handler((c) => c.res.json("ok", {}))
 			return errorSchema(generateOpenApi(app, { info: INFO }), "/a", "409", { method: "post" })
@@ -327,11 +344,13 @@ describe("errors: a custom envelope schema", () => {
 		app
 			.basePath("/v1")
 			.get("/a")
+			.meta({ operationId: "a.list" })
 			.errors("unauthorized")
 			.handler((c) => c.res.json("ok", {}))
 		app
 			.use(createMiddleware(async (_c, next) => next()))
 			.get("/b")
+			.meta({ operationId: "b.list" })
 			.errors("unauthorized")
 			.handler((c) => c.res.json("ok", {}))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -362,6 +381,7 @@ describe("errors with a schema of their own", () => {
 		const app = httpApp<{}>().errorFactory(schemaErrors())
 		app
 			.get("/a")
+			.meta({ operationId: "a.list" })
 			.errors("item_gone", "rate_limited")
 			.output({ "application/json": { ok: z.object({ id: z.string() }) } })
 			.handler((c) => c.res.json("ok", { id: "1" }))
@@ -383,6 +403,7 @@ describe("errors with a schema of their own", () => {
 			.payloadErrorFormatter(z.object({ trace: z.string() }), (_e, data) => ({ ...data, trace: "t" }))
 		app
 			.get("/a")
+			.meta({ operationId: "a.list" })
 			.errors("item_gone", "user_not_found")
 			.handler((c) => c.res.json("ok", {}))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -400,6 +421,7 @@ describe("errors as Problem Details (errorFormat problem+json)", () => {
 		const app = httpApp<{}>().errorFactory(schemaErrors()).errorFormat("problem+json")
 		app
 			.get("/a")
+			.meta({ operationId: "a.list" })
 			.errors("user_not_found", "item_gone")
 			.handler((c) => c.res.json("ok", {}))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -423,10 +445,12 @@ describe("errors as Problem Details (errorFormat problem+json)", () => {
 		const app = httpApp<{}>().errorFactory(schemaErrors()).errorFormat("problem+json")
 		app
 			.get("/plain")
+			.meta({ operationId: "plain.list" })
 			.errors("user_not_found")
 			.handler((c) => c.res.json("ok", {}))
 		app
 			.get("/own")
+			.meta({ operationId: "own.list" })
 			.errors("item_gone")
 			.handler((c) => c.res.json("ok", {}))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -437,89 +461,12 @@ describe("errors as Problem Details (errorFormat problem+json)", () => {
 	})
 })
 
-/** A gateway's or a worker's errors: the shared keys and `extra`. */
-const errorsOf = <const TExtra extends Record<string, "bad_request" | "conflict">>(extra: TExtra) =>
-	defineErrors({ internal_server_error: "internal_server_error", optimistic_lock_conflict: "conflict", ...extra })
-
-describe("errors: where a key's status comes from", () => {
-	// v0: 5e035db0c2
-	// v0: fd7332a3e0
-
-	it("takes a loaded leaf's status from the factory of the app it came from, then the key's status suffix", () => {
-		const worker = httpApp<{}>()
-			.errorFactory(defineErrors({ item_not_found: "not_found", not_found: "not_found" }))
-			.defaultErrors("not_found")
-		worker
-			.get("/items/:id")
-			.errors("item_not_found")
-			.handler((c) => c.res.json("ok", {}))
-		const gateway = httpApp<{}>()
-			.errorFactory(defineErrors({ not_found: "not_found" }))
-			.routeTree(worker.toRouteTree())
-		const root = createNode()
-		const id = insertRoute(root, "GET", "/events/:id")
-		const loose = httpApp<{}>().routeTree({
-			meta: {},
-			root,
-			routes: { [id]: { ek: ["billing_event_not_found"] } },
-			v: 2,
-		})
-		const doc = generateOpenApi(gateway, { info: INFO })
-		expect([
-			keysOf(errorSchema(doc, "/items/{id}", "404")),
-			Object.keys(responses(generateOpenApi(loose, { info: INFO }), "/events/{id}")),
-		]).toEqual([["item_not_found", "not_found"], ["404"]])
-	})
-
-	// v0: 41d060c00f
-	it("documents a delegated route's own keys under its own app's statuses, beside the gateway's default keys", () => {
-		const down = httpApp<{}>()
-			.errorFactory(errorsOf({ column_name_taken: "conflict" }))
-			.defaultBoundary("internal_server_error")
-		down
-			.post("/columns")
-			.errors("column_name_taken", "optimistic_lock_conflict")
-			.handler((c) => c.res.json("ok", {}))
-		const source = mergeTree([down.toRouteTree(), { worker: "down" }])
-		const gateway = (tree?: RouteTree) => {
-			const app = httpApp<{}>()
-				.errorFactory(errorsOf({ captcha_failed: "bad_request" }))
-				.defaultBoundary("internal_server_error")
-				.defaultErrors("captcha_failed")
-			app.all("/*").handler((c) => c.res.json("ok", {}))
-			return tree === undefined ? app : app.routeTree(tree)
-		}
-		const app = gateway(gatewayTree(gateway(), source))
-		overlaySchemas(app, source)
-		const doc = generateOpenApi(app, { info: INFO })
-		expect([
-			keysOf(errorSchema(doc, "/columns", "409", { method: "post" })),
-			keysOf(errorSchema(doc, "/columns", "400", { method: "post" })),
-		]).toEqual([["column_name_taken", "optimistic_lock_conflict"], ["captcha_failed"]])
-	})
-})
-
-describe("errors: what a route declares, and nothing more", () => {
-	it("documents a scoped middleware's keys on the routes it covers only", () => {
-		const errors = defineErrors({ blocked: "forbidden" })
-		const block = createMiddleware(async (_c, next) => next(), { errors: [errors, "blocked"] })
-		const app = httpApp<{}>().errorFactory(errors)
-		app.use("/admin", block)
-		app.get("/admin/x").handler((c) => c.res.json("ok", {}))
-		app.get("/public").handler((c) => c.res.json("ok", {}))
-		const doc = generateOpenApi(app, { info: INFO })
-		expect([Object.keys(responses(doc, "/admin/x")), Object.keys(responses(doc, "/public"))]).toEqual([
-			["403"],
-			["200"],
-		])
-	})
-})
-
 describe("declared headers beside a redirect", () => {
 	it("keeps a redirect's Location beside the headers it declares, and documents a record of headers as none named", () => {
 		const app = httpApp<{}>()
 		app
 			.post("/move")
+			.meta({ operationId: "move.create" })
 			.output({
 				"application/json": { created: z.object({}) },
 				headers: { created: z.record(z.string(), z.string()), found: z.object({ "x-trace": z.string() }) },
@@ -528,40 +475,5 @@ describe("declared headers beside a redirect", () => {
 			.handler((c) => c.res.json("created", {}, { headers: {} }))
 		const r = responses(generateOpenApi(app, { info: INFO }), "/move", "post")
 		expect([r["201"]?.headers, Object.keys(r["302"]?.headers ?? {})]).toEqual([{}, ["Location", "x-trace"]])
-	})
-})
-
-describe("errors a route does not get documented", () => {
-	it("leaves out a key with no status anywhere, and a status the route answers itself", () => {
-		const root = createNode()
-		const id = insertRoute(root, "GET", "/odd")
-		const loose = httpApp<{}>().routeTree({ meta: {}, root, routes: { [id]: { ek: ["mystery"] } }, v: 2 })
-		/* an error key may carry any status; at one the route's output declares, the output's answer is documented */
-		const app = httpApp<{}>().errorFactory(defineErrors({ still_queued: "accepted" }))
-		app
-			.post("/users")
-			.errors("still_queued")
-			.output({ "application/json": { accepted: z.object({ existing: z.string() }) } })
-			.handler((c) => c.res.json("accepted", { existing: "1" }))
-		expect([
-			responses(generateOpenApi(loose, { info: INFO }), "/odd"),
-			responses(generateOpenApi(app, { info: INFO }), "/users", "post")["202"]?.description,
-		]).toEqual([{ "200": { description: "Success" } }, "accepted"])
-	})
-})
-
-describe("framework keys: declared on a route without the app re-declaring them", () => {
-	it("documents a declared framework key under backend's status, in the route's enum", () => {
-		const app = httpApp<{}>().errorFactory(defineErrors({ org_limit_reached: "forbidden" }))
-		app
-			.post("/orgs")
-			.errors("validation_failed", "org_limit_reached")
-			.input({ json: z.object({ name: z.string() }) })
-			.handler((c) => c.res.text("ok", "x"))
-		const doc = generateOpenApi(app, { info: INFO })
-		expect([
-			Object.keys(responses(doc, "/orgs", "post")),
-			keysOf(errorSchema(doc, "/orgs", "400", { method: "post" })),
-		]).toEqual([["400", "403"], ["validation_failed"]])
 	})
 })

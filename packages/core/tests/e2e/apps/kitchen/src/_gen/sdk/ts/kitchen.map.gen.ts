@@ -1,119 +1,151 @@
 import { sseOp, wsOp, type ServiceMap } from "./kitchen.runtime.gen.js"
 
 export const serviceMap: ServiceMap = {
-	deleteApiEcho: {
+	boundary: {
+		custom: {
+			list: {
+				empty: true,
+				method: "GET",
+				path: "/api/boundary/custom",
+			},
+		},
+		default: {
+			list: {
+				empty: true,
+				method: "GET",
+				path: "/api/boundary/default",
+			},
+		},
+	},
+	echoWs: {
+		connect: {
+			call: wsOp,
+			method: "GET",
+			path: "/api/echo-ws",
+			ws: true,
+		},
+	},
+	echo_delete: {
 		empty: true,
 		method: "DELETE",
 		path: "/api/echo",
 	},
-	deleteApiV1OrganizationsByOrgId: {
-		empty: true,
-		method: "DELETE",
-		params: ["orgId"],
-		path: "/api/v1/organizations/{orgId}",
-	},
-	getApi: {
-		method: "GET",
-		path: "/api",
-	},
-	getApiBoundaryCustom: {
-		empty: true,
-		method: "GET",
-		path: "/api/boundary/custom",
-	},
-	getApiBoundaryDefault: {
-		empty: true,
-		method: "GET",
-		path: "/api/boundary/default",
-	},
-	getApiEcho: {
+	echo_get: {
 		empty: true,
 		method: "GET",
 		path: "/api/echo",
 	},
-	getApiEchoWs: {
-		call: wsOp,
-		method: "GET",
-		path: "/api/echo-ws",
-		ws: true,
-	},
-	getApiEvents: {
-		call: sseOp,
-		method: "GET",
-		path: "/api/events",
-		sse: true,
-	},
-	getApiEventsLive: {
-		call: sseOp,
-		method: "GET",
-		path: "/api/events-live",
-		sse: true,
-	},
-	getApiHealth: {
-		empty: true,
-		method: "GET",
-		path: "/api/health",
-	},
-	getApiRealtimeChatByRoomId: {
-		call: wsOp,
-		method: "GET",
-		params: ["roomId"],
-		path: "/api/realtime/chat/{roomId}",
-		ws: true,
-	},
-	getApiRealtimeEcho: {
-		call: wsOp,
-		method: "GET",
-		path: "/api/realtime/echo",
-		ws: true,
-	},
-	getApiReconnectWs: {
-		call: wsOp,
-		method: "GET",
-		path: "/api/reconnect-ws",
-		ws: true,
-	},
-	getApiV1Organizations: {
-		empty: true,
-		method: "GET",
-		path: "/api/v1/organizations",
-	},
-	getApiV1OrganizationsByOrgId: {
-		empty: true,
-		method: "GET",
-		params: ["orgId"],
-		path: "/api/v1/organizations/{orgId}",
-	},
-	getApiV1Socket: {
-		call: wsOp,
-		method: "GET",
-		path: "/api/v1/socket",
-		ws: true,
-	},
-	patchApiEcho: {
+	echo_patch: {
 		empty: true,
 		method: "PATCH",
 		path: "/api/echo",
 	},
-	postApiEcho: {
+	echo_post: {
 		empty: true,
 		method: "POST",
 		path: "/api/echo",
 	},
-	postApiRealtimeBroadcastByTopic: {
-		empty: true,
-		method: "POST",
-		params: ["topic"],
-		path: "/api/realtime/broadcast/{topic}",
-	},
-	postApiV1Organizations: {
-		empty: true,
-		method: "POST",
-		path: "/api/v1/organizations",
-	},
-	putApiEcho: {
+	echo_put: {
 		empty: true,
 		method: "PUT",
 		path: "/api/echo",
+	},
+	events: {
+		list: {
+			call: sseOp,
+			method: "GET",
+			path: "/api/events",
+			sse: true,
+		},
+	},
+	eventsLive: {
+		list: {
+			call: sseOp,
+			method: "GET",
+			path: "/api/events-live",
+			sse: true,
+		},
+	},
+	health: {
+		check: {
+			empty: true,
+			method: "GET",
+			path: "/api/health",
+		},
+	},
+	organizations: {
+		create: {
+			empty: true,
+			method: "POST",
+			path: "/api/v1/organizations",
+		},
+		delete: {
+			empty: true,
+			method: "DELETE",
+			params: ["orgId"],
+			path: "/api/v1/organizations/{orgId}",
+		},
+		list: {
+			empty: true,
+			method: "GET",
+			path: "/api/v1/organizations",
+		},
+		retrieve: {
+			empty: true,
+			method: "GET",
+			params: ["orgId"],
+			path: "/api/v1/organizations/{orgId}",
+		},
+	},
+	realtime: {
+		broadcast: {
+			create: {
+				empty: true,
+				method: "POST",
+				params: ["topic"],
+				path: "/api/realtime/broadcast/{topic}",
+			},
+		},
+		chat: {
+			connect: {
+				call: wsOp,
+				method: "GET",
+				params: ["roomId"],
+				path: "/api/realtime/chat/{roomId}",
+				ws: true,
+			},
+		},
+		echo: {
+			connect: {
+				call: wsOp,
+				method: "GET",
+				path: "/api/realtime/echo",
+				ws: true,
+			},
+		},
+	},
+	reconnectWs: {
+		connect: {
+			call: wsOp,
+			method: "GET",
+			path: "/api/reconnect-ws",
+			ws: true,
+		},
+	},
+	root: {
+		list: {
+			method: "GET",
+			path: "/api",
+		},
+	},
+	v1: {
+		socket: {
+			connect: {
+				call: wsOp,
+				method: "GET",
+				path: "/api/v1/socket",
+				ws: true,
+			},
+		},
 	},
 }

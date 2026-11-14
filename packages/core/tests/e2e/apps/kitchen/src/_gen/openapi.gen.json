@@ -12,6 +12,7 @@
         "tags": [
           "test"
         ],
+        "operationId": "root.list",
         "x-backend-route": "GET /api",
         "parameters": [
           {
@@ -83,6 +84,7 @@
     },
     "/api/boundary/custom": {
       "get": {
+        "operationId": "boundary.custom.list",
         "x-backend-route": "GET /api/boundary/custom",
         "responses": {
           "401": {
@@ -134,6 +136,7 @@
     },
     "/api/boundary/default": {
       "get": {
+        "operationId": "boundary.default.list",
         "x-backend-route": "GET /api/boundary/default",
         "responses": {
           "401": {
@@ -171,6 +174,7 @@
     },
     "/api/echo": {
       "get": {
+        "operationId": "echo_get",
         "x-backend-route": "ALL /api/echo",
         "responses": {
           "401": {
@@ -206,6 +210,7 @@
         }
       },
       "post": {
+        "operationId": "echo_post",
         "x-backend-route": "ALL /api/echo",
         "responses": {
           "401": {
@@ -241,6 +246,7 @@
         }
       },
       "put": {
+        "operationId": "echo_put",
         "x-backend-route": "ALL /api/echo",
         "responses": {
           "401": {
@@ -276,6 +282,7 @@
         }
       },
       "patch": {
+        "operationId": "echo_patch",
         "x-backend-route": "ALL /api/echo",
         "responses": {
           "401": {
@@ -311,6 +318,7 @@
         }
       },
       "delete": {
+        "operationId": "echo_delete",
         "x-backend-route": "ALL /api/echo",
         "responses": {
           "401": {
@@ -349,6 +357,7 @@
     "/api/echo-ws": {
       "get": {
         "x-websocket": true,
+        "operationId": "echoWs.connect",
         "x-backend-route": "WS /api/echo-ws",
         "responses": {
           "101": {
@@ -359,6 +368,7 @@
     },
     "/api/events": {
       "get": {
+        "operationId": "events.list",
         "x-backend-route": "GET /api/events",
         "responses": {
           "200": {
@@ -406,6 +416,7 @@
     },
     "/api/events-live": {
       "get": {
+        "operationId": "eventsLive.list",
         "x-backend-route": "GET /api/events-live",
         "responses": {
           "200": {
@@ -453,6 +464,7 @@
     },
     "/api/health": {
       "get": {
+        "operationId": "health.check",
         "x-backend-route": "GET /api/health",
         "responses": {
           "401": {
@@ -490,6 +502,7 @@
     },
     "/api/realtime/broadcast/{topic}": {
       "post": {
+        "operationId": "realtime.broadcast.create",
         "x-backend-route": "POST /api/realtime/broadcast/:topic",
         "parameters": [
           {
@@ -538,6 +551,7 @@
     "/api/realtime/chat/{roomId}": {
       "get": {
         "x-websocket": true,
+        "operationId": "realtime.chat.connect",
         "x-backend-route": "WS /api/realtime/chat/:roomId",
         "parameters": [
           {
@@ -559,6 +573,7 @@
     "/api/realtime/echo": {
       "get": {
         "x-websocket": true,
+        "operationId": "realtime.echo.connect",
         "x-backend-route": "WS /api/realtime/echo",
         "responses": {
           "101": {
@@ -570,6 +585,7 @@
     "/api/reconnect-ws": {
       "get": {
         "x-websocket": true,
+        "operationId": "reconnectWs.connect",
         "x-backend-route": "WS /api/reconnect-ws",
         "responses": {
           "101": {
@@ -580,6 +596,7 @@
     },
     "/api/v1/organizations": {
       "get": {
+        "operationId": "organizations.list",
         "x-backend-route": "GET /api/v1/organizations",
         "responses": {
           "401": {
@@ -615,6 +632,7 @@
         }
       },
       "post": {
+        "operationId": "organizations.create",
         "x-backend-route": "POST /api/v1/organizations",
         "responses": {
           "400": {
@@ -694,6 +712,7 @@
     },
     "/api/v1/organizations/{orgId}": {
       "get": {
+        "operationId": "organizations.retrieve",
         "x-backend-route": "GET /api/v1/organizations/:orgId",
         "parameters": [
           {
@@ -739,6 +758,7 @@
         }
       },
       "delete": {
+        "operationId": "organizations.delete",
         "x-backend-route": "DELETE /api/v1/organizations/:orgId",
         "parameters": [
           {
@@ -790,6 +810,7 @@
     "/api/v1/socket": {
       "get": {
         "x-websocket": true,
+        "operationId": "v1.socket.connect",
         "x-backend-route": "WS /api/v1/socket",
         "responses": {
           "101": {

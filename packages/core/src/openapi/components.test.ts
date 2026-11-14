@@ -111,6 +111,7 @@ describe("components in the document", () => {
 		const app = httpApp<{}>()
 		app
 			.get("/categories")
+			.meta({ operationId: "categories.list" })
 			.output({ "application/json": { ok: Category } })
 			.handler((c) => c.res.json("ok", { name: "a", subcategories: [] }))
 		const doc = generateOpenApi(app, { info: INFO })
