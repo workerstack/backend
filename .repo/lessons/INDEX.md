@@ -8,3 +8,4 @@
 - `bun-child-auto-installs-npm` (hits 1): A spawned Bun child loads the published package, not the source
 - `consumer-e2e-test-costs` (hits 1): A new consumer e2e test reds test:e2e twice
 - `generate-check-reads-the-index` (hits 1): `generate:check` fails an intended regeneration until it is staged
+- `stale-dist-splits-node-generate` (hits 1): A built dist/ in the checkout fails test:build on Node
