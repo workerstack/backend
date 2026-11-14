@@ -11,7 +11,7 @@
  * shorthand for `{ "application/json": { ok: schema } }`.
  */
 import type { BinaryBody } from "../response/binary.ts"
-import type { HoneyRes, ResponseOptions, StreamBody, TypedResponse } from "../response/response.ts"
+import type { HttpRes, ResponseOptions, StreamBody, TypedResponse } from "../response/response.ts"
 import type { RedirectKey, StatusKey } from "../response/status.ts"
 import type { InferInput, StandardSchemaLike } from "../validation/standard-schema.ts"
 
@@ -85,19 +85,19 @@ export type OutputSchemas = {
 }
 
 /** One level of a sparse fieldset: the fields it names and the relations it embeds; `*` names every field. */
-export type Selection = {
+export type HttpSelection = {
 	/** Each embedded relation by name, with what it selects; `null` selects all of it. */
-	readonly relations: Readonly<Record<string, Selection | null>>
+	readonly relations: Readonly<Record<string, HttpSelection | null>>
 	/** The field names at this level; `*` stands for every field, a leading `@` for a computed one. */
 	readonly scalars: readonly string[]
 }
 
 /** An answer cut to a selection: the rows of the array at the envelope key `at`, or, without `at`, the body itself. */
-export type Projection = {
+export type HttpProjection = {
 	/** The envelope key holding the array of rows; omitted when the body is the one row. */
 	readonly at?: string
 	/** What the rows keep. */
-	readonly select: Selection
+	readonly select: HttpSelection
 }
 
 /** `.output()`'s options. */
@@ -106,7 +106,7 @@ export type OutputOptions<TCtx> = {
 	 * The selection this request's answer is cut to, or `null` for a whole answer. The check then accepts a row that
 	 * leaves out a field the selection did not name, and refuses every other mismatch.
 	 */
-	readonly projection?: (ctx: TCtx) => Projection | null
+	readonly projection?: (ctx: TCtx) => HttpProjection | null
 }
 
 /** `.output()`'s shorthand: JSON bodies by 2xx status key, beside the headers and redirects of the explicit form. */
@@ -199,7 +199,7 @@ export type AllowedResMethods<TOutput> =
  * The helpers a route that declares an output keeps; `raw` is gone, since a raw Response declares nothing, and
  * `noContent` comes back only with a declared 204.
  */
-type UniversalRes = Pick<HoneyRes, "stream">
+type UniversalRes = Pick<HttpRes, "stream">
 
 /** `"no_content"` when some media type the output names declares it (the shorthand is under `application/json`), else `never`. */
 type NoContentOf<TOutput> = Extract<
@@ -247,7 +247,7 @@ type BodyKeyOf<TOutput, CT extends keyof TOutput> = Exclude<keyof TOutput[CT] & 
 type IsOne<T, TAll = T> = [T] extends [never] ? false : T extends unknown ? ([TAll] extends [T] ? true : false) : never
 
 /**
- * The body a handler may return for honey to answer: with one media type and one 2xx status under it, that status's
+ * The body a handler may return for backend to answer: with one media type and one 2xx status under it, that status's
  * body as its helper takes it. Never for an event stream, a bodiless status, or a status that declares headers.
  */
 type SoleBody<TOutput> = IsOne<MediaTypes<TOutput>> extends true ? SoleBodyAt<TOutput, MediaTypes<TOutput>> : never
@@ -339,8 +339,8 @@ type OutputRes<TOutput> = UniversalRes & {
 	Narrowed<TOutput, "text/html", true> &
 	Narrowed<TOutput, "application/xml", true> &
 	Narrowed<TOutput, "text/csv", true> &
-	("text/event-stream" extends keyof TOutput ? Pick<HoneyRes, "sse"> : {}) &
-	([NoContentOf<TOutput>] extends [never] ? {} : Pick<HoneyRes, "noContent">) &
+	("text/event-stream" extends keyof TOutput ? Pick<HttpRes, "sse"> : {}) &
+	([NoContentOf<TOutput>] extends [never] ? {} : Pick<HttpRes, "noContent">) &
 	([RedirectsOf<TOutput>] extends [never]
 		? {}
 		: {
@@ -358,7 +358,7 @@ type OutputRes<TOutput> = UniversalRes & {
 				/** Answers with a binary body; available when the route declares a media type no other helper answers, such as `image/png`. */ binary: BinaryCall<TOutput>
 			})
 
-/** `TCtx` with ctx.res narrowed to `TOutput`; a route without `.output()` keeps the whole HoneyRes. */
+/** `TCtx` with ctx.res narrowed to `TOutput`; a route without `.output()` keeps the whole HttpRes. */
 export type ApplyOutput<TCtx, TOutput> = [TOutput] extends [never]
 	? TCtx
 	: Omit<TCtx, "res"> & {

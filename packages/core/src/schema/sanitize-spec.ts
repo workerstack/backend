@@ -12,8 +12,8 @@ export type OpenApiSanitizeOptions = {
 	/** Drop these schemes from `components.securitySchemes`. */
 	readonly stripSecuritySchemes?: readonly string[]
 	/**
-	 * Drop the `x-*` keys of each operation, its parameters and responses, and every schema: `true` drops every key honey
-	 * and its generators do not read (they keep `x-honey-*`, `x-mcp`, `x-invalidate` and the like), a list drops exactly
+	 * Drop the `x-*` keys of each operation, its parameters and responses, and every schema: `true` drops every key backend
+	 * and its generators do not read (they keep `x-backend-*`, `x-mcp`, `x-invalidate` and the like), a list drops exactly
 	 * the keys it names.
 	 */
 	readonly stripXExtensions?: boolean | readonly string[]
@@ -34,7 +34,7 @@ function withoutRequirements<T extends Readonly<Record<string, unknown>>>(holder
 	return (kept.length === 0 ? rest : { ...rest, security: kept }) as unknown as T
 }
 
-/** The extensions honey's generators read besides its own `x-honey-*`: `true` keeps them. */
+/** The extensions backend's generators read besides its own `x-backend-*`: `true` keeps them. */
 const READ: Readonly<Record<string, true>> = /* @__PURE__ */ Object.freeze({
 	"x-deprecated": true,
 	"x-idempotency-key": true,
@@ -51,7 +51,7 @@ type Node = Readonly<Record<string, unknown>>
 /** Which extension keys go: `null` when none does. */
 function dropOf(strip: boolean | readonly string[]): Drop | null {
 	if (strip === false) return null
-	if (strip === true) return (key) => key.startsWith("x-") && !key.startsWith("x-honey-") && !Object.hasOwn(READ, key)
+	if (strip === true) return (key) => key.startsWith("x-") && !key.startsWith("x-backend-") && !Object.hasOwn(READ, key)
 	return (key) => strip.includes(key)
 }
 

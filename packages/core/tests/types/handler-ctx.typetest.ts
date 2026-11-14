@@ -8,7 +8,7 @@ import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware, type MiddlewareFn } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import type { InferCtx } from "../../src/routing/app-types.ts"
 
 describe("ctx.params", () => {
@@ -22,7 +22,7 @@ describe("ctx.params", () => {
 	// v0: 7c0132f759
 	// v0: d6cc3e11ca
 	it("types each param and wildcard the pattern names as string, under a basePath too", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/users/:id").handler((ctx) => {
 			expectTypeOf(ctx.params.id).toEqualTypeOf<string>()
 			return ctx.res.text("ok", "ok")
@@ -51,7 +51,7 @@ describe("ctx.params", () => {
 	// v0: 53e40a6f53
 	// v0: d3321a93dd
 	it("is Record<string, string> on a route without params", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.get("/static")
 			.handler((ctx) => {
 				expectTypeOf(ctx.params).toEqualTypeOf<Record<string, string>>()
@@ -68,7 +68,7 @@ describe("ctx.routePattern", () => {
 	// v0: c6543756c1
 	// v0: c04a9f5797
 	it("is the full pattern as a literal: plain, param, root, and under a basePath", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/users").handler((ctx) => {
 			expectTypeOf(ctx.routePattern).toEqualTypeOf<"/users">()
 			return ctx.res.text("ok", "ok")
@@ -109,7 +109,7 @@ describe("ctx.errors", () => {
 	// v0: 1922b0e9c8
 	// v0: 8fc75cdd10
 	it("holds exactly the keys the route declares, named alone or with their factory", () => {
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app
 			.get("/a")
 			.errors("email_taken")
@@ -119,7 +119,7 @@ describe("ctx.errors", () => {
 				expectTypeOf(ctx.errors).not.toHaveProperty("invalid_input")
 				return ctx.res.text("ok", "ok")
 			})
-		honey<{}>()
+		httpApp<{}>()
 			.get("/b")
 			.errors(errors, "email_taken", "org_limit")
 			.handler((ctx) => {
@@ -136,7 +136,7 @@ describe("ctx.errors: which keys .errors() takes", () => {
 	// v0: 4016db1f41
 	it("takes only keys of the factory it names, or of the app's factory, beside each other", () => {
 		const other = defineErrors({ special_error: "bad_request" })
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		// @ts-expect-error not a key of the app's factory
 		app.get("/a").errors("nope")
 		// @ts-expect-error not a key of the named factory
@@ -153,7 +153,7 @@ describe("ctx.errors: which keys .errors() takes", () => {
 	// v0: 7754770a73
 	// v0: c2d52dc9ad
 	it("always holds the app's default keys, which a route may not declare again", () => {
-		const route = honey<{}>().errorFactory(errors).defaultErrors("invalid_input").get("/t")
+		const route = httpApp<{}>().errorFactory(errors).defaultErrors("invalid_input").get("/t")
 		// @ts-expect-error invalid_input is already a default error
 		route.errors("invalid_input")
 		route.errors("email_taken").handler((ctx) => {
@@ -173,7 +173,7 @@ describe("ctx.meta", () => {
 	// v0: 22d95f2a17
 	// v0: 7c336dbf9e
 	it("is narrowed to each route's own values, and readonly", () => {
-		const base = honey<{}>().metaType<AppMeta>()
+		const base = httpApp<{}>().metaType<AppMeta>()
 		base
 			.get("/public")
 			.meta({ auth: "public" })
@@ -193,7 +193,7 @@ describe("ctx.meta", () => {
 
 	// v0: 29490a6c91
 	it("is narrowed beside an error factory and the route's declared errors", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.metaType<AppMeta>()
 			.errorFactory(defineErrors({ email_taken: "conflict" }))
 			.get("/orgs")
@@ -208,7 +208,7 @@ describe("ctx.meta", () => {
 
 	// v0: 1460dc840b
 	it("is the app's meta type on a route that sets none, a catch-all included", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.metaType<AppMeta>()
 			.all("*")
 			.handler((ctx) => {
@@ -230,7 +230,7 @@ describe("what context() and chain middleware add", () => {
 	it("context() values and chain additions are typed on ctx, complex values kept whole", () => {
 		type Cache = { get: (key: string) => string | null; set: (key: string, value: string) => void }
 		const cache: Cache = { get: () => null, set: () => undefined }
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.context({ appName: "test", cache, config: { timeout: 5000 } })
 			.use(createMiddleware((_ctx, next) => next({ traceId: "t-1" })))
 		app.get("/t").handler((ctx) => {
@@ -251,7 +251,7 @@ describe("what context() and chain middleware add", () => {
 		const needsConfig = createMiddleware((_ctx: { config: { timeout: number } }, next) =>
 			next({ validated: true as const }),
 		)
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.context({ config: { timeout: 5000 }, db: "sqlite" })
 			.use(needsDb)
 		expectTypeOf<InferCtx<typeof app>>().toMatchTypeOf<{ readonly db: string; queried: boolean }>()
@@ -263,7 +263,7 @@ describe("what context() and chain middleware add", () => {
 				return ctx.res.text("ok", "ok")
 			})
 		// @ts-expect-error a chain without context({ db }) cannot use needsDb
-		honey<{}>().use(needsDb)
+		httpApp<{}>().use(needsDb)
 	})
 })
 
@@ -272,7 +272,7 @@ describe("what route middleware adds", () => {
 	// v0: f95826d9d6
 	// v0: 8464a3cf8a
 	it("route-level use() calls accumulate, each seeing what the earlier ones added", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.get("/t")
 			.use(withDb)
 			.use(withAuth)
@@ -284,7 +284,7 @@ describe("what route middleware adds", () => {
 				return ctx.res.text("ok", "ok")
 			})
 		// @ts-expect-error withAuth needs db, which nothing added yet
-		honey<{}>().get("/t").use(withAuth)
+		httpApp<{}>().get("/t").use(withAuth)
 	})
 })
 
@@ -293,7 +293,7 @@ describe("the request fields", () => {
 	// v0: b5ebb2d677
 	// v0: 0cdc648c4b
 	it("ctx.req is a Request, ctx.env the app's env type, and there is no input without .input()", () => {
-		honey<{ API_KEY: string; DB_URL: string }>()
+		httpApp<{ API_KEY: string; DB_URL: string }>()
 			.get("/t")
 			.handler((ctx) => {
 				expectTypeOf(ctx.req).toEqualTypeOf<Request>()
@@ -312,7 +312,7 @@ describe("the whole ctx at once", () => {
 	// v0: 87415c6ed3
 	// v0: 32781d0574
 	it("env, context(), middleware, params, input, routePattern and an output-narrowed res, together", () => {
-		honey<{ SECRET: string }>()
+		httpApp<{ SECRET: string }>()
 			.context({ region: "eu" })
 			.use(withUser)
 			.post("/orgs/:orgId/members/:memberId")
@@ -336,7 +336,7 @@ describe("the whole ctx at once", () => {
 	// v0: 0b1c12acb4
 	it("under a basePath, with an optional search field and errors named with their factory", () => {
 		const errs = defineErrors({ not_found: "not_found" })
-		honey<{ SECRET: string }>()
+		httpApp<{ SECRET: string }>()
 			.basePath("/api/v1")
 			.use(withTenant)
 			.get("/users/:id")
@@ -358,7 +358,7 @@ describe("the whole ctx with taps, meta and empty declarations", () => {
 	// v0: 0e91063a38
 	it("with taps and meta too: a declared tap takes its payload, nothing else", () => {
 		const errs = defineErrors({ not_found: "not_found" })
-		honey<{}>()
+		httpApp<{}>()
 			.taps<{ audit: { action: string; actor_id: string }; webhook: { event: string } }>()
 			.use(withUser)
 			.post("/orgs/:orgId/members")
@@ -383,7 +383,7 @@ describe("the whole ctx with taps, meta and empty declarations", () => {
 
 	// v0: b677cfaf2a
 	it("routePattern stays the literal through an empty .input() and a 204-only .output(), which leaves noContent", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.use(withUser)
 			.get("/")
 			.input({})

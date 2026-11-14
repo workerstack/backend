@@ -1,6 +1,6 @@
 import type { WSAdapter } from "@workerstack/backend/http"
 import type { RouteTree } from "@workerstack/backend/http/tree"
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 import * as z from "zod"
@@ -10,7 +10,7 @@ export type AppOptions = { routeTree?: RouteTree }
 
 /** No basePath, no CORS, no i18n, default trailingSlash ("ignore"). */
 export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
-	const app = options?.routeTree ? honey().routeTree(options.routeTree) : honey()
+	const app = options?.routeTree ? httpApp().routeTree(options.routeTree) : httpApp()
 	if (wsAdapter) app.wsAdapter(wsAdapter)
 
 	const routed = app
@@ -24,5 +24,5 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 			const body = await ctx.req.text()
 			return ctx.res.json("created", body)
 		})
-	return serveManifest(serveOpenApi(routed, { docs: { "/docs": scalar }, title: "Honey Defaults", version: "0.0.1" }))
+	return serveManifest(serveOpenApi(routed, { docs: { "/docs": scalar }, title: "Backend Defaults", version: "0.0.1" }))
 }

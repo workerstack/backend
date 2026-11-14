@@ -10,7 +10,7 @@ verifies a delivery into a typed event; the other languages' SDKs follow.
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { serveOpenApi } from "@workerstack/backend/http/openapi"
 import { webhookContract } from "@workerstack/backend/http/webhook"
 import * as z from "zod"
@@ -19,7 +19,7 @@ const events = webhookContract({
 	"order.shipped": z.object({ orderId: z.string(), shippedAt: z.string() }),
 })
 
-const app = honey()
+const app = httpApp()
 
 serveOpenApi(app, { title: "Shop", version: "1.0.0", webhooks: events })
 

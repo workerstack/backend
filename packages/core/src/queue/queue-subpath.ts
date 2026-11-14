@@ -19,7 +19,7 @@ export {
 	queueMessage,
 	type QueueMessageHandle,
 	type QueueSchemas,
-	type QueueSendOptions,
+	type QueueDelayOptions,
 	type QueueTarget,
 } from "./define.ts"
 export {

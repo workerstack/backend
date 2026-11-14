@@ -1,22 +1,22 @@
 /**
  * The error boundary of every `next()` and the app's `onError`: what a handler or middleware threw
  * becomes the Response that replaces it. `onError` is awaited and response-shaping: it returns a
- * HoneyError to replace the error, a Response to answer, or nothing to fall through to the native
+ * HttpError to replace the error, a Response to answer, or nothing to fall through to the native
  * projection. The boundary never rejects.
  *
  * Every 5xx error answer gets a digest and one operator line: the client's body carries the digest,
  * the line carries it with what was thrown (name, message, stack, cause chain) and the request (H17).
  */
-import { type HoneyContext, REQUEST, setCtxError } from "../context/context.ts"
+import { type HttpContext, REQUEST, setCtxError } from "../context/context.ts"
 import type { MaybePromise } from "../middleware/middleware.ts"
 import type { FetchState } from "../routing/dispatch.ts"
 import type { AppSettings, ErrorCtx, ErrorI18n } from "../routing/settings.ts"
 import { invokeUser } from "../realtime/invoke-user.ts"
 import { pathOf, requestBindings } from "../telemetry/fields.ts"
-import type { RequestTrace, Telemetry, TelemetryErrorReport } from "../telemetry/request-trace.ts"
-import { HoneyError, hasUnknownStatus } from "./error.ts"
+import type { RequestTrace, OtelTelemetry, TelemetryErrorReport } from "../telemetry/request-trace.ts"
+import { HttpError, hasUnknownStatus } from "./error.ts"
 import {
-	asHoneyError,
+	asHttpError,
 	createErrorResponse,
 	type ErrorAnswer,
 	type FormatterReport,
@@ -25,14 +25,14 @@ import {
 } from "./projector.ts"
 
 function stateOf(ctx: object): FetchState {
-	return (ctx as HoneyContext<unknown>)[REQUEST] as FetchState
+	return (ctx as HttpContext<unknown>)[REQUEST] as FetchState
 }
 
 /** A crashed error formatter, logged with the request it answered (when there is one). */
 export function formatterReport(s: AppSettings<unknown>, state: FetchState | null): FormatterReport {
 	return (failure) => {
 		const where = state === null ? {} : requestBindings(state.req.method, state.path, state.plan.route.id)
-		s.logger.error({ ...where, err: HoneyError.serialize(failure) }, "error formatter failed")
+		s.logger.error({ ...where, err: HttpError.serialize(failure) }, "error formatter failed")
 	}
 }
 
@@ -61,8 +61,8 @@ function answerFor(s: AppSettings<unknown>, ctx: object): ErrorAnswer {
 }
 
 /** The response for `error`, recording it on `ctx.error`. */
-function respond(s: AppSettings<unknown>, ctx: object, error: HoneyError): Response {
-	setCtxError(ctx as HoneyContext, error)
+function respond(s: AppSettings<unknown>, ctx: object, error: HttpError): Response {
+	setCtxError(ctx as HttpContext, error)
 	return createErrorResponse(error, s.errorFormatter, s.payloadErrorFormatter, answerFor(s, ctx))
 }
 
@@ -70,14 +70,9 @@ function respond(s: AppSettings<unknown>, ctx: object, error: HoneyError): Respo
  * `error` in the request's locale: a translated copy, the thrown error never changed. A failing
  * `resolveLocale` or `translate` is a warn, and the error answers untranslated. Never rejects.
  */
-async function translated(
-	s: AppSettings<unknown>,
-	i18n: ErrorI18n,
-	ctx: object,
-	error: HoneyError,
-): Promise<HoneyError> {
+async function translated(s: AppSettings<unknown>, i18n: ErrorI18n, ctx: object, error: HttpError): Promise<HttpError> {
 	try {
-		const c = ctx as HoneyContext
+		const c = ctx as HttpContext
 		const state = stateOf(ctx)
 		const locale = await i18n.resolveLocale({
 			cookies: c.cookies,
@@ -89,20 +84,20 @@ async function translated(
 		})
 		return i18n.translate(error, locale)
 	} catch (failure) {
-		s.logger.warn({ ...bindings(ctx), err: HoneyError.serialize(failure) }, "error i18n failed")
+		s.logger.warn({ ...bindings(ctx), err: HttpError.serialize(failure) }, "error i18n failed")
 		return error
 	}
 }
 
 /** Answer with `error`, translated first when the app has errorI18n (only then asynchronously). */
-function answer(s: AppSettings<unknown>, ctx: object, error: HoneyError): MaybePromise<Response> {
+function answer(s: AppSettings<unknown>, ctx: object, error: HttpError): MaybePromise<Response> {
 	const i18n = s.errorI18n
 	if (i18n === null) return respond(s, ctx, error)
 	return translated(s, i18n, ctx, error).then((localized) => respond(s, ctx, localized))
 }
 
 /** One throw on its way to a response: the context, what was thrown, and the error it projects to. */
-type Throw = { readonly ctx: object; readonly error: HoneyError; readonly thrown: unknown }
+type Throw = { readonly ctx: object; readonly error: HttpError; readonly thrown: unknown }
 
 /** What an operator line says about the request: method, path without its query, route id. */
 function bindings(ctx: object): Record<string, string> {
@@ -125,14 +120,14 @@ function newDigest(): string {
  * A 5xx answer's digest, kept on the request (a thrown instance may be shared), and its one
  * operator line: what was thrown, the key it answers as, and the request.
  */
-function serverError(s: AppSettings<unknown>, t: Throw, error: HoneyError, msg: string): void {
+function serverError(s: AppSettings<unknown>, t: Throw, error: HttpError, msg: string): void {
 	if (error.status < 500) return
 	const digest = newDigest()
 	stateOf(t.ctx).digest = digest
-	s.logger.error({ ...bindings(t.ctx), digest, err: HoneyError.serialize(t.thrown), errorKey: error.errorKey }, msg)
+	s.logger.error({ ...bindings(t.ctx), digest, err: HttpError.serialize(t.thrown), errorKey: error.errorKey }, msg)
 }
 
-/** Answer an error nothing handled: a HoneyError the app threw as it is, anything else as the boundary projects it. */
+/** Answer an error nothing handled: a HttpError the app threw as it is, anything else as the boundary projects it. */
 function unhandled(s: AppSettings<unknown>, t: Throw): MaybePromise<Response> {
 	serverError(s, t, t.error, t.error === t.thrown ? "server error" : "unhandled error")
 	return answer(s, t.ctx, t.error)
@@ -140,19 +135,19 @@ function unhandled(s: AppSettings<unknown>, t: Throw): MaybePromise<Response> {
 
 /** A failing onError: logged once, then the native projection answers. */
 function onErrorFailed(s: AppSettings<unknown>, t: Throw, failure: unknown): MaybePromise<Response> {
-	s.logger.error({ ...bindings(t.ctx), err: HoneyError.serialize(failure) }, "onError failed")
+	s.logger.error({ ...bindings(t.ctx), err: HttpError.serialize(failure) }, "onError failed")
 	return unhandled(s, t)
 }
 
-/** Apply what `onError` returned: a HoneyError replaces the error, a Response answers, nothing falls through. */
+/** Apply what `onError` returned: a HttpError replaces the error, a Response answers, nothing falls through. */
 function settleOnError(s: AppSettings<unknown>, t: Throw, result: unknown): MaybePromise<Response> {
-	if (result instanceof HoneyError) {
+	if (result instanceof HttpError) {
 		const error = hasUnknownStatus(result) ? projectThrown(result, stateOf(t.ctx).plan.policy) : result
 		serverError(s, t, error, "server error")
 		return answer(s, t.ctx, error)
 	}
 	if (result instanceof Response) {
-		setCtxError(t.ctx as HoneyContext, t.error)
+		setCtxError(t.ctx as HttpContext, t.error)
 		return result as Response
 	}
 	return unhandled(s, t)
@@ -179,28 +174,28 @@ function convertWith(s: AppSettings<unknown>, thrown: unknown, ctx: object): May
  * A thrown error whose answer is decided: its `http.error` span, and `telemetry.onError` in the
  * request's background, contained (a failure is a warn). Never throws.
  */
-function reportThrow(s: AppSettings<unknown>, telemetry: Telemetry, ctx: object, thrown: unknown): void {
-	const c = ctx as HoneyContext<unknown>
+function reportThrow(s: AppSettings<unknown>, telemetry: OtelTelemetry, ctx: object, thrown: unknown): void {
+	const c = ctx as HttpContext<unknown>
 	const state = stateOf(ctx)
 	/* the boundary has answered: ctx.error holds what it answered as */
-	const honeyError = c.error as HoneyError
+	const httpError = c.error as HttpError
 	const digest = state.digest
 	/* telemetry on: every request it serves has a trace */
 	const trace = state.trace as RequestTrace
-	trace.error(honeyError, thrown, digest)
+	trace.error(httpError, thrown, digest)
 	const onError = telemetry.onError
 	if (onError === null) return
 	const report: TelemetryErrorReport = {
 		durationMs: Math.round((performance.now() - trace.started) * 1000) / 1000,
 		error: thrown,
-		honeyError,
+		httpError,
 		method: state.req.method,
 		path: pathOf(state.req.url),
 		routeId: state.plan.route.id,
 		...(digest !== undefined && { digest }),
 		...trace.ids(),
 	}
-	const warn = (error: unknown) => s.logger.warn({ err: HoneyError.serialize(error) }, "telemetry onError failed")
+	const warn = (error: unknown) => s.logger.warn({ err: HttpError.serialize(error) }, "telemetry onError failed")
 	c.background(Promise.resolve().then(() => invokeUser(() => onError(report), { onError: warn, phase: "telemetry" })))
 }
 
@@ -208,8 +203,8 @@ function reportThrow(s: AppSettings<unknown>, telemetry: Telemetry, ctx: object,
 export function boundary(s: AppSettings<unknown>): (thrown: unknown, ctx: object) => MaybePromise<Response> {
 	/* answering the error failed itself: what failed is logged, and the last-resort answer goes out */
 	const reportAndAnswer = (thrown: unknown, ctx: object, failure: unknown): Response => {
-		s.logger.error({ ...bindings(ctx), err: HoneyError.serialize(failure) }, "error response failed")
-		setCtxError(ctx as HoneyContext, asHoneyError(thrown))
+		s.logger.error({ ...bindings(ctx), err: HttpError.serialize(failure) }, "error response failed")
+		setCtxError(ctx as HttpContext, asHttpError(thrown))
 		return safeErrorResponse(thrown, s.errorFormatter, s.payloadErrorFormatter, answerFor(s, ctx))
 	}
 	const answered = (thrown: unknown, ctx: object): MaybePromise<Response> => {

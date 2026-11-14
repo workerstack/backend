@@ -263,7 +263,7 @@ const BASICS: readonly Row[] = [
 	// v0: d6e7e93ec0
 	["Fehler: {msg} 🔥", { msg: "kaputt" }, undefined, "Fehler: kaputt 🔥"],
 	// v0: b245b17d9b
-	["{x} is great", { x: "Honey" }, undefined, "Honey is great"],
+	["{x} is great", { x: "Backend" }, undefined, "Backend is great"],
 	// v0: d077d63778
 	["Hello {x}", { x: "World" }, undefined, "Hello World"],
 	// v0: 0d919d937c
@@ -311,7 +311,7 @@ describe("ExtractICUVars: a message literal's vars as a type", () => {
 	// v0: 4b273795b1
 	// v0: b3f90f168f
 	// v0: 145647891a
-	it("no vars is {}, so vars can be left out; cause is HoneyError's own, never a var", () => {
+	it("no vars is {}, so vars can be left out; cause is HttpError's own, never a var", () => {
 		expectTypeOf<ExtractICUVars<"Something went wrong">>().toEqualTypeOf<{}>()
 		expectTypeOf<ExtractICUVars<"{cause} error">>().toEqualTypeOf<{}>()
 		expectTypeOf<ExtractICUVars<"{cause} then {field}">>().toEqualTypeOf<{ field: number | string }>()

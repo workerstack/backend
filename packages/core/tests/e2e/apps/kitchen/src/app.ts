@@ -1,6 +1,6 @@
 import type { InferCtx, MiddlewareFn, WSAdapter } from "@workerstack/backend/http"
 import type { RouteTree } from "@workerstack/backend/http/tree"
-import { defineErrors, HoneyError, honey } from "@workerstack/backend/http"
+import { defineErrors, HttpError, httpApp } from "@workerstack/backend/http"
 import { cors } from "@workerstack/backend/http/cors"
 import { createErrorTranslator } from "@workerstack/backend/http/i18n"
 import { createLogger } from "@workerstack/backend/logger"
@@ -63,7 +63,7 @@ export type AppOptions = { routeTree?: RouteTree }
 export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	const log = createLogger({ level: "debug" })
 
-	const app = honey<Env>().basePath("/api").trailingSlash("strip")
+	const app = httpApp<Env>().basePath("/api").trailingSlash("strip")
 	const root = options?.routeTree ? app.routeTree(options.routeTree) : app
 	if (wsAdapter) root.wsAdapter(wsAdapter)
 
@@ -75,7 +75,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.defaultErrors("unauthorized")
 		.defaultBoundary("api_error")
 		.onError((error, ctx) => {
-			if (error instanceof HoneyError && error.errorKey === "db_constraint") {
+			if (error instanceof HttpError && error.errorKey === "db_constraint") {
 				return ctx.jsonFromError(errors.org_slug_taken({ vars: { slug: "unknown" } }))
 			}
 			return undefined
@@ -277,7 +277,9 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.get("/served-from")
 		.meta({ internal: true })
 		.handler((ctx) =>
-			ctx.res.json("ok", { bundle: (import.meta as { env?: { HONEY_BUNDLE?: boolean } }).env?.HONEY_BUNDLE === true }),
+			ctx.res.json("ok", {
+				bundle: (import.meta as { env?: { BACKEND_BUNDLE?: boolean } }).env?.BACKEND_BUNDLE === true,
+			}),
 		)
 
 	/* one delivery of a declared event, signed through the contract at `at` (unix seconds) for the e2e receiver to
@@ -319,9 +321,9 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 
 	serveManifest(
 		serveOpenApi(corsed, {
-			description: "Honey E2E Test API",
+			description: "Backend E2E Test API",
 			docs: { "/docs": scalar },
-			title: "Honey E2E",
+			title: "Backend E2E",
 			version: "1.0.0",
 		}),
 	)

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import type { WSAdapter, WSContext, WSHandler } from "../ws/contract.ts"
-import { honey } from "./app.ts"
+import { httpApp } from "./app.ts"
 import { ws } from "../ws/route.ts"
 
 /** What an adapter's 101 looks like where Fetch refuses status 101: a Response that says 101. */
@@ -49,7 +49,7 @@ describe("ws(app, path): a WebSocket route", () => {
 	it("an upgrade request runs the route: the adapter upgrades with the request and env, and its 101 goes out untouched", async () => {
 		const { adapter, upgrades } = fakeAdapter(["hi"])
 		const seen: unknown[] = []
-		const app = honey<{ db: string }>().wsAdapter(adapter)
+		const app = httpApp<{ db: string }>().wsAdapter(adapter)
 		ws(app, "/chat/:room").handler({
 			onMessage: (ctx, socket, data) => void seen.push(["message", ctx.params.room, data, socket.readyState]),
 			onOpen: (ctx) => void seen.push(["open", ctx.params.room, ctx.env.db]),
@@ -75,7 +75,7 @@ describe("ws(app, path): a WebSocket route", () => {
 	// v0: b0cf67d28a
 	it("a plain GET to a ws path no HTTP GET serves is 426 Upgrade Required; an HTTP GET on the same path answers it", async () => {
 		const { adapter } = fakeAdapter()
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		ws(app, "/live").handler({})
 		ws(app, "/both").handler({})
 		app.get("/both").handler((ctx) => ctx.res.text("ok", "http"))
@@ -95,7 +95,7 @@ describe("ws(app, path): which requests reach the route", () => {
 	// v0: 2cdb172a14
 	it("an upgrade request to a path with no ws route is an ordinary request", async () => {
 		const { adapter, upgrades } = fakeAdapter()
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		app.get("/page").handler((ctx) => ctx.res.text("ok", "page"))
 		ws(app, "/live").handler({})
 		const [page, missing] = await Promise.all([app.fetch(handshake("/page"), {}), app.fetch(handshake("/nope"), {})])
@@ -104,9 +104,9 @@ describe("ws(app, path): which requests reach the route", () => {
 
 	it("the basePath and a mounting app place the route, and the upgrade still reaches the adapter", async () => {
 		const { adapter, upgrades } = fakeAdapter()
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		ws(sub, "/feed").handler({})
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		app.basePath("/v1").route("/sub", sub)
 		const res = await app.fetch(handshake("/v1/sub/feed"), {})
 		expect([res.status, upgrades.length]).toEqual([101, 1])
@@ -117,7 +117,7 @@ describe("ws(app, path): reconnect and registration", () => {
 	it("a reconnect_token in the query reaches onReconnect in place of onOpen", async () => {
 		const { adapter } = fakeAdapter()
 		const seen: string[] = []
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		ws(app, "/live").handler({
 			onOpen: () => void seen.push("open"),
 			onReconnect: (_c, _ws, token) => void seen.push(token),
@@ -128,12 +128,12 @@ describe("ws(app, path): reconnect and registration", () => {
 	})
 
 	it("a ws builder left without .handler() is reported, and a second ws route on one path throws", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		ws(app, "/a")
 		await expect(async () => app.fetch(handshake("/a"), {})).rejects.toThrow(
 			"WS /a was declared but never got a .handler()",
 		)
-		const other = honey<{}>()
+		const other = httpApp<{}>()
 		ws(other, "/b").handler({})
 		expect(() => ws(other, "/b").handler({})).toThrow("Duplicate route: WS /b")
 	})
@@ -153,7 +153,7 @@ describe("ws(app, path): what runs before the upgrade", () => {
 				order.push(name)
 				return next(adds)
 			})
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		app.use("/rooms", step("scoped"))
 		ws(app.use(step("chain", { user: "u1" })), "/rooms/:id")
 			.use(step("route"))
@@ -168,7 +168,7 @@ describe("ws(app, path): what runs before the upgrade", () => {
 
 	it("middleware that answers itself refuses the upgrade: the adapter is never asked", async () => {
 		const { adapter, upgrades } = fakeAdapter()
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		ws(app.use(createMiddleware(() => new Response("no", { status: 401 }))), "/live").handler({})
 		const res = await app.fetch(handshake("/live"), {})
 		expect([res.status, upgrades.length]).toEqual([401, 0])
@@ -179,7 +179,7 @@ describe("ws(app, path): declared errors and meta", () => {
 	it("errors(factory, ...keys) declares a named factory's key on the route", async () => {
 		const { adapter, upgrades } = fakeAdapter()
 		const own = defineErrors({ banned: "forbidden" })
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		ws(
 			app.use(
 				createMiddleware(() => {
@@ -200,11 +200,11 @@ describe("ws(app, path): declared errors and meta", () => {
 
 	it("a thrown declared error answers through the route's errors, before any upgrade", async () => {
 		const { adapter, upgrades } = fakeAdapter()
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		ws(
 			app.use(
 				createMiddleware(() => {
-					throw new HoneyError({ errorKey: "forbidden", status: "forbidden" })
+					throw new HttpError({ errorKey: "forbidden", status: "forbidden" })
 				}),
 			),
 			"/live",
@@ -222,7 +222,7 @@ describe("ws(app, path): declared errors and meta", () => {
 	it("route meta reaches ctx.meta in the callbacks", async () => {
 		const { adapter } = fakeAdapter()
 		const seen: unknown[] = []
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		ws(app.meta({ area: "chat" }), "/live")
 			.meta({ summary: "live feed" })
 			.handler({ onOpen: (ctx) => void seen.push(ctx.meta) })
@@ -254,7 +254,7 @@ describe("ws(app, path): the origin check comes before the adapter (H18.12)", ()
 		["any origin under *", { cookie: "s=1", origin: "https://evil.example.com" }, "*", 101],
 	] as const)("%s → %i", async (_case, headers, policy, status) => {
 		const { adapter, upgrades } = fakeAdapter()
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		const route = ws(app, "/live")
 		;(policy === undefined ? route : route.origins(policy as "*" | string[])).handler({})
 		const res = await app.fetch(handshake("/live", headers), {})
@@ -263,7 +263,7 @@ describe("ws(app, path): the origin check comes before the adapter (H18.12)", ()
 
 	// v0: 6330ae1544
 	it("origins() refuses a policy that is not one", () => {
-		expect(() => ws(honey<{}>(), "/live").origins(["partner.example.org"])).toThrow("is not an origin")
+		expect(() => ws(httpApp<{}>(), "/live").origins(["partner.example.org"])).toThrow("is not an origin")
 	})
 })
 
@@ -273,7 +273,7 @@ describe("ws(app, path): with no adapter", () => {
 	// v0: b04bba9c7d
 	it("answers 500, and onError hears the fix: set app.wsAdapter()", async () => {
 		const onError = vi.fn()
-		const app = honey<{}>().onError((error) => void onError((error as Error).message))
+		const app = httpApp<{}>().onError((error) => void onError((error as Error).message))
 		ws(app, "/live").handler({})
 		const res = await app.fetch(handshake("/live"), {})
 		const body = (await res.json()) as { error_key: string }
@@ -287,7 +287,7 @@ describe("ws(app, path): with no adapter", () => {
 			500,
 			[
 				[
-					"honey: a WebSocket route was requested but no adapter is set: call app.wsAdapter(adapter), or serve(app) on Node or Bun",
+					"backend: a WebSocket route was requested but no adapter is set: call app.wsAdapter(adapter), or serve(app) on Node or Bun",
 				],
 			],
 		])
@@ -295,7 +295,7 @@ describe("ws(app, path): with no adapter", () => {
 
 	it("wsAdapter() is an app setting: set on one handle, every handle of the app upgrades with it", async () => {
 		const { adapter, upgrades } = fakeAdapter()
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const authed = app.use(createMiddleware((_ctx, next) => next()))
 		ws(authed, "/live").handler({})
 		expect(app.wsAdapter(adapter)).toBe(app)

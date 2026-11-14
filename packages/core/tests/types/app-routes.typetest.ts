@@ -5,9 +5,9 @@
  */
 import { describe, expectTypeOf, it } from "vitest"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import type {
-	HoneyMeta,
+	HttpMeta,
 	InferBasePath,
 	InferRouteCtx,
 	InferRouteMeta,
@@ -26,7 +26,7 @@ type Chain<N extends number, Acc = {}, I extends unknown[] = [0]> = I["length"] 
 describe("$routes", () => {
 	// v0: 9bf8379dff
 	it("a fresh app has no routes and no taps", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		expectTypeOf<InferRoutes<typeof app>>().toEqualTypeOf<{}>()
 		expectTypeOf<(typeof app)["$taps"]>().toEqualTypeOf<{}>()
 	})
@@ -56,7 +56,7 @@ describe("$routes", () => {
 })
 
 /** An app built through the builder with 25 GET routes, /r1 … /r25. */
-const deep = honey<{}>()
+const deep = httpApp<{}>()
 	.get("/r1")
 	.handler((ctx) => ctx.res.text("ok", "1"))
 	.get("/r2")
@@ -196,7 +196,7 @@ describe("route meta on the map", () => {
 	// v0: 27a2cae06c
 	// v0: 8f635df394
 	it("InferRouteMeta is the app meta type with the route's own values, however many routes came before, or a route map's meta", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.metaType<AppMeta>()
 			.get("/r1")
 			.handler((ctx) => ctx.res.text("ok", "1"))
@@ -224,7 +224,7 @@ describe("route meta on the map", () => {
 	// v0: 6c8d006dbb
 	// v0: 2d308b01b9
 	it("an internal route, marked on itself or on its chain, is left out of the map", () => {
-		const base = honey<{}>()
+		const base = httpApp<{}>()
 			.metaType<AppMeta>()
 			.use(createMiddleware((_ctx, next) => next({ added: true })))
 			.get("/public")
@@ -248,8 +248,8 @@ describe("basePath in the map", () => {
 	// v0: 671eb497a3
 	// v0: 943be6e637
 	it("InferBasePath is /, one prefix, or every chained prefix joined", () => {
-		expectTypeOf<InferBasePath<ReturnType<typeof honey<{}>>>>().toEqualTypeOf<"/">()
-		const app = honey<{}>()
+		expectTypeOf<InferBasePath<ReturnType<typeof httpApp<{}>>>>().toEqualTypeOf<"/">()
+		const app = httpApp<{}>()
 		expectTypeOf<InferBasePath<ReturnType<typeof app.basePath<"/api">>>>().toEqualTypeOf<"/api">()
 		const nested = app.basePath("/a").basePath("/b").basePath("/c")
 		expectTypeOf<InferBasePath<typeof nested>>().toEqualTypeOf<"/a/b/c">()
@@ -261,14 +261,14 @@ describe("basePath in the map", () => {
 	// v0: 93bcdb64a8
 	// v0: a57bbf193e
 	it("a route under a basePath registers, and sees its pattern, with every prefix", () => {
-		const items = honey<{}>()
+		const items = httpApp<{}>()
 			.basePath("/api")
 			.get("/items")
 			.handler((ctx) => ctx.res.text("ok", "ok"))
 			.post("/items")
 			.handler((ctx) => ctx.res.json("created", { id: "1" }))
 		expectTypeOf<InferRouteMethods<typeof items, "/api/items">>().toEqualTypeOf<"get" | "post">()
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.basePath("/v1")
 			.basePath("/api")
 			.get("/users/:id")
@@ -287,21 +287,21 @@ describe("route(sub) in the map", () => {
 	// v0: 7d2cfa81ae
 	// v0: 16b03bc5b2
 	it("merges each sub's routes beside the parent's, the sub's basePath under the mounting one", () => {
-		const v1 = honey<{}>()
+		const v1 = httpApp<{}>()
 			.basePath("/v1")
 			.get("/items")
 			.handler((ctx) => ctx.res.text("ok", "v1"))
-		const users = honey<{}>()
+		const users = httpApp<{}>()
 			.basePath("/users")
 			.get("/")
 			.handler((ctx) => ctx.res.text("ok", "list"))
 			.get("/:id")
 			.handler((ctx) => ctx.res.text("ok", ctx.params.id))
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.get("/main")
 			.handler((ctx) => ctx.res.text("ok", "main"))
 			.route(v1)
-		const api = honey<{}>().basePath("/api").route(users)
+		const api = httpApp<{}>().basePath("/api").route(users)
 		expectTypeOf<InferRoutePaths<typeof app>>().toEqualTypeOf<"/main" | "/v1/items">()
 		expectTypeOf<InferRoutePaths<typeof api>>().toEqualTypeOf<"/api/users" | "/api/users/:id">()
 	})
@@ -310,7 +310,7 @@ describe("route(sub) in the map", () => {
 describe("the mcp meta", () => {
 	// v0: 90832b09a6
 	it("takes mcp in a route's meta as a boolean, and nothing else", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/on")
 			.meta({ mcp: true })
@@ -321,6 +321,6 @@ describe("the mcp meta", () => {
 			.handler((ctx) => ctx.res.json("ok", {}))
 		// @ts-expect-error mcp is a boolean, never a string
 		app.get("/bad").meta({ mcp: "yes" })
-		expectTypeOf<HoneyMeta["mcp"]>().toEqualTypeOf<boolean | undefined>()
+		expectTypeOf<HttpMeta["mcp"]>().toEqualTypeOf<boolean | undefined>()
 	})
 })

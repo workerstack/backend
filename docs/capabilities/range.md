@@ -8,12 +8,12 @@ falls back to the whole body at once. `staticFiles` uses it for every sized file
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { rangeResponse } from "@workerstack/backend/http/range"
 
 const video = new Blob([new Uint8Array(1024)], { type: "video/mp4" })
 
-const app = honey()
+const app = httpApp()
 
 app.get("/video").handler((ctx) => ctx.res.raw(rangeResponse(ctx.req, video)))
 ```
@@ -23,13 +23,13 @@ A route that declares its output forwards the answer instead. Its 200 and 206 ar
 goes out as `rangeResponse` built it. A 206 on a route that declares no `partial_content` is refused.
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend/http"
+import { defineErrors, httpApp } from "@workerstack/backend/http"
 import { rangeResponse } from "@workerstack/backend/http/range"
 
 const video = new Blob([new Uint8Array(1024)], { type: "video/mp4" })
 const errors = defineErrors({ range_unsatisfiable: "range_not_satisfiable" })
 
-const app = honey()
+const app = httpApp()
 
 app
 	.get("/video")

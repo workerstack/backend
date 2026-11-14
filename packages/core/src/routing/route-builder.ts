@@ -17,11 +17,11 @@ import type {
 import type { ErrorFactories } from "./settings.ts"
 import type { MaybePromise, MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts"
 import { answeringBody, normalizeOutput } from "../validation/validate-output.ts"
-import type { Honey } from "./app.ts"
+import type { HttpApp } from "./app.ts"
 import type {
 	ChainSupplied,
 	ComputeErrorsByStatus,
-	HoneyMeta,
+	HttpMeta,
 	HandlerCtx,
 	MergeRoute,
 	RouteMeta,
@@ -31,7 +31,7 @@ import type {
 } from "./app-types.ts"
 import { errorsOf } from "./middleware-chain.ts"
 import { joinPatterns, parsePattern } from "./pattern.ts"
-import { addRoute, type HandleView, type HoneyGraph, type PendingRoute, type RouteSource, settle } from "./register.ts"
+import { addRoute, type HandleView, type HttpGraph, type PendingRoute, type RouteSource, settle } from "./register.ts"
 
 /** Everything a builder carries at the type level. */
 export type BuilderTypes = {
@@ -126,7 +126,7 @@ export type RouteHandlerCtx<B extends BuilderTypes> = HandlerCtx<
 >
 
 /** The app `.handler()` returns: the same handle, typed with the new route. */
-export type HandlerReturn<B extends BuilderTypes> = Honey<
+export type HandlerReturn<B extends BuilderTypes> = HttpApp<
 	B["env"],
 	B["baseCtx"],
 	SkipRouteRecord<B["accMeta"]> extends true
@@ -162,7 +162,7 @@ export type BuilderState = {
 	/** Methods registered beside `method` when the route was started with `app.on()`. */
 	readonly extraMethods: readonly string[]
 	/** The app graph the route registers into. */
-	readonly graph: HoneyGraph
+	readonly graph: HttpGraph
 	/** `.input()`: the schemas as written (for documentation) and the step they compile to */
 	readonly input: {
 		/** The schemas as written, kept for documentation. */ readonly schemas: InputSchemas
@@ -212,8 +212,8 @@ export class RouteBuilder<B extends BuilderTypes> {
 
 	/**
 	 * Declare error keys this route may throw, built from `factory` instead of the app's.
-	 * With any key declared, `ctx.errors` holds only declared keys, and a thrown `HoneyError` with another key
-	 * (honey's own keys excepted) answers as the boundary error, or a 500.
+	 * With any key declared, `ctx.errors` holds only declared keys, and a thrown `HttpError` with another key
+	 * (backend's own keys excepted) answers as the boundary error, or a 500.
 	 */
 	errors<
 		TFactory extends Record<string, (...args: never[]) => unknown>,
@@ -221,8 +221,8 @@ export class RouteBuilder<B extends BuilderTypes> {
 	>(factory: TFactory, ...keys: TKeys[]): BuilderChain<Next<B, NamedErrors<B, TFactory, TKeys>>>
 	/**
 	 * Declare keys of the app's error factory that this route may throw.
-	 * With any key declared, `ctx.errors` holds only declared keys, and a thrown `HoneyError` with another key
-	 * (honey's own keys excepted) answers as the boundary error, or a 500.
+	 * With any key declared, `ctx.errors` holds only declared keys, and a thrown `HttpError` with another key
+	 * (backend's own keys excepted) answers as the boundary error, or a 500.
 	 */
 	errors<TKeys extends DeclarableKey<B>>(
 		...keys: TKeys[]
@@ -257,7 +257,7 @@ export class RouteBuilder<B extends BuilderTypes> {
 	}
 
 	/** Set the route's meta, merged over the chain's. A repeated `invalidate` entry is removed. */
-	meta<TRouteMeta extends HoneyMeta<[B["meta"]] extends [never] ? {} : ChainSupplied<B["meta"]>>>(
+	meta<TRouteMeta extends HttpMeta<[B["meta"]] extends [never] ? {} : ChainSupplied<B["meta"]>>>(
 		meta: TRouteMeta,
 	): BuilderChain<
 		Next<
@@ -294,7 +294,7 @@ export class RouteBuilder<B extends BuilderTypes> {
 
 	/**
 	 * Declare what the route answers: ctx.res narrows to it, and each answer is checked against it unless a Vite
-	 * production build through `honeyPlugin()` dropped the check. A media type takes its 2xx bodies, `redirect` the 3xx
+	 * production build through `backendPlugin()` dropped the check. A media type takes its 2xx bodies, `redirect` the 3xx
 	 * statuses and `headers` those of a 2xx or 3xx; an error answer is declared with `.errors()`, and a key the route
 	 * cannot answer is refused with a message naming it. Status keys alone
 	 * (`{ ok: schema }`) declare JSON. With one 2xx status under one media type the handler may return the body.
@@ -356,7 +356,7 @@ export class RouteBuilder<B extends BuilderTypes> {
 
 /** The builder for `method` (and `extraMethods`) at `path` under `view`'s basePath, pending until `.handler()`. */
 export function startRoute(
-	graph: HoneyGraph,
+	graph: HttpGraph,
 	view: HandleView,
 	parent: unknown,
 	route: { readonly extraMethods: readonly string[]; readonly method: string; readonly path: string },

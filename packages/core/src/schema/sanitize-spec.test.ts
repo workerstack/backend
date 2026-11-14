@@ -61,7 +61,7 @@ describe("securityNamed: the schemes a document's requirements name (plan 39 7.4
 describe("sanitizeOpenApiSpec: operation extensions", () => {
 	// v0: fe9a9c69f1
 	// v0: cd67ad4f4f
-	it("drops every x- key of an operation honey does not read, or only the ones named", () => {
+	it("drops every x- key of an operation backend does not read, or only the ones named", () => {
 		const operation = { operationId: "a", "x-admin": true, "x-internal": true, "x-invalidate": ["b"] }
 		expect([
 			sanitizeOpenApiSpec(spec(operation), { stripXExtensions: true }).paths["/a"]?.get,
@@ -72,12 +72,12 @@ describe("sanitizeOpenApiSpec: operation extensions", () => {
 		])
 	})
 
-	it("keeps the keys honey and its generators read: on operations, responses, parameters and schemas", () => {
+	it("keeps the keys backend and its generators read: on operations, responses, parameters and schemas", () => {
 		const operation = {
-			parameters: [{ in: "path", name: "rest", schema: { type: "string" }, "x-honey-wildcard": true }],
-			responses: { "409": { description: "taken", "x-honey-error": true } },
-			"x-honey-errors": { taken: { status: 409 } },
-			"x-honey-route": "GET /a",
+			parameters: [{ in: "path", name: "rest", schema: { type: "string" }, "x-backend-wildcard": true }],
+			responses: { "409": { description: "taken", "x-backend-error": true } },
+			"x-backend-errors": { taken: { status: 409 } },
+			"x-backend-route": "GET /a",
 			"x-mcp": true,
 		}
 		const file = { properties: { data: { type: "string" } }, type: "object", "x-mcp-file": {} }
@@ -89,7 +89,7 @@ describe("sanitizeOpenApiSpec: operation extensions", () => {
 })
 
 describe("sanitizeOpenApiSpec: extensions inside schemas", () => {
-	it("drops the x- keys honey does not read inside every schema, and never a property or header named x-", () => {
+	it("drops the x- keys backend does not read inside every schema, and never a property or header named x-", () => {
 		const consumer = { type: "string", "x-comb-text": "t" }
 		const body = {
 			additionalProperties: false,
@@ -142,14 +142,14 @@ describe("sanitizeOpenApiSpec: extensions inside schemas", () => {
 	})
 })
 
-/** Every x- key honey's generators read off a document. */
+/** Every x- key backend's generators read off a document. */
 const GENERATORS_READ = [
 	"x-deprecated",
-	"x-honey-error",
-	"x-honey-errors",
-	"x-honey-route",
-	"x-honey-webhook",
-	"x-honey-wildcard",
+	"x-backend-error",
+	"x-backend-errors",
+	"x-backend-route",
+	"x-backend-webhook",
+	"x-backend-wildcard",
 	"x-idempotency-key",
 	"x-invalidate",
 	"x-mcp",
@@ -158,8 +158,8 @@ const GENERATORS_READ = [
 	"x-websocket",
 ]
 
-describe("sanitizeOpenApiSpec: what honey's generators read", () => {
-	it("keeps every x- key honey's generators read off an operation, a response, a parameter or a schema", () => {
+describe("sanitizeOpenApiSpec: what backend's generators read", () => {
+	it("keeps every x- key backend's generators read off an operation, a response, a parameter or a schema", () => {
 		/* the keys @workerstack/clients reads (its src/ir/slots.ts and src/emit/mcp/files.ts), copied word for word in
 		 * its tests/integration/x-keys.test.ts, which fails when it reads one this list does not name: change both */
 		const read = new Set(GENERATORS_READ)

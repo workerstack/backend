@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware, namedMiddleware, type NextFn } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { generateManifest, type ManifestRoute } from "./manifest.ts"
 
 /** Health, one organization, and creating one. */
 function organizations() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/health").handler((c) => c.res.text("ok", "ok"))
 	app.get("/v1/organizations/:orgId").handler((c) => c.res.json("ok", {}))
 	app
@@ -21,7 +21,7 @@ function organizations() {
 const find = (routes: readonly ManifestRoute[], method: string, path: string) =>
 	routes.find((r) => r.method === method && r.path === path)
 
-describe("generateManifest: one entry per route, by method and honey pattern", () => {
+describe("generateManifest: one entry per route, by method and backend pattern", () => {
 	// v0: c0233a6aa4
 	// v0: e123e01a3e
 	// v0: c1eda29526
@@ -43,7 +43,7 @@ describe("generateManifest: one entry per route, by method and honey pattern", (
 	// v0: 380b8cbc40
 	// v0: 22b777db17
 	it("keeps a wildcard's pattern, names an optional param without ?, and lists every method of one path", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/files/*path").handler((c) => c.res.text("ok", "f"))
 		app.get("/items/:id?").handler((c) => c.res.text("ok", "i"))
 		for (const method of ["get", "post", "put", "patch", "delete", "options", "head"] as const)
@@ -106,7 +106,7 @@ describe("generateManifest: a route's meta", () => {
 	// v0: ab8fc55fcf
 	// v0: 3634311714
 	it("keeps every meta key as written, invalidate included, its selectors once each, and {} for none", () => {
-		const app = honey<{}>().metaType<{ auth?: string; rateLimit?: string }>()
+		const app = httpApp<{}>().metaType<{ auth?: string; rateLimit?: string }>()
 		app.get("/v1/users").handler((c) => c.res.text("ok", "ok"))
 		app.get("/v1/users/:id").handler((c) => c.res.text("ok", "ok"))
 		app
@@ -147,7 +147,7 @@ describe("generateManifest: errors", () => {
 	// v0: 6fa210cc8c
 	it("lists each route's keys, and every key once across routes with the status its factory gives it", () => {
 		const errors = defineErrors({ custom_err: "conflict", not_found: "not_found", other_err: "forbidden" })
-		const app = honey<{}>().metaType<{ auth?: boolean }>().errorFactory(errors)
+		const app = httpApp<{}>().metaType<{ auth?: boolean }>().errorFactory(errors)
 		app
 			.get("/items/:id")
 			.errors("not_found")
@@ -177,12 +177,12 @@ describe("generateManifest: errors", () => {
 	// v0: 068d758463
 	it("reads a key's status off its factory's ERROR_META, never by calling it, else its suffix, else unknown at 0", () => {
 		const throwing = {
-			broken_error: (): HoneyError => {
+			broken_error: (): HttpError => {
 				throw new Error("factory called")
 			},
 		}
-		const plain = { custom_error: () => new HoneyError({ errorKey: "custom_error", status: "bad_request" }) }
-		const app = honey<{}>()
+		const plain = { custom_error: () => new HttpError({ errorKey: "custom_error", status: "bad_request" }) }
+		const app = httpApp<{}>()
 		app
 			.get("/broken")
 			.errors(throwing, "broken_error")
@@ -209,7 +209,7 @@ describe("generateManifest: the middleware a route runs", () => {
 	it("names each middleware a route runs, an anonymous one as anonymous", () => {
 		const auth = createMiddleware(async (_c, next) => next())
 		Object.defineProperty(auth, "name", { value: "authMiddleware" })
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/test")
 			.use(auth)
@@ -229,13 +229,13 @@ describe("generateManifest: the middleware a route runs", () => {
 			},
 		)
 		const seen: { errorKeys: string[]; meta: unknown }[] = []
-		const sub = honey<{}>().errorFactory(errors).defaultErrors("gone")
+		const sub = httpApp<{}>().errorFactory(errors).defaultErrors("gone")
 		sub.use("/s", scoped)
 		sub.get("/s/x").handler((c) => {
 			seen.push({ errorKeys: Object.keys(c.errors).sort(), meta: c.meta })
 			return c.res.text("ok", "x")
 		})
-		const app = honey<{}>().route(sub)
+		const app = httpApp<{}>().route(sub)
 		await app.fetch(new Request("http://x/s/x"), {})
 		const [route] = generateManifest(app).routes
 		expect([route?.errors, route?.meta, route?.middleware]).toEqual([seen[0]?.errorKeys, { area: "s" }, ["area"]])
@@ -246,7 +246,7 @@ describe("generateManifest: the middleware a route runs", () => {
 describe("generateManifest: what a served manifest publishes", () => {
 	// v0: 2eaa86f90a
 	it("leaves internal routes and every meta key the document would not show out of the published manifest", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.metaSpec({ meta: { captcha: false, team: "x-team" } } as never)
 		app
 			.get("/public")

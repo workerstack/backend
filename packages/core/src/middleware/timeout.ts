@@ -4,8 +4,8 @@
  * instead of running on after the 504. Work that ignores the signal still runs; its answer is
  * dropped. An answer or an error in time goes through untouched.
  */
-import { ABORT_CONTEXT, type HoneyContext } from "../context/context.ts"
-import { HoneyError } from "../errors/error.ts"
+import { ABORT_CONTEXT, type HttpContext } from "../context/context.ts"
+import { HttpError } from "../errors/error.ts"
 import { type MiddlewareFn, namedMiddleware } from "./middleware.ts"
 
 /** Options for `timeout`: the time limit for the rest of the chain. */
@@ -27,8 +27,8 @@ export function timeout(options: TimeoutOptions): MiddlewareFn<{}, {}, "request_
 	const mw: MiddlewareFn<{}, {}, "request_timeout"> = (ctx, next) =>
 		new Promise<Response>((resolve, reject) => {
 			const timer = setTimeout(() => {
-				reject(new HoneyError({ errorKey: "request_timeout", status: "gateway_timeout" }))
-				;(ctx as HoneyContext)[ABORT_CONTEXT](new DOMException("request timed out", "TimeoutError"))
+				reject(new HttpError({ errorKey: "request_timeout", status: "gateway_timeout" }))
+				;(ctx as HttpContext)[ABORT_CONTEXT](new DOMException("request timed out", "TimeoutError"))
 			}, duration)
 			/* next() never rejects: the boundary turns a throw below into its answer. Whichever comes
 			 * first answers; a late answer is dropped, since the promise has settled */

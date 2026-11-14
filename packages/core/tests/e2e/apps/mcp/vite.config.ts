@@ -1,4 +1,4 @@
-import { honeyPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin"
 
 /* Acme's public scheme: an API key in Authorization, its prefix in the description */
 const apiKey = {
@@ -10,11 +10,11 @@ const apiKey = {
 
 export default {
 	plugins: [
-		honeyPlugin({
+		backendPlugin({
 			app: "src/gen-app.ts",
 			codegen: {
 				mcp: true,
-				openApi: { title: "Honey MCP", version: "1.0.0" },
+				openApi: { title: "Backend MCP", version: "1.0.0" },
 				securitySchemes: { apiKey },
 				tree: true,
 			},

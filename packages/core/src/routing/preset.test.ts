@@ -1,6 +1,6 @@
 /**
  * A preset (plan 39 7.1): the settings and chain middleware an app starts from, written once with the app's own
- * setters. `honey(preset)` is the app the same chain on `honey()` builds, types included, and each app it starts owns
+ * setters. `httpApp(preset)` is the app the same chain on `httpApp()` builds, types included, and each app it starts owns
  * its copy: a setter on one app, or on the preset later, changes no other.
  */
 import { describe, expect, expectTypeOf, it } from "vitest"
@@ -9,7 +9,7 @@ import { createErrorTranslator } from "../i18n/error-i18n.ts"
 import { requestId } from "../middleware/request-id.ts"
 import { generateOpenApi } from "../openapi/generate.ts"
 import { createLogger } from "../telemetry/logger.ts"
-import { honey } from "./app.ts"
+import { httpApp } from "./app.ts"
 import { definePreset } from "./preset.ts"
 
 type Env = { readonly REGION: string }
@@ -45,9 +45,9 @@ const presetFor = (logger: ReturnType<typeof createLogger>) =>
 		.requestLog(true)
 		.use(requestId({ generate: () => "req-1" }))
 
-/** The same settings chained on `honey()` by hand. */
+/** The same settings chained on `httpApp()` by hand. */
 const chainedFor = (logger: ReturnType<typeof createLogger>) =>
-	honey<Env>()
+	httpApp<Env>()
 		.metaType<RouteMeta>()
 		.metaSpec({ meta: { team: "x-team", worker: "x-worker" } })
 		.logger(logger)
@@ -82,13 +82,13 @@ async function observed(app: ReturnType<typeof served>, lines: Record<string, un
 	}
 }
 
-describe("honey(preset)", () => {
-	it("is the app the same chain on honey() builds: answers, log lines, document and types", async () => {
+describe("httpApp(preset)", () => {
+	it("is the app the same chain on httpApp() builds: answers, log lines, document and types", async () => {
 		const fromPreset = recording()
 		const byHand = recording()
-		const presetApp = served(honey(presetFor(fromPreset.logger)))
+		const presetApp = served(httpApp(presetFor(fromPreset.logger)))
 		const handApp = served(chainedFor(byHand.logger))
-		expectTypeOf(honey(presetFor(fromPreset.logger))).toEqualTypeOf(chainedFor(byHand.logger))
+		expectTypeOf(httpApp(presetFor(fromPreset.logger))).toEqualTypeOf(chainedFor(byHand.logger))
 		const [a, b] = [await observed(presetApp, fromPreset.lines), await observed(handApp, byHand.lines)]
 		expect(a).toEqual(b)
 		expect([a.id, a.boom[0], a.boom[1], (a.boom[2] as { message?: string }).message, a.lines.length]).toEqual([
@@ -102,7 +102,7 @@ describe("honey(preset)", () => {
 
 	it("starts an app that owns its settings: a setter on one app, or on the preset after, changes no other", async () => {
 		const preset = definePreset<{}>().errorFactory(errors).logger(false)
-		const [first, second] = [honey(preset), honey(preset)]
+		const [first, second] = [httpApp(preset), httpApp(preset)]
 		first.errorFormat("problem+json")
 		preset.errorFormat("problem+json")
 		for (const app of [first, second])
@@ -115,7 +115,7 @@ describe("honey(preset)", () => {
 		const [one, two, third] = [
 			await first.fetch(new Request("http://localhost/gone"), {}),
 			await second.fetch(new Request("http://localhost/gone"), {}),
-			await honey(preset)
+			await httpApp(preset)
 				.get("/x")
 				.handler((ctx) => ctx.res.text("ok", "x"))
 				.fetch(new Request("http://localhost/y"), {}),

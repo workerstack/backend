@@ -15,14 +15,14 @@ import { secureHeaders } from "../../src/middleware/secure-headers.ts"
 import { serverTiming } from "../../src/middleware/server-timing.ts"
 import { testClient } from "../../src/testing/testing.ts"
 import * as z from "zod"
-import { HoneyError } from "../../src/errors/error.ts"
+import { HttpError } from "../../src/errors/error.ts"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createErrorTranslator } from "../../src/i18n/error-i18n.ts"
 import { bodyLimit } from "../../src/input/body-limit.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
 import { etag } from "../../src/response/etag.ts"
 import { recorder } from "../../src/telemetry/__fixtures__/recording-tracer.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import { ws } from "../../src/ws/route.ts"
 
 type App = { fetch(request: Request, env: {}): Response | Promise<Response> }
@@ -34,7 +34,7 @@ function send(app: App, path: string, init?: RequestInit) {
 
 /** An app with the whole edge stack in front of a health route. */
 function edgeApp() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	const edged = app
 		.use(secureHeaders())
 		.use(cors({ origin: "http://allowed.com" }))
@@ -90,13 +90,13 @@ describe("the edge stack in process", () => {
 	})
 })
 
-const missing = () => new HoneyError({ errorKey: "not_found", status: "not_found" })
+const missing = () => new HttpError({ errorKey: "not_found", status: "not_found" })
 
 /** A list of items with create, read and delete, behind CORS, security headers and request ids. */
 function itemsApp() {
 	const items: { id: number; name: string }[] = []
 	const find = (id: string) => items.findIndex((item) => item.id === Number(id))
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	const edged = app
 		.use(cors({ origin: "*" }))
 		.use(secureHeaders())
@@ -168,7 +168,7 @@ describe("a redirect the handler builds, under the header middleware", () => {
 	// v0: 679adf64e2
 	// v0: 7b2670bde7
 	it("Response.redirect, returned or through res.raw(), keeps its location and gains every middleware's headers", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const stamped = app
 			.use(requestId({ trustInbound: true }))
 			.use(secureHeaders())
@@ -200,7 +200,7 @@ describe("ipRestrict in process", () => {
 	// v0: 3cd87b9b79
 	it("decides on the peer the platform reports: the list allows or refuses it, a forwarded claim changing nothing", async () => {
 		const guarded = (allowList: string[]) => {
-			const app = honey<{}>()
+			const app = httpApp<{}>()
 			app
 				.use(ipRestrict({ allowList }))
 				.get("/admin")
@@ -219,7 +219,7 @@ describe("ipRestrict in process", () => {
 describe("request ids in process", () => {
 	// v0: 0e6419f4a8
 	it("10 concurrent requests each get their own request id", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(requestId())
 			.get("/ping")
@@ -242,7 +242,7 @@ describe("request ids in process", () => {
 describe("context values and concurrency in process", () => {
 	// v0: 0c1527197c
 	it("app.context() values reach the handler", async () => {
-		const app = honey<{}>().context({ appName: "test-app", version: 42 })
+		const app = httpApp<{}>().context({ appName: "test-app", version: 42 })
 		app.get("/info").handler((ctx) => ctx.res.json("ok", { app: ctx.appName, v: ctx.version }))
 		const res = await send(app, "/info")
 		expect([res.status, await res.json()]).toEqual([200, { app: "test-app", v: 42 }])
@@ -251,7 +251,7 @@ describe("context values and concurrency in process", () => {
 	// v0: 8c6407be66
 	// v0: 99895f5e73
 	it("50 concurrent GETs and POSTs each get their own answer, CORS on every one", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const corsed = app.use(cors({ origin: "*" }))
 		corsed.get("/echo/:id").handler((ctx) => ctx.res.json("ok", { id: ctx.params.id, method: "GET" }))
 		corsed
@@ -286,7 +286,7 @@ describe("context values and concurrency in process", () => {
 describe("csrf in process", () => {
 	// v0: 2700653e0c
 	it("a same-origin form POST reaches the handler; a cross-site one is refused before it", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(csrf())
 			.post("/echo")
@@ -315,7 +315,7 @@ const HEADER_MIDDLEWARE = [
 describe("header middleware over answers it cannot edit in place", () => {
 	// v0: 5771b583ff
 	it.each(HEADER_MIDDLEWARE)("%s over Response.redirect() answers its 302 and location", async (_name, mw) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(mw as never)
 			.get("/go")
@@ -329,15 +329,15 @@ describe("header middleware over answers it cannot edit in place", () => {
 		const upgraded = new Response(null)
 		Object.defineProperty(upgraded, "status", { value: 101 })
 		const socket = { close() {}, raw: null, readyState: 1 as const, send() {} }
-		const app = honey<{}>().wsAdapter({ upgrade: () => ({ response: upgraded, socket }) })
+		const app = httpApp<{}>().wsAdapter({ upgrade: () => ({ response: upgraded, socket }) })
 		ws(app.use(mw as never), "/live").handler({})
 		const headers = { connection: "Upgrade", origin: "http://app.test", upgrade: "websocket" }
 		expect(await app.fetch(new Request("http://localhost/live", { headers }), {})).toBe(upgraded)
 	})
 
 	// v0: f411af65ff
-	it("all of them over an answer built outside honey, whose headers are immutable, add every header", async () => {
-		const app = honey<{}>()
+	it("all of them over an answer built outside backend, whose headers are immutable, add every header", async () => {
+		const app = httpApp<{}>()
 		app
 			.use(requestId())
 			.use(poweredBy())
@@ -355,7 +355,7 @@ describe("header middleware over answers it cannot edit in place", () => {
 			res.headers.get("x-content-type-options"),
 			res.headers.get("server-timing")?.includes("total;dur="),
 			res.headers.get("access-control-allow-origin"),
-		]).toEqual([200, "from upstream", true, "Honey", "nosniff", true, "http://app.test"])
+		]).toEqual([200, "from upstream", true, "Backend", "nosniff", true, "http://app.test"])
 	})
 })
 
@@ -365,11 +365,11 @@ function productionApp() {
 	const { spans, telemetry } = recorder()
 	const auth = createMiddleware((ctx, next) => {
 		if ((ctx as { req: Request }).req.headers.get("authorization") === null) {
-			throw new HoneyError({ errorKey: "unauthorized", status: "unauthorized" })
+			throw new HttpError({ errorKey: "unauthorized", status: "unauthorized" })
 		}
 		return next({ userId: "u-1" })
 	})
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 		.logger(false)
 		.errorFactory(errors)
 		.defaultErrors("rate_limited")
@@ -379,7 +379,7 @@ function productionApp() {
 		)
 		/* the auth middleware's refusal is no route's declared error: the app answers it as it is */
 		.onError((error, ctx) =>
-			error instanceof HoneyError && error.errorKey === "unauthorized" ? ctx.jsonFromError(error) : undefined,
+			error instanceof HttpError && error.errorKey === "unauthorized" ? ctx.jsonFromError(error) : undefined,
 		)
 	const api = app
 		.use(cors({ credentials: true, origin: "http://app.com" }))

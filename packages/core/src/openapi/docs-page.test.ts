@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { inlineJson } from "./docs-page.ts"
 import { scalar } from "./scalar.ts"
 import { swagger } from "./swagger.ts"
@@ -11,7 +11,7 @@ const PAGES = [
 
 /** The page `handler` answers at /docs, and a second answer to check it is fresh. */
 async function served(handler: unknown): Promise<[Response, Response]> {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/docs").handler(handler as never)
 	const get = () => app.fetch(new Request("http://x/docs"), {})
 	return [await get(), await get()]

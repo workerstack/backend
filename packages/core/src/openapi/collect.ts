@@ -7,7 +7,7 @@ import { ERROR_META, type ErrorMetaEntry } from "../errors/errors.ts"
 import type { InputSchemas } from "../input/input.ts"
 import { type StatusKey, statusKeyToCode } from "../response/status.ts"
 import { compareCodeUnits } from "../schema/canonicalize.ts"
-import { chainErrorMeta, type HoneyGraph } from "../routing/register.ts"
+import { chainErrorMeta, type HttpGraph } from "../routing/register.ts"
 import { GRAPH } from "../routing/app.ts"
 import { finalTable } from "../routing/dispatch.ts"
 import type { Plan } from "../routing/finalize.ts"
@@ -35,7 +35,7 @@ export type CollectedWsRoute = {
 	readonly params: readonly string[]
 	/** the OpenAPI path template: `/chat/{room}` */
 	readonly path: string
-	/** the honey pattern: `/chat/:room` */
+	/** the backend pattern: `/chat/:room` */
 	readonly pattern: string
 }
 
@@ -121,7 +121,7 @@ function resolved(plan: Plan | undefined, entry: RouteEntry | undefined) {
  * A route's pattern and declarations: its record's, else its loaded tree entry's. Its output holds no key the types
  * refuse (assertOutputKeys): every document, manifest and generated type reads routes from here.
  */
-function declarations(g: HoneyGraph, id: string) {
+function declarations(g: HttpGraph, id: string) {
 	const record = g.records.get(id)
 	const entry = g.loaded?.[id]
 	const output = record?.out ?? entry?.out ?? null
@@ -134,7 +134,7 @@ function declarations(g: HoneyGraph, id: string) {
 }
 
 /** Every route `app` serves: in registration order, or a loaded tree's order. */
-export function collectRoutes(app: { readonly [GRAPH]: HoneyGraph }): CollectedRoutes {
+export function collectRoutes(app: { readonly [GRAPH]: HttpGraph }): CollectedRoutes {
 	const g = app[GRAPH]
 	const { plans } = finalTable(g)
 	const http: CollectedRoute[] = []

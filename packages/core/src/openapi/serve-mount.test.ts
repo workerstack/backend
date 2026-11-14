@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { cors } from "../middleware/cors.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { scalar } from "./scalar.ts"
 import { serveManifest, serveOpenApi } from "./serve.ts"
 import { swagger } from "./swagger.ts"
@@ -19,7 +19,7 @@ const preflight = (path: string) =>
 
 /** Health and the users routes. */
 function users() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/health").handler((c) => c.res.text("ok", "ok"))
 	app.get("/users").handler((c) => c.res.json("ok", []))
 	app.get("/users/:id").handler((c) => c.res.json("ok", {}))
@@ -50,7 +50,7 @@ describe("serveOpenApi: mounting", () => {
 	// v0: a995ac2b2d
 	it("is never shadowed by a root /:slug or /*rest route", async () => {
 		for (const pattern of ["/:slug", "/*rest"]) {
-			const app = honey<{}>()
+			const app = httpApp<{}>()
 			app.get(pattern).handler((c) => c.res.text("ok", "user"))
 			serveOpenApi(app, { docs: { "/docs": scalar }, title: "T", version: "1" })
 			expect([
@@ -68,23 +68,23 @@ describe("serveOpenApi: a taken path", () => {
 	// v0: 744ccc2c54
 	// v0: 6fd89b27e9
 	it("refuses a path a route already owns, in either order, and then mounts nothing of that call", async () => {
-		const owned = honey<{}>()
+		const owned = httpApp<{}>()
 		owned.get("/openapi.json").handler((c) => c.res.text("ok", "mine"))
-		const all = honey<{}>()
+		const all = httpApp<{}>()
 		all.all("/openapi.yaml").handler((c) => c.res.text("ok", "mine"))
 		const twice = serveOpenApi(users(), { docs: { "/docs": scalar }, title: "First", version: "1" })
-		const docs = honey<{}>()
+		const docs = httpApp<{}>()
 		docs.get("/docs").handler((c) => c.res.text("ok", "user-docs"))
 		const refused: [() => unknown, string][] = [
 			[serving(owned), "Duplicate route: GET /openapi.json"],
 			[serving(twice), "Duplicate route: GET /openapi.json"],
 			[serving(twice, { docs: { "/docs": scalar }, path: "/other" }), "Duplicate route: GET /docs"],
 			[serving(docs, { docs: { "/docs": scalar } }), "Duplicate route: GET /docs"],
-			[serving(honey<{}>(), { docs: { "/openapi.yml": scalar } }), "Duplicate route: GET /openapi.yml"],
-			[serving(honey<{}>(), { docs: { "/:page": scalar } }), "cannot serve at /:page: a served path is fixed"],
+			[serving(httpApp<{}>(), { docs: { "/openapi.yml": scalar } }), "Duplicate route: GET /openapi.yml"],
+			[serving(httpApp<{}>(), { docs: { "/:page": scalar } }), "cannot serve at /:page: a served path is fixed"],
 			[
 				() =>
-					(serving(honey<{}>())() as App & { get(path: string): { handler(fn: unknown): unknown } })
+					(serving(httpApp<{}>())() as App & { get(path: string): { handler(fn: unknown): unknown } })
 						.get("/openapi.json")
 						.handler(() => null),
 				"Duplicate route: GET /openapi.json",
@@ -104,7 +104,7 @@ describe("serveOpenApi: one document per call", () => {
 	// v0: 024cb0334e
 	// v0: e850ba3c5f
 	it("serves each call's own document, profile and cache, its YAML and its docs page pointing at it", async () => {
-		const app = honey<{}>().metaType<{ tenant?: string }>()
+		const app = httpApp<{}>().metaType<{ tenant?: string }>()
 		app.metaSpec({ meta: { tenant: "x-secret" }, profiles: { public: { exclude: ["x-secret"] } } })
 		app
 			.get("/a")
@@ -132,7 +132,7 @@ describe("serveOpenApi: one document per call", () => {
 	// v0: 5b651bbe77
 	// v0: c0a77667df
 	it("runs the handle's middleware, so a CORS preflight on the document and docs page answers 204", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		serveOpenApi(app.use(cors({ origin: "*" })), { docs: { "/docs": scalar }, title: "T", version: "1" })
 		const statuses = await Promise.all(
 			["/openapi.json", "/docs"].map(async (p) => (await app.fetch(preflight(p), {})).status),

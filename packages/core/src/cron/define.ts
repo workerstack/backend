@@ -3,7 +3,7 @@
  * `./cron/serve` runs it. An expression is five fields in UTC, in the subset every runtime reads the
  * same way; see `defineCron` for what is refused.
  */
-import { createLogger, type Logger } from "../telemetry/logger.ts"
+import { createLogger, type BackendLogger } from "../telemetry/logger.ts"
 import { type CronFields, parseCron } from "./expression.ts"
 
 /** What a job receives for one run. */
@@ -11,7 +11,7 @@ export type CronJob<Env> = {
 	/** The environment the runtime handed over. */
 	env: Env
 	/** The definition's logger, bound to this job and schedule. */
-	log: Logger
+	log: BackendLogger
 	/** The expression that fired. */
 	schedule: string
 	/** The minute this run belongs to, not the moment it started. */
@@ -25,8 +25,8 @@ export type CronHandler<Env> = (job: CronJob<Env>) => Promise<void>
 
 /** What `defineCron` takes. */
 export type CronConfig<Env> = {
-	/** Where jobs log; default honey's logger. */
-	logger?: Logger
+	/** Where jobs log; default backend's logger. */
+	logger?: BackendLogger
 	/** The jobs to run, by expression and then by name. */
 	schedules: Readonly<Record<string, Readonly<Record<string, CronHandler<Env>>>>>
 }
@@ -44,7 +44,7 @@ export type CronSchedule<Env> = {
 /** A checked definition, ready for `workersCron` or `serveCron`. */
 export type CronDefinition<Env> = {
 	/** Where jobs log. */
-	readonly logger: Logger
+	readonly logger: BackendLogger
 	/** Every expression with its jobs. */
 	readonly schedules: readonly CronSchedule<Env>[]
 }

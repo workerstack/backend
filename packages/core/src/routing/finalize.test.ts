@@ -3,13 +3,13 @@
  * mounted, never by which handle serves the request.
  */
 import { describe, expect, it } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { GRAPH, type Honey, honey } from "./app.ts"
+import { GRAPH, type HttpApp, httpApp } from "./app.ts"
 import { finalTable } from "./dispatch.ts"
 
-type App = Honey<{}>
+type App = HttpApp<{}>
 const req = (path: string, init?: RequestInit) => new Request(`http://localhost${path}`, init)
 const deny = createMiddleware(async () => new Response("denied", { status: 401 }))
 const planOf = (app: App, id: string) => finalTable(app[GRAPH]).plans.get(id)
@@ -31,33 +31,33 @@ type Built = { derived: App; root: App }
  */
 const shapes: Record<string, (trace: string[]) => Built> = {
 	"mounted sub": (trace) => {
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.use("/s", tracer(trace, "S"))
 		sub
 			.get("/s/x")
 			.use(tracer(trace, "R"))
 			.handler((ctx) => ctx.res.text("ok", "x"))
-		const root = honey<{}>() as App
+		const root = httpApp<{}>() as App
 		const withA = root.use(tracer(trace, "A"))
 		withA.route(sub)
 		return { derived: withA as unknown as App, root }
 	},
 	"nested mount": (trace) => {
-		const leaf = honey<{}>()
+		const leaf = httpApp<{}>()
 		leaf
 			.get("/s/x")
 			.use(tracer(trace, "R"))
 			.handler((ctx) => ctx.res.text("ok", "x"))
-		const mid = honey<{}>()
+		const mid = httpApp<{}>()
 		mid.use("/s", tracer(trace, "S"))
 		mid.route(leaf)
-		const root = honey<{}>() as App
+		const root = httpApp<{}>() as App
 		const withA = root.use(tracer(trace, "A"))
 		withA.route(mid)
 		return { derived: withA as unknown as App, root }
 	},
 	"own route": (trace) => {
-		const root = honey<{}>() as App
+		const root = httpApp<{}>() as App
 		root.use("/s", tracer(trace, "S"))
 		root
 			.use(tracer(trace, "A"))
@@ -97,10 +97,10 @@ describe("one ordered chain: chain → scoped → route, wherever the route came
 describe("what a route runs does not depend on the serving handle", () => {
 	// v0: 820f1ff057
 	it("H10: serving the sub first does not leak its chain into the parent (or back)", async () => {
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.get("/data").handler((ctx) => ctx.res.text("ok", "data"))
 		expect((await sub.fetch(req("/data"), {})).status).toBe(200)
-		const parent = honey<{}>().use(deny).route(sub)
+		const parent = httpApp<{}>().use(deny).route(sub)
 		expect((await parent.fetch(req("/data"), {})).status).toBe(401)
 		expect((await sub.fetch(req("/data"), {})).status).toBe(200)
 	})
@@ -108,10 +108,10 @@ describe("what a route runs does not depend on the serving handle", () => {
 	// v0: a14d999e54
 	// v0: 2703ec4026
 	it("H11: routes mounted on a chain run the chain, like routes registered on it", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const authed = app.use(deny)
 		authed.get("/me").handler((ctx) => ctx.res.text("ok", "me"))
-		const admin = honey<{}>()
+		const admin = httpApp<{}>()
 		admin.get("/admin/users").handler((ctx) => ctx.res.text("ok", "users"))
 		authed.route(admin)
 		expect((await app.fetch(req("/me"), {})).status).toBe(401)
@@ -121,7 +121,7 @@ describe("what a route runs does not depend on the serving handle", () => {
 
 	// v0: d01db977f4
 	it("H13: chain middleware runs before scoped middleware on mounted routes", async () => {
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		const requireAdmin = createMiddleware(async (ctx, next) => {
 			if (!(ctx as { user?: { admin: boolean } }).user?.admin) return new Response("no user", { status: 403 })
 			return next()
@@ -130,7 +130,7 @@ describe("what a route runs does not depend on the serving handle", () => {
 		sub.get("/admin/x").handler((ctx) => ctx.res.text("ok", "x"))
 		const auth = createMiddleware(async (_ctx, next) => next({ user: { admin: true } }))
 		/* v0's types reject mounting a sub whose ctx lacks the mounting chain's additions (v0 never typechecked its runtime tests) */
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(auth)
 			.route(sub as never)
 		expect((await app.fetch(req("/admin/x"), {})).status).toBe(200)
@@ -139,7 +139,7 @@ describe("what a route runs does not depend on the serving handle", () => {
 	// v0: d97e94f78d
 	it("H15: a route registered before a later use() runs its chain once and not the later middleware", async () => {
 		const trace: string[] = []
-		const withA = honey<{}>().use(tracer(trace, "a"))
+		const withA = httpApp<{}>().use(tracer(trace, "a"))
 		withA.get("/public").handler((ctx) => ctx.res.text("ok", "p"))
 		const withB = withA.use(tracer(trace, "b"))
 		withB.get("/private").handler((ctx) => ctx.res.text("ok", "x"))
@@ -154,7 +154,7 @@ describe("what a route runs does not depend on the serving handle", () => {
 describe("scopes guard request paths, in the route grammar", () => {
 	// v0: dc49c78613
 	it("a scope covers a root wildcard route for paths inside it, not outside", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use("/admin", deny)
 		app.all("/*").handler((ctx) => ctx.res.text("ok", "spa"))
 		expect((await app.fetch(req("/admin/secret"), {})).status).toBe(401)
@@ -165,7 +165,7 @@ describe("scopes guard request paths, in the route grammar", () => {
 
 	// v0: 6ef51d3042
 	it("a scope covers a param route when the param lands on the scoped literal", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use("/admin", deny)
 		app.get("/:section/users").handler((ctx) => ctx.res.text("ok", ctx.params.section))
 		expect((await app.fetch(req("/admin/users"), {})).status).toBe(401)
@@ -176,7 +176,7 @@ describe("scopes guard request paths, in the route grammar", () => {
 
 	// v0: 56ad4e8c97
 	it("`/admin/*` scopes everything under /admin", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use("/admin/*", deny)
 		app.get("/admin").handler((ctx) => ctx.res.text("ok", "a"))
 		app.get("/admin/x/y").handler((ctx) => ctx.res.text("ok", "b"))
@@ -186,7 +186,7 @@ describe("scopes guard request paths, in the route grammar", () => {
 
 	// v0: a4d7e16dd6
 	it("`/orgs/:id` scopes `/orgs/:orgId/members` whatever the param is called", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use("/orgs/:id", deny)
 		app.get("/orgs/:orgId/members").handler((ctx) => ctx.res.text("ok", "m"))
 		expect((await app.fetch(req("/orgs/7/members"), {})).status).toBe(401)
@@ -194,13 +194,13 @@ describe("scopes guard request paths, in the route grammar", () => {
 
 	// v0: 8fe7c7a1a7
 	it("a scope string the grammar cannot express is rejected", () => {
-		expect(() => honey<{}>().use("/a/../b", deny)).toThrow(/Invalid route pattern/)
-		expect(() => honey<{}>().use("/*/x", deny)).toThrow(/Invalid route pattern/)
+		expect(() => httpApp<{}>().use("/a/../b", deny)).toThrow(/Invalid route pattern/)
+		expect(() => httpApp<{}>().use("/*/x", deny)).toThrow(/Invalid route pattern/)
 	})
 
 	// v0: f0eb899251
 	it("a scope registered after a route still guards it, from any handle", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const v1 = app.basePath("/v1")
 		v1.get("/admin/x").handler((ctx) => ctx.res.text("ok", "x"))
 		app.use("/v1/admin", deny)
@@ -208,7 +208,7 @@ describe("scopes guard request paths, in the route grammar", () => {
 	})
 })
 
-const forbidden = () => new HoneyError({ errorKey: "forbidden", status: "forbidden" })
+const forbidden = () => new HttpError({ errorKey: "forbidden", status: "forbidden" })
 
 describe("errors thrown inside the chain still pass through outer middleware", () => {
 	const stamp = createMiddleware(async (_ctx, next) => {
@@ -223,7 +223,7 @@ describe("errors thrown inside the chain still pass through outer middleware", (
 		const failing = createMiddleware(async () => {
 			throw forbidden()
 		})
-		const app = honey<{}>().use(stamp).use(failing)
+		const app = httpApp<{}>().use(stamp).use(failing)
 		app.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 		const res = await app.fetch(req("/x"), {})
 		expect(res.status).toBe(403)
@@ -237,7 +237,7 @@ describe("errors thrown inside the chain still pass through outer middleware", (
 			if ((ctx as { path: string }).path.startsWith("/locked")) throw forbidden()
 			return next()
 		})
-		const app = honey<{}>().use(stamp).use(failing)
+		const app = httpApp<{}>().use(stamp).use(failing)
 		app.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 		const res = await app.fetch(req("/locked/missing"), {})
 		expect(res.status).toBe(403)
@@ -258,7 +258,7 @@ describe("404, 405 and preflight run through the same pipeline", () => {
 			}
 			return next()
 		})
-		const app = honey<{}>().errorFactory(errors).use(auth)
+		const app = httpApp<{}>().errorFactory(errors).use(auth)
 		app.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 		expect((await app.fetch(req("/nope"), {})).status).toBe(401)
 		expect((await app.fetch(req("/x", { method: "POST" }), {})).status).toBe(401)
@@ -268,7 +268,7 @@ describe("404, 405 and preflight run through the same pipeline", () => {
 	// v0: 584faecc44
 	it("the app-wide chain runs exactly once on 404 and 405, whichever handle serves", async () => {
 		const trace: string[] = []
-		const root = honey<{}>()
+		const root = httpApp<{}>()
 		const app = root.use(tracer(trace, "log"))
 		app.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 		for (const handle of [root, app]) {
@@ -282,7 +282,7 @@ describe("404, 405 and preflight run through the same pipeline", () => {
 	// v0: 1fcfb7a44d
 	it("a preflight nothing answers runs the chain once and returns the 405", async () => {
 		const trace: string[] = []
-		const app = honey<{}>().use(tracer(trace, "a"))
+		const app = httpApp<{}>().use(tracer(trace, "a"))
 		app.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 		const res = await app.fetch(
 			req("/x", { headers: { "access-control-request-method": "GET" }, method: "OPTIONS" }),
@@ -299,7 +299,7 @@ describe("errors and meta come from the chain that runs", () => {
 	// v0: 8d2d900785
 	it("defaultErrors applies to routes registered before the call", () => {
 		const scopedGuard = createMiddleware(async (_c, next) => next(), { errors: [errors, "nope"] })
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app.get("/early").handler((ctx) => ctx.res.text("ok", "x"))
 		app.defaultErrors("gone")
 		app.use("/admin", scopedGuard)
@@ -314,7 +314,7 @@ describe("errors and meta come from the chain that runs", () => {
 	// v0: 43e2b5b027
 	it("mounted routes keep their own error factory and context values", async () => {
 		const subErrors = defineErrors({ sub_failed: "conflict" })
-		const sub = honey<{}>().errorFactory(subErrors).context({ tenant: "sub" })
+		const sub = httpApp<{}>().errorFactory(subErrors).context({ tenant: "sub" })
 		sub
 			.get("/sub")
 			.errors("sub_failed")
@@ -322,7 +322,7 @@ describe("errors and meta come from the chain that runs", () => {
 				if (ctx.tenant !== "sub") return ctx.res.text("ok", "wrong")
 				throw ctx.errors.sub_failed()
 			})
-		const app = honey<{}>().errorFactory(errors).route(sub)
+		const app = httpApp<{}>().errorFactory(errors).route(sub)
 		expect((await app.fetch(req("/sub"), {})).status).toBe(409)
 		expect(planOf(app as App, "GET /sub")?.policy.factory).toBe(subErrors)
 	})
@@ -333,12 +333,12 @@ describe("errors and meta come from the chain that runs", () => {
 	it("contributed meta merges in run order and explicit meta wins; mounted routes get it too", async () => {
 		const a = createMiddleware(async (_c, next) => next(), { meta: { owner: "chain", tier: 1 } })
 		const s = createMiddleware(async (_c, next) => next(), { meta: { tier: 2 } })
-		const sub = honey<{}>().metaType<{ owner: string }>()
+		const sub = httpApp<{}>().metaType<{ owner: string }>()
 		sub
 			.get("/s/x")
 			.meta({ owner: "route" })
 			.handler((ctx) => ctx.res.json("ok", { meta: ctx.meta }))
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use("/s", s)
 		app.use(a).route(sub)
 		const plan = planOf(app as App, "GET /s/x")
@@ -352,7 +352,7 @@ describe("errors and meta come from the chain that runs", () => {
 describe("finalize reports middleware and routes that would silently be missing", () => {
 	// v0: 2a10e94a81
 	it("app.use(mw) as a bare statement is an error, not an unprotected route", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use(deny)
 		app.get("/secret").handler((ctx) => ctx.res.text("ok", "secret"))
 		expect(() => app.fetch(req("/secret"), {})).toThrow(/returned a handle that never registers a route/)
@@ -360,7 +360,7 @@ describe("finalize reports middleware and routes that would silently be missing"
 
 	// v0: 83faeb8b0e
 	it("a route builder without .handler() is an error", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		app.get("/forgotten")
 		expect(() => app.fetch(req("/a"), {})).toThrow(/GET \/forgotten was declared but never got a \.handler\(\)/)
@@ -368,7 +368,7 @@ describe("finalize reports middleware and routes that would silently be missing"
 
 	// v0: 58ed2ebb98
 	it("a chain used only through a derived handle counts as used", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(deny)
 			.basePath("/v1")
@@ -382,7 +382,7 @@ describe("ctx.errors holds the declared keys the factory has", () => {
 	it("a declared key the factory lacks is left out of ctx.errors", async () => {
 		const errors = defineErrors({ gone: "gone" })
 		const foreign = createMiddleware((_c, next) => next(), { errors: [{ elsewhere: () => null }, "elsewhere"] })
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app
 			.get("/e")
 			.use(foreign)
@@ -394,7 +394,7 @@ describe("ctx.errors holds the declared keys the factory has", () => {
 
 describe("finalize compiles once per registration epoch", () => {
 	it("runs once, and again only when a registration moved the graph", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		const first = finalTable(app[GRAPH])
 		expect(finalTable(app[GRAPH])).toBe(first)
@@ -406,7 +406,7 @@ describe("finalize compiles once per registration epoch", () => {
 
 	// v0: d65278f417
 	it("keeps static patterns in a method → path map; an optional param places both paths", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/users/:id?").handler((ctx) => ctx.res.text("ok", "u"))
 		app.post("/users").handler((ctx) => ctx.res.text("ok", "u"))
 		app.get("/items/:id").handler((ctx) => ctx.res.text("ok", "i"))
@@ -426,9 +426,9 @@ describe("the statics table: literal routes without the tree", () => {
 	// v0: 1af0b5e4c6
 	// v0: 031efcf0eb
 	it("literal routes answer from the table, the rest from the tree, alike to every method", async () => {
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.get("/mounted").handler((ctx) => ctx.res.text("ok", "mounted"))
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/json").handler((ctx) => ctx.res.json("ok", { static: true }))
 		app.get("/a").handler((ctx) => ctx.res.text("ok", "a"))
 		app.post("/a").handler((ctx) => ctx.res.text("ok", "a-post"))

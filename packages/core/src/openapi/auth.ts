@@ -4,4 +4,4 @@
  * browser opens an internal document and its docs pages with one prompt. `credentialsMatch` compares a
  * pair in constant time.
  */
-export { type BasicAuthOptions, basic, type Credentials, credentialsMatch, type ServedAuth } from "./basic-auth.ts"
+export { type BasicAuthOptions, basic, type AuthCredentials, credentialsMatch, type ServedAuth } from "./basic-auth.ts"

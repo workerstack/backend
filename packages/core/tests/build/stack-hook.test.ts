@@ -1,7 +1,7 @@
 /**
  * No process of a Bun build replaces `Error.prepareStackTrace` (bit 20 k-fix's class, fixture/stack-hook-trap.ts says
  * why it reds a build). One real cold `vite build` of the defaults e2e app for Cloudflare, the command run-build.ts's
- * defaults×workers cell runs, with the trap preloaded into Vite and the honey generate child the plugin starts. Its
+ * defaults×workers cell runs, with the trap preloaded into Vite and the backend generate child the plugin starts. Its
  * TMPDIR (Node's compile cache, any jiti cache) and Bun's transpiler cache are new and empty; Vite writes the bundled
  * config anew per build under a unique name. Defaults is the smallest app whose build reaches both processes.
  *
@@ -27,7 +27,7 @@ const spec = defaultsCell()
 
 const versionOf = (bun: string) => spawnSync(bun, ["--version"], { encoding: "utf8" }).stdout?.trim() ?? ""
 
-/* each distinct Bun once: the pinned one (a skip without it, a failure under HONEY_REQUIRE_TOOLCHAINS), then PATH's */
+/* each distinct Bun once: the pinned one (a skip without it, a failure under BACKEND_REQUIRE_TOOLCHAINS), then PATH's */
 const buns = new Map<string, string>()
 for (const bun of [withPinnedBun(), "bun"]) {
 	const version = bun === undefined ? "" : versionOf(bun)
@@ -51,12 +51,12 @@ function coldBuild(bun: string, version: string) {
 		encoding: "utf8",
 		env: {
 			...process.env,
-			BUN_OPTIONS: `--conditions=honey-source --preload ${TRAP}`,
+			BUN_OPTIONS: `--conditions=backend-source --preload ${TRAP}`,
 			BUN_RUNTIME_TRANSPILER_CACHE_PATH: join(dir, "transpiler"),
-			HONEY_BUILD_TARGET: "workers",
-			HONEY_STACK_HOOK_LOG: log,
+			BACKEND_BUILD_TARGET: "workers",
+			BACKEND_STACK_HOOK_LOG: log,
 			NODE_ENV: "production",
-			NODE_OPTIONS: "--conditions=honey-source",
+			NODE_OPTIONS: "--conditions=backend-source",
 			TMPDIR: tmp,
 		},
 		timeout: 120_000,

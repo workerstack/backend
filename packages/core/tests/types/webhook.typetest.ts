@@ -1,7 +1,7 @@
 /** What a webhook contract lets a sender write, and what the document takes, at compile time. */
 import { expectTypeOf, test } from "vitest"
 import * as z from "zod"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import { generateOpenApi, type GenerateOpenApiOptions } from "../../src/openapi/generate.ts"
 import { webhookContract } from "../../src/security/webhook.ts"
 
@@ -30,7 +30,7 @@ test("sign takes a declared type's data as the document states it, and refuses a
 
 test("the document's webhooks are a contract, never a free-form record", () => {
 	expectTypeOf(events).toExtend<NonNullable<GenerateOpenApiOptions["webhooks"]>>()
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	generateOpenApi(app, { info: { title: "T", version: "1" }, webhooks: events })
 	// @ts-expect-error a record of bodies is not a contract
 	generateOpenApi(app, { info: { title: "T", version: "1" }, webhooks: { paid: { body: z.object({}) } } })

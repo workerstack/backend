@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { bodyLimit } from "../input/body-limit.ts"
 import { cors } from "../middleware/cors.ts"
 import { requestId } from "../middleware/request-id.ts"
 import { secureHeaders } from "../middleware/secure-headers.ts"
 import { serverTiming } from "../middleware/server-timing.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { etag, ifNoneMatchHits } from "./etag.ts"
 
 type App = { fetch(request: Request, env: {}): Response | Promise<Response> }
@@ -32,7 +32,7 @@ const named = (res: Response) =>
 const WEAK = /^W\/"[A-Za-z0-9_-]{22}"$/
 const STRONG = /^"[A-Za-z0-9_-]{22}"$/
 
-describe("etag: a body honey built gets a validator", () => {
+describe("etag: a body backend built gets a validator", () => {
 	// v0: 1bbd51da1b
 	// v0: 6cf5f4b509
 	// v0: 697841067d
@@ -41,7 +41,7 @@ describe("etag: a body honey built gets a validator", () => {
 	// v0: 616843dc3f
 	// v0: ac022fcb2b
 	it("a GET answered 200 gets a weak validator by default, a strong one with weak: false, its body intact", async () => {
-		const [weak, strong] = [honey<{}>().use(etag()), honey<{}>().use(etag({ weak: false }))]
+		const [weak, strong] = [httpApp<{}>().use(etag()), httpApp<{}>().use(etag({ weak: false }))]
 		for (const app of [weak, strong]) app.get("/data").handler((ctx) => ctx.res.json("ok", { total: 3 }))
 		const [w, s] = [await seen(weak.fetch(get("/data"), {})), await seen(strong.fetch(get("/data"), {}))]
 		expect([w[0], WEAK.test(w[1] ?? ""), w[2], s[0], STRONG.test(s[1] ?? ""), s[2]]).toEqual([
@@ -59,7 +59,7 @@ describe("etag: a body honey built gets a validator", () => {
 	// v0: 3874ad21f1
 	it("the same body gets the same validator, a different body a different one", async () => {
 		let version = 0
-		const app = honey<{}>().use(etag())
+		const app = httpApp<{}>().use(etag())
 		app.get("/stable").handler((ctx) => ctx.res.json("ok", { stable: true }))
 		app.get("/changing").handler((ctx) => ctx.res.json("ok", { v: ++version }))
 		const tag = async (path: string) => (await app.fetch(get(path), {})).headers.get("etag")
@@ -72,7 +72,7 @@ describe("etag: a body honey built gets a validator", () => {
 	// v0: cef0e89b3e
 	// v0: 9645e8daf6
 	it("bytes, a JSON null, an answer under bodyLimit and a foreign body of declared length all get one", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(bodyLimit({ maxSize: 50_000 }))
 			.use(etag())
 		app.get("/bin").handler((ctx) => ctx.res.binary("ok", new Uint8Array([1, 2, 3, 4, 5])))
@@ -93,7 +93,7 @@ describe("etag: what gets no validator", () => {
 	// v0: ddbbc08890
 	// v0: 70675800b8
 	it("a POST, and any status but 200, even with If-None-Match: *", async () => {
-		const app = honey<{}>().use(etag())
+		const app = httpApp<{}>().use(etag())
 		app.post("/items").handler((ctx) => ctx.res.json("created", { id: 1 }))
 		app.get("/created").handler((ctx) => ctx.res.json("created", { id: 1 }))
 		app.get("/redirect").handler((ctx) => ctx.res.raw(new Response(null, { headers: { location: "/" }, status: 302 })))
@@ -116,12 +116,12 @@ describe("etag: what gets no validator", () => {
 	// v0: ebd7d0529a
 	// v0: cb5d14a8eb
 	it("an error answer keeps its body and gets none", async () => {
-		const app = honey<{}>().logger(false).use(etag())
+		const app = httpApp<{}>().logger(false).use(etag())
 		app.get("/fail").handler(() => {
 			throw new Error("boom")
 		})
 		app.get("/forbidden").handler(() => {
-			throw new HoneyError({ errorKey: "forbidden", status: "forbidden" })
+			throw new HttpError({ errorKey: "forbidden", status: "forbidden" })
 		})
 		const answers = await Promise.all(["/missing", "/fail", "/forbidden"].map((path) => seen(app.fetch(get(path), {}))))
 		expect(answers.map(([status, tag, body]) => [status, tag, body.length > 0])).toEqual([
@@ -139,7 +139,7 @@ describe("etag: an answer with no bytes", () => {
 	// v0: 4dc7619b97
 	// v0: fea9249d24
 	it("an answer with no bytes: a 204, an empty text, a null body, a zero-length foreign body, each still readable", async () => {
-		const app = honey<{}>().use(etag())
+		const app = httpApp<{}>().use(etag())
 		app.get("/none").handler((ctx) => ctx.res.noContent())
 		app.get("/empty").handler((ctx) => ctx.res.text("ok", ""))
 		app.get("/null").handler((ctx) => ctx.res.raw(new Response(null, { status: 200 })))
@@ -165,7 +165,7 @@ describe("etag: a stream is never buffered", () => {
 	// v0: cbe2b801a4
 	// v0: e7181ccbd9
 	it("an endless event stream, a foreign stream and a chunked answer pass at once, with no validator", async () => {
-		const app = honey<{}>().use(etag())
+		const app = httpApp<{}>().use(etag())
 		app.get("/events").handler((ctx) =>
 			ctx.res.sse(async (stream) => {
 				for (;;) {
@@ -196,7 +196,7 @@ describe("etag: a stream is never buffered", () => {
 	// v0: 448426b1ab
 	// v0: 23beeac98c
 	it("a generated or written stream arrives whole", async () => {
-		const app = honey<{}>().use(etag())
+		const app = httpApp<{}>().use(etag())
 		app.get("/gen").handler((ctx) =>
 			ctx.res.generate(
 				(function* () {
@@ -227,7 +227,7 @@ describe("etag: If-None-Match", () => {
 	// v0: fd328851d9
 	// v0: 6822ed6be0
 	it("a matching tag is a 304 with no body, the tag and the answer's headers; another tag the full 200", async () => {
-		const app = honey<{}>().use(etag())
+		const app = httpApp<{}>().use(etag())
 		app.get("/data").handler((ctx) => ctx.res.json("ok", { total: 3 }, { headers: { "x-a": "1" } }))
 		const tag = (await app.fetch(get("/data"), {})).headers.get("etag") ?? ""
 		const hit = await app.fetch(get("/data", { "if-none-match": tag }), {})
@@ -248,7 +248,7 @@ describe("etag: If-None-Match", () => {
 	// v0: 3bd47c8f8f
 	// v0: 4f6605e1cf
 	it("compares weakly, reads a list, spaces and quoted commas, and * matches any answer", async () => {
-		const app = honey<{}>().use(etag({ weak: false }))
+		const app = httpApp<{}>().use(etag({ weak: false }))
 		app.get("/d").handler((ctx) => ctx.res.json("ok", { a: 1 }))
 		const tag = (await app.fetch(get("/d"), {})).headers.get("etag") ?? ""
 		const status = async (header: string) => (await app.fetch(get("/d", { "if-none-match": header }), {})).status
@@ -276,7 +276,7 @@ describe("etag: how tags match", () => {
 
 	// v0: 11ea33dd3e
 	it("a validator the handler set is never replaced and decides the 304", async () => {
-		const app = honey<{}>().use(etag())
+		const app = httpApp<{}>().use(etag())
 		app.get("/v").handler((ctx) => ctx.res.raw(new Response("body", { headers: { etag: '"v42"' } })))
 		const first = await seen(app.fetch(get("/v"), {}))
 		const second = await seen(app.fetch(get("/v", { "if-none-match": 'W/"v42"' }), {}))
@@ -293,7 +293,7 @@ describe("etag beside other middleware", () => {
 	// v0: f6283147e7
 	// v0: 4dc9c5373b
 	it("CORS outside etag reaches the 304 too, with Vary; secure headers stay; the Node bag is kept", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(cors({ origin: "http://app.com" }))
 			.use(etag())
 			.use(secureHeaders())
@@ -313,7 +313,7 @@ describe("etag beside other middleware", () => {
 	// v0: 081548c2f4
 	// v0: 730effe754
 	it("with CORS and bodyLimit: a POST reads and validates its body untagged, a GET is tagged and answers 304", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(cors({ origin: "*" }))
 			.use(bodyLimit({ maxSize: 50_000 }))
 			.use(etag())
@@ -351,7 +351,7 @@ describe("etag through the whole stack", () => {
 	// v0: 0671a18e4d
 	// v0: cc7ac8806e
 	it("cookies, a 1KB body and every other header survive; a matching tag answers 304 with an empty body", async () => {
-		const app = honey<{}>().use(secureHeaders()).use(requestId()).use(serverTiming()).use(etag())
+		const app = httpApp<{}>().use(secureHeaders()).use(requestId()).use(serverTiming()).use(etag())
 		const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: `item-${i}` }))
 		app.get("/health").handler((ctx) =>
 			ctx.res.json("ok", items, {
@@ -385,7 +385,7 @@ describe("etag through the whole stack", () => {
 	// v0: 1057ea273a
 	// v0: f523c319bb
 	it("HEAD gets the tag GET gets, and no body", async () => {
-		const app = honey<{}>().use(etag())
+		const app = httpApp<{}>().use(etag())
 		app.get("/data").handler((ctx) => ctx.res.json("ok", { items: [1, 2, 3] }))
 		const [got, head] = await Promise.all([send(app, "/data"), send(app, "/data", { method: "HEAD" })])
 		expect([

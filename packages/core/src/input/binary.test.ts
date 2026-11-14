@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { bodyLimit } from "./body-limit.ts"
 import { binaryInput } from "./binary.ts"
 
@@ -22,7 +22,7 @@ function counting(size: number): Uint8Array<ArrayBuffer> {
 
 /** An app whose /upload takes `types` as binary and answers the size, a checksum and the type it got. */
 function uploads(types: string | readonly string[]) {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app
 		.post("/upload")
 		.input({ binary: types as never })
@@ -104,12 +104,14 @@ describe(".input({ binary }): the declared media types", () => {
 
 describe(".input({ binary }): at registration", () => {
 	it("refuses a binary body on a route only GET or HEAD reach", () => {
-		expect(() => honey<{}>().get("/x").input({ binary: "image/png" })).toThrow(/GET \/x declares a binary body schema/)
+		expect(() => httpApp<{}>().get("/x").input({ binary: "image/png" })).toThrow(
+			/GET \/x declares a binary body schema/,
+		)
 	})
 
 	it("refuses binary beside json or form: a request carries one body", () => {
 		expect(() =>
-			honey<{}>()
+			httpApp<{}>()
 				.post("/x")
 				.input({ binary: "image/png", json: z.object({}) } as never),
 		).toThrow("POST /x declares more than one body (binary, json); a request carries one body.")
@@ -119,7 +121,7 @@ describe(".input({ binary }): at registration", () => {
 		"refuses %j as a declared type",
 		(type) => {
 			expect(() =>
-				honey<{}>()
+				httpApp<{}>()
 					.post("/x")
 					.input({ binary: type as never }),
 			).toThrow(/declares binary type/)
@@ -129,7 +131,7 @@ describe(".input({ binary }): at registration", () => {
 
 describe(".input({ binary }) beside the rest of the request", () => {
 	it("is limited by bodyLimit like any body", async () => {
-		const app = honey<{}>().use(bodyLimit({ maxSize: 100 }))
+		const app = httpApp<{}>().use(bodyLimit({ maxSize: 100 }))
 		app
 			.post("/upload")
 			.input({ binary: "application/octet-stream" })
@@ -139,7 +141,7 @@ describe(".input({ binary }) beside the rest of the request", () => {
 	})
 
 	it("sits beside the non-body sources, and the handler finds the body already read", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/upload/:name")
 			.input({

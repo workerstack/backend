@@ -63,7 +63,7 @@ export class MetaSpecDiagnostics {
 		if (errors.length === 0) return this.list
 		const shown = errors.slice(0, LISTED).map(({ code, message }) => `  - ${code}: ${message}`)
 		const more = errors.length > LISTED ? `\n  … and ${errors.length - LISTED} more` : ""
-		throw new Error(`[honey:metaSpec] ${errors.length} policy error(s):\n${shown.join("\n")}${more}`)
+		throw new Error(`[backend:metaSpec] ${errors.length} policy error(s):\n${shown.join("\n")}${more}`)
 	}
 }
 

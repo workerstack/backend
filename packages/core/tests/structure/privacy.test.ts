@@ -7,7 +7,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs"
 import { join, relative } from "node:path"
 import { describe, expect, it } from "vitest"
 import { curlLogger } from "../../src/observability/curl-logger.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import { createLogger } from "../../src/telemetry/logger.ts"
 
 const SRC = join(import.meta.dirname, "../../src")
@@ -79,7 +79,7 @@ describe("no private field at any log call site", () => {
 describe("a request full of secrets leaves none in the log", () => {
 	it("cookie, authorization, query and body never appear, whatever is on: request log, an error, ctx.log", async () => {
 		const written: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.logger(createLogger({ format: "json", level: "trace", write: (line) => void written.push(line) }))
 			.requestLog(true)
 		app.post("/orders/:id").handler(async (ctx) => {
@@ -136,12 +136,12 @@ describe("the sanctioned request-detail logger masks what it carries", () => {
 
 	it("by default no credential, cookie, session, token query or body reaches its line; with body on, only a bounded text body", async () => {
 		const written: string[] = []
-		const app = honey<{}>().logger(
+		const app = httpApp<{}>().logger(
 			createLogger({ format: "json", level: "info", write: (line) => void written.push(line) }),
 		)
 		const routes = app.use(curlLogger())
 		routes.post("/login").handler((ctx) => ctx.res.text("ok", "in"))
-		const withBody = honey<{}>().logger(
+		const withBody = httpApp<{}>().logger(
 			createLogger({ format: "json", level: "info", write: (line) => void written.push(line) }),
 		)
 		withBody

@@ -9,13 +9,13 @@ requests get 206 partial answers, and conditional GETs (`If-None-Match`, `If-Mod
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { cacheControl } from "@workerstack/backend/http/cache-control"
 import { staticFiles } from "@workerstack/backend/http/static"
 
 const assets = new Map<string, Blob>([["/app.js", new Blob(["console.log(1)"])]])
 
-const app = honey()
+const app = httpApp()
 	.use(cacheControl({ public: true, maxAge: 3600 }))
 	.use(staticFiles({ prefix: "/assets", resolve: (_ctx, path) => assets.get(path) ?? null }))
 ```

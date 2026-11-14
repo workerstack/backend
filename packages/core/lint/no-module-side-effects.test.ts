@@ -6,11 +6,11 @@ import { SPAWN_TIMEOUT } from "../tests/fixture/spawn-timeout.ts"
 const rule = plugin.rules["no-module-side-effects"]
 const MESSAGE = "module scope runs no code: mark a pure call /* @__PURE__ */ or move it into a function"
 
-describe("honey/no-module-side-effects", () => {
+describe("backend/no-module-side-effects", () => {
 	it("rejects top-level statements that run code", () => {
 		const fixture = {
 			"packages/core/src/a.ts": "register()\n",
-			"packages/core/src/b.ts": "globalThis.honey = 1\n",
+			"packages/core/src/b.ts": "globalThis.backend = 1\n",
 			"packages/core/src/c.ts": "if (globalThis.x) {\n\tthrow new Error('x')\n}\n",
 			"packages/core/src/d.ts": "for (const k of []) {\n}\n",
 		}
@@ -24,7 +24,7 @@ describe("honey/no-module-side-effects", () => {
 
 	it("rejects an initializer that runs code, however deep, unless it is marked pure", () => {
 		const fixture = {
-			"packages/core/src/a.ts": "export const id = Symbol.for('honey.id')\n",
+			"packages/core/src/a.ts": "export const id = Symbol.for('backend.id')\n",
 			"packages/core/src/b.ts": "const table = { a: [build()] }\nexport default table\n",
 			"packages/core/src/c.ts": "export default setup()\n",
 			"packages/core/src/d.ts": "const t = tag`x`\nconst n = (globalThis.count = 1)\nexport { t, n }\n",
@@ -41,7 +41,7 @@ describe("honey/no-module-side-effects", () => {
 	})
 })
 
-describe("honey/no-module-side-effects: scope", () => {
+describe("backend/no-module-side-effects: scope", () => {
 	it("allows declarations, literals, functions and types", () => {
 		const fixture = {
 			"packages/core/src/a.ts": [
@@ -64,7 +64,7 @@ describe("honey/no-module-side-effects: scope", () => {
 		expect(reportsOf(rule, fixture)).toEqual([])
 	})
 
-	it("fails oxlint through the honey plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
+	it("fails oxlint through the backend plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
 		const fixture = {
 			"packages/core/src/a.ts": "register()\n",
 			"packages/core/src/b.ts": "export const id = /* @__PURE__ */ Symbol.for('x')\n",

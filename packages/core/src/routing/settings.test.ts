@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { createLogger } from "../telemetry/logger.ts"
-import { honey } from "./app.ts"
+import { httpApp } from "./app.ts"
 import { createSettings, defaultErrorFormatter, normalizeStripPrefix } from "./settings.ts"
 
 /** A logger that keeps each JSON line it writes. */
@@ -27,7 +27,7 @@ describe("settings defaults and normalization", () => {
 		})
 		expect(s.errorFormatter).toBe(defaultErrorFormatter)
 		const shape = { a: 1 }
-		expect(defaultErrorFormatter(new HoneyError({ errorKey: "x", status: "gone" }), shape)).toBe(shape)
+		expect(defaultErrorFormatter(new HttpError({ errorKey: "x", status: "gone" }), shape)).toBe(shape)
 	})
 
 	it("normalizeStripPrefix gives a leading slash, drops trailing ones, and null for none", () => {
@@ -41,7 +41,7 @@ describe("ctx.log: the request's own logger", () => {
 	// v0: 84f3f8dac4
 	it("binds method, the path without its query, the route id and the request id when set", async () => {
 		const { lines, logger } = recordingLogger()
-		const app = honey<{}>().logger(logger)
+		const app = httpApp<{}>().logger(logger)
 		app
 			.use(createMiddleware((_ctx, next) => next({ requestId: "r-1" })))
 			.get("/users/:id")
@@ -72,7 +72,7 @@ describe("ctx.log: the request's own logger", () => {
 	it("is one logger per request, built on first use only", async () => {
 		const { logger } = recordingLogger()
 		const child = vi.spyOn(logger, "child")
-		const app = honey<{}>().logger(logger)
+		const app = httpApp<{}>().logger(logger)
 		const seen: unknown[] = []
 		app.get("/twice").handler((ctx) => {
 			seen.push(ctx.log === ctx.log)
@@ -87,9 +87,9 @@ describe("ctx.log: the request's own logger", () => {
 
 describe("ctx.log: a framework field", () => {
 	it("`log` cannot be replaced by middleware or context()", async () => {
-		expect(() => honey<{}>().context({ log: 1 })).toThrow('context() cannot set reserved key "log"')
+		expect(() => httpApp<{}>().context({ log: 1 })).toThrow('context() cannot set reserved key "log"')
 		const { lines, logger } = recordingLogger()
-		const app = honey<{}>().logger(logger)
+		const app = httpApp<{}>().logger(logger)
 		app
 			.use(createMiddleware((_ctx, next) => next({ log: "shadow" })))
 			.get("/t")

@@ -58,14 +58,14 @@ afterAll(() => rmSync(OUT_ROOT, { force: true, recursive: true }))
 async function viteBuild(entry = "tests/build/fixture/app.ts", dir = "workers"): Promise<string> {
 	const outDir = resolve(OUT_ROOT, dir)
 	const { build, defaultClientConditions } = await import("vite")
-	/* core is read as source, as every checkout build reads it (honey-source); a Worker resolves as a client */
+	/* core is read as source, as every checkout build reads it (backend-source); a Worker resolves as a client */
 	await build({
 		configFile: false,
 		logLevel: "error",
 		plugins: [createBuildPlugin({ minify: false, outDir, target: "workers" }, { entry, export: "app" })],
-		resolve: { conditions: ["honey-source", ...defaultClientConditions] },
+		resolve: { conditions: ["backend-source", ...defaultClientConditions] },
 		root: CORE,
-		ssr: { resolve: { conditions: ["honey-source", ...defaultClientConditions] } },
+		ssr: { resolve: { conditions: ["backend-source", ...defaultClientConditions] } },
 	})
 	expect(existsSync(resolve(outDir, "index.js"))).toBe(true)
 	return outDir
@@ -166,7 +166,7 @@ describe.sequential("the build plugin's bundles, served (bit 19 h2)", () => {
 			compatibility_date: "2026-01-20",
 			compatibility_flags: ["nodejs_compat"],
 			main: "index.js",
-			name: "honey-build-fixture",
+			name: "backend-build-fixture",
 		}
 		writeFileSync(resolve(outDir, "wrangler.jsonc"), `${JSON.stringify(wrangler, null, 2)}\n`)
 		const args = ["dev", "--ip", "127.0.0.1", "--port", String(port), "--inspector-port", "0", "--log-level", "error"]
@@ -187,7 +187,7 @@ describe.sequential("the build plugin's bundles, served (bit 19 h2)", () => {
 				durable_objects: { bindings: [{ class_name: "Counter", name: "COUNTER" }] },
 				main: "index.js",
 				migrations: [{ new_sqlite_classes: ["Counter"], tag: "v1" }],
-				name: "honey-build-object-fixture",
+				name: "backend-build-object-fixture",
 			}
 			writeFileSync(resolve(outDir, "wrangler.jsonc"), `${JSON.stringify(wrangler, null, 2)}\n`)
 			const args = ["dev", "--ip", "127.0.0.1", "--port", String(port), "--inspector-port", "0", "--log-level", "error"]
@@ -214,14 +214,14 @@ describe.sequential("the build plugin's bundles, served (bit 19 h2)", () => {
 				durable_objects: { bindings: [{ class_name: "Counter", name: "COUNTER" }] },
 				main: "index.js",
 				migrations: [{ new_sqlite_classes: ["Counter"], tag: "v1" }],
-				name: "honey-build-values-fixture",
+				name: "backend-build-values-fixture",
 			}
 			writeFileSync(resolve(outDir, "wrangler.jsonc"), `${JSON.stringify(wrangler, null, 2)}\n`)
 			const args = ["dev", "--ip", "127.0.0.1", "--port", String(port), "--inspector-port", "0", "--log-level", "error"]
 			start(WRANGLER, [...args, "--persist-to", resolve(outDir, "state")], { cwd: outDir })
 			const base = `http://127.0.0.1:${port}`
 			expect([await answered(base, "/config", 25_000), await answered(base, "/count", 5_000)]).toEqual([
-				"200 honey-build-values in eu",
+				"200 backend-build-values in eu",
 				"200 1",
 			])
 		},
@@ -233,7 +233,7 @@ describe.sequential("the build plugin's bundles, served (bit 19 h2)", () => {
 		async (ctx) => {
 			if (!existsSync(WRANGLER)) ctx.skip("wrangler is not installed")
 			const outDir = await viteBuild("tests/build/fixture/worker-cron.ts", "cloudflare-cron")
-			const wrangler = { compatibility_date: "2026-01-20", main: "index.js", name: "honey-build-cron-fixture" }
+			const wrangler = { compatibility_date: "2026-01-20", main: "index.js", name: "backend-build-cron-fixture" }
 			writeFileSync(resolve(outDir, "wrangler.jsonc"), `${JSON.stringify(wrangler, null, 2)}\n`)
 			const flags = ["--ip", "127.0.0.1", "--port", String(port), "--inspector-port", "0", "--log-level", "error"]
 			start(WRANGLER, ["dev", "--test-scheduled", ...flags], { cwd: outDir })
@@ -253,7 +253,7 @@ describe.sequential("the build plugin's bundles, served (bit 19 h2)", () => {
 			const wrangler = {
 				compatibility_date: "2026-01-20",
 				main: "index.js",
-				name: "honey-build-queue-fixture",
+				name: "backend-build-queue-fixture",
 				queues: {
 					consumers: [
 						{

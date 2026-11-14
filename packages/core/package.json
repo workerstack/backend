@@ -21,7 +21,7 @@
 		"directory": "packages/core"
 	},
 	"bin": {
-		"honey": "bin/honey.js"
+		"backend": "bin/backend.js"
 	},
 	"files": [
 		"bin",
@@ -31,254 +31,254 @@
 	"sideEffects": false,
 	"imports": {
 		"#output-check": {
-			"honey-no-output-check": {
-				"honey-source": "./src/validation/output-check-off.ts",
+			"backend-no-output-check": {
+				"backend-source": "./src/validation/output-check-off.ts",
 				"types": "./dist/validation/output-check-off.d.ts",
 				"default": "./dist/validation/output-check-off.js"
 			},
-			"honey-source": "./src/validation/output-check.ts",
+			"backend-source": "./src/validation/output-check.ts",
 			"types": "./dist/validation/output-check.d.ts",
 			"default": "./dist/validation/output-check.js"
 		}
 	},
 	"exports": {
 		"./build": {
-			"honey-source": "./src/build/index.ts",
+			"backend-source": "./src/build/index.ts",
 			"types": "./dist/build/index.d.ts",
 			"default": "./dist/build/index.js"
 		},
 		"./cron": {
-			"honey-source": "./src/cron/cron-subpath.ts",
+			"backend-source": "./src/cron/cron-subpath.ts",
 			"types": "./dist/cron/cron-subpath.d.ts",
 			"default": "./dist/cron/cron-subpath.js"
 		},
 		"./crypto": {
-			"honey-source": "./src/security/crypto.ts",
+			"backend-source": "./src/security/crypto.ts",
 			"types": "./dist/security/crypto.d.ts",
 			"default": "./dist/security/crypto.js"
 		},
 		"./http": {
-			"honey-source": "./src/index.ts",
+			"backend-source": "./src/index.ts",
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
 		},
 		"./http/accepts": {
-			"honey-source": "./src/input/accepts.ts",
+			"backend-source": "./src/input/accepts.ts",
 			"types": "./dist/input/accepts.d.ts",
 			"default": "./dist/input/accepts.js"
 		},
 		"./http/body-limit": {
-			"honey-source": "./src/input/body-limit.ts",
+			"backend-source": "./src/input/body-limit.ts",
 			"types": "./dist/input/body-limit.d.ts",
 			"default": "./dist/input/body-limit.js"
 		},
 		"./http/cache-control": {
-			"honey-source": "./src/response/cache-control.ts",
+			"backend-source": "./src/response/cache-control.ts",
 			"types": "./dist/response/cache-control.d.ts",
 			"default": "./dist/response/cache-control.js"
 		},
 		"./http/compress": {
-			"honey-source": "./src/middleware/compress.ts",
+			"backend-source": "./src/middleware/compress.ts",
 			"types": "./dist/middleware/compress.d.ts",
 			"default": "./dist/middleware/compress.js"
 		},
 		"./http/cookie": {
-			"honey-source": "./src/context/cookie.ts",
+			"backend-source": "./src/context/cookie.ts",
 			"types": "./dist/context/cookie.d.ts",
 			"default": "./dist/context/cookie.js"
 		},
 		"./http/cookie-sign": {
-			"honey-source": "./src/context/cookie-sign.ts",
+			"backend-source": "./src/context/cookie-sign.ts",
 			"types": "./dist/context/cookie-sign.d.ts",
 			"default": "./dist/context/cookie-sign.js"
 		},
 		"./http/cors": {
-			"honey-source": "./src/middleware/cors.ts",
+			"backend-source": "./src/middleware/cors.ts",
 			"types": "./dist/middleware/cors.d.ts",
 			"default": "./dist/middleware/cors.js"
 		},
 		"./http/csrf": {
-			"honey-source": "./src/middleware/csrf.ts",
+			"backend-source": "./src/middleware/csrf.ts",
 			"types": "./dist/middleware/csrf.d.ts",
 			"default": "./dist/middleware/csrf.js"
 		},
 		"./http/curl-logger": {
-			"honey-source": "./src/observability/curl-logger.ts",
+			"backend-source": "./src/observability/curl-logger.ts",
 			"types": "./dist/observability/curl-logger.d.ts",
 			"default": "./dist/observability/curl-logger.js"
 		},
 		"./http/etag": {
-			"honey-source": "./src/response/etag.ts",
+			"backend-source": "./src/response/etag.ts",
 			"types": "./dist/response/etag.d.ts",
 			"default": "./dist/response/etag.js"
 		},
 		"./http/i18n": {
-			"honey-source": "./src/i18n/index.ts",
+			"backend-source": "./src/i18n/index.ts",
 			"types": "./dist/i18n/index.d.ts",
 			"default": "./dist/i18n/index.js"
 		},
 		"./http/input": {
-			"honey-source": "./src/input/input-subpath.ts",
+			"backend-source": "./src/input/input-subpath.ts",
 			"types": "./dist/input/input-subpath.d.ts",
 			"default": "./dist/input/input-subpath.js"
 		},
 		"./http/ip-restrict": {
-			"honey-source": "./src/middleware/ip-restrict.ts",
+			"backend-source": "./src/middleware/ip-restrict.ts",
 			"types": "./dist/middleware/ip-restrict.d.ts",
 			"default": "./dist/middleware/ip-restrict.js"
 		},
 		"./http/jwt": {
-			"honey-source": "./src/security/jwt.ts",
+			"backend-source": "./src/security/jwt.ts",
 			"types": "./dist/security/jwt.d.ts",
 			"default": "./dist/security/jwt.js"
 		},
 		"./http/openapi": {
-			"honey-source": "./src/openapi/register.ts",
+			"backend-source": "./src/openapi/register.ts",
 			"types": "./dist/openapi/register.d.ts",
 			"default": "./dist/openapi/register.js"
 		},
 		"./http/openapi/auth": {
-			"honey-source": "./src/openapi/auth.ts",
+			"backend-source": "./src/openapi/auth.ts",
 			"types": "./dist/openapi/auth.d.ts",
 			"default": "./dist/openapi/auth.js"
 		},
 		"./http/openapi/scalar": {
-			"honey-source": "./src/openapi/scalar.ts",
+			"backend-source": "./src/openapi/scalar.ts",
 			"types": "./dist/openapi/scalar.d.ts",
 			"default": "./dist/openapi/scalar.js"
 		},
 		"./http/openapi/static": {
-			"honey-source": "./src/openapi/static.ts",
+			"backend-source": "./src/openapi/static.ts",
 			"types": "./dist/openapi/static.d.ts",
 			"default": "./dist/openapi/static.js"
 		},
 		"./http/openapi/swagger": {
-			"honey-source": "./src/openapi/swagger.ts",
+			"backend-source": "./src/openapi/swagger.ts",
 			"types": "./dist/openapi/swagger.d.ts",
 			"default": "./dist/openapi/swagger.js"
 		},
 		"./http/powered-by": {
-			"honey-source": "./src/middleware/powered-by.ts",
+			"backend-source": "./src/middleware/powered-by.ts",
 			"types": "./dist/middleware/powered-by.d.ts",
 			"default": "./dist/middleware/powered-by.js"
 		},
 		"./http/pretty-json": {
-			"honey-source": "./src/response/pretty-json.ts",
+			"backend-source": "./src/response/pretty-json.ts",
 			"types": "./dist/response/pretty-json.d.ts",
 			"default": "./dist/response/pretty-json.js"
 		},
 		"./http/proxy": {
-			"honey-source": "./src/proxy/proxy.ts",
+			"backend-source": "./src/proxy/proxy.ts",
 			"types": "./dist/proxy/proxy.d.ts",
 			"default": "./dist/proxy/proxy.js"
 		},
 		"./http/range": {
-			"honey-source": "./src/response/range.ts",
+			"backend-source": "./src/response/range.ts",
 			"types": "./dist/response/range.d.ts",
 			"default": "./dist/response/range.js"
 		},
 		"./http/rate-limit": {
-			"honey-source": "./src/middleware/rate-limit.ts",
+			"backend-source": "./src/middleware/rate-limit.ts",
 			"types": "./dist/middleware/rate-limit.d.ts",
 			"default": "./dist/middleware/rate-limit.js"
 		},
 		"./http/request-id": {
-			"honey-source": "./src/middleware/request-id.ts",
+			"backend-source": "./src/middleware/request-id.ts",
 			"types": "./dist/middleware/request-id.d.ts",
 			"default": "./dist/middleware/request-id.js"
 		},
 		"./http/request-to-curl": {
-			"honey-source": "./src/observability/request-to-curl.ts",
+			"backend-source": "./src/observability/request-to-curl.ts",
 			"types": "./dist/observability/request-to-curl.d.ts",
 			"default": "./dist/observability/request-to-curl.js"
 		},
 		"./http/secure-headers": {
-			"honey-source": "./src/middleware/secure-headers.ts",
+			"backend-source": "./src/middleware/secure-headers.ts",
 			"types": "./dist/middleware/secure-headers.d.ts",
 			"default": "./dist/middleware/secure-headers.js"
 		},
 		"./http/server-timing": {
-			"honey-source": "./src/middleware/server-timing.ts",
+			"backend-source": "./src/middleware/server-timing.ts",
 			"types": "./dist/middleware/server-timing.d.ts",
 			"default": "./dist/middleware/server-timing.js"
 		},
 		"./http/static": {
-			"honey-source": "./src/response/static.ts",
+			"backend-source": "./src/response/static.ts",
 			"types": "./dist/response/static.d.ts",
 			"default": "./dist/response/static.js"
 		},
 		"./http/testing": {
-			"honey-source": "./src/testing/testing.ts",
+			"backend-source": "./src/testing/testing.ts",
 			"types": "./dist/testing/testing.d.ts",
 			"default": "./dist/testing/testing.js"
 		},
 		"./http/timeout": {
-			"honey-source": "./src/middleware/timeout.ts",
+			"backend-source": "./src/middleware/timeout.ts",
 			"types": "./dist/middleware/timeout.d.ts",
 			"default": "./dist/middleware/timeout.js"
 		},
 		"./http/tree": {
-			"honey-source": "./src/routing/tree-subpath.ts",
+			"backend-source": "./src/routing/tree-subpath.ts",
 			"types": "./dist/routing/tree-subpath.d.ts",
 			"default": "./dist/routing/tree-subpath.js"
 		},
 		"./http/user-agent": {
-			"honey-source": "./src/context/user-agent.ts",
+			"backend-source": "./src/context/user-agent.ts",
 			"types": "./dist/context/user-agent.d.ts",
 			"default": "./dist/context/user-agent.js"
 		},
 		"./http/webhook": {
-			"honey-source": "./src/security/webhook.ts",
+			"backend-source": "./src/security/webhook.ts",
 			"types": "./dist/security/webhook.d.ts",
 			"default": "./dist/security/webhook.js"
 		},
 		"./logger": {
-			"honey-source": "./src/telemetry/logger-subpath.ts",
+			"backend-source": "./src/telemetry/logger-subpath.ts",
 			"types": "./dist/telemetry/logger-subpath.d.ts",
 			"default": "./dist/telemetry/logger-subpath.js"
 		},
 		"./mcp": {
-			"honey-source": "./src/mcp/mount.ts",
+			"backend-source": "./src/mcp/mount.ts",
 			"types": "./dist/mcp/mount.d.ts",
 			"default": "./dist/mcp/mount.js"
 		},
 		"./mcp/oauth": {
-			"honey-source": "./src/mcp/oauth.ts",
+			"backend-source": "./src/mcp/oauth.ts",
 			"types": "./dist/mcp/oauth.d.ts",
 			"default": "./dist/mcp/oauth.js"
 		},
 		"./mcp/uploads": {
-			"honey-source": "./src/mcp/uploads.ts",
+			"backend-source": "./src/mcp/uploads.ts",
 			"types": "./dist/mcp/uploads.d.ts",
 			"default": "./dist/mcp/uploads.js"
 		},
 		"./mcp/url-files": {
-			"honey-source": "./src/mcp/url-files.ts",
+			"backend-source": "./src/mcp/url-files.ts",
 			"types": "./dist/mcp/url-files.d.ts",
 			"default": "./dist/mcp/url-files.js"
 		},
 		"./plugin": {
-			"honey-source": "./src/build/plugin-subpath.ts",
+			"backend-source": "./src/build/plugin-subpath.ts",
 			"types": "./dist/build/plugin-subpath.d.ts",
 			"default": "./dist/build/plugin-subpath.js"
 		},
 		"./queue": {
-			"honey-source": "./src/queue/queue-subpath.ts",
+			"backend-source": "./src/queue/queue-subpath.ts",
 			"types": "./dist/queue/queue-subpath.d.ts",
 			"default": "./dist/queue/queue-subpath.js"
 		},
 		"./realtime": {
-			"honey-source": "./src/realtime/realtime.ts",
+			"backend-source": "./src/realtime/realtime.ts",
 			"types": "./dist/realtime/realtime.d.ts",
 			"default": "./dist/realtime/realtime.js"
 		},
 		"./telemetry/otel": {
-			"honey-source": "./src/telemetry/otel-subpath.ts",
+			"backend-source": "./src/telemetry/otel-subpath.ts",
 			"types": "./dist/telemetry/otel-subpath.d.ts",
 			"default": "./dist/telemetry/otel-subpath.js"
 		},
 		"./ws": {
-			"honey-source": "./src/ws/ws-subpath.ts",
+			"backend-source": "./src/ws/ws-subpath.ts",
 			"types": "./dist/ws/ws-subpath.d.ts",
 			"default": "./dist/ws/ws-subpath.js"
 		},
@@ -320,7 +320,7 @@
 		"zod": "catalog:"
 	},
 	"peerDependencies": {
-		"@workerstack/clients": ">=1.0.0-0"
+		"@workerstack/clients": ">=1.0.0-rc.27"
 	},
 	"peerDependenciesMeta": {
 		"@workerstack/clients": {

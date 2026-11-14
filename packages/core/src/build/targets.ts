@@ -4,7 +4,7 @@
  * injected: v1 code-splits through plain dynamic import() (Q4, H23). Bit 21 h: a Worker's module also exports every
  * other named export of the app's entry (a Durable Object class, a WorkerEntrypoint, a Workflow), since a Worker's
  * bindings name classes its main module exports. A value workerd takes as no entrypoint (a string, a number) is
- * exported as an inert empty object, so it never stops the Worker. Its default holds honey's fetch, plus a `scheduled`
+ * exported as an inert empty object, so it never stops the Worker. Its default holds backend's fetch, plus a `scheduled`
  * or `queue` function from the entry: workerd calls those only on the default export.
  */
 import { builtinModules } from "node:module"
@@ -13,7 +13,7 @@ import { builtinModules } from "node:module"
 export type BuildTarget = "workers"
 
 /** Options for `createBuildPlugin`: the runtime to build for and how the bundle is written. */
-export type HoneyBuildConfig = {
+export type BuildConfig = {
 	/** modules left out of the bundle beside node's builtins */
 	external?: string[]
 	/** Whether to minify the bundle; default `true`. */
@@ -42,7 +42,7 @@ type Target = {
 	ssrTarget: "webworker"
 }
 
-const VIRTUAL_ENTRY = "virtual:honey-build-entry"
+const VIRTUAL_ENTRY = "virtual:backend-build-entry"
 const RESOLVED_ENTRY = `\0${VIRTUAL_ENTRY}`
 
 function importApp(app: BuildApp): string {
@@ -116,7 +116,7 @@ type VirtualEntry = {
 }
 
 /** The Vite plugin `createBuildPlugin` returns. */
-export type HoneyBuildPlugin = {
+export type BuildPlugin = {
 	/** Runs under `vite build` only. */
 	apply: "build"
 	/** The Vite config the plugin contributes: a server-side bundle of the virtual entry. */
@@ -157,21 +157,21 @@ export type HoneyBuildPlugin = {
 	 * entry does not resolve, or when the entry has a default export beside a named app.
 	 */
 	load(this: EntryContext, id: string): Promise<VirtualEntry> | undefined
-	/** Always `"honey:build"`. */
+	/** Always `"backend:build"`. */
 	name: string
 	/** Resolves the virtual entry's id, and nothing for any other. */
 	resolveId(id: string): string | undefined
 }
 
-/** The app entry's exports a Worker passes on: all but the app's own and `default`, which honey's fetch handler is. */
+/** The app entry's exports a Worker passes on: all but the app's own and `default`, which backend's fetch handler is. */
 async function passedOn(context: EntryContext, app: BuildApp): Promise<string[]> {
 	const resolved = await context.resolve(`./${app.entry}`)
-	if (resolved === null) throw new Error(`honey build: cannot resolve the app entry ./${app.entry}`)
+	if (resolved === null) throw new Error(`backend build: cannot resolve the app entry ./${app.entry}`)
 	const exports = (await context.load({ id: resolved.id })).exports ?? []
 	if (app.export !== "default" && exports.includes("default"))
 		throw new Error(
-			`honey build: ${app.entry} exports a default beside its app "${app.export}": a Worker's default export is ` +
-				"honey's fetch handler, so the entry's own default would be lost; drop it, or export the app as the default",
+			`backend build: ${app.entry} exports a default beside its app "${app.export}": a Worker's default export is ` +
+				"backend's fetch handler, so the entry's own default would be lost; drop it, or export the app as the default",
 		)
 	return exports.filter((name) => name !== "default" && name !== app.export)
 }
@@ -181,9 +181,9 @@ const TARGETS: Readonly<Record<BuildTarget, Target>> = {
 }
 
 /** The Vite plugin that builds `app` for `config.target`: `vite build` with it emits `<outDir>/index.js`. */
-export function createBuildPlugin(config: HoneyBuildConfig, app: BuildApp): HoneyBuildPlugin {
+export function createBuildPlugin(config: BuildConfig, app: BuildApp): BuildPlugin {
 	if (!Object.hasOwn(TARGETS, config.target)) {
-		throw new Error(`honey build: unknown target "${config.target}"; expected workers`)
+		throw new Error(`backend build: unknown target "${config.target}"; expected workers`)
 	}
 	const target = TARGETS[config.target]
 	return {
@@ -208,7 +208,7 @@ export function createBuildPlugin(config: HoneyBuildConfig, app: BuildApp): Hone
 			if (id !== RESOLVED_ENTRY) return undefined
 			return passedOn(this, app).then((named): VirtualEntry => ({ code: target.entry(app, named), moduleType: "js" }))
 		},
-		name: "honey:build",
+		name: "backend:build",
 		resolveId(id: string): string | undefined {
 			return id === VIRTUAL_ENTRY ? RESOLVED_ENTRY : undefined
 		},

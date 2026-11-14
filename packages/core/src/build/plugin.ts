@@ -1,32 +1,36 @@
 /**
- * `honeyPlugin()`, the Vite plugin (`@workerstack/backend/plugin`, bit 19 h2): it writes the app's artifacts at build start
+ * `backendPlugin()`, the Vite plugin (`@workerstack/backend/plugin`, bit 19 h2): it writes the app's artifacts at build start
  * and, in dev, again on each save a `watch` glob matches, one generation at a time with at most one more queued, and
- * one per save across Vite's environments. With a config file, each generation runs in a `honey generate` child, so
- * it sees edits to every module the app imports and nothing the app starts outlives it. `virtual:honey/routes`,
+ * one per save across Vite's environments. With a config file, each generation runs in a `backend generate` child, so
+ * it sees edits to every module the app imports and nothing the app starts outlives it. `virtual:backend/routes`,
  * `/manifest` and `/openapi` serve the same artifacts in memory. Its config rides on the plugin object
- * (`api.honeyConfig`), where `honey generate` reads it. A production build resolves core's `#output-check` to its
+ * (`api.backendConfig`), where `backend generate` reads it. A production build resolves core's `#output-check` to its
  * no-op in every environment it bundles, so the answer check is in no bundle, unless `outputValidation` is `true`.
  */
 import { spawn } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import {
 	generatedOutputs,
-	type HoneyVitePluginConfig,
+	type BackendPluginConfig,
 	isGeneratedOutput,
-	type ResolvedHoneyConfig,
-	resolveHoneyConfig,
+	type ResolvedBackendConfig,
+	resolveBackendConfig,
 } from "./config.ts"
 import { generateAndWrite, inAppGraph, loadClients } from "./generate.ts"
 import { compileGlobs, WATCH_IGNORE_RE } from "./glob.ts"
 
-export type { HoneyCodegenConfig, HoneyOpenApiOutputConfig, HoneyVitePluginConfig } from "./config.ts"
+export type { BackendCodegenConfig, OpenApiOutputConfig, BackendPluginConfig } from "./config.ts"
 
-const VIRTUAL = { manifest: "virtual:honey/manifest", openApi: "virtual:honey/openapi", routes: "virtual:honey/routes" }
+const VIRTUAL = {
+	manifest: "virtual:backend/manifest",
+	openApi: "virtual:backend/openapi",
+	routes: "virtual:backend/routes",
+}
 /* written out, not built from VIRTUAL: a property read at the top level is a statement a bundler must keep */
 const RESOLVED = {
-	manifest: "\0virtual:honey/manifest",
-	openApi: "\0virtual:honey/openapi",
-	routes: "\0virtual:honey/routes",
+	manifest: "\0virtual:backend/manifest",
+	openApi: "\0virtual:backend/openapi",
+	routes: "\0virtual:backend/routes",
 }
 
 /** The part of Vite's module graph the plugin reads. */
@@ -35,7 +39,7 @@ type ModuleGraph = {
 	getModuleById(id: string): unknown
 }
 /** The condition core's package.json `imports` resolves `#output-check`'s no-op under. */
-export const NO_OUTPUT_CHECK = "honey-no-output-check"
+export const NO_OUTPUT_CHECK = "backend-no-output-check"
 
 /** The part of one Vite environment's config the plugin reads, and what it adds to it. */
 export type EnvironmentConfig = {
@@ -94,7 +98,7 @@ type ResolvedViteConfig = {
 	isProduction?: boolean
 	/** Vite's mode; when unset, `"development"` under `serve` and `"production"` otherwise. */
 	mode?: string
-	/** Every plugin in the config, used to find this plugin's position among the `honeyPlugin()` ones. */
+	/** Every plugin in the config, used to find this plugin's position among the `backendPlugin()` ones. */
 	plugins?: readonly unknown[]
 	/** The project root, which relative `watch` globs and output paths resolve against. */
 	root: string
@@ -114,12 +118,12 @@ type HotUpdate = {
 	timestamp?: number
 }
 
-/** The plugin object `honeyPlugin()` returns, shaped for Vite. */
-export type HoneyVitePlugin = {
-	/** Carries the plugin's config so `honey generate` can read it from a loaded Vite config. */
+/** The plugin object `backendPlugin()` returns, shaped for Vite. */
+export type BackendPlugin = {
+	/** Carries the plugin's config so `backend generate` can read it from a loaded Vite config. */
 	api: {
-		/** The config passed to `honeyPlugin()`, as given. */
-		honeyConfig: HoneyVitePluginConfig
+		/** The config passed to `backendPlugin()`, as given. */
+		backendConfig: BackendPluginConfig
 	}
 	/**
 	 * Writes the app's artifacts. A call while an earlier one is generating joins it, so the calls Vite makes back to
@@ -142,7 +146,7 @@ export type HoneyVitePlugin = {
 	 * generation is written to stderr and the update goes on.
 	 */
 	hotUpdate(this: unknown, ctx: HotUpdate): Promise<unknown[] | undefined>
-	/** Serves the `virtual:honey/*` modules from a fresh load of the app; nothing for an unconfigured output or other id. */
+	/** Serves the `virtual:backend/*` modules from a fresh load of the app; nothing for an unconfigured output or other id. */
 	load(id: string): Promise<
 		| {
 				/** The module's source. */
@@ -152,16 +156,16 @@ export type HoneyVitePlugin = {
 		  }
 		| undefined
 	>
-	/** Always `"honey"`. */
+	/** Always `"backend"`. */
 	name: string
 	/**
-	 * Resolves `virtual:honey/routes` always, `virtual:honey/manifest` when a manifest is configured and
-	 * `virtual:honey/openapi` when an OpenAPI output is; nothing for any other id.
+	 * Resolves `virtual:backend/routes` always, `virtual:backend/manifest` when a manifest is configured and
+	 * `virtual:backend/openapi` when an OpenAPI output is; nothing for any other id.
 	 */
 	resolveId(id: string): string | undefined
 }
 
-/** `honey generate <args>` in a child (core's own bin on this runtime); resolves when it exits 0, rejects otherwise. */
+/** `backend generate <args>` in a child (core's own bin on this runtime); resolves when it exits 0, rejects otherwise. */
 export function runGenerate(
 	args: readonly string[],
 	options: {
@@ -171,16 +175,16 @@ export function runGenerate(
 		env: NodeJS.ProcessEnv
 	},
 ): Promise<void> {
-	const bin = fileURLToPath(new URL("../../bin/honey.js", import.meta.url))
+	const bin = fileURLToPath(new URL("../../bin/backend.js", import.meta.url))
 	return new Promise((done, fail) => {
 		const child = spawn(process.execPath, [bin, "generate", ...args], {
 			cwd: options.cwd,
-			env: { ...process.env, ...options.env, HONEY_NO_BUN_HANDOFF: "1" },
+			env: { ...process.env, ...options.env, BACKEND_NO_BUN_HANDOFF: "1" },
 			stdio: ["ignore", "inherit", "inherit"],
 		})
 		child.on("error", fail)
 		child.on("exit", (code, signal) =>
-			code === 0 ? done() : fail(new Error(`honey generate failed (${signal ?? `exit ${code}`})`)),
+			code === 0 ? done() : fail(new Error(`backend generate failed (${signal ?? `exit ${code}`})`)),
 		)
 	})
 }
@@ -241,7 +245,7 @@ export async function toJavaScript(
 }
 
 /** A virtual module's code, from a fresh load of the app (or a gateway's merge entry); none for any other id. */
-async function virtualModule(id: string, config: ResolvedHoneyConfig, root: string) {
+async function virtualModule(id: string, config: ResolvedBackendConfig, root: string) {
 	const kind = (Object.keys(RESOLVED) as (keyof typeof RESOLVED)[]).find((key) => RESOLVED[key] === id)
 	if (kind === undefined || (kind === "manifest" && config.codegen.manifest === false)) return undefined
 	if (kind === "openApi" && config.codegen.openApi.length === 0) return undefined
@@ -266,25 +270,25 @@ function outputCheckHooks(keep: boolean) {
 		resolved(cfg: ResolvedViteConfig): void {
 			if (!drops || cfg.isProduction !== false) return
 			throw new Error(
-				"honey: the build dropped the output check under NODE_ENV=production, and Vite then read NODE_ENV=development from a .env file; set NODE_ENV=development where the build runs, or honeyPlugin({ outputValidation: true })",
+				"backend: the build dropped the output check under NODE_ENV=production, and Vite then read NODE_ENV=development from a .env file; set NODE_ENV=development where the build runs, or backendPlugin({ outputValidation: true })",
 			)
 		},
 	}
 }
 
-/** Whether `plugin` is one `honeyPlugin()` returned, as `honey generate` finds one. */
-const isHoneyPlugin = (plugin: unknown) =>
-	(plugin as { name?: unknown } | null)?.name === "honey" &&
-	(plugin as { api?: { honeyConfig?: unknown } }).api?.honeyConfig !== undefined
+/** Whether `plugin` is one `backendPlugin()` returned, as `backend generate` finds one. */
+const isBackendPlugin = (plugin: unknown) =>
+	(plugin as { name?: unknown } | null)?.name === "backend" &&
+	(plugin as { api?: { backendConfig?: unknown } }).api?.backendConfig !== undefined
 
 /**
- * The honey Vite plugin: writes the configured artifacts at build start, regenerates them in dev when a watched file
- * changes, and serves `virtual:honey/routes`, plus `virtual:honey/manifest` and `virtual:honey/openapi` (the first
- * OpenAPI output) when configured. Throws on a `codegen.sdk` or `codegen.cli` key, which belong to honey-clients, and
+ * The backend Vite plugin: writes the configured artifacts at build start, regenerates them in dev when a watched file
+ * changes, and serves `virtual:backend/routes`, plus `virtual:backend/manifest` and `virtual:backend/openapi` (the first
+ * OpenAPI output) when configured. Throws on a `codegen.sdk` or `codegen.cli` key, which belong to clients, and
  * on an MCP output path that is not a `.ts` module.
  */
-export function honeyPlugin(config: HoneyVitePluginConfig): [HoneyVitePlugin] {
-	const resolved = resolveHoneyConfig(config)
+export function backendPlugin(config: BackendPluginConfig): [BackendPlugin] {
+	const resolved = resolveBackendConfig(config)
 	const matchesWatch = compileGlobs(resolved.watch)
 	const at = { command: "build" as "build" | "serve", configFile: undefined as string | undefined, index: -1 }
 	let [root, mode, outputs] = [process.cwd(), "production", generatedOutputs(resolved, process.cwd())]
@@ -295,17 +299,17 @@ export function honeyPlugin(config: HoneyVitePluginConfig): [HoneyVitePlugin] {
 		/* a child: a fresh module graph, and whatever the app starts dies with it */
 		return runGenerate(["--config", at.configFile, "--plugin", String(at.index)], {
 			cwd: root,
-			env: { HONEY_VITE_COMMAND: at.command, HONEY_VITE_MODE: mode },
+			env: { BACKEND_VITE_COMMAND: at.command, BACKEND_VITE_MODE: mode },
 		})
 	})
 	const perSave = oncePerKey(
 		/* reported on stderr: a failed generation must not stop the dev server's HMR */
-		() => regenerate().catch((error: unknown) => process.stderr.write(`honey: generation failed: ${error}\n`)),
+		() => regenerate().catch((error: unknown) => process.stderr.write(`backend: generation failed: ${error}\n`)),
 		SAVES_REMEMBERED,
 	)
-	const plugin: HoneyVitePlugin = {
-		/** read by `honey generate` to find this plugin's config in a loaded Vite config */
-		api: { honeyConfig: config },
+	const plugin: BackendPlugin = {
+		/** read by `backend generate` to find this plugin's config in a loaded Vite config */
+		api: { backendConfig: config },
 		/* Vite calls this once per environment, back to back: the second joins the first's generation */
 		async buildStart() {
 			starting ??= regenerate().finally(() => (starting = undefined))
@@ -315,7 +319,7 @@ export function honeyPlugin(config: HoneyVitePluginConfig): [HoneyVitePlugin] {
 		configResolved(cfg: ResolvedViteConfig) {
 			check.resolved(cfg)
 			Object.assign(at, { command: cfg.command ?? "build", configFile: cfg.configFile })
-			at.index = (cfg.plugins ?? []).filter(isHoneyPlugin).indexOf(plugin)
+			at.index = (cfg.plugins ?? []).filter(isBackendPlugin).indexOf(plugin)
 			root = cfg.root
 			mode = cfg.mode ?? (at.command === "serve" ? "development" : "production")
 			outputs = generatedOutputs(resolved, root)
@@ -333,7 +337,7 @@ export function honeyPlugin(config: HoneyVitePluginConfig): [HoneyVitePlugin] {
 				: [...ctx.modules, routes]
 		},
 		load: (id: string) => virtualModule(id, resolved, root),
-		name: "honey",
+		name: "backend",
 		resolveId(id: string): string | undefined {
 			if (id === VIRTUAL.routes) return RESOLVED.routes
 			if (id === VIRTUAL.manifest && resolved.codegen.manifest !== false) return RESOLVED.manifest

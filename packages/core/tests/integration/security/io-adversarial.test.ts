@@ -13,15 +13,15 @@ import { resolve as resolvePath } from "node:path"
 import { describe, expect, it, vi } from "vitest"
 import * as z from "zod"
 import { guardNamed } from "../../structure/mutation-harness.ts"
-import type { HoneyRes } from "../../../src/response/response.ts"
+import type { HttpRes } from "../../../src/response/response.ts"
 import type { StandardSchemaLike } from "../../../src/validation/standard-schema.ts"
 
 /** A Response the route does not declare: a fault injected on purpose, past the handler's typed return. */
-const undeclared = (ctx: { readonly res: object }, response: Response) => (ctx.res as HoneyRes).raw(response) as never
+const undeclared = (ctx: { readonly res: object }, response: Response) => (ctx.res as HttpRes).raw(response) as never
 
 const REPO = resolvePath(import.meta.dirname, "../../../../..")
 
-const mutant = guardNamed(process.env.HONEY_MUTANT)
+const mutant = guardNamed(process.env.BACKEND_MUTANT)
 if (mutant !== undefined) {
 	vi.doMock(resolvePath(REPO, mutant.module), async (importOriginal) => {
 		const original = await importOriginal<Record<string, unknown>>()
@@ -30,7 +30,7 @@ if (mutant !== undefined) {
 }
 
 /* imported after the mock, so a mutant reaches every module that uses it */
-const { honey } = (await import(
+const { httpApp } = (await import(
 	resolvePath(REPO, "packages/core/src/routing/app.ts")
 )) as typeof import("../../../src/routing/app.ts")
 const { bodyLimit } = (await import(
@@ -39,7 +39,7 @@ const { bodyLimit } = (await import(
 const { etag } = (await import(
 	resolvePath(REPO, "packages/core/src/response/etag.ts")
 )) as typeof import("../../../src/response/etag.ts")
-const { HoneyError } = (await import(
+const { HttpError } = (await import(
 	resolvePath(REPO, "packages/core/src/errors/error.ts")
 )) as typeof import("../../../src/errors/error.ts")
 
@@ -77,7 +77,7 @@ function streamed(chunks: number, size: number): ReadableStream<Uint8Array> {
 
 describe("v1 adversarial: a request body", () => {
 	it("sent as a media type that only resembles the declared one is a 415, never parsed", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/j")
 			.input({ json: z.object({ a: z.number() }) })
@@ -93,7 +93,7 @@ describe("v1 adversarial: a request body", () => {
 	})
 
 	it("larger than its limit is a 413 though it declares no length, binary bodies included", async () => {
-		const app = honey<{}>().use(bodyLimit({ maxSize: 1024 }))
+		const app = httpApp<{}>().use(bodyLimit({ maxSize: 1024 }))
 		app.post("/text").handler(async (ctx) => ctx.res.text("ok", String((await ctx.req.text()).length)))
 		app
 			.post("/bin")
@@ -118,7 +118,7 @@ describe("v1 adversarial: a request body", () => {
 
 describe("v1 adversarial: what a request body may not smuggle in", () => {
 	it("of a binary type the route does not declare is a 415", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/img")
 			.input({ binary: ["image/png", "image/jpeg"] })
@@ -142,7 +142,7 @@ describe("v1 adversarial: what a request body may not smuggle in", () => {
 				version: 1 as const,
 			},
 		}
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/q")
 			.input({ form: spy, search: spy })
@@ -164,7 +164,7 @@ describe("v1 adversarial: what a request body may not smuggle in", () => {
 
 describe("v1 adversarial: what a route answers", () => {
 	it("a declared Location header stops an open redirect; a header value carrying CRLF never splits", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		const out = {
 			"application/json": { created: z.object({ id: z.string() }) },
 			headers: { created: z.object({ location: z.string().startsWith("/") }) },
@@ -196,7 +196,7 @@ describe("v1 adversarial: what a route answers", () => {
 
 describe("v1 adversarial: an answer's contract", () => {
 	it("an answer that breaks its declared contract is a 500 that names no issue", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		const out = { "application/json": { ok: z.object({ id: z.string().describe("SECRET_SCHEMA") }) } }
 		app
 			.get("/wrong-type")
@@ -224,7 +224,7 @@ describe("v1 adversarial: an answer's contract", () => {
 
 describe("v1 adversarial: an endless stream and problem+json members", () => {
 	it("etag answers an endless stream at once instead of reading it to the end", async () => {
-		const app = honey<{}>().use(etag())
+		const app = httpApp<{}>().use(etag())
 		app.get("/events").handler((ctx) =>
 			ctx.res.sse(async (stream) => {
 				/* long enough to outlast the race, finite so a buffering etag still ends */
@@ -243,10 +243,10 @@ describe("v1 adversarial: an endless stream and problem+json members", () => {
 	})
 
 	it("problem+json keeps fields under errors, where one named like a member cannot replace it", async () => {
-		const app = honey<{}>().logger(false).errorFormat("problem+json")
+		const app = httpApp<{}>().logger(false).errorFormat("problem+json")
 		const field = [{ error_key: "x", message: "m", path: "json.x" }]
 		app.get("/t").handler(() => {
-			throw new HoneyError({
+			throw new HttpError({
 				errorKey: "val_error",
 				fields: { detail: field, instance: field, status: field, title: field, type: field },
 				status: "bad_request",
@@ -261,7 +261,7 @@ describe("v1 adversarial: an endless stream and problem+json members", () => {
 			"instance" in body,
 			Object.keys(body.errors as object).sort(),
 		]).toEqual([
-			"https://honey.dev/errors/val_error",
+			"https://backend.dev/errors/val_error",
 			"Bad Request",
 			400,
 			"val_error",
@@ -278,7 +278,7 @@ const hostile = (jsonSchema: Record<string, () => unknown>) => ({
 
 describe("v1 adversarial: a schema's conversion", () => {
 	it("a converter that answers no schema, or throws, documents {} and is reported, never reaching the document", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/a")
 			.input({
@@ -304,7 +304,7 @@ describe("v1 adversarial: a schema's conversion", () => {
 
 describe("v1 adversarial: the OpenAPI document and its pages", () => {
 	it("reads back the same through YAML whatever its text holds: a newline, a `: `, a `#`, a dash, a quote", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/a")
 			.meta({ summary: "- item: injected\n# not a comment", tags: ["a: b", "'quoted'"] })
@@ -315,7 +315,7 @@ describe("v1 adversarial: the OpenAPI document and its pages", () => {
 	})
 
 	it("refuses a server whose URL or variable would inject a control character, or a variable it never declared", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/a").handler((c) => c.res.text("ok", "a"))
 		const generate = (servers: unknown) => () =>
 			generateOpenApi(app, { info: { title: "T", version: "1" }, servers: servers as never })
@@ -329,7 +329,7 @@ describe("v1 adversarial: the OpenAPI document and its pages", () => {
 	it("keeps a docs page config inside its inline script: a value cannot end it and run its own", async () => {
 		const breakout = "/openapi.json</script><script>alert(1)</script>"
 		for (const page of [scalar, swagger]) {
-			const app = honey<{}>()
+			const app = httpApp<{}>()
 			app.get("/docs").handler(page({ url: breakout }) as never)
 			const html = await (await app.fetch(send("/docs"), {})).text()
 			expect(html.includes("</script><script>alert(1)")).toBe(false)

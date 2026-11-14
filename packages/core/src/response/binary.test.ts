@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { rawBodyOf } from "./builder.ts"
-import { HoneyRes } from "./response.ts"
+import { HttpRes } from "./response.ts"
 
 /** `n` bytes counting up from 0, wrapping at 256. */
 const counting = (n: number) => Uint8Array.from({ length: n }, (_, i) => i % 256)
@@ -19,7 +19,7 @@ describe("ctx.res.binary: bytes as they were given", () => {
 	// v0: dacab447be
 	// v0: 79d2385579
 	it("answers application/octet-stream with the exact bytes of a Uint8Array, an ArrayBuffer or none", async () => {
-		const res = new HoneyRes()
+		const res = new HttpRes()
 		const answers = await Promise.all(
 			[res.binary("ok", counting(3)), res.binary("ok", counting(4).buffer), res.binary("ok", new Uint8Array(0))].map(
 				bytesOf,
@@ -34,12 +34,12 @@ describe("ctx.res.binary: bytes as they were given", () => {
 
 	it("keeps the bytes as its raw body, without a copy", () => {
 		const bytes = counting(8)
-		expect(rawBodyOf(new HoneyRes().binary("ok", bytes)) === bytes).toBe(true)
+		expect(rawBodyOf(new HttpRes().binary("ok", bytes)) === bytes).toBe(true)
 	})
 
 	// v0: b984675043
 	it("answers each status key's code", () => {
-		const res = new HoneyRes()
+		const res = new HttpRes()
 		expect(
 			(["ok", "created", "accepted", "bad_request"] as const).map((key) => res.binary(key, counting(1)).status),
 		).toEqual([200, 201, 202, 400])
@@ -48,7 +48,7 @@ describe("ctx.res.binary: bytes as they were given", () => {
 
 describe("ctx.res.binary: the content type and the options", () => {
 	it("answers the content type it is given, a declared open media type", async () => {
-		const res = new HoneyRes()
+		const res = new HttpRes()
 		const gif = res.binary("ok", counting(2), { contentType: "image/gif" })
 		expect(await bytesOf(gif)).toEqual([200, "image/gif", [0, 1]])
 	})
@@ -56,7 +56,7 @@ describe("ctx.res.binary: the content type and the options", () => {
 	// v0: 1343f7a649
 	// v0: 3b3a3b34f5
 	it("adds headers and cookies beside its content type; one answer's options never reach the next", async () => {
-		const res = new HoneyRes()
+		const res = new HttpRes()
 		const dressed = res.binary("ok", counting(3), {
 			contentType: "font/woff2",
 			cookies: { token: { value: "abc" } },
@@ -79,7 +79,7 @@ describe("ctx.res.binary through the app", () => {
 	// v0: 53d0c13436
 	it("1MB arrives byte for byte, beside every other helper", async () => {
 		const megabyte = counting(1024 * 1024)
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/bin").handler((ctx) => ctx.res.binary("ok", megabyte))
 		app.get("/gif").handler((ctx) => ctx.res.binary("created", counting(5), { contentType: "image/gif" }))
 		app.get("/json").handler((ctx) => ctx.res.json("ok", { type: "json" }))
@@ -122,7 +122,7 @@ describe("ctx.res.binary under .output(), its answer checked", () => {
 	// v0: 2f87e31195
 	it("bytes are a type contract: a declared schema never runs, and the declared type is what is answered", async () => {
 		const validate = vi.fn(() => ({ issues: [{ message: "never" }] }))
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app
 			.get("/bin")
 			.output({ "application/octet-stream": { ok: { "~standard": { validate, vendor: "test", version: 1 } } } })

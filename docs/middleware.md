@@ -2,19 +2,19 @@
 
 Middleware runs in registration order around the handler, may short-circuit, and may extend `ctx` for
 everything below it. A `MiddlewareFn<Requires, Adds>` (or `createMiddleware`) types what it reads and what it
-adds. A middleware that reads route meta types its ctx `HoneyCtx<Env, RouteMeta>`, so `ctx.meta` carries the built-in
+adds. A middleware that reads route meta types its ctx `HttpCtx<Env, RouteMeta>`, so `ctx.meta` carries the built-in
 keys and the app's own. Call `await next()` to run the rest of the chain: it
 returns the downstream response, synchronously when everything below ran synchronously.
 
 The edge set is plain middleware, each from its own subpath, so an app bundles only what it imports: `cors`,
 `secureHeaders`, `csrf`, `rateLimit`, `compress`, `requestId`, `timeout`, `bodyLimit`, `serverTiming`, `poweredBy`
-and `ipRestrict`. Keyed limits read `ctx.ip`, the platform's peer address; honey never trusts an `X-Forwarded-For`
+and `ipRestrict`. Keyed limits read `ctx.ip`, the platform's peer address; backend never trusts an `X-Forwarded-For`
 header, so behind your own proxy read the header your proxy sets in your own code.
 
 ## Example
 
 ```ts
-import { type MiddlewareFn, honey } from "@workerstack/backend/http"
+import { type MiddlewareFn, httpApp } from "@workerstack/backend/http"
 import { cors } from "@workerstack/backend/http/cors"
 import { rateLimit } from "@workerstack/backend/http/rate-limit"
 import { secureHeaders } from "@workerstack/backend/http/secure-headers"
@@ -26,7 +26,7 @@ const withUser: MiddlewareFn<{ req: Request }, UserCtx> = (ctx, next) => {
 	return next({ user: token === null ? null : { id: "u1" } })
 }
 
-const app = honey()
+const app = httpApp()
 	.use(secureHeaders())
 	.use(cors({ origin: ["https://app.example.com"], credentials: true }))
 	.use(rateLimit({ limit: 100, windowMs: 60_000 }))

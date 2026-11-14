@@ -4,14 +4,14 @@ import { createMiddleware } from "../middleware/middleware.ts"
 import { requestId } from "../middleware/request-id.ts"
 import type { TypedResponse } from "../response/response.ts"
 import { generateOpenApi } from "../openapi/generate.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { proxy } from "./proxy.ts"
 
 const req = (path: string, init: RequestInit = {}) => new Request(`http://app.test${path}`, init)
 
 describe("proxy(config): a plain route handler", () => {
 	it("is mounted with .handler(), on any method a route takes", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(proxy({ destination: (_ctx, url, init) => new Response(`${init.method} ${url}`) }))
 		const answers = await Promise.all(
 			["GET", "POST", "DELETE"].map(async (method) => (await app.fetch(req("/api/x", { method }), {})).text()),
@@ -21,7 +21,7 @@ describe("proxy(config): a plain route handler", () => {
 
 	// v0: ed7b01fb64
 	it("a route on chosen methods takes it too", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.on(["GET", "PUT"], "/files/*rest").handler(proxy({ destination: (_ctx, url) => new Response(url) }))
 		const [get, put, post] = await Promise.all(
 			["GET", "PUT", "POST"].map((method) => app.fetch(req("/files/a", { method }), {})),
@@ -35,7 +35,7 @@ describe("proxy(config): a plain route handler", () => {
 	})
 
 	it("destination sees the route's ctx: env and what middleware added", async () => {
-		const app = honey<{ SVC: { fetch(url: string): Response } }>()
+		const app = httpApp<{ SVC: { fetch(url: string): Response } }>()
 		app
 			.use(createMiddleware(async (_ctx, next) => next({ token: "abc123" })))
 			.all("/api/*rest")
@@ -53,7 +53,7 @@ describe("proxy(config): a plain route handler", () => {
 
 	// v0: 2a744d10f4
 	it("redirects are the client's to follow: redirect: manual", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(proxy({ destination: (_ctx, _url, init) => new Response(init.redirect) }))
 		expect(await (await app.fetch(req("/api/x"), {})).text()).toBe("manual")
 	})
@@ -63,7 +63,7 @@ describe("proxy: requestHeaders", () => {
 	// v0: 954770acb4
 	// v0: 2285728d9b
 	it("a function edits the forwarded headers, with the route's ctx", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(createMiddleware(async (_ctx, next) => next({ token: "abc123" })))
 			.all("/api/*rest")
@@ -78,7 +78,7 @@ describe("proxy: requestHeaders", () => {
 
 	// v0: d05f8c0e14
 	it("a record sets each entry", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: (_ctx, _url, init) => {
@@ -99,7 +99,7 @@ function echoId(name: string) {
 
 describe("proxy: the request id", () => {
 	it("forwards ctx.requestId under the requestId middleware's header, replacing what the client sent", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(requestId({ generate: () => "id-1" }))
 			.all("/api/*rest")
@@ -109,7 +109,7 @@ describe("proxy: the request id", () => {
 	})
 
 	it("uses the header the middleware was given", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(requestId({ generate: () => "id-2", header: "cf-ray" }))
 			.all("/api/*rest")
@@ -118,7 +118,7 @@ describe("proxy: the request id", () => {
 	})
 
 	it("forwards a trusted inbound id unchanged, so the upstream logs the same id", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(requestId({ trustInbound: true }))
 			.all("/api/*rest")
@@ -128,7 +128,7 @@ describe("proxy: the request id", () => {
 	})
 
 	it("requestHeaders still has the last word", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(requestId())
 			.all("/api/*rest")
@@ -146,7 +146,7 @@ describe("proxy: rewriteUrl", () => {
 	// v0: 51729d5f0e
 	// v0: b6fb8591d7
 	it("rewrites the path and query before destination, ctx first like its sibling hooks", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/v1/*rest").handler(
 			proxy({
 				destination: (_ctx, url) => new Response(url),
@@ -160,7 +160,7 @@ describe("proxy: rewriteUrl", () => {
 describe("proxy: onResponse", () => {
 	// v0: 88bbfdd857
 	it("edits the response's headers in place", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: () => new Response("ok", { headers: { "x-internal": "secret" } }),
@@ -175,7 +175,7 @@ describe("proxy: onResponse", () => {
 
 	// v0: d1c4b06bcc
 	it("can set headers even when the upstream's were immutable (a redirect, a fetch)", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: () => Response.redirect("http://up.test/elsewhere", 302),
@@ -194,7 +194,7 @@ describe("proxy: onResponse", () => {
 
 	// v0: 6be2e7ddc5
 	it("a Response it returns replaces the upstream's", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.all("/api/*rest")
 			.handler(proxy({ destination: () => new Response("original"), onResponse: async () => new Response("replaced") }))
@@ -205,7 +205,7 @@ describe("proxy: onResponse", () => {
 describe("proxy: the answer's shape", () => {
 	// v0: 3bd2bb5aa7
 	it.each([204, 304])("a %i upstream answer stays bodiless", async (status) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(proxy({ destination: () => new Response(null, { status }) }))
 		const res = await app.fetch(req("/api/x"), {})
 		expect([res.status, res.body]).toEqual([status, null])
@@ -215,7 +215,7 @@ describe("proxy: the answer's shape", () => {
 		const upgraded = new Response(null)
 		Object.defineProperty(upgraded, "status", { value: 101 })
 		let called = false
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: () => upgraded,
@@ -230,7 +230,7 @@ describe("proxy: the answer's shape", () => {
 
 	it("the upstream's error JSON reaches the client byte for byte", async () => {
 		const body = '{"error_key":"item_gone","status":410,"success":false}'
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: () => new Response(body, { headers: { "content-type": "application/json" }, status: 410 }),
@@ -243,7 +243,7 @@ describe("proxy: the answer's shape", () => {
 
 describe("proxy: the client's copy of the answer", () => {
 	it("drops hop-by-hop headers, keeps each Set-Cookie, and lets onResponse edit what is left", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.all("/api/*rest").handler(
 			proxy({
 				destination: () => {
@@ -269,7 +269,7 @@ describe("proxy: the client's copy of the answer", () => {
 
 describe("proxy: the errors it declares", () => {
 	it("documents 502 bad_gateway and 504 gateway_timeout on each route it handles, with no app-wide declaration", () => {
-		const app = honey<{}>().errorFactory(defineErrors({}))
+		const app = httpApp<{}>().errorFactory(defineErrors({}))
 		app.get("/api/*rest").handler(proxy({ destination: () => new Response("x") }))
 		app.get("/own").handler((ctx) => ctx.res.text("ok", "x"))
 		const { paths } = generateOpenApi(app, { info: { title: "T", version: "1" } })

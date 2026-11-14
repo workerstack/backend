@@ -112,7 +112,7 @@ test.describe("MCP mounted at /api/mcp", () => {
 			calledByClient?.result,
 			calledByClient?.code,
 			await posted("tools/call", args, "ApiKey wrong"),
-		]).toEqual([5, undefined, 401, [401, 'ApiKey realm="honey-e2e"']])
+		]).toEqual([5, undefined, 401, [401, 'ApiKey realm="backend-e2e"']])
 	})
 })
 

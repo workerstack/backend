@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { rangeResponse } from "../../src/response/range.ts"
 import type { SSEStream } from "../../src/response/sse.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 afterEach(() => {
 	vi.useRealTimers()
@@ -24,7 +24,7 @@ const send = async (
 /** An app with one route per helper, each recording when its producer starts and ends. */
 function streamingApp() {
 	const log: string[] = []
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/stream").handler((ctx) =>
 		ctx.res.stream(async (writable) => {
 			log.push("stream:start")
@@ -92,7 +92,7 @@ describe("each helper streams to completion through app.fetch", () => {
 /** An app whose /live SSE never ends on its own: it ticks until the stream does. */
 function liveApp() {
 	const ended: string[] = []
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/live").handler((ctx) =>
 		ctx.res.sse(
 			async (stream: SSEStream) => {
@@ -141,7 +141,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 1))
 /** An app with an endless producer per helper, each recording when its finally runs. */
 function endlessApp() {
 	const finished: string[] = []
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/stream").handler((ctx) =>
 		ctx.res.stream(async (writable) => {
 			const writer = writable.getWriter()
@@ -195,7 +195,7 @@ describe("a never-yielding SSE producer facing a client that stopped reading", (
 	it("is held back by backpressure: what it sent stays far under what it would send unbounded", async () => {
 		let sent = 0
 		const data = "x".repeat(1024)
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/flood").handler((ctx) =>
 			ctx.res.sse(async (stream) => {
 				/* no I/O, no yield: only demand stops it; bounded so a mutant that never waits ends instead of spinning */
@@ -232,7 +232,7 @@ describe("HEAD and range from a route", () => {
 
 	it("rangeResponse answers 206, 416 and 200 from a route", async () => {
 		const video = new Blob([new TextEncoder().encode("0123456789")], { type: "video/mp4" })
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/video").handler((ctx) => ctx.res.raw(rangeResponse(ctx.req, video)))
 		const answers = await Promise.all(
 			([{ range: "bytes=2-4" }, { range: "bytes=20-" }, {}] as Record<string, string>[]).map(async (headers) => {
@@ -280,7 +280,7 @@ describe("streams at scale", () => {
 	// v0: 87b0437813
 	// v0: 315781587c
 	it("large and many: 1000 events of 10 KB, 100k generated chunks, a 1 MB write, unicode intact", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const big = "é".repeat(5_000) + "🍯".repeat(1_250)
 		app.get("/sse").handler((ctx) =>
 			ctx.res.sse(async (stream) => {

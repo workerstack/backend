@@ -1,12 +1,12 @@
 import { workersWebSocket } from "@workerstack/backend/ws"
 import { loadE2eApp } from "../../load.ts"
 
-type WorkerEnv = Record<string, unknown> & { HONEY_E2E_APP?: string }
+type WorkerEnv = Record<string, unknown> & { BACKEND_E2E_APP?: string }
 
 let cached: { app: ReturnType<typeof loadE2eApp>; name: string } | null = null
 
 function appFor(env: WorkerEnv) {
-	const name = env.HONEY_E2E_APP ?? "kitchen"
+	const name = env.BACKEND_E2E_APP ?? "kitchen"
 	if (cached?.name === name) return cached.app
 	const app = loadE2eApp(name, workersWebSocket())
 	cached = { app, name }

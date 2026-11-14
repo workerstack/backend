@@ -8,10 +8,10 @@ import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware, type MiddlewareFn } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import { definePreset } from "../../src/routing/preset.ts"
-import type { MetaSpecContext, HoneyMetaSpec } from "../../src/meta/meta-spec-merge.ts"
-import type { HoneyCtx, HoneyMeta, InferBasePath, InferCtx, InferEnv } from "../../src/routing/app-types.ts"
+import type { MetaSpecContext, HttpMetaSpec } from "../../src/meta/meta-spec-merge.ts"
+import type { HttpCtx, HttpMeta, InferBasePath, InferCtx, InferEnv } from "../../src/routing/app-types.ts"
 
 type Query = (sql: string) => unknown[]
 type DbCtx = { db: { query: Query } }
@@ -43,7 +43,7 @@ describe("what createMiddleware infers", () => {
 		>()
 		const noop = createMiddleware((_ctx, next) => next())
 		expectTypeOf(noop).toMatchTypeOf<MiddlewareFn<{}, {}>>()
-		const bare = honey<{}>()
+		const bare = httpApp<{}>()
 		expectTypeOf<keyof InferCtx<ReturnType<typeof bare.use<typeof noop>>>>().toEqualTypeOf<
 			keyof InferCtx<typeof bare>
 		>()
@@ -66,7 +66,7 @@ describe("what createMiddleware infers", () => {
 				? next({ auth: { sub: "u-1", typ: "jwt" } satisfies Jwt })
 				: next({ auth: { kid: "k-1", typ: "api_key" } satisfies ApiKey }),
 		)
-		honey<{}>()
+		httpApp<{}>()
 			.use(auth)
 			.get("/t")
 			.handler((ctx) => {
@@ -86,14 +86,14 @@ describe("requirements are checked where use() is called", () => {
 	// v0: fb9d3b3996
 	it("a middleware without requirements fits any chain; one with them fits only after its providers", () => {
 		const anon = createMiddleware((_ctx, next) => next({ userId: "anon" }))
-		honey().use(anon)
+		httpApp().use(anon)
 		const needsDb = createMiddleware((ctx: DbCtx, next) => {
 			ctx.db.query("SELECT 1")
 			return next({ userId: "u-1" })
 		})
 		// @ts-expect-error the chain does not provide db yet
-		honey().use(needsDb)
-		honey()
+		httpApp().use(needsDb)
+		httpApp()
 			.use(withDb)
 			.use(needsDb)
 			.get("/t")
@@ -111,7 +111,7 @@ describe("requirements are checked where use() is called", () => {
 			if (ctx.kind !== "a") throw new Error("expected a")
 			return next({ kind: "a" as const })
 		})
-		honey<{}>()
+		httpApp<{}>()
 			.use(wide)
 			.use(narrow)
 			.get("/t")
@@ -130,7 +130,7 @@ describe("what a chain accumulates", () => {
 	// v0: 25778170ed
 	// v0: 5dafa280e7
 	it("every use() adds its additions, on InferCtx and in handlers", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(withDb)
 			.use(withAuth)
 			.use(
@@ -151,7 +151,7 @@ describe("what a chain accumulates", () => {
 	// v0: 9f15593878
 	it("use() keeps the env and basePath types", () => {
 		type Env = { DATABASE_URL: string; SECRET: string }
-		const app = honey<Env>().basePath("/api").use(withDb)
+		const app = httpApp<Env>().basePath("/api").use(withDb)
 		expectTypeOf<InferEnv<typeof app>>().toEqualTypeOf<Env>()
 		expectTypeOf<InferBasePath<typeof app>>().toEqualTypeOf<"/api">()
 		app.get("/t").handler((ctx) => {
@@ -164,7 +164,7 @@ describe("what a chain accumulates", () => {
 	// v0: 7b6a984e42
 	// v0: 3b791dafda
 	it("route-level use() stacks on the chain's additions", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.use(createMiddleware((_ctx, next) => next({ fromApp: true })))
 			.post("/items")
 			.use(createMiddleware((_ctx, next) => next({ fromRoute: "yes" })))
@@ -211,7 +211,7 @@ describe("createMiddleware's errors and meta", () => {
 
 	it("its meta counts as chain meta: a route may leave out what a mounted middleware supplies", () => {
 		const captcha = createMiddleware((_ctx, next) => next(), { meta: { captcha: true } })
-		const app = honey<{}>().metaType<{ captcha: boolean; worker: string }>()
+		const app = httpApp<{}>().metaType<{ captcha: boolean; worker: string }>()
 		app
 			.use(captcha)
 			.get("/with")
@@ -231,10 +231,10 @@ describe("createMiddleware's errors and meta", () => {
 	})
 })
 
-describe("HoneyCtx<TEnv, TMeta>: a middleware typed by the meta its routes declare", () => {
+describe("HttpCtx<TEnv, TMeta>: a middleware typed by the meta its routes declare", () => {
 	type RouteMeta = { captcha?: boolean; worker?: "extract" | "saas" }
 	type Env = { KEY: string }
-	const withWorker = createMiddleware((ctx: HoneyCtx<Env, RouteMeta>, next) => {
+	const withWorker = createMiddleware((ctx: HttpCtx<Env, RouteMeta>, next) => {
 		expectTypeOf(ctx.meta.worker).toEqualTypeOf<"extract" | "saas" | undefined>()
 		expectTypeOf(ctx.meta.deprecated).toEqualTypeOf<boolean | undefined>()
 		expectTypeOf(ctx.env.KEY).toEqualTypeOf<string>()
@@ -242,7 +242,7 @@ describe("HoneyCtx<TEnv, TMeta>: a middleware typed by the meta its routes decla
 	})
 
 	it("reads its meta typed, and its routes read the same meta typed", () => {
-		honey<Env>()
+		httpApp<Env>()
 			.metaType<RouteMeta>()
 			.use(withWorker)
 			.get("/x")
@@ -253,7 +253,7 @@ describe("HoneyCtx<TEnv, TMeta>: a middleware typed by the meta its routes decla
 	})
 
 	it("metaSpec callbacks read the app's meta, typed", () => {
-		const spec: HoneyMetaSpec<RouteMeta> = {
+		const spec: HttpMetaSpec<RouteMeta> = {
 			meta: {
 				captcha: "x-captcha",
 				worker: {
@@ -265,8 +265,8 @@ describe("HoneyCtx<TEnv, TMeta>: a middleware typed by the meta its routes decla
 				},
 			},
 		}
-		honey<Env>().metaType<RouteMeta>().metaSpec(spec)
-		expectTypeOf<MetaSpecContext["meta"]>().toEqualTypeOf<Readonly<HoneyMeta<Record<string, unknown>>>>()
+		httpApp<Env>().metaType<RouteMeta>().metaSpec(spec)
+		expectTypeOf<MetaSpecContext["meta"]>().toEqualTypeOf<Readonly<HttpMeta<Record<string, unknown>>>>()
 	})
 })
 
@@ -275,9 +275,9 @@ describe("the route builder's one-shot methods", () => {
 	// v0: 9d3ec7169b
 	it("a one-shot method is gone once used; use() and handler() stay", () => {
 		const errs = defineErrors({ internal_server_error: "internal_server_error" })
-		const bounded = honey<{}>().errorFactory(errs).get("/t").boundary("internal_server_error")
+		const bounded = httpApp<{}>().errorFactory(errs).get("/t").boundary("internal_server_error")
 		expectTypeOf(bounded).not.toHaveProperty("boundary")
-		const used = honey<{}>()
+		const used = httpApp<{}>()
 			.get("/t")
 			.use(createMiddleware((_ctx, next) => next({ a: 1 })))
 			.use(createMiddleware((_ctx, next) => next({ b: 2 })))
@@ -293,7 +293,7 @@ describe("a middleware's error keys on the routes below it", () => {
 	const auth = createMiddleware((_ctx, next) => next(), { errors: [factory, "auth_failed"] })
 
 	it("joins ctx.errors beside the app's defaults, mounted on the chain, a preset or the route", () => {
-		const app = honey<{}>().errorFactory(factory).defaultErrors("item_gone")
+		const app = httpApp<{}>().errorFactory(factory).defaultErrors("item_gone")
 		app
 			.use(auth)
 			.get("/chain")
@@ -302,7 +302,7 @@ describe("a middleware's error keys on the routes below it", () => {
 				expectTypeOf(c.errors.item_gone).toBeFunction()
 				return c.res.text("ok", "x")
 			})
-		honey(definePreset<{}>().errorFactory(factory).defaultErrors("item_gone").use(auth))
+		httpApp(definePreset<{}>().errorFactory(factory).defaultErrors("item_gone").use(auth))
 			.get("/preset")
 			.handler((c) => {
 				expectTypeOf(c.errors.auth_failed).toBeFunction()
@@ -320,7 +320,7 @@ describe("a middleware's error keys on the routes below it", () => {
 	})
 
 	it("narrows ctx.errors to its keys on an app without defaults, as at runtime", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.errorFactory(factory)
 			.use(auth)
 			.get("/narrowed")
@@ -338,7 +338,11 @@ describe("the route builder's one-shots: what stays and what goes", () => {
 	// v0: f84705bad9
 	// v0: d097b40cac
 	it("a fresh builder has every one-shot, use() and handler(), whatever its methods", () => {
-		for (const builder of [honey<{}>().get("/t"), honey<{}>().post("/t"), honey<{}>().on(["GET", "POST"], "/t")]) {
+		for (const builder of [
+			httpApp<{}>().get("/t"),
+			httpApp<{}>().post("/t"),
+			httpApp<{}>().on(["GET", "POST"], "/t"),
+		]) {
 			for (const method of [...ONE_SHOTS, "use", "handler"] as const) expectTypeOf(builder).toHaveProperty(method)
 		}
 	})
@@ -356,7 +360,7 @@ describe("the route builder's one-shots: what stays and what goes", () => {
 			internal_server_error: "internal_server_error",
 			not_found: "not_found",
 		})
-		const route = honey<{}>().errorFactory(errs).get("/t")
+		const route = httpApp<{}>().errorFactory(errs).get("/t")
 		const input = route.input({ json: z.object({ name: z.string() }) })
 		const errors = route.errors("not_found", "forbidden")
 		const boundary = route.boundary("internal_server_error")
@@ -389,20 +393,20 @@ describe("the route builder's one-shots through later calls", () => {
 	it("a used one-shot stays gone through later calls; use() stays through all of them", () => {
 		const errs = defineErrors({ bad_request: "bad_request" })
 		const pass = createMiddleware((_ctx, next) => next({ x: 1 }))
-		const afterErrors = honey<{}>()
+		const afterErrors = httpApp<{}>()
 			.errorFactory(errs)
 			.get("/t")
 			.input({ json: z.object({ n: z.string() }) })
 			.errors("bad_request")
-		const afterUse = honey<{}>()
+		const afterUse = httpApp<{}>()
 			.get("/t")
 			.input({ json: z.object({ n: z.string() }) })
 			.use(pass)
-		const afterMeta = honey<{}>()
+		const afterMeta = httpApp<{}>()
 			.get("/t")
 			.input({ json: z.object({ n: z.string() }) })
 			.meta({ summary: "x" })
-		const afterOutput = honey<{}>()
+		const afterOutput = httpApp<{}>()
 			.get("/t")
 			.meta({ summary: "x" })
 			.output({ "application/json": { ok: z.object({ id: z.string() }) } })

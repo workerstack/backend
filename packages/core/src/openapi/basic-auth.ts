@@ -3,7 +3,7 @@
  * and the constant-time pair check. Nothing here reaches the router or the generator, and a serving call
  * reaches it only through a guard, so a document served without one carries none of it.
  */
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import type { RuntimeMiddleware } from "../middleware/middleware.ts"
 import { withHeaders } from "../response/with-headers.ts"
 import { timingSafeEqual } from "../security/crypto.ts"
@@ -14,7 +14,7 @@ declare const SERVED_AUTH: unique symbol
 export type ServedAuth = { readonly [SERVED_AUTH]: true }
 
 /** A username and password, as a Basic credential carries them. */
-export type Credentials = {
+export type AuthCredentials = {
 	/** Everything after the first `:`, so it may hold colons itself. */
 	readonly password: string
 	/** Everything before the first `:`. */
@@ -29,7 +29,7 @@ export type BasicAuthOptions<E = unknown> = {
 	 * Whether the pair may read the document. A throw is a fault, answered 500, never a refusal.
 	 */
 	readonly verify: (
-		input: Credentials & {
+		input: AuthCredentials & {
 			/** The request's runtime env, such as Workers bindings. */
 			readonly env: E
 		},
@@ -58,7 +58,7 @@ export type GuardFactory = { readonly guard: () => Guard }
  * The pair a `Basic` Authorization header carries, split at the first `:`; null for any other
  * scheme, base64 that does not decode, bytes that are not UTF-8, or no colon.
  */
-export function parseBasic(header: string | null): Credentials | null {
+export function parseBasic(header: string | null): AuthCredentials | null {
 	const encoded = /^basic +([A-Za-z0-9+/]+={0,2}) *$/i.exec(header ?? "")?.[1]
 	if (encoded === undefined) return null
 	let text: string
@@ -103,7 +103,7 @@ export function basic<E = unknown>(options: BasicAuthOptions<E>): ServedAuth {
 			wrap: (handler) => async (ctx) => {
 				if (await allows(ctx)) return handler(ctx)
 				refused.add(ctx)
-				throw new HoneyError({ errorKey: "unauthorized", status: "unauthorized" })
+				throw new HttpError({ errorKey: "unauthorized", status: "unauthorized" })
 			},
 		}
 	}
@@ -115,7 +115,7 @@ export function basic<E = unknown>(options: BasicAuthOptions<E>): ServedAuth {
  * Whether `given` is `expected`: both fields compared in constant time, both always, so the answer's
  * timing says nothing about which one differed.
  */
-export async function credentialsMatch(given: Credentials, expected: Credentials): Promise<boolean> {
+export async function credentialsMatch(given: AuthCredentials, expected: AuthCredentials): Promise<boolean> {
 	const [username, password] = await Promise.all([
 		timingSafeEqual(given.username, expected.username),
 		timingSafeEqual(given.password, expected.password),

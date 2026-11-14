@@ -121,7 +121,7 @@ describe("release.yml's CHANGELOG step, run", () => {
 	/** The step run by bash in a directory holding `changelog`, on tag `refName`. */
 	function run(changelog: string, refName: string) {
 		const step = stepsRunning(release, "scripts/changelog.ts")[0]
-		const dir = mkdtempSync(join(tmpdir(), "honey-changelog-"))
+		const dir = mkdtempSync(join(tmpdir(), "backend-changelog-"))
 		dirs.push(dir)
 		writeFileSync(join(dir, "CHANGELOG.md"), changelog)
 		const env = { ...process.env, GITHUB_REF_NAME: refName, GITHUB_WORKSPACE: ROOT }

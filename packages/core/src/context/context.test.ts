@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest"
-import { HoneyError } from "../errors/error.ts"
-import { HoneyRes } from "../response/response.ts"
+import { HttpError } from "../errors/error.ts"
+import { HttpRes } from "../response/response.ts"
 import { SILENT } from "../telemetry/logger.ts"
 import { PEER_ADDRESS } from "./peer.ts"
 import {
-	HoneyContext,
+	HttpContext,
 	isReservedCtxKey,
 	NO_ROUTE,
 	REQUEST,
@@ -18,7 +18,7 @@ function makeReq(url = "http://localhost/test", headers?: Record<string, string>
 }
 
 function makeCtx(state?: Partial<RequestState<{ DB: string }>>, route: RouteInfo = NO_ROUTE, params = { id: "42" }) {
-	return new HoneyContext(
+	return new HttpContext(
 		{ env: { DB: "test" }, executionCtx: undefined, logger: SILENT, path: "/test", req: makeReq(), ...state },
 		route,
 		params,
@@ -41,7 +41,7 @@ function untouchable(): Request {
 	} as unknown as Request
 }
 
-describe("HoneyContext > constructor", () => {
+describe("HttpContext > constructor", () => {
 	// v0: 354be6cfb9
 	it("assigns env directly", () => {
 		const env = { DB: "prod" }
@@ -61,15 +61,15 @@ describe("HoneyContext > constructor", () => {
 	})
 
 	// v0: 3cf493112e
-	it("assigns res as a HoneyRes instance", () => {
+	it("assigns res as a HttpRes instance", () => {
 		const ctx = makeCtx()
-		expect(ctx.res).toBeInstanceOf(HoneyRes)
+		expect(ctx.res).toBeInstanceOf(HttpRes)
 		expect(typeof ctx.res.json).toBe("function")
 		expect(typeof ctx.res.text).toBe("function")
 	})
 
 	it("reads path from the request state and pattern, meta and errors from the route", () => {
-		const errors = { gone: () => new HoneyError({ errorKey: "gone", status: "gone" }) }
+		const errors = { gone: () => new HttpError({ errorKey: "gone", status: "gone" }) }
 		const route: RouteInfo = { errors, id: "GET /users/:id", meta: Object.freeze({ tag: "a" }), pattern: "/users/:id" }
 		const state: RequestState<{ DB: string }> = {
 			env: { DB: "x" },
@@ -78,7 +78,7 @@ describe("HoneyContext > constructor", () => {
 			path: "/users/1",
 			req: makeReq(),
 		}
-		const ctx = new HoneyContext(state, route, { id: "1" })
+		const ctx = new HttpContext(state, route, { id: "1" })
 		expect(ctx.path).toBe("/users/1")
 		expect(ctx.routePattern).toBe("/users/:id")
 		expect(ctx.meta).toEqual({ tag: "a" })
@@ -97,7 +97,7 @@ describe("HoneyContext > constructor", () => {
 	})
 })
 
-describe("HoneyContext > defaults", () => {
+describe("HttpContext > defaults", () => {
 	// v0: 6558a21332
 	it("routePattern defaults to empty string", () => {
 		expect(makeCtx().routePattern).toBe("")
@@ -123,13 +123,13 @@ describe("HoneyContext > defaults", () => {
 	})
 })
 
-describe("HoneyContext > log", () => {
+describe("HttpContext > log", () => {
 	it("is a child of the request state's logger", () => {
 		expect(makeCtx().log).toBe(SILENT)
 	})
 })
 
-describe("HoneyContext > background", () => {
+describe("HttpContext > background", () => {
 	// v0: 6f98d422a8
 	it("delegates to executionCtx.waitUntil when provided", () => {
 		const executionCtx = { waitUntil: vi.fn<(p: Promise<unknown>) => void>() }
@@ -150,7 +150,7 @@ describe("HoneyContext > background", () => {
 	})
 })
 
-describe("HoneyContext > lazy cookies", () => {
+describe("HttpContext > lazy cookies", () => {
 	// v0: 967aa4ef67
 	it("parsed correctly from cookie header", () => {
 		expect(makeCtx({ req: makeReq("http://localhost/test", { cookie: "a=1; b=hello" }) }).cookies).toEqual({
@@ -171,7 +171,7 @@ describe("HoneyContext > lazy cookies", () => {
 	})
 })
 
-describe("HoneyContext > lazy headers", () => {
+describe("HttpContext > lazy headers", () => {
 	// v0: 703b2d9366
 	it("converts Headers to Record correctly", () => {
 		const h = makeCtx({
@@ -189,7 +189,7 @@ describe("HoneyContext > lazy headers", () => {
 	})
 })
 
-describe("HoneyContext > lazy search", () => {
+describe("HttpContext > lazy search", () => {
 	// v0: 4e0d8b3717
 	it("falls back to new URL(req.url) when no urlFn", () => {
 		expect(makeCtx({ req: makeReq("http://localhost/test?key=fallback") }).search.key).toBe("fallback")
@@ -228,7 +228,7 @@ describe("HoneyContext > lazy search", () => {
 	})
 })
 
-describe("HoneyContext > errors property", () => {
+describe("HttpContext > errors property", () => {
 	// v0: 63a5f13246
 	it("can be set after construction", () => {
 		const ctx = makeCtx()
@@ -238,7 +238,7 @@ describe("HoneyContext > errors property", () => {
 	})
 })
 
-describe("HoneyContext > meta", () => {
+describe("HttpContext > meta", () => {
 	// v0: 3587f0ccc3
 	it("is frozen (Object.isFrozen)", () => {
 		expect(Object.isFrozen(makeCtx().meta)).toBe(true)
@@ -251,16 +251,16 @@ describe("HoneyContext > meta", () => {
 	})
 })
 
-describe("HoneyContext > the error slot", () => {
+describe("HttpContext > the error slot", () => {
 	it("setCtxError records the error behind the response", () => {
 		const ctx = makeCtx()
-		const err = new HoneyError({ errorKey: "gone", status: "gone" })
+		const err = new HttpError({ errorKey: "gone", status: "gone" })
 		setCtxError(ctx, err)
 		expect(ctx.error).toBe(err)
 	})
 })
 
-describe("HoneyContext > signal", () => {
+describe("HttpContext > signal", () => {
 	it("follows the request's own signal", () => {
 		const controller = new AbortController()
 		const ctx = makeCtx({ req: new Request("http://localhost/", { signal: controller.signal }) })
@@ -288,7 +288,7 @@ describe("HoneyContext > signal", () => {
 	})
 })
 
-describe("HoneyContext > ip", () => {
+describe("HttpContext > ip", () => {
 	it("is the canonical peer, read only when asked and once per request", () => {
 		const req = makeReq("http://app.internal/who")
 		let reads = 0
@@ -309,7 +309,7 @@ describe("HoneyContext > ip", () => {
 	})
 })
 
-describe("HoneyContext > res is linked to the request", () => {
+describe("HttpContext > res is linked to the request", () => {
 	it("sse() resumes from the request's Last-Event-ID, and its stream ends when the request does", async () => {
 		const client = new AbortController()
 		const req = new Request("http://app.internal/events", { headers: { "last-event-id": "41" }, signal: client.signal })
@@ -351,7 +351,7 @@ describe("isReservedCtxKey", () => {
 	})
 })
 
-describe("HoneyContext — lazy parsing", () => {
+describe("HttpContext — lazy parsing", () => {
 	// v0: 726d3a4875
 	it("search built from URL on first access, cached (first value per key)", () => {
 		const ctx = makeCtx({ req: makeReq("http://localhost/test?a=1&b=2&a=3") })
@@ -382,7 +382,7 @@ describe("HoneyContext — lazy parsing", () => {
 	})
 })
 
-describe("HoneyContext — background", () => {
+describe("HttpContext — background", () => {
 	// v0: aaa3a51277
 	it("delegates to executionCtx.waitUntil", () => {
 		const waitUntil = vi.fn<(p: Promise<unknown>) => void>()
@@ -397,7 +397,7 @@ describe("HoneyContext — background", () => {
 	})
 })
 
-describe("HoneyContext — response helpers", () => {
+describe("HttpContext — response helpers", () => {
 	// v0: 4276efecb7
 	it("json(ok, data) → 200 application/json", () => {
 		const res = makeCtx().res.json("ok", { id: 1 })
@@ -442,7 +442,7 @@ describe("HoneyContext — response helpers", () => {
 	})
 })
 
-describe("HoneyContext — response helpers: html and cookies", () => {
+describe("HttpContext — response helpers: html and cookies", () => {
 	// v0: 70311d6b4b
 	it("html → 200 text/html", async () => {
 		const res = makeCtx().res.html("ok", "<h1>hi</h1>")

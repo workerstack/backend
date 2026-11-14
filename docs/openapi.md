@@ -1,6 +1,6 @@
 # The OpenAPI document
 
-honey writes an OpenAPI 3.1 document from the app's routes: their input and output schemas, errors,
+backend writes an OpenAPI 3.1 document from the app's routes: their input and output schemas, errors,
 metadata and response headers. `serveOpenApi(app, options)` mounts it as JSON and YAML, with Scalar or Swagger docs
 pages at the paths you choose, and the build plugin writes it to disk. Options shape the document: `servers` with
 `variables`, `tags` with `externalDocs` and `x-displayName`, and `webhooks` for the requests your API sends out.
@@ -11,11 +11,11 @@ compile; list the keys in `metaSpec({ extensions })` and a strict policy reports
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
-const app = honey()
+const app = httpApp()
 
 app
 	.get("/orders")
@@ -43,11 +43,11 @@ your own. It imports none of the generator, so it is what a Worker serving a lar
 whose own routes are the document wants `serveOpenApi`.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"
 
-const app = honey()
+const app = httpApp()
 
 serveStaticOpenApi(app, {
 	cacheControl: "public, s-maxage=3600",
@@ -63,15 +63,15 @@ serveStaticOpenApi(app, {
 JSON at runtime. `path` (default `/openapi`) is the stem `.json`, `.yaml` and `.yml` hang off; `jsonPath` and
 `yamlPath` replace that path outright. `docs` maps each path to its page, as in `serveOpenApi`. Routes are internal and
 marked served, so the document never lists its own endpoints, and `meta` cannot lift that. `meta` goes on every route
-the call mounts, the docs pages included, and takes what a route's own `.meta()` takes on that handle: honey's keys
+the call mounts, the docs pages included, and takes what a route's own `.meta()` takes on that handle: backend's keys
 (`security`, `summary`) and the ones the app declared with `metaType<T>()`, so middleware that reads route meta (a
 `cacheControl` an app's own middleware turns into the header, a `security` an auth layer checks) sees it on the
 document routes too. `serveOpenApi` and `serveManifest` take the same `meta`.
 
 A document is loaded once per process or isolate, concurrent first requests sharing that load, and kept with the
-upstream's strong `etag` when it sent one, else honey's own SHA-256 tag. A failed load is not kept and the next
+upstream's strong `etag` when it sent one, else backend's own SHA-256 tag. A failed load is not kept and the next
 request retries; a successful one is never refreshed, so a new upstream document needs a restart or a redeploy.
-Nothing parses what is served: honey's own `content-type` is sent whatever the upstream said. A failing asset, a
+Nothing parses what is served: backend's own `content-type` is sent whatever the upstream said. A failing asset, a
 binding that is missing or cannot fetch, and a failing loader are `internal_server_error`; a URL that fails or
 answers non-2xx is `bad_gateway`.
 
@@ -84,15 +84,15 @@ fresh checkout. A named document outside the assets directory, or no directory t
 generation.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"
 
-/* src/_gen/openapi-sources.gen.ts, as honey generate writes it for a document named "public" in JSON and YAML */
+/* src/_gen/openapi-sources.gen.ts, as backend generate writes it for a document named "public" in JSON and YAML */
 const openApiSources = {
 	public: { json: { asset: "/openapi.public.json" }, yaml: { asset: "/openapi.public.yaml" } },
 } as const
 
-const app = honey()
+const app = httpApp()
 
 serveStaticOpenApi(app, { ...openApiSources.public, jsonPath: "/v1/openapi/spec" })
 ```
@@ -104,7 +104,7 @@ call mounts: the JSON, the YAML and each docs page. A browser asks for the pair 
 page's own request for the document.
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { basic, credentialsMatch } from "@workerstack/backend/http/openapi/auth"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"
@@ -112,7 +112,7 @@ import { swagger } from "@workerstack/backend/http/openapi/swagger"
 
 type Env = { OPENAPI_DOCS_PASSWORD: string }
 
-const app = honey<Env>()
+const app = httpApp<Env>()
 
 serveStaticOpenApi(app, {
 	docs: { "/v1/openapi/scalar": scalar, "/v1/openapi/swagger": swagger },
@@ -148,8 +148,8 @@ and throws. `auth` changes nothing in a generated document: the routes stay inte
 | server `variables`                 | —                                    | templated server URLs (`{region}`, `{env}`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | variable defaults must be valid against their enum                                                                                                                              |
 | `tags`                             | the operation tags, first-seen order | the top-level `tags` are each operation's declared tags in first-seen order, merged by name with an explicit `tags` option (description, `externalDocs`, `x-displayName`). **Not** derived from the resource tree (that is gen — H2 forbids core reading it) and **not** auto-assigned from the dotted operationId (it would change every operation's output, and SDK grouping already comes from operationId). A declared tag no operation uses → warn                                                              | tags are for human doc tools; keep operationId stable for SDK grouping                                                                                                          |
 | `externalDocs`                     | —                                    | per-tag / top-level external doc links                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | —                                                                                                                                                                               |
-| `x-displayName` / tag metadata     | —                                    | human display names for third-party doc tools                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | honey-namespaced `x-` extension                                                                                                                                                 |
-| `webhooks`                         | —                                    | the events the API sends, as a `webhookContract`; each is documented under OpenAPI 3.1 `webhooks` as a Standard Webhooks POST of `{ type, timestamp, data }` with its three signature headers and `x-honey-webhook`                                                                                                                                                                                                                                                                                                  | a free-form record is not accepted; TypeScript SDKs verify them, the other languages follow                                                                                     |
+| `x-displayName` / tag metadata     | —                                    | human display names for third-party doc tools                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | backend-namespaced `x-` extension                                                                                                                                               |
+| `webhooks`                         | —                                    | the events the API sends, as a `webhookContract`; each is documented under OpenAPI 3.1 `webhooks` as a Standard Webhooks POST of `{ type, timestamp, data }` with its three signature headers and `x-backend-webhook`                                                                                                                                                                                                                                                                                                | a free-form record is not accepted; TypeScript SDKs verify them, the other languages follow                                                                                     |
 | `.meta({ extensions: { "x-*" } })` | —                                    | operation-level extensions reach the document (`x-realtime`, `x-websocket`, `x-mcp`, custom)                                                                                                                                                                                                                                                                                                                                                                                                                         | only `x-`-prefixed keys are allowed; once the meta type declares `extensions`, only its keys, and under a strict metaSpec only the keys its `extensions` list or an entry names |
 | `app.metaSpec(config)`             | built-in policy                      | the codegen-time policy mapping custom route meta to operation fields (`string` / `{ key, map }` / `{ expand }` / `false` to hide; `map` and `expand` get a `MetaSpecContext<TMeta>` whose `meta` is the app's declared meta, typed), schema-metadata entries (rank/from/search/match/version), profiles (include/exclude), strictness (error/warn/off totality over meta keys), sub-app merge (parent wins, a sub's `false` always wins, conflicts reported), and the publishable meta keys for the served manifest | without it custom meta reaches the document only as raw `x-*`; metaSpec maps it to standard operation fields; diagnostics go to the caller's report hook, never the console     |
-| info (title/version/description)   | package-derived                      | the document `info` block                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | version should track the API, not the honey release                                                                                                                             |
+| info (title/version/description)   | package-derived                      | the document `info` block                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | version should track the API, not the backend release                                                                                                                           |

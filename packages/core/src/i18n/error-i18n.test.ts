@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { createLogger } from "../telemetry/logger.ts"
 import { createErrorTranslator, type ErrorTranslations, translateError } from "./error-i18n.ts"
 
 const fieldError = (path: string) => ({ error_key: "invalid", message: "invalid", path })
 
-/** The HoneyError input validation answers with (bit 08 builds it from a schema; here it is thrown as is). */
-function invalidInput(paths: Record<string, string[]>): HoneyError {
-	return new HoneyError({
+/** The HttpError input validation answers with (bit 08 builds it from a schema; here it is thrown as is). */
+function invalidInput(paths: Record<string, string[]>): HttpError {
+	return new HttpError({
 		errorKey: "validation_failed",
 		fields: Object.fromEntries(Object.entries(paths).map(([source, list]) => [source, list.map(fieldError)])),
 		status: "bad_request",
@@ -29,7 +29,7 @@ const translations: ErrorTranslations = {
 describe("translateError(): a translated copy", () => {
 	it("the message from the locale's template, its vars filled; key, status, data, headers and cause kept", () => {
 		const cause = new Error("db")
-		const error = new HoneyError({
+		const error = new HttpError({
 			cause,
 			data: { id: 7 },
 			errorKey: "item_gone",
@@ -49,7 +49,7 @@ describe("translateError(): a translated copy", () => {
 	})
 
 	it("plural vars are formatted for the locale", () => {
-		const error = new HoneyError({ errorKey: "quota", status: "too_many_requests", vars: { n: 1 } })
+		const error = new HttpError({ errorKey: "quota", status: "too_many_requests", vars: { n: 1 } })
 		expect(translateError(error, translations, "en").message).toBe("1 slot left")
 	})
 
@@ -66,8 +66,8 @@ describe("translateError(): what stays as it was", () => {
 	// v0: c1ccd88d25
 	// v0: b43be7072d
 	it("nothing to translate (an unknown locale, an unknown key, no fields): the same error, untouched", () => {
-		const error = new HoneyError({ errorKey: "item_gone", status: "gone", vars: { name: "x" } })
-		const other = new HoneyError({ errorKey: "unlisted", status: "gone" })
+		const error = new HttpError({ errorKey: "item_gone", status: "gone", vars: { name: "x" } })
+		const other = new HttpError({ errorKey: "unlisted", status: "gone" })
 		const fielded = invalidInput({ json: ["json.email"] })
 		expect([
 			translateError(error, translations, "fr") === error,
@@ -77,7 +77,7 @@ describe("translateError(): what stays as it was", () => {
 	})
 
 	it("the thrown error is never changed: one instance, translated per locale", () => {
-		const error = new HoneyError({
+		const error = new HttpError({
 			errorKey: "item_gone",
 			fields: { json: [fieldError("json.email")] },
 			status: "gone",
@@ -93,7 +93,7 @@ describe("translateError(): what stays as it was", () => {
 	})
 
 	it("an error whose stack was removed still translates, keeping the copy's own", () => {
-		const error = new HoneyError({ errorKey: "item_gone", status: "gone", vars: { name: "A" } })
+		const error = new HttpError({ errorKey: "item_gone", status: "gone", vars: { name: "A" } })
 		Reflect.deleteProperty(error, "stack")
 		const translated = translateError(error, translations, "en")
 		expect([translated.message, typeof translated.stack]).toEqual(["A is gone", "string"])
@@ -103,7 +103,7 @@ describe("translateError(): what stays as it was", () => {
 describe("translateError(): through the app", () => {
 	it("a translated 5xx still carries the digest its operator line has", async () => {
 		const a = app(
-			() => new HoneyError({ errorKey: "item_gone", status: "internal_server_error", vars: { name: "x" } }),
+			() => new HttpError({ errorKey: "item_gone", status: "internal_server_error", vars: { name: "x" } }),
 			() => "en",
 		)
 		const answer = (await (await a.fetch(new Request("http://app.test/x"), { TENANT: "t" })).json()) as {
@@ -117,7 +117,7 @@ describe("translateError(): through the app", () => {
 
 describe("translateError(): prototype names", () => {
 	it("a locale, key or field named like a prototype member misses", () => {
-		const error = new HoneyError({
+		const error = new HttpError({
 			errorKey: "constructor",
 			fields: { json: [fieldError("toString")] },
 			status: "gone",
@@ -134,7 +134,7 @@ describe("translateError(): prototype names", () => {
 describe("createErrorTranslator(): the value app.errorI18n carries", () => {
 	it("is frozen, and translates through its own formatter", () => {
 		const value = createErrorTranslator({ errors: { en: { item_gone: "{name} is gone" } }, resolveLocale: () => "en" })
-		const error = new HoneyError({ errorKey: "item_gone", status: "gone", vars: { name: "A" } })
+		const error = new HttpError({ errorKey: "item_gone", status: "gone", vars: { name: "A" } })
 		expect([
 			Object.isFrozen(value),
 			value.translate(error, "en").message,
@@ -144,16 +144,16 @@ describe("createErrorTranslator(): the value app.errorI18n carries", () => {
 
 	it("a raw config handed to app.errorI18n is refused at startup, pointing at createErrorTranslator()", () => {
 		const raw = { errors: {}, resolveLocale: () => "en" } as never
-		expect(() => honey<{}>().errorI18n(raw)).toThrow(
+		expect(() => httpApp<{}>().errorI18n(raw)).toThrow(
 			"app.errorI18n(): pass createErrorTranslator() from @workerstack/backend/http/i18n",
 		)
 	})
 })
 
 /** An app that throws `error` from GET /x and /x/:id, with errorI18n set when `locale` resolves one. */
-function app(error: () => HoneyError, resolveLocale?: Parameters<typeof createErrorTranslator>[0]["resolveLocale"]) {
+function app(error: () => HttpError, resolveLocale?: Parameters<typeof createErrorTranslator>[0]["resolveLocale"]) {
 	const lines: Record<string, unknown>[] = []
-	const a = honey<{ TENANT: string }>()
+	const a = httpApp<{ TENANT: string }>()
 	a.logger(
 		createLogger({
 			format: "json",
@@ -182,7 +182,7 @@ function app(error: () => HoneyError, resolveLocale?: Parameters<typeof createEr
 	return Object.assign(a, { lines })
 }
 
-const gone = () => new HoneyError({ errorKey: "item_gone", status: "gone", vars: { name: "Order 7" } })
+const gone = () => new HttpError({ errorKey: "item_gone", status: "gone", vars: { name: "Order 7" } })
 
 async function body(res: Response) {
 	return (await res.json()) as {
@@ -348,9 +348,9 @@ describe("app.errorI18n with onError", () => {
 	// v0: 945dace406
 	// v0: f83c28920e
 	// v0: 717a9b904b
-	it("a HoneyError onError returns is translated in its turn", async () => {
+	it("a HttpError onError returns is translated in its turn", async () => {
 		const answer = await body(
-			await withOnError(() => new HoneyError({ errorKey: "item_gone", status: "gone", vars: { name: "Other" } })).fetch(
+			await withOnError(() => new HttpError({ errorKey: "item_gone", status: "gone", vars: { name: "Other" } })).fetch(
 				new Request("http://app.test/x"),
 				{ TENANT: "t" },
 			),
@@ -365,7 +365,7 @@ describe("app.errorI18n with onError", () => {
 			seen.push(error)
 			return new Response("custom", { status: 418 })
 		}).fetch(new Request("http://app.test/x"), { TENANT: "t" })
-		expect([res.status, await res.text(), (seen[0] as HoneyError).message]).toEqual([418, "custom", "item_gone"])
+		expect([res.status, await res.text(), (seen[0] as HttpError).message]).toEqual([418, "custom", "item_gone"])
 	})
 
 	// v0: 2c4091a70b
@@ -402,7 +402,7 @@ describe("app.errorI18n through middleware and boundaries", () => {
 	// v0: a65f592ae3
 	// v0: 0a90ba67f9
 	it("a factory error from the handler or a middleware is translated per request, the middleware's headers kept", async () => {
-		const a = honey<{}>().errorFactory(businessErrors).errorI18n(businessI18n())
+		const a = httpApp<{}>().errorFactory(businessErrors).errorI18n(businessI18n())
 		const stamped = a.use(
 			createMiddleware(async (_ctx, next) => {
 				const res = await next()
@@ -446,7 +446,7 @@ describe("app.errorI18n through middleware and boundaries", () => {
 
 	// v0: 21da2ee5a6
 	it("a route's boundary key answers an unknown throw, translated like any error", async () => {
-		const a = honey<{}>().errorFactory(businessErrors).errorI18n(businessI18n()).logger(false)
+		const a = httpApp<{}>().errorFactory(businessErrors).errorI18n(businessI18n()).logger(false)
 		a.get("/me")
 			.boundary("profile_error")
 			.handler(() => {

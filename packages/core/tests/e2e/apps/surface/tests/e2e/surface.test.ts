@@ -294,7 +294,7 @@ test.describe("openapi", () => {
 		const res = await request.get("/openapi.json")
 		expect(res.status()).toBe(200)
 		const spec = await res.json()
-		expect(spec.info.title).toBe("Honey Surface")
+		expect(spec.info.title).toBe("Backend Surface")
 		expect(spec.paths["/in/json"]).toBeDefined()
 		expect(spec.paths["/out/text"]).toBeDefined()
 		expect(spec.paths["/methods/resource"]).toBeDefined()

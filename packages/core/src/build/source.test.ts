@@ -10,19 +10,19 @@ import { existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { type Project, project } from "./__fixtures__/project.ts"
-import { type HoneyVitePluginConfig, resolveHoneyConfig } from "./config.ts"
+import { type BackendPluginConfig, resolveBackendConfig } from "./config.ts"
 import { generateAndWrite } from "./generate.ts"
 import type { ModuleLoader } from "./loaders.ts"
 import { sourceOf } from "./source.ts"
-import { honeyPlugin } from "./plugin.ts"
-import { honey } from "../routing/app.ts"
+import { backendPlugin } from "./plugin.ts"
+import { httpApp } from "../routing/app.ts"
 import { mergeTree } from "../routing/tree-merge.ts"
 
 const SLOW = 60_000
 
 /** The loader a Bun or type-stripping Node test can use: the platform's own import. */
 const native: ModuleLoader = (path) => import(path) as Promise<Record<string, unknown>>
-const BIN = resolve(import.meta.dirname, "../../bin/honey.js")
+const BIN = resolve(import.meta.dirname, "../../bin/backend.js")
 const projects: Project[] = []
 afterEach(() => {
 	for (const made of projects.splice(0)) made.done()
@@ -31,9 +31,9 @@ afterEach(() => {
 /** The downstream service: GET /orders and POST /items with a JSON body, plus `extra` lines. */
 const downSource = (extra: readonly string[] = []) =>
 	[
-		'import { honey } from "@workerstack/backend/http"',
+		'import { httpApp } from "@workerstack/backend/http"',
 		'import * as z from "zod"',
-		"export const app = honey()",
+		"export const app = httpApp()",
 		'\t.get("/orders").handler((c) => c.res.text("ok", "orders"))',
 		'\t.post("/items")',
 		"\t.input({ json: z.object({ name: z.string() }) })",
@@ -44,8 +44,8 @@ const downSource = (extra: readonly string[] = []) =>
 
 /** The gateway's app, built without its tree: its own routes and errors, and a catch-all. */
 const GATEWAY_SOURCE = [
-	'import { defineErrors, honey } from "@workerstack/backend/http"',
-	'export const app = honey().errorFactory(defineErrors({ maintenance: "service_unavailable" }))',
+	'import { defineErrors, httpApp } from "@workerstack/backend/http"',
+	'export const app = httpApp().errorFactory(defineErrors({ maintenance: "service_unavailable" }))',
 	'app.get("/health").errors("maintenance").handler((c) => c.res.text("ok", "up"))',
 	'app.get("/robots.txt").handler((c) => c.res.text("ok", "User-agent: *"))',
 	'app.all("/*").handler((c) => c.res.text("ok", "forwarded"))',
@@ -73,8 +73,8 @@ function gatewayProject(): Project {
 const read = (dir: string, path: string) => readFileSync(join(dir, path), "utf8")
 const OUTPUTS = { manifest: true, openApi: { title: "Gateway", version: "1" } } as const
 const ALL_WRITTEN = ["src/_gen/routes.gen.ts", "src/_gen/manifest.gen.json", "src/_gen/openapi.gen.json"]
-const generate = (config: HoneyVitePluginConfig, dir: string) =>
-	generateAndWrite(resolveHoneyConfig(config), dir, { report: () => {} }).then(
+const generate = (config: BackendPluginConfig, dir: string) =>
+	generateAndWrite(resolveBackendConfig(config), dir, { report: () => {} }).then(
 		(written) => written.map((file) => file.slice(dir.length + 1)),
 		(error: Error) => error.message,
 	)
@@ -88,13 +88,13 @@ const documentAt = (dir: string) => JSON.parse(read(dir, "src/_gen/openapi.gen.j
 
 /** A service whose `GET /bad` declares output under `orders`, a name no status has (a JS app's, or a cast's). */
 const BAD_OUTPUT = [
-	'import { honey } from "@workerstack/backend/http"',
-	"export const app = honey()",
+	'import { httpApp } from "@workerstack/backend/http"',
+	"export const app = httpApp()",
 	'app.get("/bad").output({ "application/json": { orders: true } } as never).handler((c) => c.res.noContent())',
 	"",
 ].join("\n")
 
-describe("honey generate: an output key that names no status (bit 21 f2)", () => {
+describe("backend generate: an output key that names no status (bit 21 f2)", () => {
 	it(
 		"refuses an app's tree and a gateway's merged tree that hold one, naming the route, and writes nothing",
 		async () => {
@@ -165,7 +165,7 @@ describe("a gateway's app (bit 19 h2), continued (2)", () => {
 			const made = gatewayProject()
 			made.write(
 				"src/plain.app.ts",
-				'import { honey } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = honey().routeTree(routeTree)\n',
+				'import { httpApp } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = httpApp().routeTree(routeTree)\n',
 			)
 			const done = await generate(
 				{ app: "src/plain.app.ts", codegen: { ...OUTPUTS, mergeTree: "src/route-tree.ts" } },
@@ -236,13 +236,13 @@ describe("a gateway over its own tree on Bun (bit 20 k-fix)", () => {
 			made.write("src/down.ts", downSource(['\t.get("/added").handler((c) => c.res.text("ok", "new"))']))
 			made.write(
 				"vite.config.ts",
-				`import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin(${JSON.stringify(SERVED)})] }\n`,
+				`import { backendPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [backendPlugin(${JSON.stringify(SERVED)})] }\n`,
 			)
 			/* Bun keeps each module for the process: the redo pass's fresh graph must not be the first pass's */
 			const done = spawnSync("bun", [BIN, "generate"], {
 				cwd: made.dir,
 				encoding: "utf8",
-				env: { ...process.env, HONEY_NO_BUN_HANDOFF: "1" },
+				env: { ...process.env, BACKEND_NO_BUN_HANDOFF: "1" },
 				timeout: SLOW,
 			})
 			expect([done.status, done.stderr, Object.keys(documentAt(made.dir).paths).sort()]).toEqual([
@@ -293,7 +293,7 @@ describe("a gateway through the plugin in dev (bit 19 h2)", () => {
 				codegen: { ...OUTPUTS, mergeTree: "src/route-tree.ts" },
 				watch: ["src/**"],
 			}
-			const [plugin] = honeyPlugin(config)
+			const [plugin] = backendPlugin(config)
 			plugin.configResolved({ root: made.dir })
 			const server = { moduleGraph: { getModuleById: () => undefined } }
 			made.write("src/down.ts", downSource(['\t.get("/added").handler((c) => c.res.text("ok", "new"))']))
@@ -340,7 +340,7 @@ function linked(files: Record<string, string>): Project {
 const OLDER =
 	"export const routeTree = { root: { s: {}, m: null, d: null, w: null, ws: null }, meta: {}, handlers: {} }\n"
 const SELF_LOADING =
-	'import { honey } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = honey().routeTree(routeTree as never)\n'
+	'import { httpApp } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = httpApp().routeTree(routeTree as never)\n'
 const MERGE =
 	'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n'
 const failure = (run: Promise<unknown>) =>
@@ -361,17 +361,17 @@ describe("sourceOf natively: what fails and how it is named (bit 19 h2)", () => 
 		})
 		const broken = linked({ "src/app.ts": 'throw new Error("not stale")\n' })
 		expect([
-			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), plain.dir, native)),
-			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts", codegen: { tree: false } }), off.dir, native)),
+			await failure(sourceOf(resolveBackendConfig({ app: "src/app.ts" }), plain.dir, native)),
+			await failure(sourceOf(resolveBackendConfig({ app: "src/app.ts", codegen: { tree: false } }), off.dir, native)),
 			await failure(
 				sourceOf(
-					resolveHoneyConfig({ app: "src/app.ts", codegen: { mergeTree: "src/routes.ts" } }),
+					resolveBackendConfig({ app: "src/app.ts", codegen: { mergeTree: "src/routes.ts" } }),
 					gateway.dir,
 					native,
 					true,
 				),
 			),
-			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), broken.dir, native)),
+			await failure(sourceOf(resolveBackendConfig({ app: "src/app.ts" }), broken.dir, native)),
 		]).toEqual([
 			"src/app.ts loads the route tree generation writes (src/_gen/routes.gen.ts), and that tree is stale: generate from the module that builds the app, and serve `app.routeTree(routeTree)` from another, or set codegen.mergeTree for a gateway",
 			"src/app.ts loads the route tree generation writes (its routes.gen.ts), and that tree is stale: generate from the module that builds the app, and serve `app.routeTree(routeTree)` from another, or set codegen.mergeTree for a gateway",
@@ -380,14 +380,14 @@ describe("sourceOf natively: what fails and how it is named (bit 19 h2)", () => 
 		])
 	})
 
-	it("refuses a module with no honey app, a merge entry with no tree, and no app at all", async () => {
+	it("refuses a module with no backend app, a merge entry with no tree, and no app at all", async () => {
 		const made = linked({ "src/app.ts": "export const app = 1\n", "src/routes.ts": "export const tree = 1\n" })
 		expect([
-			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), made.dir, native)),
-			await failure(sourceOf(resolveHoneyConfig({ codegen: { mergeTree: "src/routes.ts" } }), made.dir, native)),
-			await failure(sourceOf(resolveHoneyConfig({}), made.dir, native)),
+			await failure(sourceOf(resolveBackendConfig({ app: "src/app.ts" }), made.dir, native)),
+			await failure(sourceOf(resolveBackendConfig({ codegen: { mergeTree: "src/routes.ts" } }), made.dir, native)),
+			await failure(sourceOf(resolveBackendConfig({}), made.dir, native)),
 		]).toEqual([
-			`Expected a honey app as the app or default export of ${join(made.dir, "src/app.ts")}`,
+			`Expected a backend app as the app or default export of ${join(made.dir, "src/app.ts")}`,
 			`Expected a route tree as the tree or default export of ${join(made.dir, "src/routes.ts")}`,
 			"No app configured: set app, or codegen.mergeTree for a gateway",
 		])
@@ -406,7 +406,7 @@ const GATEWAY = (tree: string) => ({
 describe("sourceOf natively: a gateway's app (bit 19 h2)", () => {
 	it("is the merge entry's app with no config.app, its routes in the tree and its documents from that tree", async () => {
 		const made = linked(GATEWAY(""))
-		const source = await sourceOf(resolveHoneyConfig({ codegen: { mergeTree: "src/seed.ts" } }), made.dir, native)
+		const source = await sourceOf(resolveBackendConfig({ codegen: { mergeTree: "src/seed.ts" } }), made.dir, native)
 		const documented = await source.documented()
 		expect([source.loadsTree, Object.keys(source.tree.routes).sort(), documented.exportName]).toEqual([
 			false,
@@ -418,7 +418,7 @@ describe("sourceOf natively: a gateway's app (bit 19 h2)", () => {
 	it("is the merge entry's app for the tree and config.app for the documents, imported only when asked", async () => {
 		const made = linked(GATEWAY('import { routeTree } from "./_gen/routes.gen.ts"\n'))
 		const source = await sourceOf(
-			resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/seed.ts" } }),
+			resolveBackendConfig({ app: "src/served.ts", codegen: { mergeTree: "src/seed.ts" } }),
 			made.dir,
 			native,
 			true,
@@ -434,7 +434,7 @@ describe("sourceOf natively: a gateway's app (bit 19 h2)", () => {
 			"src/served.ts": 'import { app as gateway } from "./gateway.ts"\nexport const app = gateway\n',
 		})
 		const source = await sourceOf(
-			resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/routes.ts" } }),
+			resolveBackendConfig({ app: "src/served.ts", codegen: { mergeTree: "src/routes.ts" } }),
 			made.dir,
 			native,
 		)
@@ -448,12 +448,12 @@ describe("sourceOf natively: a gateway's app (bit 19 h2)", () => {
 
 	it("bootstraps a first pass whose config.app imports a tree not yet written, and only that", async () => {
 		const tree = 'import { routeTree } from "./_gen/routes.gen.ts"\n'
-		const config = resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/routes.ts" } })
+		const config = resolveBackendConfig({ app: "src/served.ts", codegen: { mergeTree: "src/routes.ts" } })
 		const first = await sourceOf(config, linked(GATEWAY(tree)).dir, native, true)
 		expect([first.loadsTree, Object.keys(first.tree.routes)]).toEqual([true, ["GET /orders", "POST /items"]])
 		expect(await failure(first.documented())).toMatch(/routes\.gen/)
 		const later = await failure(sourceOf(config, linked(GATEWAY(tree)).dir, native, false))
-		const off = resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/routes.ts", tree: false } })
+		const off = resolveBackendConfig({ app: "src/served.ts", codegen: { mergeTree: "src/routes.ts", tree: false } })
 		const noTree = await failure(sourceOf(off, linked(GATEWAY(tree)).dir, native, true))
 		expect([later, noTree].map((message) => /routes\.gen/.test(message))).toEqual([true, true])
 	})
@@ -469,7 +469,7 @@ describe("sourceOf natively: the documents' app, imported on demand (bit 19 h2)"
 			"src/served.ts": 'import { app as gateway } from "./gateway.ts"\nexport const app = gateway\n',
 		})
 		const source = await sourceOf(
-			resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/seed.ts" } }),
+			resolveBackendConfig({ app: "src/served.ts", codegen: { mergeTree: "src/seed.ts" } }),
 			made.dir,
 			native,
 		)
@@ -480,7 +480,7 @@ describe("sourceOf natively: the documents' app, imported on demand (bit 19 h2)"
 
 describe("sourceOf through the generation's loader (plan 53, Node 22.12)", () => {
 	it("reads the app and the merge entry the loader serves, never a native import Node may refuse", async () => {
-		const down = honey()
+		const down = httpApp()
 			.get("/orders")
 			.handler((c) => c.res.text("ok", "orders"))
 		const served = new Map<string, Record<string, unknown>>([
@@ -488,8 +488,8 @@ describe("sourceOf through the generation's loader (plan 53, Node 22.12)", () =>
 			[resolve("/nowhere/src/routes.ts"), { tree: mergeTree([down.toRouteTree(), {}]) }],
 		])
 		const load = async (path: string) => served.get(path) ?? Promise.reject(new Error(`not served: ${path}`))
-		const plain = await sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), "/nowhere", load)
-		const gateway = await sourceOf(resolveHoneyConfig({ codegen: { mergeTree: "src/routes.ts" } }), "/nowhere", load)
+		const plain = await sourceOf(resolveBackendConfig({ app: "src/app.ts" }), "/nowhere", load)
+		const gateway = await sourceOf(resolveBackendConfig({ codegen: { mergeTree: "src/routes.ts" } }), "/nowhere", load)
 		expect([Object.keys(plain.tree.routes), (await plain.documented()).app, Object.keys(gateway.tree.routes)]).toEqual([
 			["GET /orders"],
 			down,

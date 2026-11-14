@@ -1,6 +1,6 @@
 /**
  * What body an answer carries, decided without reading it, and the answer to a HEAD request.
- * Honey tags its answers at creation: a buffered one by its raw body, a produced stream (sse,
+ * Backend tags its answers at creation: a buffered one by its raw body, a produced stream (sse,
  * stream, generate) by its tag. Neither ever reads `.body` of a buffered answer.
  */
 import { isProducedStream, rawBodyOf, replaceResponse } from "../response/builder.ts"
@@ -25,7 +25,7 @@ const encoder = /* @__PURE__ */ new TextEncoder()
 
 function noop(): void {}
 
-/** Cancel `response`'s body, unread, unless it is one honey kept: an answer about to go out without it. */
+/** Cancel `response`'s body, unread, unless it is one backend kept: an answer about to go out without it. */
 export function discardBody(response: Response): void {
 	if (rawBodyOf(response) !== null) return
 	const body = response.body
@@ -34,7 +34,7 @@ export function discardBody(response: Response): void {
 }
 
 /**
- * The answer to a HEAD request: GET's status and headers, no body. A body honey built keeps its
+ * The answer to a HEAD request: GET's status and headers, no body. A body backend built keeps its
  * length in `content-length`, so HEAD states what GET would send; any other body is cancelled
  * unread, so a producer never starts (or stops if it already did).
  */

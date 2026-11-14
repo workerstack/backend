@@ -14,7 +14,7 @@ const SPAWNS = '() => { expect(spawnSync("git", ["status"]).status).toBe(0) }'
 /** The rule's messages for one test file at `path` holding `code`. */
 const messages = (code: string, path = FILE) => reportsOf(rule, { [path]: code }).map((r) => r.message)
 
-describe("honey/spawn-timeout: a test that spawns", () => {
+describe("backend/spawn-timeout: a test that spawns", () => {
 	it("is refused without a timeout, with the shared constant named as the fix", () => {
 		expect(messages(`${VITEST}${CHILD}it("spawns", ${SPAWNS})\n`)).toEqual([MESSAGES.test])
 		expect(MESSAGES.test).toContain("SPAWN_TIMEOUT (packages/core/tests/fixture/spawn-timeout.ts)")
@@ -59,18 +59,18 @@ describe("honey/spawn-timeout: a test that spawns", () => {
 		expect(messages(code)).toEqual(Array(4).fill(MESSAGES.test))
 	})
 
-	it("is not one when nothing it reaches spawns: a plain leg, honeyPlugin()'s held hooks, a function kept in an object", () => {
+	it("is not one when nothing it reaches spawns: a plain leg, backendPlugin()'s held hooks, a function kept in an object", () => {
 		const quiet = [
 			'it("a", () => { expect(1).toBe(1) })',
-			'it("b", () => { expect(honeyPlugin({ app: "x" })).toHaveLength(1) })',
+			'it("b", () => { expect(backendPlugin({ app: "x" })).toHaveLength(1) })',
 			'it("c", () => { const hooks = { start() { spawnSync("git") } }; expect(hooks).toBeDefined() })',
 		]
-		const code = `${VITEST}${CHILD}import { honeyPlugin } from "../../src/build/plugin.ts"\n${quiet.join("\n")}\n`
+		const code = `${VITEST}${CHILD}import { backendPlugin } from "../../src/build/plugin.ts"\n${quiet.join("\n")}\n`
 		expect(messages(code, "packages/core/tests/build/x.test.ts")).toEqual([])
 	})
 })
 
-describe("honey/spawn-timeout: a helper module imported as a namespace", () => {
+describe("backend/spawn-timeout: a helper module imported as a namespace", () => {
 	it("is found through a listed helper module imported as a namespace: called on it, or destructured from it", () => {
 		/* plan 39: gen's toolchain structure tests took their env this way and ran their spawns at the 5 s default */
 		const namespace = 'import * as packed from "../../tests/build/fixture/packed.ts"\n'
@@ -86,7 +86,7 @@ describe("honey/spawn-timeout: a helper module imported as a namespace", () => {
 	})
 })
 
-describe("honey/spawn-timeout: an inherited bound", () => {
+describe("backend/spawn-timeout: an inherited bound", () => {
 	it("covers a test under a describe whose timeout is SPAWN_TIMEOUT", () => {
 		const code = `${VITEST}${CHILD}${SHARED_IMPORT}describe("d", { timeout: SPAWN_TIMEOUT }, () => {\n\tit("a", ${SPAWNS})\n})\n`
 		expect(messages(code)).toEqual([])
@@ -115,7 +115,7 @@ describe("honey/spawn-timeout: an inherited bound", () => {
 	})
 })
 
-describe("honey/spawn-timeout: a hook that spawns", () => {
+describe("backend/spawn-timeout: a hook that spawns", () => {
 	it("is refused without a timeout of its own", () => {
 		const code = `${VITEST}${CHILD}beforeAll(${SPAWNS})\nafterAll(${SPAWNS})\n`
 		expect(messages(code)).toEqual([MESSAGES.hook, MESSAGES.hook])
@@ -131,7 +131,7 @@ describe("honey/spawn-timeout: a hook that spawns", () => {
 	})
 })
 
-describe("honey/spawn-timeout: scope", () => {
+describe("backend/spawn-timeout: scope", () => {
 	it("is vitest's API only: a local suite() or it() helper is no test", () => {
 		const code = `${CHILD}const it = (name, fn) => fn()\nit("a", ${SPAWNS})\n`
 		expect(messages(code)).toEqual([])
@@ -147,7 +147,7 @@ describe("honey/spawn-timeout: scope", () => {
 		expect(reportsOf(rule, files)).toEqual([{ file: "packages/core/src/a.test.ts", message: MESSAGES.test }])
 	})
 
-	it("fails oxlint through the honey plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
+	it("fails oxlint through the backend plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
 		const fixture = { [FILE]: `${VITEST}${CHILD}it("spawns", ${SPAWNS})\n`, "packages/core/src/y.test.ts": VITEST }
 		expect(oxlintReports("spawn-timeout", fixture)).toEqual([{ file: FILE, message: MESSAGES.test }])
 	})

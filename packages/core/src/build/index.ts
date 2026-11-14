@@ -1,2 +1,2 @@
 /** `@workerstack/backend/build`: the build target plugin. */
-export { type BuildApp, type BuildTarget, createBuildPlugin, type HoneyBuildConfig } from "./targets.ts"
+export { type BuildApp, type BuildTarget, createBuildPlugin, type BuildConfig } from "./targets.ts"

@@ -1,7 +1,7 @@
 /**
  * `mcp(app, path, handler, options?)` (bit 21 e, H24.3): the app's own tools over MCP's Streamable HTTP, served at
  * `path` by the handler the plugin generates (`_gen/mcp.gen.ts`'s `mcpHandler`), typed against its shape alone, so
- * core imports nothing of honey-clients. POST, GET and DELETE are plain routes on the handle (its basePath and every
+ * core imports nothing of clients. POST, GET and DELETE are plain routes on the handle (its basePath and every
  * middleware apply; the handler answers GET and DELETE 405), internal and served, so they stay out of the documents
  * and out of the tool set. Each call dispatches in-process through `app.fetch` with the request's env and execution
  * context, every middleware and the operation's own auth running again; only the credential headers the tools'
@@ -23,10 +23,10 @@
  * uploads handed to the handler), and `urlFiles` what `urlFiles(options)` from `@workerstack/backend/mcp/url-files` returns. Neither is
  * imported here, so a mount without them bundles none of either.
  */
-import type { ExecutionCtx, HoneyContext } from "../context/context.ts"
+import type { ExecutionCtx, HttpContext } from "../context/context.ts"
 import type { TypedResponse } from "../response/response.ts"
 import { isStaticPattern, joinPatterns, parsePattern } from "../routing/pattern.ts"
-import { assertRouteFree, GRAPH, type HandleView, type HoneyGraph, SERVED, VIEW } from "../routing/register.ts"
+import { assertRouteFree, GRAPH, type HandleView, type HttpGraph, SERVED, VIEW } from "../routing/register.ts"
 
 /** What the mount hands the handler on each request. */
 export type McpMount = {
@@ -132,13 +132,13 @@ export type McpProtectedResource = (
  * Whether `request` carries a credential the app accepts; `false` is refused before any dispatch. `ctx` is the
  * mounting handle's own, as its routes see it: its env, and what its middleware adds.
  */
-export type McpAuthenticate<TCtx = HoneyContext<unknown>> = (request: Request, ctx: TCtx) => boolean | Promise<boolean>
+export type McpAuthenticate<TCtx = HttpContext<unknown>> = (request: Request, ctx: TCtx) => boolean | Promise<boolean>
 
 /** The ctx a handle's routes are given (its `$ctx`); any app's, for anything else. */
-type CtxOf<A> = A extends { readonly $ctx: infer TCtx } ? TCtx : HoneyContext<unknown>
+type CtxOf<A> = A extends { readonly $ctx: infer TCtx } ? TCtx : HttpContext<unknown>
 
 /** What `mcp()` takes beside the handler; `TCtx` is the ctx `authenticate` is given, any app's by default. */
-export type McpOptions<TCtx = HoneyContext<unknown>> = {
+export type McpOptions<TCtx = HttpContext<unknown>> = {
 	/** the check run on every request before any dispatch; required when a tool needs a credential or `oauth` is set */
 	readonly authenticate?: McpAuthenticate<TCtx>
 	/** browser origins served beside the endpoint's own; any other Origin is 403 */
@@ -153,14 +153,14 @@ export type McpOptions<TCtx = HoneyContext<unknown>> = {
 	readonly urlFiles?: McpFileFetch
 }
 
-type McpContext = HoneyContext & { readonly res: { raw(response: Response): TypedResponse } }
+type McpContext = HttpContext & { readonly res: { raw(response: Response): TypedResponse } }
 
 /** A route's builder, as far as `mcp` registers one. */
 type Registering = { meta(meta: object): { handler(fn: unknown): unknown } }
 
 /** The handle `mcp` registers on: its graph, its view, its fetch and the three methods. */
 type McpHandle = {
-	readonly [GRAPH]: HoneyGraph
+	readonly [GRAPH]: HttpGraph
 	readonly [VIEW]: HandleView
 	fetch(request: Request, env: never, executionCtx?: ExecutionCtx): Response | Promise<Response>
 } & Record<(typeof METHODS)[number], (path: string) => Registering>

@@ -3,17 +3,17 @@
  * projection, and nothing else.
  */
 import { describe, expect, it } from "vitest"
-import type { Projection, Selection } from "../routing/output-types.ts"
+import type { HttpProjection, HttpSelection } from "../routing/output-types.ts"
 import { projected } from "./projection.ts"
 
-const pick = (scalars: string[], relations: Record<string, Selection | null> = {}): Selection => ({
+const pick = (scalars: string[], relations: Record<string, HttpSelection | null> = {}): HttpSelection => ({
 	relations,
 	scalars,
 })
 const issue = (...path: PropertyKey[]) => ({ message: "invalid", path })
 
 describe("projected: a list's rows under `at`", () => {
-	const projection: Projection = { at: "organizations", select: pick(["id"]) }
+	const projection: HttpProjection = { at: "organizations", select: pick(["id"]) }
 	const data = { next_cursor: null, organizations: [{ id: "org_1" }, { id: 2 }] }
 
 	it("accepts an absent key the selection left out", () => {
@@ -77,7 +77,7 @@ describe("projected: the body as the one row", () => {
 
 describe("projected: embedded relations", () => {
 	const select = pick(["id"], { author: pick(["name"]), tags: pick(["label"]), owner: null })
-	const projection: Projection = { at: "posts", select }
+	const projection: HttpProjection = { at: "posts", select }
 	const data = {
 		posts: [{ author: { name: "Ann" }, id: "p1", owner: { id: "u1" }, tags: [{ label: "a" }, { label: "b" }] }],
 	}

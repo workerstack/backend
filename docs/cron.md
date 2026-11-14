@@ -23,7 +23,7 @@ export const cron = defineCron<Env>({
 })
 ```
 
-`defineCron<Env>({ schedules })` takes an optional `logger` beside the schedules, honey's logger by default. A job receives `env`, `log`, `schedule`, `scheduledAt` and `signal`. `scheduledAt` is the minute the run belongs to, not
+`defineCron<Env>({ schedules })` takes an optional `logger` beside the schedules, backend's logger by default. A job receives `env`, `log`, `schedule`, `scheduledAt` and `signal`. `scheduledAt` is the minute the run belongs to, not
 the moment it started.
 
 ## Expressions
@@ -40,7 +40,7 @@ month and weekday names. `defineCron` throws on anything else, naming the expres
 
 ## On Workers
 
-Export the handler from the entry your build points at. Honey's build moves a `scheduled` or `queue` function onto the Worker's default export,
+Export the handler from the entry your build points at. Backend's build moves a `scheduled` or `queue` function onto the Worker's default export,
 where workerd calls it.
 
 ```ts

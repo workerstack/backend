@@ -9,12 +9,12 @@ and verifies them in constant time; pass several secrets to rotate one in withou
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { createCookieSigner } from "@workerstack/backend/http/cookie-sign"
 
 const signer = createCookieSigner({ name: "session", secrets: [process.env.COOKIE_SECRET ?? ""] })
 
-const app = honey()
+const app = httpApp()
 
 app.post("/login").handler(async (ctx) => {
 	const session = await signer.sign("user-1")

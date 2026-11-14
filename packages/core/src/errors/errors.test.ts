@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest"
 import * as z from "zod"
 import type { FieldError } from "./error.ts"
-import { FRAMEWORK_ERRORS, HoneyError } from "./error.ts"
+import { FRAMEWORK_ERRORS, HttpError } from "./error.ts"
 import { defineErrors, ERROR_META } from "./errors.ts"
 
 /** A minimal Standard Schema that accepts anything and types its output as `T`. */
@@ -29,8 +29,8 @@ describe("defineErrors", () => {
 	// v0: fa4dc9ccf0
 	// v0: aa1659aa9a
 	// v0: e39e69ae6d
-	it("each key returns a function that creates HoneyError", () => {
-		expect(defineErrors({ something_broke: "internal_server_error" }).something_broke()).toBeInstanceOf(HoneyError)
+	it("each key returns a function that creates HttpError", () => {
+		expect(defineErrors({ something_broke: "internal_server_error" }).something_broke()).toBeInstanceOf(HttpError)
 		expect(defineErrors({ user_not_found: "not_found" }).user_not_found()).toMatchObject({
 			errorKey: "user_not_found",
 			status: 404,
@@ -190,11 +190,11 @@ describe("defineErrors with custom schemas: the error itself", () => {
 	// v0: 59901fa255
 	// v0: 2b6499a285
 	// v0: 39e68a711e
-	it("a schema error is an Error and a HoneyError, fresh per call, keeping its payload by reference", () => {
+	it("a schema error is an Error and a HttpError, fresh per call, keeping its payload by reference", () => {
 		const nested = { reason: "deep", suggestions: ["/a"] }
 		const [first, second] = [errors.item_not_found(nested), errors.item_not_found({ reason: "b", suggestions: [] })]
 		const empty = defineErrors({ empty_body: { schema: schemaOf<object>(), status: "bad_request" } }).empty_body({})
-		expect([first instanceof Error, first instanceof HoneyError, first.stack?.includes("item_not_found")]).toEqual([
+		expect([first instanceof Error, first instanceof HttpError, first.stack?.includes("item_not_found")]).toEqual([
 			true,
 			true,
 			true,
@@ -224,13 +224,13 @@ describe("defineErrors with custom schemas: what a schema error leaves out, and 
 	// v0: 8f05ffa447
 	// v0: 90e055d862
 	// v0: 8f002a863a
-	it("every factory returns a HoneyError: a standard one given cause, fields and vars, a schema one its payload", () => {
+	it("every factory returns a HttpError: a standard one given cause, fields and vars, a schema one its payload", () => {
 		const standard = defineErrors({ email_taken: "conflict" })
-		expectTypeOf(standard.email_taken()).toEqualTypeOf<HoneyError>()
+		expectTypeOf(standard.email_taken()).toEqualTypeOf<HttpError>()
 		expectTypeOf(
 			standard.email_taken({ cause: "test", fields: {}, vars: { email: "a@b.c", message: "custom" } }),
-		).toEqualTypeOf<HoneyError>()
-		expectTypeOf(errors.item_not_found({ reason: "gone", suggestions: [] })).toEqualTypeOf<HoneyError>()
+		).toEqualTypeOf<HttpError>()
+		expectTypeOf(errors.item_not_found({ reason: "gone", suggestions: [] })).toEqualTypeOf<HttpError>()
 		// @ts-expect-error a schema error takes its payload, not the standard options
 		errors.item_not_found({ vars: {} })
 	})
@@ -290,8 +290,8 @@ describe("defineErrors with zod schemas", () => {
 	})
 })
 
-describe("defineErrors: honey's framework keys come with every factory", () => {
-	it("a factory that declares none still builds each key honey answers, at honey's status", () => {
+describe("defineErrors: backend's framework keys come with every factory", () => {
+	it("a factory that declares none still builds each key backend answers, at backend's status", () => {
 		const errors = defineErrors({ org_limit_reached: "forbidden" })
 		expect(
 			[errors.not_found(), errors.validation_failed(), errors.malformed_body()].map((e) => [e.errorKey, e.status]),
@@ -305,7 +305,7 @@ describe("defineErrors: honey's framework keys come with every factory", () => {
 			{ schema: null, statusKey: "forbidden" },
 		])
 		expectTypeOf(errors.method_not_allowed).toEqualTypeOf<
-			(opts?: Parameters<typeof errors.org_limit_reached>[0]) => HoneyError
+			(opts?: Parameters<typeof errors.org_limit_reached>[0]) => HttpError
 		>()
 	})
 

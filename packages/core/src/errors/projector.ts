@@ -1,18 +1,18 @@
 /**
- * The thrown-value projector: what a handler or middleware threw becomes the `HoneyError` the
+ * The thrown-value projector: what a handler or middleware threw becomes the `HttpError` the
  * route's error boundary allows, and that error becomes a JSON response through the app's
  * formatters. Pure: dispatch wraps it with onError, i18n and telemetry.
  */
 import { withRawBody } from "../response/builder.ts"
-import { EK, HoneyError, hasUnknownStatus, isFrameworkErrorKey } from "./error.ts"
+import { EK, HttpError, hasUnknownStatus, isFrameworkErrorKey } from "./error.ts"
 import { ERROR_META, type ErrorMetaEntry } from "./errors.ts"
 import { type ErrorFormat, PROBLEM_JSON, problemDetails } from "./problem-json.ts"
 
 /** Shapes a standard error's default body. */
-export type ErrorFormatter = (error: HoneyError, defaultShape: Record<string, unknown>) => Record<string, unknown>
+export type ErrorFormatter = (error: HttpError, defaultShape: Record<string, unknown>) => Record<string, unknown>
 
 /** Shapes a schema error's `data` body. */
-export type PayloadErrorFormatter = (error: HoneyError, data: Record<string, unknown>) => Record<string, unknown>
+export type PayloadErrorFormatter = (error: HttpError, data: Record<string, unknown>) => Record<string, unknown>
 
 /** A `defineErrors` result, as the projector reads it. */
 export type ErrorFactoryRecord = {
@@ -31,28 +31,28 @@ export type ErrorPolicy = {
 	factory: ErrorFactoryRecord | null
 }
 
-function internalError(cause: unknown): HoneyError {
-	return new HoneyError({ cause, errorKey: EK.internal_server_error, status: "internal_server_error" })
+function internalError(cause: unknown): HttpError {
+	return new HttpError({ cause, errorKey: EK.internal_server_error, status: "internal_server_error" })
 }
 
-/** What `ctx.error` holds for a throw: the HoneyError itself, or the 500 it became. */
-export function asHoneyError(thrown: unknown): HoneyError {
-	return thrown instanceof HoneyError ? thrown : internalError(thrown)
+/** What `ctx.error` holds for a throw: the HttpError itself, or the 500 it became. */
+export function asHttpError(thrown: unknown): HttpError {
+	return thrown instanceof HttpError ? thrown : internalError(thrown)
 }
 
 /** The boundary error for `errorKey`: the factory's standard error, else a 500 under that key. */
-export function boundaryError(errorKey: string, cause: unknown, factory: ErrorFactoryRecord | null): HoneyError {
+export function boundaryError(errorKey: string, cause: unknown, factory: ErrorFactoryRecord | null): HttpError {
 	const make = factory?.[errorKey]
 	/* a schema error needs its payload: it cannot serve as the boundary */
 	if (typeof make === "function" && !factory?.[ERROR_META]?.[errorKey]?.schema) {
-		return (make as (opts: { cause: unknown }) => HoneyError)({ cause })
+		return (make as (opts: { cause: unknown }) => HttpError)({ cause })
 	}
-	return new HoneyError({ cause, errorKey, status: "internal_server_error" })
+	return new HttpError({ cause, errorKey, status: "internal_server_error" })
 }
 
 /** The error a throw becomes under the route's policy. */
-export function projectThrown(thrown: unknown, policy: ErrorPolicy): HoneyError {
-	if (thrown instanceof HoneyError && !hasUnknownStatus(thrown)) {
+export function projectThrown(thrown: unknown, policy: ErrorPolicy): HttpError {
+	if (thrown instanceof HttpError && !hasUnknownStatus(thrown)) {
 		const allowed =
 			policy.declared === null || isFrameworkErrorKey(thrown.errorKey) || policy.declared.has(thrown.errorKey)
 		if (allowed) return thrown
@@ -64,13 +64,13 @@ export function projectThrown(thrown: unknown, policy: ErrorPolicy): HoneyError 
 export type FormatterReport = (failure: unknown) => void
 
 /**
- * How an error answer is built: who hears a crashed formatter, whether honey's Node adapter sends
+ * How an error answer is built: who hears a crashed formatter, whether backend's Node adapter sends
  * it, its format, its digest, and the request id a Problem Details document names as its instance.
  */
 export type ErrorAnswer = {
 	/** A 5xx answer's digest: the same value is on the operator's log line. */
 	readonly digest?: string | undefined
-	/** Body format: honey's envelope by default, or `problem+json`. */
+	/** Body format: backend's envelope by default, or `problem+json`. */
 	readonly format?: ErrorFormat
 	/** The request id a Problem Details document names as its `instance`. */
 	readonly instance?: string | null
@@ -83,8 +83,8 @@ export function jsonAnswer(payload: string, headers: Record<string, string>, sta
 	return withRawBody(new Response(payload, { headers, status }), payload)
 }
 
-/** The default shape of a standard error: honey's envelope, or a Problem Details document. */
-function defaultShapeOf(error: HoneyError, answer: ErrorAnswer): Record<string, unknown> {
+/** The default shape of a standard error: backend's envelope, or a Problem Details document. */
+function defaultShapeOf(error: HttpError, answer: ErrorAnswer): Record<string, unknown> {
 	if (answer.format === "problem+json") return problemDetails(error, answer.instance ?? null)
 	const shape: Record<string, unknown> = {
 		error_key: error.errorKey,
@@ -100,7 +100,7 @@ function defaultShapeOf(error: HoneyError, answer: ErrorAnswer): Record<string, 
 }
 
 function errorBody(
-	error: HoneyError,
+	error: HttpError,
 	defaultFormatter: ErrorFormatter,
 	payloadFormatter: PayloadErrorFormatter | null | undefined,
 	answer: ErrorAnswer,
@@ -130,7 +130,7 @@ function errorBody(
 
 /** The JSON response for an error: a schema error's data, or the formatted default shape. */
 export function createErrorResponse(
-	error: HoneyError,
+	error: HttpError,
 	defaultFormatter: ErrorFormatter,
 	payloadFormatter?: PayloadErrorFormatter | null,
 	answer: ErrorAnswer = {},
@@ -143,7 +143,7 @@ export function createErrorResponse(
 }
 
 /**
- * The last resort when the error path itself failed: the HoneyError's own response, a 500 for
+ * The last resort when the error path itself failed: the HttpError's own response, a 500 for
  * anything else, and a fixed 500 when even that cannot be serialized.
  */
 export function safeErrorResponse(
@@ -154,7 +154,7 @@ export function safeErrorResponse(
 ): Response {
 	try {
 		return createErrorResponse(
-			thrown instanceof HoneyError ? thrown : internalError(undefined),
+			thrown instanceof HttpError ? thrown : internalError(undefined),
 			defaultFormatter,
 			payloadFormatter,
 			answer,

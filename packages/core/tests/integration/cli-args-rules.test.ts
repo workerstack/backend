@@ -1,6 +1,6 @@
 /**
- * The argument rules `honey` shares with `honey-clients generate` (bit 19 h1): each CLI parses its own flags (core needs
- * no codegen to run `honey init`, and gen never imports core, H2), so each package holds its parser to the same table,
+ * The argument rules `backend` shares with `clients generate` (bit 19 h1): each CLI parses its own flags (core needs
+ * no codegen to run `backend init`, and gen never imports core, H2), so each package holds its parser to the same table,
  * a value flag standing as `<V>` and a boolean as `--watch`. The table is copied word for word in
  * @workerstack/clients's tests/integration/cli-args-rules.test.ts; change both together.
  */
@@ -32,7 +32,7 @@ function outcome(argv: readonly string[]): unknown {
 	}
 }
 
-describe("honey reads its arguments by the rules honey-clients shares (bit 19 h1)", () => {
+describe("backend reads its arguments by the rules clients shares (bit 19 h1)", () => {
 	it.each(RULES)("%s", (_rule, argv, expected) => {
 		expect(outcome(argv)).toEqual(expected)
 	})

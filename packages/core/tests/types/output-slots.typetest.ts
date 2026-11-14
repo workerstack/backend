@@ -6,10 +6,10 @@
  */
 import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 describe(".output() slots: the answers a route can give", () => {
-	const route = honey<{}>().get("/t")
+	const route = httpApp<{}>().get("/t")
 	const row = z.object({ x: z.string() })
 
 	it("takes 2xx bodies, 3xx redirects, 2xx and 3xx headers; refuses an error status, a 3xx body, a non-3xx redirect", () => {

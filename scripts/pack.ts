@@ -2,9 +2,9 @@
 // `bun scripts/pack.ts <out dir> <package dir>...`: each package's tarball as npm publishes it, its path printed per
 // line. npm packs a manifest as written, and `catalog:` (the root catalog's pins) and `workspace:` (a sibling's
 // version) resolve only inside this repo, so each package is packed from a staged copy whose manifest names versions;
-// prepack builds dist/ in the copy, so the checkout never gets one. The build reads the checkout's `honey-source`
+// prepack builds dist/ in the copy, so the checkout never gets one. The build reads the checkout's `backend-source`
 // condition (tsc resolves `#output-check` through it), but the tarball ships no src/, so the manifest npm packs drops
-// every `honey-source` key: a process that sets the condition would otherwise resolve an install to a missing file. release.yml's pack job and core's packaging tests
+// every `backend-source` key: a process that sets the condition would otherwise resolve an install to a missing file. release.yml's pack job and core's packaging tests
 // both pack here (bit 19 i).
 import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
@@ -68,12 +68,12 @@ function published(dir: string): Manifest {
 	return manifest
 }
 
-/** `entry` (an `exports` or `imports` value) without its `honey-source` conditions, at any depth. */
+/** `entry` (an `exports` or `imports` value) without its `backend-source` conditions, at any depth. */
 function withoutSource(entry: unknown): unknown {
 	if (entry === null || typeof entry !== "object") return entry
 	if (Array.isArray(entry)) return entry.map(withoutSource)
 	return Object.fromEntries(
-		Object.entries(entry).flatMap(([key, value]) => (key === "honey-source" ? [] : [[key, withoutSource(value)]])),
+		Object.entries(entry).flatMap(([key, value]) => (key === "backend-source" ? [] : [[key, withoutSource(value)]])),
 	)
 }
 

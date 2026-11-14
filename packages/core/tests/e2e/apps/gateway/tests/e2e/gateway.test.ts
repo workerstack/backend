@@ -44,7 +44,7 @@ test.describe("swagger docs behind the prefix", () => {
 		expect(res.status()).toBe(200)
 		const spec = await res.json()
 		expect(spec.openapi).toBe("3.1.0")
-		expect(spec.info.title).toBe("Honey Gateway")
+		expect(spec.info.title).toBe("Backend Gateway")
 		/* trailingSlash("enforce") and stripPrefix("/app"): the document says what clients send */
 		expect(spec.paths["/ping/"]).toBeDefined()
 		expect(spec.servers).toEqual([{ url: "/app" }])

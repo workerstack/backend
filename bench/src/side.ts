@@ -1,10 +1,10 @@
 /**
- * One side's honey, loaded from its own tree (bit 22 a1): the seam the A/B perf gate needs. A bench takes the honey it
+ * One side's backend, loaded from its own tree (bit 22 a1): the seam the A/B perf gate needs. A bench takes the backend it
  * exercises as a namespace rather than importing it, so the same harness — head's, always, since base cannot know a
  * scenario head adds — can build its app from head's `packages/core/src` and from a base worktree's.
  *
- * Two copies of the tree under different roots are two module graphs in one process: each side's `honey`, each side's
- * `HoneyError`, each side's everything is its own identity, and a relative import inside a side resolves inside that
+ * Two copies of the tree under different roots are two module graphs in one process: each side's `backend`, each side's
+ * `HttpError`, each side's everything is its own identity, and a relative import inside a side resolves inside that
  * side. `side.test.ts` asserts both, at several depths, rather than trusting it.
  *
  * The five gated benches import nothing but `packages/core/src` and node builtins, so a side is entirely that tree;
@@ -26,15 +26,15 @@ type RequestId = typeof import("../../packages/core/src/middleware/request-id.ts
 type SecureHeaders = typeof import("../../packages/core/src/middleware/secure-headers.ts")
 
 /**
- * The honey one side exports, the union of what the five benches reach for, plus the `root` it came from so a report
+ * The backend one side exports, the union of what the five benches reach for, plus the `root` it came from so a report
  * line and a failure can name the side. Every member is that side's own: never head's, unless the side is head.
  */
-export type HoneySide = {
+export type BackendSide = {
 	readonly cors: Cors["cors"]
 	readonly createMiddleware: Middleware["createMiddleware"]
 	readonly finalTable: Dispatch["finalTable"]
 	readonly GRAPH: App["GRAPH"]
-	readonly honey: App["honey"]
+	readonly httpApp: App["httpApp"]
 	readonly requestId: RequestId["requestId"]
 	readonly root: string
 	readonly secureHeaders: SecureHeaders["secureHeaders"]
@@ -44,10 +44,10 @@ export type HoneySide = {
 const SRC = "packages/core/src"
 
 /**
- * The honey under `root`, loaded as its own module graph. Throws naming the root when it holds no honey tree, so a
+ * The backend under `root`, loaded as its own module graph. Throws naming the root when it holds no backend tree, so a
  * mistyped base path fails at the load rather than measuring head against head.
  */
-export async function sideOf(root: string): Promise<HoneySide> {
+export async function sideOf(root: string): Promise<BackendSide> {
 	const src = join(root, SRC)
 	if (!existsSync(join(src, "routing/app.ts"))) throw new Error(`${root} holds no ${SRC}/routing/app.ts`)
 	const [app, dispatch, middleware, cors, requestId, secureHeaders] = await Promise.all([
@@ -63,7 +63,7 @@ export async function sideOf(root: string): Promise<HoneySide> {
 		createMiddleware: middleware.createMiddleware,
 		finalTable: dispatch.finalTable,
 		GRAPH: app.GRAPH,
-		honey: app.honey,
+		httpApp: app.httpApp,
 		requestId: requestId.requestId,
 		root,
 		secureHeaders: secureHeaders.secureHeaders,

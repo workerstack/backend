@@ -95,6 +95,6 @@ export const rule = {
 }
 
 export default {
-	meta: { name: "honey" },
+	meta: { name: "backend" },
 	rules: { "no-module-side-effects": rule },
 }

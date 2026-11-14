@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
  * Builds `dist/`: JavaScript and declarations for every module under `src/` (tsconfig.build.json). `prepack` runs
- * this, so a tarball cannot ship without it; an install runs dist/, a checkout the source (the `honey-source`
- * condition, bin/honey.js).
+ * this, so a tarball cannot ship without it; an install runs dist/, a checkout the source (the `backend-source`
+ * condition, bin/backend.js).
  *
  *   bun scripts/build.ts
  */

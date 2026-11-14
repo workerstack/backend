@@ -5,13 +5,13 @@
  */
 import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import type { InferRouteInput, InferRouteOutput, InferRoutes } from "../../src/routing/app-types.ts"
 
 const credentials = z.object({ email: z.string(), password: z.string() })
 const item = z.object({ id: z.string(), name: z.string() })
 
-const app = honey<{}>()
+const app = httpApp<{}>()
 	.post("/v1/auth/register")
 	.input({ json: credentials })
 	.handler((ctx) => ctx.res.json("created", { email: ctx.input.json.email }))

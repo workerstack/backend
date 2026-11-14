@@ -7,11 +7,11 @@
  */
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { HoneyError } from "../../src/errors/error.ts"
+import { HttpError } from "../../src/errors/error.ts"
 import { defineErrors } from "../../src/errors/errors.ts"
-import { type Honey, honey } from "../../src/routing/app.ts"
+import { type HttpApp, httpApp } from "../../src/routing/app.ts"
 
-type App = Honey<{}>
+type App = HttpApp<{}>
 
 async function send(app: { fetch: App["fetch"] }, path: string, init?: RequestInit) {
 	const res = await app.fetch(new Request(`http://localhost${path}`, init), {})
@@ -24,7 +24,7 @@ async function send(app: { fetch: App["fetch"] }, path: string, init?: RequestIn
 
 /** An app whose GET /t throws `thrown()`, configured by `configure` first. */
 function throwing(thrown: () => unknown, configure: (app: App) => void = () => undefined): App {
-	const app = honey<{}>().logger(false)
+	const app = httpApp<{}>().logger(false)
 	configure(app)
 	app.get("/t").handler(() => {
 		throw thrown()
@@ -33,7 +33,7 @@ function throwing(thrown: () => unknown, configure: (app: App) => void = () => u
 }
 
 const rateLimited = () =>
-	new HoneyError({ errorKey: "rate_limited", status: "too_many_requests", vars: { limit: 100, retryAfter: 60 } })
+	new HttpError({ errorKey: "rate_limited", status: "too_many_requests", vars: { limit: 100, retryAfter: 60 } })
 const fields = { email: [{ error_key: "field_invalid_email", message: "bad", path: "json.email" }] }
 
 describe("the default envelope", () => {
@@ -45,7 +45,7 @@ describe("the default envelope", () => {
 	it("carries key, message, status, status_key, fields and vars; never the cause", async () => {
 		const withFields = throwing(
 			() =>
-				new HoneyError({ cause: new Error("secret"), errorKey: "val_error", fields, status: "unprocessable_entity" }),
+				new HttpError({ cause: new Error("secret"), errorKey: "val_error", fields, status: "unprocessable_entity" }),
 		)
 		expect(await send(withFields, "/t")).toEqual({
 			body: {
@@ -71,7 +71,7 @@ describe("the default envelope", () => {
 	// v0: 7cea4b7f62
 	it("a not_found, thrown or for an unknown path, carries empty fields", async () => {
 		const thrown = await send(
-			throwing(() => new HoneyError({ errorKey: "not_found", status: "not_found" })),
+			throwing(() => new HttpError({ errorKey: "not_found", status: "not_found" })),
 			"/t",
 		)
 		const unknown = await send(throwing(rateLimited), "/nowhere")
@@ -90,9 +90,9 @@ describe("defaultErrorFormatter", () => {
 	// v0: c0729c2f30
 	// v0: adf963fb44
 	// v0: 338ebee911
-	it("extends the default shape it is handed, for a HoneyError and for an unknown throw's 500", async () => {
+	it("extends the default shape it is handed, for a HttpError and for an unknown throw's 500", async () => {
 		const known = await send(
-			throwing(() => new HoneyError({ errorKey: "bad_request", status: "bad_request" }), extend),
+			throwing(() => new HttpError({ errorKey: "bad_request", status: "bad_request" }), extend),
 			"/t",
 		)
 		const unknown = await send(
@@ -147,7 +147,7 @@ const appErrors = defineErrors({
 
 /** /std throws a standard error and /custom one with data, both formatters set, under `base`. */
 function bothFormatters(base = "") {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 		.errorFactory(appErrors)
 		.defaultBoundary("api_error")
 		.defaultErrorFormatter((_e, shape) => ({ ...shape, source: "default" }))
@@ -191,7 +191,7 @@ const zodErrors = defineErrors({
 	validation_error: "unprocessable_entity",
 })
 
-const zodBase = () => honey<{}>().errorFactory(zodErrors).defaultBoundary("api_error").logger(false)
+const zodBase = () => httpApp<{}>().errorFactory(zodErrors).defaultBoundary("api_error").logger(false)
 
 /** /declared throws item_not_found declared, /undeclared undeclared, /std a standard error. */
 function zodApp(configure: (app: ReturnType<typeof zodBase>) => void = () => undefined) {
@@ -266,7 +266,7 @@ describe("an error typed by a zod schema", () => {
 
 describe('both formatters under errorFormat("problem+json")', () => {
 	it("the default formatter extends the Problem Details document; a payload error keeps its JSON body through its own", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.errorFactory(appErrors)
 			.errorFormat("problem+json")
 			.defaultErrorFormatter((_e, shape) => ({ ...shape, source: "default" }))
@@ -308,8 +308,8 @@ describe("a thrown error's headers", () => {
 	// v0: 8ef2fee64c
 	it("are answered beside the content type, through a formatter too, and nothing else is added", async () => {
 		const errors = defineErrors({ broken: "internal_server_error", rate_limited: "too_many_requests" })
-		const app = honey<{}>().errorFactory(errors).logger(false)
-		const formatted = honey<{}>()
+		const app = httpApp<{}>().errorFactory(errors).logger(false)
+		const formatted = httpApp<{}>()
 			.errorFactory(errors)
 			.defaultErrorFormatter((_e, shape) => ({ ...shape, custom: true }))
 		for (const target of [app, formatted])
@@ -342,7 +342,7 @@ describe("a thrown error's headers", () => {
 	// v0: 02be275750
 	it("never reach the client when a boundary wraps the error that carried them", async () => {
 		const errors = defineErrors({ internal_server_error: "internal_server_error", secret_err: "bad_request" })
-		const app = honey<{}>().errorFactory(errors).defaultBoundary("internal_server_error").logger(false)
+		const app = httpApp<{}>().errorFactory(errors).defaultBoundary("internal_server_error").logger(false)
 		app.get("/leak").handler(() => {
 			throw errors.secret_err({ headers: { "x-debug": "leaked" } })
 		})
@@ -370,7 +370,7 @@ const other = defineErrors({ special_error: "bad_request" })
 type Declares = "defaults only" | "nothing, no defaults" | "not_found" | "org_slug_taken" | "other's special_error"
 
 function keyedApp(declares: Declares, thrown: () => unknown) {
-	const app = honey<{}>().errorFactory(keyed).logger(false)
+	const app = httpApp<{}>().errorFactory(keyed).logger(false)
 	if (declares !== "nothing, no defaults") app.defaultErrors("auth_failed")
 	const route = app.get("/t")
 	const handler = () => {
@@ -409,9 +409,9 @@ const ANSWERS: Array<{ declares: Declares; key: string; label: string; status: n
 	{
 		declares: "other's special_error",
 		key: "internal_server_error",
-		label: "a HoneyError from no factory",
+		label: "a HttpError from no factory",
 		status: 500,
-		thrown: () => new HoneyError({ errorKey: "not_declared", status: "conflict" }),
+		thrown: () => new HttpError({ errorKey: "not_declared", status: "conflict" }),
 	},
 	{
 		declares: "nothing, no defaults",
@@ -469,7 +469,7 @@ describe("which key answers under a factory", () => {
 
 	// v0: 80e05b9d18
 	it("an empty factory leaves an app serving", async () => {
-		const app = honey<{}>().errorFactory(defineErrors({}))
+		const app = httpApp<{}>().errorFactory(defineErrors({}))
 		app.get("/t").handler((ctx) => ctx.res.json("ok", { up: true }))
 		expect(await send(app, "/t")).toMatchObject({ body: { up: true }, status: 200 })
 	})
@@ -481,7 +481,7 @@ describe("a boundary over a factory", () => {
 	// v0: adad409fbe
 	// v0: 3f223dff25
 	it.each(["app", "route"] as const)("the %s boundary lets a declared key through and wraps the rest", async (at) => {
-		const app = honey<{}>().errorFactory(keyed).logger(false)
+		const app = httpApp<{}>().errorFactory(keyed).logger(false)
 		if (at === "app") app.defaultBoundary("boundary")
 		const declared = (path: string) => {
 			const route = app.get(path).errors("not_found")
@@ -507,7 +507,7 @@ describe("a boundary over a factory", () => {
 	// v0: 20887ffc8d
 	it("onError still sees the error the boundary wrapped", async () => {
 		const seen: unknown[] = []
-		const app = honey<{}>().errorFactory(keyed).logger(false)
+		const app = httpApp<{}>().errorFactory(keyed).logger(false)
 		app.onError((error) => {
 			seen.push(error)
 			return undefined

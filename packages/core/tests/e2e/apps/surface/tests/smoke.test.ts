@@ -23,10 +23,10 @@ const stubWs: WSAdapter = {
 const app = createApp(stubWs)
 
 async function fetchApp(path: string, init?: RequestInit): Promise<Response> {
-	return app.fetch(new Request(`http://honey.test${path}`, init), {})
+	return app.fetch(new Request(`http://backend.test${path}`, init), {})
 }
 
-describe("e2e surface consumes honey", () => {
+describe("e2e surface consumes backend", () => {
 	test("GET /in/none", async () => {
 		const res = await fetchApp("/in/none")
 		expect(res.status).toBe(200)

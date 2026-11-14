@@ -8,7 +8,7 @@ import type { CompressOptions } from "../../src/middleware/compress.ts"
 import type { CompiledChain } from "../../src/middleware/middleware.ts"
 import type { StaticConfig } from "../../src/response/static.ts"
 import type { IpLists, IpRestrictOptions } from "../../src/middleware/ip-restrict.ts"
-import type { MemoryRateLimitStoreOptions, RateLimitOptions } from "../../src/middleware/rate-limit.ts"
+import type { MemoryRateLimitStoreOptions, HttpRateLimitOptions } from "../../src/middleware/rate-limit.ts"
 import type { JwtVerifyResult, VerifyJwtOptions } from "../../src/security/jwt.ts"
 import type { SignWebhookOptions, WebhookHeaders } from "../../src/security/webhook.ts"
 import type { SSEEvent, SSEOptions, SSEStream } from "../../src/response/sse.ts"
@@ -184,13 +184,13 @@ export function credentialedCompress(real: Compress): Compress {
 	return (options) => real({ ...options, credentialed: true })
 }
 
-export type RateLimit = (options: RateLimitOptions) => unknown
+export type RateLimit = (options: HttpRateLimitOptions) => unknown
 export type MemoryRateLimitStoreFactory = (options: MemoryRateLimitStoreOptions) => unknown
 
 /** rateLimit keyed on the client's own X-Forwarded-For. */
 export function forwardedKey(real: RateLimit): RateLimit {
 	return (options) =>
-		real({ ...options, key: (ctx) => ctx.req.headers.get("x-forwarded-for") ?? ctx.ip ?? "" } as RateLimitOptions)
+		real({ ...options, key: (ctx) => ctx.req.headers.get("x-forwarded-for") ?? ctx.ip ?? "" } as HttpRateLimitOptions)
 }
 
 /** memoryRateLimitStore with no cap on its windows. */

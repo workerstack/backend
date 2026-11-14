@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { oauth } from "./oauth.ts"
 
 const AS = { authorizationServers: ["https://auth.example"] }
@@ -11,9 +11,9 @@ describe("oauth(options) (bit 21 f, RFC 9728)", () => {
 	})
 
 	it("serves the endpoint's metadata at the path-inserted URI once registered, beside the origin", async () => {
-		const app = honey()
+		const app = httpApp()
 		const hook = oauth({ ...AS, scopesSupported: ["a"] })(app.basePath("/v1"), "/mcp")
-		const root = honey()
+		const root = httpApp()
 		oauth(AS)(root, "/").register()
 		hook.register()
 		const served = await app.fetch(at("https://shop.example/.well-known/oauth-protected-resource/v1/mcp"), {})
@@ -30,14 +30,14 @@ describe("oauth(options) (bit 21 f, RFC 9728)", () => {
 	})
 
 	it("escapes a backslash the endpoint's path holds inside the challenge's quoted-string (a quote arrives encoded)", () => {
-		const hook = oauth(AS)(honey(), '/a"b\\c')
+		const hook = oauth(AS)(httpApp(), '/a"b\\c')
 		expect(hook.challenge(at("https://shop.example/x"), 401)).toBe(
 			'Bearer resource_metadata="https://shop.example/.well-known/oauth-protected-resource/a%22b\\\\c"',
 		)
 	})
 
 	it("reads the scope of a Bearer challenge alone, never a Basic one's", () => {
-		const hook = oauth(AS)(honey(), "/mcp")
+		const hook = oauth(AS)(httpApp(), "/mcp")
 		const url = "https://shop.example/mcp"
 		expect([
 			hook.challenge(at(url, { authorization: "Bearer t" }), 401, 'Basic realm="x", scope="admin"'),

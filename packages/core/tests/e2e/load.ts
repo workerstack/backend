@@ -1,10 +1,10 @@
 import type { WSAdapter } from "@workerstack/backend/http"
-import { createApp as createCompose } from "@honey/e2e-compose"
-import { createApp as createDefaults } from "@honey/e2e-defaults"
-import { createApp as createGateway } from "@honey/e2e-gateway"
-import { createApp as createKitchen } from "@honey/e2e-kitchen"
-import { createApp as createMcp } from "@honey/e2e-mcp"
-import { createApp as createSurface } from "@honey/e2e-surface"
+import { createApp as createCompose } from "@backend/e2e-compose"
+import { createApp as createDefaults } from "@backend/e2e-defaults"
+import { createApp as createGateway } from "@backend/e2e-gateway"
+import { createApp as createKitchen } from "@backend/e2e-kitchen"
+import { createApp as createMcp } from "@backend/e2e-mcp"
+import { createApp as createSurface } from "@backend/e2e-surface"
 
 export const e2eApps = {
 	compose: createCompose,

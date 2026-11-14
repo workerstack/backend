@@ -1,8 +1,8 @@
 /**
- * One package name, in every place that declares it (bit 22, the honey-clients rename). The generator package is
+ * One package name, in every place that declares it (bit 22, the clients rename). The generator package is
  * named in four places that cannot see each other: its own manifest, core's dynamic `import()` of it, core's
  * optional `peerDependencies` entry, and the bin it installs. A rename that misses one of them type-checks, installs
- * and ships — the import fails only when a user runs `honey generate`, and the peer warning only when they install.
+ * and ships — the import fails only when a user runs `backend generate`, and the peer warning only when they install.
  * So the four are read here and held equal.
  *
  * The name is read out of `generate.ts`'s source rather than imported, because `CLIENTS` is module-local and should
@@ -84,7 +84,7 @@ describe("the generator package is named the same everywhere (bit 22)", () => {
 
 	it("installs a bin of that name, and every bin from a file it ships", () => {
 		const bins = gen.bin ?? {}
-		expect(bins["honey-clients"]).toBe("bin/honey-clients.js")
+		expect(bins["clients"]).toBe("bin/clients.js")
 		for (const path of Object.values(bins)) {
 			expect(existsSync(join(GEN, path)), path).toBe(true)
 			expect(gen.files, path).toContain(path.split("/")[0])

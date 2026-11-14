@@ -35,6 +35,6 @@ export const rule = {
 }
 
 export default {
-	meta: { name: "honey" },
+	meta: { name: "backend" },
 	rules: { "unversioned-public": rule },
 }

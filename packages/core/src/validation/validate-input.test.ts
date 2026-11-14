@@ -1,7 +1,7 @@
 import * as v from "valibot"
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import type { StandardSchemaIssue, StandardSchemaLike } from "./standard-schema.ts"
 import {
 	issuesToFieldErrors,
@@ -25,12 +25,12 @@ function schemaOf(vendor: string, issues: StandardSchemaIssue[] = [], async = fa
 	}
 }
 
-/** The HoneyError `run` throws or rejects with. */
-async function failure(run: () => unknown): Promise<HoneyError> {
+/** The HttpError `run` throws or rejects with. */
+async function failure(run: () => unknown): Promise<HttpError> {
 	try {
 		await run()
 	} catch (error) {
-		return error as HoneyError
+		return error as HttpError
 	}
 	throw new Error("did not fail")
 }
@@ -178,7 +178,7 @@ describe("runSchema: a validator's answer, synchronous when the validator is", (
 			async,
 		)
 		const error = await failure(() => runSchema(schema, {}, "search"))
-		expect([error instanceof HoneyError, error.status, error.errorKey, { ...error.fields }]).toEqual([
+		expect([error instanceof HttpError, error.status, error.errorKey, { ...error.fields }]).toEqual([
 			true,
 			400,
 			"validation_failed",
@@ -188,7 +188,7 @@ describe("runSchema: a validator's answer, synchronous when the validator is", (
 
 	it("a sync validator's issues throw synchronously, before any promise", () => {
 		const schema = schemaOf("zod", [{ message: "bad", path: ["a"] }])
-		expect(() => runSchema(schema, {}, "params")).toThrow(HoneyError)
+		expect(() => runSchema(schema, {}, "params")).toThrow(HttpError)
 	})
 })
 

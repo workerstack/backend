@@ -8,7 +8,7 @@
  * reported peer is 403 under either list.
  */
 import { canonicalIp, parseIpv4, parseIpv6 } from "../context/peer.ts"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { type MiddlewareFn, namedMiddleware } from "./middleware.ts"
 
 /** Options for `ipRestrict`: a non-empty `allowList`, a non-empty `denyList`, or both. `allowList: []` throws even beside a `denyList`. */
@@ -112,7 +112,7 @@ function storedRules(list: readonly string[] | null | undefined): Range[] {
  *
  * @example
  * if (!ipAllowed(ctx.ip, { allow: key.allowedIps, deny: key.blockedIps })) {
- * 	throw new HoneyError({ errorKey: "forbidden", status: "forbidden" })
+ * 	throw new HttpError({ errorKey: "forbidden", status: "forbidden" })
  * }
  */
 export function ipAllowed(ip: string | null, lists: IpLists): boolean {
@@ -127,7 +127,7 @@ export function ipAllowed(ip: string | null, lists: IpLists): boolean {
 }
 
 function forbidden(): never {
-	throw new HoneyError({ errorKey: "forbidden", status: "forbidden" })
+	throw new HttpError({ errorKey: "forbidden", status: "forbidden" })
 }
 
 /**

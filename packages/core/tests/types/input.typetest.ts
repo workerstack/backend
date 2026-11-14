@@ -15,7 +15,7 @@ import {
 	streamed,
 } from "../../src/input/input.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import type { InferRouteCtx, InferRouteInput, InferRoutes } from "../../src/routing/app-types.ts"
 import type { InferOutput, StandardSchemaLike } from "../../src/validation/standard-schema.ts"
 import type { NormalizedIssue } from "../../src/validation/validate-input.ts"
@@ -34,7 +34,7 @@ describe("ctx.input: each declared source, as its schema produced it", () => {
 	// v0: 06f369abe3
 	// v0: 450936df41
 	it("types every source the route declares, and only those", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.post("/t/:id")
 			.input({
 				cookies: z.object({ session: z.string() }),
@@ -53,7 +53,7 @@ describe("ctx.input: each declared source, as its schema produced it", () => {
 				expectTypeOf(ctx.input).not.toHaveProperty("form")
 				return ctx.res.text("ok", "ok")
 			})
-		honey<{}>()
+		httpApp<{}>()
 			.get("/s")
 			.input({ search: z.object({ q: z.string() }) })
 			.handler((ctx) => {
@@ -68,7 +68,7 @@ describe("ctx.input beside the rest of the ctx", () => {
 	// v0: 06e85b323e
 	// v0: 9a127e8035
 	it("sits beside what middleware and context() add, at chain and route level, whatever one-shots follow", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.context({ region: "eu" })
 			.use(withDb)
 			.get("/t")
@@ -81,7 +81,7 @@ describe("ctx.input beside the rest of the ctx", () => {
 				expectTypeOf(ctx.input.search.q).toEqualTypeOf<string>()
 				return ctx.res.text("ok", "ok")
 			})
-		honey<{}>()
+		httpApp<{}>()
 			.post("/users/:id")
 			.input({ json: z.object({ name: z.string() }) })
 			.meta({ summary: "x" })
@@ -93,7 +93,7 @@ describe("ctx.input beside the rest of the ctx", () => {
 	})
 
 	it("is declared once: .input() is gone from the builder after it ran", () => {
-		const route = honey<{}>()
+		const route = httpApp<{}>()
 			.get("/t")
 			.input({ search: z.object({ q: z.string() }) })
 		expectTypeOf(route).not.toHaveProperty("input")
@@ -103,7 +103,7 @@ describe("ctx.input beside the rest of the ctx", () => {
 describe("ctx.input: a form body", () => {
 	// v0: fab8b17479
 	it("is its schema's output, with no json beside it", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.post("/upload")
 			.input({ form: z.object({ file: z.string(), name: z.string() }) })
 			.handler((ctx) => {
@@ -131,14 +131,14 @@ describe("ctx.input: streamed() bodies", () => {
 	})
 
 	it("leaves a streamed() body off ctx.input, json or form", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.post("/t")
 			.input({ json: streamed(z.object({ a: z.string() })) })
 			.handler((ctx) => {
 				expectTypeOf(ctx.input).not.toHaveProperty("json")
 				return ctx.res.text("ok", "ok")
 			})
-		honey<{}>()
+		httpApp<{}>()
 			.post("/t")
 			.input({ form: streamed(z.object({ a: z.string() })) })
 			.handler((ctx) => {
@@ -148,7 +148,7 @@ describe("ctx.input: streamed() bodies", () => {
 	})
 
 	it("refuses streamed() on a source that is no body", () => {
-		const route = honey<{}>().post("/t/:id")
+		const route = httpApp<{}>().post("/t/:id")
 		const wrapped = streamed(z.object({ q: z.string() }))
 		expectTypeOf(wrapped).not.toExtend<StandardSchemaLike>()
 		// @ts-expect-error search is read before the handler; only a body can be left unread
@@ -164,7 +164,7 @@ describe("ctx.input: streamed() bodies", () => {
 
 describe("ctx.input: the body and its schemas", () => {
 	it("takes json or form, never both", () => {
-		const route = honey<{}>().post("/t")
+		const route = httpApp<{}>().post("/t")
 		const both = { form: z.object({}), json: z.object({}) }
 		expectTypeOf(route.input).toBeCallableWith({ json: z.object({}) })
 		// @ts-expect-error a request carries one body
@@ -181,7 +181,7 @@ describe("ctx.input: the body and its schemas", () => {
 
 describe("ctx.input.binary: the bytes and the declared media type", () => {
 	it("types the bytes, and the type as the declared literals, a range as its family", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.post("/a")
 			.input({ binary: ["image/png", "image/jpeg"] })
 			.handler((ctx) => {
@@ -191,7 +191,7 @@ describe("ctx.input.binary: the bytes and the declared media type", () => {
 				}>()
 				return ctx.res.text("ok", "ok")
 			})
-		honey<{}>()
+		httpApp<{}>()
 			.post("/b")
 			.input({ binary: "image/*" })
 			.handler((ctx) => {
@@ -201,7 +201,7 @@ describe("ctx.input.binary: the bytes and the declared media type", () => {
 	})
 
 	it("takes binary alone as the body: not beside json or form", () => {
-		const route = honey<{}>().post("/t")
+		const route = httpApp<{}>().post("/t")
 		const beside = { binary: "image/png", json: z.object({}) } as const
 		expectTypeOf(route.input).toBeCallableWith({ binary: "image/png" })
 		// @ts-expect-error a request carries one body
@@ -315,7 +315,7 @@ describe("the validation types", () => {
 
 describe(".input({ params }): a schema per path param, onto ctx.params", () => {
 	it("types a declared param by its schema and leaves the others strings", () => {
-		honey<{}>()
+		httpApp<{}>()
 			.get("/oauth/:provider/:step")
 			.input({ params: { provider: z.enum(["github", "google"]) } })
 			.handler((ctx) => {
@@ -327,7 +327,7 @@ describe(".input({ params }): a schema per path param, onto ctx.params", () => {
 	})
 
 	it("refuses a key the path does not name, and a whole-object schema", () => {
-		const route = honey<{}>().get("/oauth/:provider")
+		const route = httpApp<{}>().get("/oauth/:provider")
 		expectTypeOf(route.input({ params: { provider: z.string() } })).toHaveProperty("handler")
 		// @ts-expect-error provder is no param of the path
 		route.input({ params: { provder: z.string() } })
@@ -338,7 +338,7 @@ describe(".input({ params }): a schema per path param, onto ctx.params", () => {
 
 describe("ws .input(): the non-body sources only", () => {
 	it("types ctx.input on the socket's callbacks; a body source is refused", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		ws(app, "/live/:room")
 			.input({ params: { room: z.enum(["a", "b"]) }, search: z.object({ token: z.string() }) })
 			.handler({
@@ -364,7 +364,7 @@ describe("the route map and InferRouteCtx carry the input", () => {
 	// v0: 5446e8b926
 	// v0: 2135b4ce73
 	it("$routes keeps each route; InferRouteCtx and InferRouteInput carry its validated input beside middleware", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(withDb)
 			.use(withAuth)
 			.get("/users/:id")

@@ -4,11 +4,11 @@
  * each. The declared SSE event schema is typed at bit 08 (H10). Checked by typecheck.
  */
 import { describe, expectTypeOf, it } from "vitest"
-import { HoneyRes, type TypedResponse } from "../../src/response/response.ts"
+import { HttpRes, type TypedResponse } from "../../src/response/response.ts"
 import type { SSEEvent, SSEStream } from "../../src/response/sse.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
-const res = new HoneyRes()
+const res = new HttpRes()
 
 describe("the streaming helpers brand what they return", () => {
 	// v0: 63c73d341e
@@ -52,7 +52,7 @@ describe("the SSE stream and its events", () => {
 
 describe("routes answer with a stream", () => {
 	it("a handler may return sse(), stream() or generate()", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/events").handler((ctx) => ctx.res.sse(async (stream) => stream.send({ data: "x", event: "m" })))
 		app.get("/download").handler((ctx) => ctx.res.stream(async () => {}))
 		app.get("/lines").handler((ctx) => ctx.res.generate((function* () {})(), { contentType: "application/x-ndjson" }))

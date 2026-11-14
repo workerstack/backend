@@ -23,7 +23,7 @@ afterAll(() => {
 
 /** A directory on PATH holding `name` as a recorder: it appends its arguments to `calls` and exits 0. */
 function recorder(names: readonly string[]): { calls: string; dir: string } {
-	const dir = mkdtempSync(join(tmpdir(), "honey-pre-"))
+	const dir = mkdtempSync(join(tmpdir(), "backend-pre-"))
 	dirs.push(dir)
 	const calls = join(dir, "calls")
 	for (const name of names) {
@@ -111,13 +111,15 @@ const manifestOf = (dir: string) =>
 	}
 
 describe("the versions this repository ships", () => {
-	it("take a candidate of honey-clients through the optional peer range", () => {
+	it("take a candidate of clients through the optional peer range", () => {
 		const core = manifestOf("packages/core")
 		/*
 		 * `>=1.0.0` would exclude `1.0.0-rc.1`: under semver a prerelease satisfies a range only when the range
 		 * itself carries a prerelease at the same version. `>=1.0.0-0` accepts every 1.0.0 candidate and everything
 		 * after, so it needs no edit when rc.2 is cut (checked against the semver package before it was written).
+		 * The floor is rc.27, the first clients that writes and reads `x-backend-*`: an older candidate speaks
+		 * the header names this backend no longer reads.
 		 */
-		expect(core.peerDependencies?.["@workerstack/clients"]).toBe(">=1.0.0-0")
+		expect(core.peerDependencies?.["@workerstack/clients"]).toBe(">=1.0.0-rc.27")
 	})
 })

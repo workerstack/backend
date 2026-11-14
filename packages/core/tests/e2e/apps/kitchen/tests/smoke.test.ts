@@ -23,10 +23,10 @@ const stubWs: WSAdapter = {
 const app = createApp(stubWs)
 
 async function fetchApp(path: string, init?: RequestInit): Promise<Response> {
-	return app.fetch(new Request(`http://honey.test${path}`, init), {})
+	return app.fetch(new Request(`http://backend.test${path}`, init), {})
 }
 
-describe("e2e kitchen consumes honey", () => {
+describe("e2e kitchen consumes backend", () => {
 	test("GET /api/health", async () => {
 		const res = await fetchApp("/api/health")
 		expect(res.status).toBe(200)

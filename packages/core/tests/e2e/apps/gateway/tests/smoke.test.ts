@@ -9,7 +9,7 @@ import { tree as downstream } from "../src/route-tree.ts"
 const app = createApp()
 
 async function fetchApp(path: string, init?: RequestInit): Promise<Response> {
-	return app.fetch(new Request(`http://honey.test${path}`, init), {})
+	return app.fetch(new Request(`http://backend.test${path}`, init), {})
 }
 
 type Doc = { paths: Record<string, Record<string, Record<string, unknown>>> }
@@ -18,7 +18,7 @@ function operation(doc: unknown, path: string): Record<string, unknown> {
 	return (doc as Doc).paths[path].get
 }
 
-describe("e2e gateway consumes honey", () => {
+describe("e2e gateway consumes backend", () => {
 	test("GET /app/ping → 308 to /app/ping/", async () => {
 		const res = await fetchApp("/app/ping")
 		expect(res.status).toBe(308)

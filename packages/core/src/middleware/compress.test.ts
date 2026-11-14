@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest"
 import { rawBodyOf, withRawBody } from "../response/builder.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { compress, type CompressOptions } from "./compress.ts"
 
-const TEXT = "honey ".repeat(400)
+const TEXT = "backend ".repeat(400)
 
 type Route = (ctx: { res: { text: Function; json: Function; stream: Function } }) => unknown
 
 const noContent: Route = () => new Response(null, { status: 204 })
 
 function app(handler: Route = (ctx) => ctx.res.text("ok", TEXT), options?: CompressOptions) {
-	const a = honey<{}>()
+	const a = httpApp<{}>()
 	a.use(compress(options))
 		.get("/t")
 		.handler(handler as never)

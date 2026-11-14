@@ -1,16 +1,16 @@
 /**
- * The `honey` CLI's arguments: `generate` (the app-side artifacts, Q1) and `init`. Strict, with honey-clients's
+ * The `backend` CLI's arguments: `generate` (the app-side artifacts, Q1) and `init`. Strict, with clients'
  * rules and wording (gen src/gen/args.ts; tests/integration/cli-args-parity.test.ts holds them alike): `--k v` and
  * `--k=v`; a value is never the next flag; a boolean is bare, `true` or `false`; an unknown flag or a stray argument
  * is a usage error. Not a package export.
  */
 
-export const USAGE = `usage: honey generate [options]
-       honey init [--force]
+export const USAGE = `usage: backend generate [options]
+       backend init [--force]
 
 generate options:
-  --config <path>      the Vite config holding honeyPlugin() (default: vite.config.{ts,mts,js,mjs})
-  --plugin <n>         which honeyPlugin() in the config, 0-based, when there are several
+  --config <path>      the Vite config holding backendPlugin() (default: vite.config.{ts,mts,js,mjs})
+  --plugin <n>         which backendPlugin() in the config, 0-based, when there are several
   --app <path>         the app entry; overrides the config's app, or replaces the config
   --watch              generate again when files next to the app change
   --tree --types --manifest
@@ -18,7 +18,7 @@ generate options:
   --merge-tree <path>  the route tree source of a gateway
   -h, --help           this text
 
-The SDKs, the CLI and the MCP server are honey-clients's: honey-clients generate --app <path>.`
+The SDKs, the CLI and the MCP server are clients': clients generate --app <path>.`
 
 /** A mistake in how the CLI was called: printed with the usage text. */
 export class UsageError extends Error {}
@@ -94,7 +94,7 @@ export function parseGenerateArgs(argv: readonly string[]): CliFlags {
 	return flags as CliFlags
 }
 
-/** `honey init`'s flags. */
+/** `backend init`'s flags. */
 export type InitFlags = { force: boolean }
 
 /** `argv` after `init` as its flags, or a usage error. */

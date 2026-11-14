@@ -15,11 +15,11 @@ afterAll(() => {
 })
 
 /**
- * A root holding the smallest honey tree `sideOf` reads, every module tagged `tag`, with `app.ts` importing its
+ * A root holding the smallest backend tree `sideOf` reads, every module tagged `tag`, with `app.ts` importing its
  * sibling `dispatch.ts` by a relative path: the import that must not leave the root.
  */
 function root(tag: string): string {
-	const dir = mkdtempSync(join(tmpdir(), "honey-side-"))
+	const dir = mkdtempSync(join(tmpdir(), "backend-side-"))
 	dirs.push(dir)
 	const src = join(dir, "packages/core/src")
 	mkdirSync(join(src, "routing"), { recursive: true })
@@ -29,7 +29,7 @@ function root(tag: string): string {
 		`import { finalTable } from "./dispatch.ts"\n` +
 			`export const GRAPH = "${tag}"\n` +
 			`export class Marker {}\n` +
-			`export const honey = () => ({ tag: "${tag}", table: finalTable, marker: Marker })\n`,
+			`export const httpApp = () => ({ tag: "${tag}", table: finalTable, marker: Marker })\n`,
 	)
 	writeFileSync(join(src, "routing/dispatch.ts"), `export const finalTable = () => "${tag}"\n`)
 	writeFileSync(join(src, "middleware/middleware.ts"), `export const createMiddleware = () => "${tag}"\n`)
@@ -40,8 +40,8 @@ function root(tag: string): string {
 }
 
 describe("a side is loaded from its own root", () => {
-	it("refuses a root with no honey tree, naming it", async () => {
-		const empty = mkdtempSync(join(tmpdir(), "honey-side-"))
+	it("refuses a root with no backend tree, naming it", async () => {
+		const empty = mkdtempSync(join(tmpdir(), "backend-side-"))
 		dirs.push(empty)
 		await expect(sideOf(empty)).rejects.toThrow(`${empty} holds no packages/core/src/routing/app.ts`)
 	})
@@ -49,16 +49,16 @@ describe("a side is loaded from its own root", () => {
 	it("loads head's own tree, every member a function and the root reported", async () => {
 		const head = await sideOf(HEAD_ROOT)
 		expect({
-			kinds: [head.cors, head.createMiddleware, head.finalTable, head.honey, head.requestId, head.secureHeaders].map(
+			kinds: [head.cors, head.createMiddleware, head.finalTable, head.httpApp, head.requestId, head.secureHeaders].map(
 				(member) => typeof member,
 			),
 			root: head.root,
 		}).toEqual({ kinds: ["function", "function", "function", "function", "function", "function"], root: HEAD_ROOT })
 	})
 
-	it("serves a request from head's side, so the namespace is honey's and not a shape", async () => {
-		const { honey } = await sideOf(HEAD_ROOT)
-		const app = honey()
+	it("serves a request from head's side, so the namespace is backend's and not a shape", async () => {
+		const { httpApp } = await sideOf(HEAD_ROOT)
+		const app = httpApp()
 		app.get("/x").handler((ctx) => ctx.res.text("ok", "k"))
 		const res = await app.fetch(new Request("http://bench.local/x"), {})
 		expect([res.status, await res.text()]).toEqual([200, "k"])
@@ -68,7 +68,7 @@ describe("a side is loaded from its own root", () => {
 describe("two roots are two module graphs", () => {
 	it("gives each side its own members, never the other's", async () => {
 		const [a, b] = await Promise.all([sideOf(root("a")), sideOf(root("b"))])
-		expect(a.honey).not.toBe(b.honey)
+		expect(a.httpApp).not.toBe(b.httpApp)
 		expect(a.createMiddleware).not.toBe(b.createMiddleware)
 		expect(a.finalTable).not.toBe(b.finalTable)
 		expect([a.GRAPH, b.GRAPH]).toEqual(["a", "b"])
@@ -77,14 +77,14 @@ describe("two roots are two module graphs", () => {
 
 	it("keeps a side's relative import inside its own root, at a depth the loader never names", async () => {
 		const [a, b] = await Promise.all([sideOf(root("a")), sideOf(root("b"))])
-		/* app.ts imports ./dispatch.ts itself: the value each side's honey() closes over is its own tree's */
-		expect([a.honey().table(), b.honey().table()]).toEqual(["a", "b"])
+		/* app.ts imports ./dispatch.ts itself: the value each side's httpApp() closes over is its own tree's */
+		expect([a.httpApp().table(), b.httpApp().table()]).toEqual(["a", "b"])
 	})
 
 	it("gives each side its own classes, so an instance of one is not the other's", async () => {
 		const [a, b] = await Promise.all([sideOf(root("a")), sideOf(root("b"))])
-		const marker = a.honey().marker as new () => object
-		const other = b.honey().marker as new () => object
+		const marker = a.httpApp().marker as new () => object
+		const other = b.httpApp().marker as new () => object
 		expect(marker).not.toBe(other)
 		expect(new marker() instanceof other).toBe(false)
 	})
@@ -92,7 +92,7 @@ describe("two roots are two module graphs", () => {
 	it("loads one root twice as one graph, so a side costs its load once", async () => {
 		const one = root("a")
 		const [first, second] = await Promise.all([sideOf(one), sideOf(one)])
-		expect(first.honey).toBe(second.honey)
+		expect(first.httpApp).toBe(second.httpApp)
 	})
 })
 

@@ -1,7 +1,7 @@
-# Honey
+# Backend
 
 A typed web framework for the Fetch API whose routes are the source of its clients. You write a route once, with its
-input and output schemas; honey runs it on Cloudflare Workers, and `honey-clients` turns the same
+input and output schemas; backend runs it on Cloudflare Workers, and `clients` turns the same
 routes into an OpenAPI 3.1 document, typed SDKs for six languages, a command-line client and an MCP server.
 
 Nothing is inferred at runtime: the schemas you declare are what the handler receives, what the document says, and
@@ -18,16 +18,16 @@ This is the repository. **The guides are the two packages' own pages**, which is
 
 ## Packages
 
-| Package                                                                              | What it is                                                                                                                                                  |
-| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@workerstack/backend`](packages/core/README.md)                                    | The framework: routing, typed input and output, middleware, streaming, WebSockets and realtime, OpenAPI, the MCP mount, the `honey` CLI and the Vite plugin |
-| [`@workerstack/clients`](https://github.com/workerstack/clients/blob/main/README.md) | `honey-clients generate`: SDKs (TypeScript, Go, Rust, Python, C#, Java), a Go CLI and an MCP server from a document or a honey app                          |
+| Package                                                                              | What it is                                                                                                                                                    |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@workerstack/backend`](packages/core/README.md)                                    | The framework: routing, typed input and output, middleware, streaming, WebSockets and realtime, OpenAPI, the MCP mount, the `backend` CLI and the Vite plugin |
+| [`@workerstack/clients`](https://github.com/workerstack/clients/blob/main/README.md) | `clients generate`: SDKs (TypeScript, Go, Rust, Python, C#, Java), a Go CLI and an MCP server from a document or a backend app                                |
 
 Each package's README is its complete guide: every export and every area, with examples the tests compile.
 
 ## Install
 
-honey moved to the workerstack org in 1.0.0-rc.23, and [the migration note](https://github.com/workerstack/backend/blob/main/docs/migrating-from-honey.md)
+backend moved to the workerstack org in 1.0.0-rc.23, and [the migration note](https://github.com/workerstack/backend/blob/main/docs/migrating-from-honey.md)
 maps each old package name to its new one. 1.0 is out as a release candidate, published under npm's `next` tag, so
 an install without a tag gets a deprecated placeholder.
 Add `@next` until the final release.
@@ -36,14 +36,14 @@ The framework, in the app:
 
 ```sh
 npm install @workerstack/backend@next
-npx honey init
+npx --package @workerstack/backend backend init
 ```
 
 The generator, as a dev dependency:
 
 ```sh
 npm install --save-dev @workerstack/clients@next
-npx honey-clients generate --app src/app.ts --target ts --out generated
+npx --package @workerstack/clients clients generate --app src/app.ts --target ts --out generated
 ```
 
 ## Documentation

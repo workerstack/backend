@@ -1,6 +1,6 @@
 /**
  * The build tooling's loaders (bit 19 h2): a TypeScript Vite config found and read on plain Node through jiti (v0
- * H70b), each module evaluated once per loader, through Bun's own import on Bun, the `honeyPlugin()` configs read off the
+ * H70b), each module evaluated once per loader, through Bun's own import on Bun, the `backendPlugin()` configs read off the
  * plugin objects, and Effect's converter when effect is installed.
  */
 import { execFile } from "node:child_process"
@@ -32,16 +32,16 @@ function project(files: Record<string, string>): string {
 	return dir
 }
 
-/** A `honeyPlugin()` plugin object as the plugin presents one, carrying `config`. */
-const honeyPlugin = (config: string) => `{ name: "honey", api: { honeyConfig: ${config} } }`
+/** A `backendPlugin()` plugin object as the plugin presents one, carrying `config`. */
+const backendPlugin = (config: string) => `{ name: "backend", api: { backendConfig: ${config} } }`
 
 describe("a Vite config read on plain Node (bit 19 h2)", () => {
 	// v0: bd0ee20213
-	it("H70b: `honey generate` on plain Node finds the Vite config", async () => {
+	it("H70b: `backend generate` on plain Node finds the Vite config", async () => {
 		const dir = project({
 			/* an enum: syntax Node's type stripping refuses, so only jiti can load this config */
-			"plugin.ts": `enum Kind { Tree = "tree" }\nexport const honey = (app: string) => (${honeyPlugin("{ app, codegen: Kind.Tree }")})\n`,
-			"vite.config.ts": 'import { honey } from "./plugin"\nexport default { plugins: [honey("src/app.ts")] }\n',
+			"plugin.ts": `enum Kind { Tree = "tree" }\nexport const backend = (app: string) => (${backendPlugin("{ app, codegen: Kind.Tree }")})\n`,
+			"vite.config.ts": 'import { backend } from "./plugin"\nexport default { plugins: [backend("src/app.ts")] }\n',
 		})
 		const script = [
 			`import { createModuleLoader, findViteConfig, loadPluginConfigs } from ${JSON.stringify(LOADERS)}`,
@@ -63,7 +63,7 @@ describe("a Vite config read on plain Node (bit 19 h2)", () => {
 	})
 })
 
-describe("each honeyPlugin() config in a Vite config, in plugin order (bit 19 h2)", () => {
+describe("each backendPlugin() config in a Vite config, in plugin order (bit 19 h2)", () => {
 	const configsOf = async (config: string) => {
 		const dir = project({ "vite.config.ts": config })
 		return loadPluginConfigs(join(dir, "vite.config.ts"), await createModuleLoader({ fresh: true, from: dir }), ENV)
@@ -71,17 +71,17 @@ describe("each honeyPlugin() config in a Vite config, in plugin order (bit 19 h2
 
 	it("reads nested and promised plugin arrays, a function-form config called with the env", async () => {
 		const config = [
-			`const a = ${honeyPlugin('{ app: "a" }')}`,
-			`const b = ${honeyPlugin('{ app: "b" }')}`,
+			`const a = ${backendPlugin('{ app: "a" }')}`,
+			`const b = ${backendPlugin('{ app: "b" }')}`,
 			"export default (env) => ({",
-			`  plugins: [{ name: "other" }, null, [a, Promise.resolve([${honeyPlugin("{ app: env.mode, ssr: env.isSsrBuild }")}])], Promise.resolve(b)],`,
+			`  plugins: [{ name: "other" }, null, [a, Promise.resolve([${backendPlugin("{ app: env.mode, ssr: env.isSsrBuild }")}])], Promise.resolve(b)],`,
 			"})",
 		].join("\n")
 		expect(await configsOf(config)).toEqual([{ app: "a" }, { app: "production", ssr: false }, { app: "b" }])
 	})
 
-	it("reads a module-form config, and passes over a honey-named plugin without a config", async () => {
-		const config = `export const plugins = [{ name: "honey" }, { name: "honey", api: {} }, ${honeyPlugin("{ app: 1 }")}]`
+	it("reads a module-form config, and passes over a backend-named plugin without a config", async () => {
+		const config = `export const plugins = [{ name: "backend" }, { name: "backend", api: {} }, ${backendPlugin("{ app: 1 }")}]`
 		expect([await configsOf(config), await configsOf("export default {}")]).toEqual([[{ app: 1 }], []])
 	})
 })
@@ -162,7 +162,7 @@ describe("Effect's JSON Schema converter (bit 19 h2)", () => {
 		expect([
 			(make?.(Schema.String as never) as { type?: string } | undefined)?.type,
 			await effectConverter("node:path"),
-			await effectConverter("no-such-module-honey"),
+			await effectConverter("no-such-module-backend"),
 		]).toEqual(["string", undefined, undefined])
 	})
 })

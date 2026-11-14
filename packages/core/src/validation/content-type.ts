@@ -4,7 +4,7 @@
  * one body, so json and form are exclusive. Per request: the media type must select the declared
  * parser, by essence, before the body is read; anything else is a 415.
  */
-import { EK, HoneyError } from "../errors/error.ts"
+import { EK, HttpError } from "../errors/error.ts"
 import { type BodyParser, bodyParserFor } from "../response/media-type.ts"
 
 /** The body sources a route may declare; any other key is a non-body source. */
@@ -60,5 +60,5 @@ export function assertRequestContentType(schemas: BodySchemas, contentType: stri
 	const parser = bodyParserFor(contentType)
 	const accepted = schemas.json !== undefined ? parser === "json" : parser === "multipart" || parser === "urlencoded"
 	if (accepted) return parser
-	throw new HoneyError({ errorKey: EK.unsupported_media_type, status: "unsupported_media_type" })
+	throw new HttpError({ errorKey: EK.unsupported_media_type, status: "unsupported_media_type" })
 }

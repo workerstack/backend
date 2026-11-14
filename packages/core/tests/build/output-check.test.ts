@@ -1,9 +1,9 @@
 /**
  * Where the answer check lives (plan 40, phase 10): `#output-check` in the installed package. The real core tarball is
  * installed beside the repo's Vite and an app whose `/bad` route answers what its `.output()` refuses. A Worker that
- * `vite build` bundles through `honeyPlugin()` in production carries none of the check, built unminified so its one
+ * `vite build` bundles through `backendPlugin()` in production carries none of the check, built unminified so its one
  * marker, the `compileOutput` function only the check defines, would show; a development build, and a production
- * build with `honeyPlugin({ outputValidation: true })`, carry it and answer `/bad` with the 500.
+ * build with `backendPlugin({ outputValidation: true })`, carry it and answer `/bad` with the 500.
  */
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -18,7 +18,7 @@ const MARKER = "function compileOutput("
 
 /* one route that answers what its .output() refuses, one with no .output(); a schema of its own, so no validator
  * library is installed */
-const APP = `import { honey } from "@workerstack/backend/http"
+const APP = `import { httpApp } from "@workerstack/backend/http"
 const row = {
 	"~standard": {
 		validate: (value) => (typeof value?.id === "string" ? { value } : { issues: [{ message: "id is no string" }] }),
@@ -26,7 +26,7 @@ const row = {
 		version: 1,
 	},
 }
-export const app = honey().logger(false)
+export const app = httpApp().logger(false)
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
 app.get("/bad").output({ ok: row }).handler((ctx) => ctx.res.json("ok", { id: 1 }))
 `
@@ -34,13 +34,13 @@ app.get("/bad").output({ ok: row }).handler((ctx) => ctx.res.json("ok", { id: 1 
 /* vite build of src/app.mjs for argv's target into argv's directory, unminified; "keep" sets outputValidation */
 const BUILD = `import { build } from "vite"
 import { createBuildPlugin } from "@workerstack/backend/build"
-import { honeyPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin"
 const [target, outDir, keep] = process.argv.slice(2)
 await build({
 	configFile: false,
 	logLevel: "error",
 	plugins: [
-		honeyPlugin({ app: "src/app.mjs", codegen: { tree: false }, ...(keep === "keep" ? { outputValidation: true } : {}) }),
+		backendPlugin({ app: "src/app.mjs", codegen: { tree: false }, ...(keep === "keep" ? { outputValidation: true } : {}) }),
 		createBuildPlugin({ minify: false, outDir, target }, { entry: "src/app.mjs", export: "app" }),
 	],
 	root: process.cwd(),
@@ -81,7 +81,7 @@ function workerAnswer(name: string): string {
 
 const REFUSED = "500 output_validation_failed"
 
-describe("a Worker built through honeyPlugin() (plan 40, phase 10)", () => {
+describe("a Worker built through backendPlugin() (plan 40, phase 10)", () => {
 	// v0: ac3e0f763d
 	it(
 		"in production carries no output check, and answers what its handler built",

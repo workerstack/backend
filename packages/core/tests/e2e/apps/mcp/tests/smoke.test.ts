@@ -9,7 +9,7 @@ const CSV = new TextEncoder().encode("name,qty\nbolt,4\n")
 /** A 2025-11-25 JSON-RPC request to the mounted endpoint, `headers` beside a conforming client's. */
 const rpc = (method: string, params: object, headers: Record<string, string> = {}) =>
 	app.fetch(
-		new Request("http://honey.test/api/mcp", {
+		new Request("http://backend.test/api/mcp", {
 			body: JSON.stringify({ id: 1, jsonrpc: "2.0", method, params }),
 			headers: {
 				accept: "application/json, text/event-stream",
@@ -63,7 +63,7 @@ describe("e2e mcp mounts the app's own tools", () => {
 	test("answers 401 with the inner route's challenge when it rejects the key", async () => {
 		const args = { project_id: "p1", text: "t" }
 		const res = await rpc("tools/call", { arguments: args, name: "suggest_schema" }, { authorization: "ApiKey wrong" })
-		expect([res.status, res.headers.get("www-authenticate")]).toEqual([401, 'ApiKey realm="honey-e2e"'])
+		expect([res.status, res.headers.get("www-authenticate")]).toEqual([401, 'ApiKey realm="backend-e2e"'])
 	})
 })
 

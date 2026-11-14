@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { createLogger, defaultsFor, LEVELS, type LogLevel, nodeEnv, SILENT } from "./logger.ts"
 
 /** A json logger at `level` whose lines are parsed into `lines`. */
@@ -45,7 +45,7 @@ describe("createLogger: the pino line shape", () => {
 	it("an error in a field is its name, message, stack and cause, never {}", () => {
 		const { lines, log } = recording()
 		const cause = new Error("root")
-		log.error({ err: new HoneyError({ cause, errorKey: "db", status: "conflict" }) }, "failed")
+		log.error({ err: new HttpError({ cause, errorKey: "db", status: "conflict" }) }, "failed")
 		expect(lines[0]?.err).toMatchObject({
 			cause: { message: "root", name: "Error" },
 			errorKey: "db",

@@ -6,11 +6,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { PEER_ADDRESS } from "../../src/context/peer.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 /** An app whose /who answers with ctx.ip. */
 function ipApp() {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/who").handler((ctx) => ctx.res.json("ok", { ip: ctx.ip }))
 	return app
 }
@@ -94,7 +94,7 @@ describe("ctx.ip is read once per request", () => {
 			},
 		})
 		const seen: unknown[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(
 				createMiddleware((ctx, next) => {
@@ -112,8 +112,8 @@ describe("ctx.ip is read once per request", () => {
 describe("ip is a framework key", () => {
 	// v0: 59b96fa98f
 	it("context() refuses it, and next() cannot replace it", async () => {
-		expect(() => honey<{}>().context({ ip: "x" } as never)).toThrow('context() cannot set reserved key "ip"')
-		const app = honey<{}>()
+		expect(() => httpApp<{}>().context({ ip: "x" } as never)).toThrow('context() cannot set reserved key "ip"')
+		const app = httpApp<{}>()
 		app
 			.use(createMiddleware((_ctx, next) => next({ ip: "6.6.6.6" } as {})))
 			.get("/who")

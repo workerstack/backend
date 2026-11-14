@@ -6,7 +6,7 @@
  * inherits the consumer's flags, and `skipLibCheck` does not cover `.ts`, so there is no
  * way for a consumer to opt out of our lint posture.
  */
-import { createMiddleware, defineErrors, honey } from "@workerstack/backend/http"
+import { createMiddleware, defineErrors, httpApp } from "@workerstack/backend/http"
 import type { InferCtx } from "@workerstack/backend/http"
 import { cors } from "@workerstack/backend/http/cors"
 import { createLogger } from "@workerstack/backend/logger"
@@ -21,7 +21,7 @@ const withUser = createMiddleware(async (_ctx, next) => next({ user: { id: "u-1"
 
 type AppMeta = { permissions?: string[]; tenant?: string }
 
-const app = honey<{ SECRET: string }>().errorFactory(errors).metaType<AppMeta>()
+const app = httpApp<{ SECRET: string }>().errorFactory(errors).metaType<AppMeta>()
 
 app.metaSpec({
 	meta: { permissions: "x-permissions", tenant: "x-tenant" },

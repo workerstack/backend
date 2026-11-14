@@ -1,13 +1,20 @@
 /**
- * `otelAdapter(api, options)`: the Telemetry value `app.telemetry()` carries, over the app's own
- * OpenTelemetry API. Pass the `@opentelemetry/api` module itself; honey imports no OpenTelemetry
+ * `otelAdapter(api, options)`: the OtelTelemetry value `app.telemetry()` carries, over the app's own
+ * OpenTelemetry API. Pass the `@opentelemetry/api` module itself; backend imports no OpenTelemetry
  * package, so there is one shared instance and nothing to load. Only `trace` and `context` are used:
- * honey parses `traceparent` itself (the trust gate validates what it continues), so no propagator
+ * backend parses `traceparent` itself (the trust gate validates what it continues), so no propagator
  * has to be registered. Every span's parent is passed explicitly; `run` makes the handler's span the
  * active one only so the app's own instrumentation nests under it.
  */
 import type { InboundTrust } from "../middleware/request-id.ts"
-import type { Attributes, Span, SpanOptions, Telemetry, TelemetryErrorReport, Tracer } from "./request-trace.ts"
+import type {
+	OtelAttributes,
+	OtelSpan,
+	SpanOptions,
+	OtelTelemetry,
+	TelemetryErrorReport,
+	OtelTracer,
+} from "./request-trace.ts"
 import type { RemoteContext } from "./traceparent.ts"
 
 /** OpenTelemetry's `TraceState`, as its spans carry one. */
@@ -39,7 +46,7 @@ type OtelSpanContext = {
 /** OpenTelemetry's span options, the part the adapter passes to `startSpan`. */
 type OtelSpanOptions = {
 	/** Attributes set on the span when it starts. */
-	readonly attributes?: Attributes
+	readonly attributes?: OtelAttributes
 	/** OpenTelemetry's `SpanKind` number: 0 internal, 1 server, 2 client. */
 	readonly kind?: number
 	/** Spans this one is linked to without being their child. */
@@ -65,10 +72,10 @@ export type OtelApi = {
 		/** The tracer named `name`. */
 		getTracer(name: string): {
 			/** Starts a span named `name` as a child of the active span in `context`; with none there, it starts a new trace. */
-			startSpan(name: string, options?: OtelSpanOptions, context?: unknown): Span
+			startSpan(name: string, options?: OtelSpanOptions, context?: unknown): OtelSpan
 		}
 		/** A copy of `context` with `span` as its active span. */
-		setSpan(context: unknown, span: Span): unknown
+		setSpan(context: unknown, span: OtelSpan): unknown
 		/** A copy of `context` whose active span is the remote one `spanContext` describes, so a span started under it joins that trace. */
 		setSpanContext(context: unknown, spanContext: OtelSpanContext): unknown
 	}
@@ -128,14 +135,14 @@ function remoteContext(remote: RemoteContext): OtelSpanContext {
 	return remote.state === undefined ? context : { ...context, traceState: TraceState.parse(remote.state) }
 }
 
-function isSpan(parent: RemoteContext | Span): parent is Span {
-	return typeof (parent as Partial<Span>).spanContext === "function"
+function isSpan(parent: RemoteContext | OtelSpan): parent is OtelSpan {
+	return typeof (parent as Partial<OtelSpan>).spanContext === "function"
 }
 
-/** The `Telemetry` for `app.telemetry()`, built over the OpenTelemetry API module `api`. Its tracer is named `@workerstack/backend`. */
-export function otelAdapter(api: OtelApi, options: OtelAdapterOptions = {}): Telemetry {
+/** The `OtelTelemetry` for `app.telemetry()`, built over the OpenTelemetry API module `api`. Its tracer is named `@workerstack/backend`. */
+export function otelAdapter(api: OtelApi, options: OtelAdapterOptions = {}): OtelTelemetry {
 	const otel = api.trace.getTracer("@workerstack/backend")
-	const tracer: Tracer = {
+	const tracer: OtelTracer = {
 		run: (span, fn) => api.context.with(api.trace.setSpan(api.context.active(), span), fn),
 		startSpan(name, { attributes, kind, links, parent }) {
 			/* the parent is explicit: whatever span the ambient context holds is not it */

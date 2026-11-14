@@ -1,14 +1,14 @@
 /**
- * The build gate's honey-free reference (bit 21 cfb): the same `vite build` an e2e app's prod build runs, on the same
- * runtime, with no honey plugin in it. The options are createBuildPlugin's own (src/build/targets.ts): an SSR build,
+ * The build gate's backend-free reference (bit 21 cfb): the same `vite build` an e2e app's prod build runs, on the same
+ * runtime, with no backend plugin in it. The options are createBuildPlugin's own (src/build/targets.ts): an SSR build,
  * minified, builtins external, webworker and everything inlined for cloudflare. An app build's time over this one's is
- * the ratio the gate judges, so the runner's speed cancels and a slower honey generate, shared by every app, does not.
+ * the ratio the gate judges, so the runner's speed cancels and a slower backend generate, shared by every app, does not.
  */
 import { builtinModules } from "node:module"
 
 /**
- * Units of honey-free, single-threaded JS work the reference does at buildStart (bit 21 bref), as an app build's
- * honey generate is JS work: a bare one-handler build is ~80 ms here, mostly process start, and its spread within a
+ * Units of backend-free, single-threaded JS work the reference does at buildStart (bit 21 bref), as an app build's
+ * backend generate is JS work: a bare one-handler build is ~80 ms here, mostly process start, and its spread within a
  * cell's window was twice the app builds' (here 7.0% node, 6.3% bun, the median over 72 windows of three samples'
  * (max-min)/median, against the builds' 3.6% and 3.1%; on CI 5.6% and 3.8% against 2.0% and 2.2%). 15,000 is the
  * smallest size measured whose spread is no wider than the builds' on both runtimes, 2.1% node and 1.9% bun against

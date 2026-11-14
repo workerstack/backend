@@ -8,10 +8,10 @@ method. Each takes `json`, `form`, `headers` and `search`, and `ip` sets the pee
   `Max-Age` and `Expires`.
 
 ```ts run
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { testClient } from "@workerstack/backend/http/testing"
 
-const app = honey()
+const app = httpApp()
 app.get("/hello").handler((ctx) => ctx.res.json("ok", { hello: ctx.search.name ?? "world", ip: ctx.ip }))
 
 const client = testClient(app, { env: {} })

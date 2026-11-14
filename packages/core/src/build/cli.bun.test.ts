@@ -1,5 +1,5 @@
 /**
- * The `honey` bin on Bun (bit 20 k-fix): never through jiti, whose Babel, once loaded on a cold fs cache, hooks
+ * The `backend` bin on Bun (bit 20 k-fix): never through jiti, whose Babel, once loaded on a cold fs cache, hooks
  * Error.prepareStackTrace so that Bun throws "First argument must be an Error object" at a captureStackTrace on a
  * non-Error. A first run generates though a config's import makes such an error; a config that throws at load is
  * evaluated once; `--watch` sees an edit to a module the app imports.
@@ -12,7 +12,7 @@ import { MARK_KEY, markOf, reap } from "../../tests/fixture/survivors.ts"
 import { appSource, type Project, project } from "./__fixtures__/project.ts"
 
 const SLOW = 60_000
-const BIN = resolve(import.meta.dirname, "../../bin/honey.js")
+const BIN = resolve(import.meta.dirname, "../../bin/backend.js")
 const projects: Project[] = []
 afterEach(() => {
 	for (const made of projects.splice(0)) made.done()
@@ -26,17 +26,17 @@ function fresh(files: Record<string, string> = {}): Project {
 }
 
 const CONFIG = (options: string) =>
-	`import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin(${options})] }\n`
+	`import { backendPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [backendPlugin(${options})] }\n`
 const read = (dir: string, path: string) => (existsSync(join(dir, path)) ? readFileSync(join(dir, path), "utf8") : "")
 
-/** `honey generate <args>` on Bun with `env` over the test's own, its TMPDIR an empty one: a cold jiti cache. */
+/** `backend generate <args>` on Bun with `env` over the test's own, its TMPDIR an empty one: a cold jiti cache. */
 function onBun(made: Project, args: readonly string[], env: NodeJS.ProcessEnv = {}) {
 	const cold = join(made.dir, ".tmp")
 	mkdirSync(cold)
 	return spawnSync("bun", [BIN, "generate", ...args], {
 		cwd: made.dir,
 		encoding: "utf8",
-		env: { ...process.env, HONEY_NO_BUN_HANDOFF: "1", TMPDIR: cold, ...env },
+		env: { ...process.env, BACKEND_NO_BUN_HANDOFF: "1", TMPDIR: cold, ...env },
 		timeout: SLOW,
 	})
 }
@@ -48,7 +48,7 @@ async function until(check: () => boolean, ms = 20_000): Promise<boolean> {
 	return true
 }
 
-describe("honey generate on Bun, from a cold cache (bit 20 k-fix)", () => {
+describe("backend generate on Bun, from a cold cache (bit 20 k-fix)", () => {
 	it(
 		"generates on a first run, though a config's import makes an error without Error",
 		() => {
@@ -64,8 +64,8 @@ describe("honey generate on Bun, from a cold cache (bit 20 k-fix)", () => {
 				"vite.config.ts": `import "./errors.mjs"\n${CONFIG('{ app: "src/app.ts" }')}`,
 			})
 			/* the condition the plugin's child inherits in a checkout's build */
-			const done = onBun(made, [], { BUN_OPTIONS: "--conditions=honey-source" })
-			expect([done.status, done.stdout, done.stderr.split("\n")[0]]).toEqual([0, "honey: generated\n", ""])
+			const done = onBun(made, [], { BUN_OPTIONS: "--conditions=backend-source" })
+			expect([done.status, done.stdout, done.stderr.split("\n")[0]]).toEqual([0, "backend: generated\n", ""])
 		},
 		SLOW,
 	)
@@ -83,7 +83,7 @@ describe("honey generate on Bun, from a cold cache (bit 20 k-fix)", () => {
 			const done = onBun(made, [])
 			expect([done.status, done.stderr.split("\n")[0], read(made.dir, "evaluations.log")]).toEqual([
 				1,
-				"honey: generation failed: boom at load",
+				"backend: generation failed: boom at load",
 				"x",
 			])
 		},
@@ -91,19 +91,19 @@ describe("honey generate on Bun, from a cold cache (bit 20 k-fix)", () => {
 	)
 })
 
-describe("honey generate --watch on Bun (bit 20 k-fix)", () => {
+describe("backend generate --watch on Bun (bit 20 k-fix)", () => {
 	it(
 		"regenerates when a module the app imports changes",
 		async () => {
 			const mark = markOf()
 			const made = fresh({
 				"src/app.ts":
-					'import { honey } from "@workerstack/backend/http"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
+					'import { httpApp } from "@workerstack/backend/http"\nimport { path } from "./routes.ts"\nexport const app = httpApp().get(path).handler((c) => c.res.text("ok", "ok"))\n',
 				"src/routes.ts": 'export const path = "/first"\n',
 			})
 			const watch = spawn("bun", [BIN, "generate", "--watch", "--app", "src/app.ts"], {
 				cwd: made.dir,
-				env: { ...process.env, [MARK_KEY]: mark, HONEY_NO_BUN_HANDOFF: "1" },
+				env: { ...process.env, [MARK_KEY]: mark, BACKEND_NO_BUN_HANDOFF: "1" },
 			})
 			const ended = new Promise((settle) => watch.on("exit", settle))
 			const tree = () => read(made.dir, "src/_gen/routes.gen.ts")
@@ -120,17 +120,17 @@ describe("honey generate --watch on Bun (bit 20 k-fix)", () => {
 })
 
 /**
- * `honey generate --app src/app.ts` on Bun in a checkout, BUN_OPTIONS `options` after a preload that logs each Bun
+ * `backend generate --app src/app.ts` on Bun in a checkout, BUN_OPTIONS `options` after a preload that logs each Bun
  * process the run starts: its exit code, stdout, that count and stderr's first line. Stopped once more than two have
  * started, so a hand-off that never sees the condition reds on its count instead of re-running itself without end.
- * `strip`: the preload also takes --conditions=honey-source out of execArgv, as a Bun that stopped reporting it would.
+ * `strip`: the preload also takes --conditions=backend-source out of execArgv, as a Bun that stopped reporting it would.
  */
 async function starts(options: string, strip = false): Promise<[number | null, string, number, string]> {
 	const mark = markOf()
 	const made = fresh({ "src/app.ts": appSource() })
 	const log = join(made.dir, "starts.log")
 	const unseen =
-		'const at = process.execArgv.indexOf("--conditions=honey-source")\nif (at >= 0) process.execArgv.splice(at, 1)\n'
+		'const at = process.execArgv.indexOf("--conditions=backend-source")\nif (at >= 0) process.execArgv.splice(at, 1)\n'
 	made.write("count.cjs", `require("node:fs").appendFileSync(${JSON.stringify(log)}, "x")\n${strip ? unseen : ""}`)
 	const child = spawn("bun", [BIN, "generate", "--app", "src/app.ts"], {
 		cwd: made.dir,
@@ -138,7 +138,7 @@ async function starts(options: string, strip = false): Promise<[number | null, s
 			...process.env,
 			[MARK_KEY]: mark,
 			BUN_OPTIONS: `--preload ${join(made.dir, "count.cjs")} ${options}`.trim(),
-			HONEY_NO_BUN_HANDOFF: "1",
+			BACKEND_NO_BUN_HANDOFF: "1",
 		},
 	})
 	let [out, err, code] = ["", "", null as number | null]
@@ -154,11 +154,11 @@ async function starts(options: string, strip = false): Promise<[number | null, s
 	return [code, out, read(made.dir, "starts.log").length, err.split("\n")[0] ?? ""]
 }
 
-describe("the bin on Bun without the honey-source condition (bit 20 k-fix)", () => {
+describe("the bin on Bun without the backend-source condition (bit 20 k-fix)", () => {
 	it(
 		"hands off to itself exactly once with the condition set, and generates",
 		async () => {
-			expect(await starts("")).toEqual([0, "honey: generated\n", 2, ""])
+			expect(await starts("")).toEqual([0, "backend: generated\n", 2, ""])
 		},
 		SLOW,
 	)
@@ -166,7 +166,7 @@ describe("the bin on Bun without the honey-source condition (bit 20 k-fix)", () 
 	it(
 		"runs at once when BUN_OPTIONS sets it: Bun reports it in execArgv, which the hand-off's child relies on",
 		async () => {
-			expect(await starts("--conditions=honey-source")).toEqual([0, "honey: generated\n", 1, ""])
+			expect(await starts("--conditions=backend-source")).toEqual([0, "backend: generated\n", 1, ""])
 		},
 		SLOW,
 	)
@@ -178,7 +178,7 @@ describe("the bin on Bun without the honey-source condition (bit 20 k-fix)", () 
 				1,
 				"",
 				2,
-				"honey: Bun hand-off loop: --conditions=honey-source not visible after re-exec",
+				"backend: Bun hand-off loop: --conditions=backend-source not visible after re-exec",
 			])
 		},
 		SLOW,

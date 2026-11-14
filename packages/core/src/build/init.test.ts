@@ -1,5 +1,5 @@
 /**
- * `honey init` (bit 19 h1, ported from v0's unit/plugin/cli-init.test.ts onto runInit; the CLI's exit codes are h2's):
+ * `backend init` (bit 19 h1, ported from v0's unit/plugin/cli-init.test.ts onto runInit; the CLI's exit codes are h2's):
  * the app, its Worker, wrangler.jsonc, Vite config and package.json written (apps run on Workers only, D16); an
  * existing app refused without --force and overwritten with it; an existing package.json's scripts and type kept and
  * reported; the scaffolded app serving /health, its document and its docs on v1's own source.
@@ -16,7 +16,7 @@ const SRC = new URL("../", import.meta.url).pathname
 let dir = ""
 let lines: string[] = []
 
-/** `honey init` with `argv` in the temp project: its stdout lines. */
+/** `backend init` with `argv` in the temp project: its stdout lines. */
 function init(argv: string[] = []): string[] {
 	lines = []
 	runInit(dir, parseInitFlags(argv), (line) => lines.push(line))
@@ -41,15 +41,15 @@ const read = (rel: string) => readFileSync(join(dir, rel), "utf8")
 const pkg = () => JSON.parse(read("package.json")) as Record<string, Record<string, string> | string | boolean>
 
 beforeEach(() => {
-	dir = mkdtempSync(join(process.env.TMPDIR ?? "/tmp", "honey-init-"))
+	dir = mkdtempSync(join(process.env.TMPDIR ?? "/tmp", "backend-init-"))
 })
 
 afterEach(() => rmSync(dir, { force: true, recursive: true }))
 
-describe("honey init", () => {
+describe("backend init", () => {
 	// v0: 9789105764
 	it("writes app, worker, wrangler.jsonc, vite config, and package scripts", () => {
-		expect(init()).toEqual(["honey: initialized"])
+		expect(init()).toEqual(["backend: initialized"])
 		expect({
 			app: read("src/app.ts").includes('get("/health")') && read("src/app.ts").includes("serveOpenApi("),
 			pkg: pkg(),
@@ -61,9 +61,9 @@ describe("honey init", () => {
 			pkg: {
 				dependencies: { "@workerstack/backend": expect.stringMatching(/^\^\d+\.\d+\.\d+/) },
 				devDependencies: { wrangler: "^4" },
-				name: expect.stringMatching(/^honey-init-/),
+				name: expect.stringMatching(/^backend-init-/),
 				private: true,
-				scripts: { dev: "wrangler dev", generate: "honey generate" },
+				scripts: { dev: "wrangler dev", generate: "backend generate" },
 				type: "module",
 			},
 			server: false,
@@ -112,18 +112,18 @@ describe("the scaffolded app", () => {
 			init()
 			const { stdout } = await promisify(execFile)(
 				"bun",
-				["--conditions=honey-source", "-e", served(join(dir, "src/app.ts"))],
+				["--conditions=backend-source", "-e", served(join(dir, "src/app.ts"))],
 				{
 					cwd: SRC,
 				},
 			)
-			expect(JSON.parse(stdout)).toEqual([200, "ok", "3.1.0", "Honey", 200, true])
+			expect(JSON.parse(stdout)).toEqual([200, "ok", "3.1.0", "Backend", 200, true])
 		},
 		SPAWN,
 	)
 })
 
-describe("honey init and an existing package.json", () => {
+describe("backend init and an existing package.json", () => {
 	// v0: 6fcf217154
 	it("keeps an existing package.json's scripts, type and privacy without --force", () => {
 		const original = {
@@ -140,21 +140,21 @@ describe("honey init and an existing package.json", () => {
 			scripts: original.scripts,
 		})
 		expect(out).toEqual([
-			'honey: kept scripts.dev ("node server.js"); honey expects "wrangler dev"',
-			'honey: kept scripts.generate ("make gen"); honey expects "honey generate"',
-			'honey: package.json has no "type"; the scaffold is ESM: set "type": "module", or rerun with --force',
-			"honey: initialized",
+			'backend: kept scripts.dev ("node server.js"); backend expects "wrangler dev"',
+			'backend: kept scripts.generate ("make gen"); backend expects "backend generate"',
+			'backend: package.json has no "type"; the scaffold is ESM: set "type": "module", or rerun with --force',
+			"backend: initialized",
 		])
 	})
 
 	// v0: 594d6c8fc8
-	it("--force updates the honey scripts and type of an existing package.json", () => {
+	it("--force updates the backend scripts and type of an existing package.json", () => {
 		const scripts = { dev: "node server.js", test: "vitest" }
 		writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "existing", scripts, type: "commonjs" }))
 		init(["--force"])
 		/* an explicit type is the project's choice */
 		expect([pkg().scripts, pkg().type]).toEqual([
-			{ dev: "wrangler dev", generate: "honey generate", test: "vitest" },
+			{ dev: "wrangler dev", generate: "backend generate", test: "vitest" },
 			"commonjs",
 		])
 	})
@@ -165,15 +165,15 @@ describe("honey init and an existing package.json", () => {
 	})
 })
 
-describe("honey init over a package.json it cannot use as is (bit 19 h1)", () => {
-	it("keeps an existing honey dependency without --force, and names a symbol-only directory honey-app", () => {
+describe("backend init over a package.json it cannot use as is (bit 19 h1)", () => {
+	it("keeps an existing backend dependency without --force, and names a symbol-only directory backend-app", () => {
 		writeFileSync(join(dir, "package.json"), JSON.stringify({ dependencies: { "@workerstack/backend": "^0.9.0" } }))
 		init()
 		const unnamed = join(dir, "-!-")
 		mkdirSync(unnamed)
 		runInit(unnamed, parseInitFlags([]), () => {})
 		const name = (JSON.parse(readFileSync(join(unnamed, "package.json"), "utf8")) as { name: string }).name
-		expect([pkg().dependencies, name]).toEqual([{ "@workerstack/backend": "^0.9.0" }, "honey-app"])
+		expect([pkg().dependencies, name]).toEqual([{ "@workerstack/backend": "^0.9.0" }, "backend-app"])
 	})
 
 	it("keeps an existing wrangler devDependency without --force, and sets its own with it", () => {

@@ -1,11 +1,11 @@
 /**
  * The e2e build tier's time gate (bit 21 cfb), two checks per cell:
  *
- * - The regression gate is a RATIO: the cell's build time over a honey-free reference build (reference/), the same
+ * - The regression gate is a RATIO: the cell's build time over a backend-free reference build (reference/), the same
  *   `vite build` on the same runtime and target, timed around the cell's own builds (build-window.ts). CI's
  *   runners come in classes about 1.6x apart (CI runs 40582174256 and 40754723329: the same commit built surface in
  *   2.7 s on one, 4.6 s on another), so an absolute ceiling either reds on a slow runner or passes a regression on a
- *   fast one; the ratio cancels the runner. The reference is honey-free, not a sibling app: honey generate is ~90% of
+ *   fast one; the ratio cancels the runner. The reference is backend-free, not a sibling app: backend generate is ~90% of
  *   every app's build, so a slower generator moves every sibling alike and would cancel out of an app-over-app ratio.
  *   Ceilings come from CI's own record-mode runs across both runner classes (blueprint/baselines/build.json, under
  *   ceilingRule's 2% false-red budget). With no ceiling for a cell the ratio is printed, never judged: report-only.
@@ -67,7 +67,7 @@ export type BuildMode = "judge" | "local" | "record"
 
 /**
  * Why a run off GitHub Actions only reports its ratios: the ceilings are CI's, recorded on Actions runners, and a
- * machine's ratio is not CI's: the honey-free reference is JS work and the builds are not only that, so a machine
+ * machine's ratio is not CI's: the backend-free reference is JS work and the builds are not only that, so a machine
  * shifts the two unequally (this one's references take ~1.3 s on Node and ~1.7 s on Bun, its cells reading 1.0-1.9 on
  * Node and 0.2-1.0 on Bun, bit 21 bref).
  */

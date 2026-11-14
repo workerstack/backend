@@ -1,7 +1,7 @@
 /**
  * The document's webhooks (OpenAPI 3.1): each event of the app's webhook contract, by type, as the
  * POST a subscriber serves. Every delivery is a Standard Webhooks one, so each states the three
- * signature headers, the `{ type, timestamp, data }` envelope and `x-honey-webhook`, which tells a
+ * signature headers, the `{ type, timestamp, data }` envelope and `x-backend-webhook`, which tells a
  * generator to emit a verifier. `data` converts on the output side, as the sender writes it.
  */
 import type { WebhookContract, WebhookEvents } from "../security/webhook-contract.ts"
@@ -34,7 +34,7 @@ export function webhooksOf(
 		}
 		out[type] = {
 			post: {
-				"x-honey-webhook": "standard-webhooks",
+				"x-backend-webhook": "standard-webhooks",
 				parameters: HEADERS.map((name) => ({ in: "header", name, required: true, schema: { type: "string" } })),
 				requestBody: { content: { "application/json": { schema: envelope } }, required: true },
 				responses: { "2XX": { description: "Received" } },

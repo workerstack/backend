@@ -9,7 +9,7 @@ const ENVS = ["cf"] as const
 type EnvName = (typeof ENVS)[number]
 
 const FILTER: Record<EnvName, string> = {
-	cf: "@honey/e2e-cf-workers",
+	cf: "@backend/e2e-cf-workers",
 }
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -129,15 +129,21 @@ function buildForProd(env: EnvName, app: string): boolean {
 
 function runCell(env: EnvName, app: string, mode: "dev" | "prod"): { ok: boolean; outcomes: Outcomes | null } {
 	process.stdout.write(`\n=== e2e ${env} × ${app} (${mode}) ===\n`)
-	if (mode === "prod" && process.env.HONEY_CF_URL === undefined && !buildForProd(env, app)) {
+	if (mode === "prod" && process.env.BACKEND_CF_URL === undefined && !buildForProd(env, app)) {
 		process.stdout.write(`=== fail ${env} × ${app}: its prod build failed ===\n`)
 		return { ok: false, outcomes: null }
 	}
-	const reportFile = join(tmpdir(), `honey-e2e-${env}-${mode}-${app}.json`)
+	const reportFile = join(tmpdir(), `backend-e2e-${env}-${mode}-${app}.json`)
 	rmSync(reportFile, { force: true })
 	const result = spawnSync("bun", ["run", "--filter", FILTER[env], "test"], {
 		cwd: repoRoot,
-		env: { ...process.env, HONEY_E2E_APP: app, HONEY_E2E_ENV: env, HONEY_E2E_RECORD: reportFile, TEST_MODE: mode },
+		env: {
+			...process.env,
+			BACKEND_E2E_APP: app,
+			BACKEND_E2E_ENV: env,
+			BACKEND_E2E_RECORD: reportFile,
+			TEST_MODE: mode,
+		},
 		stdio: "inherit",
 	})
 	const ok = result.status === 0

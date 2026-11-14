@@ -6,7 +6,7 @@
  * then without its leading segments (`json.email`, then `email`). The result is a copy; the thrown
  * error is never changed, so one instance can answer many requests in many locales.
  */
-import { type FieldError, HoneyError } from "../errors/error.ts"
+import { type FieldError, HttpError } from "../errors/error.ts"
 import { dict } from "../routing/tree.ts"
 import type { ErrorI18n, ResolveLocaleCtx } from "../routing/settings.ts"
 import type { MaybePromise } from "../middleware/middleware.ts"
@@ -57,11 +57,11 @@ function translatedFields(
 
 /** A copy of `error` with `message` and `fields`: same key, status, data, headers, vars, cause and stack. */
 function copyOf(
-	error: HoneyError,
+	error: HttpError,
 	message: string | undefined,
 	fields: Record<string, FieldError[]> | undefined,
-): HoneyError {
-	const copy = new HoneyError({
+): HttpError {
+	const copy = new HttpError({
 		cause: error.cause,
 		data: error.data,
 		errorKey: error.errorKey,
@@ -77,10 +77,10 @@ function copyOf(
 
 function translateWith(
 	formatter: Formatter,
-	error: HoneyError,
+	error: HttpError,
 	translations: ErrorTranslations,
 	locale: string,
-): HoneyError {
+): HttpError {
 	const template = ownValue(ownValue(translations.errors, locale), error.errorKey)
 	const message = template ? formatter.interpolate(template, error.vars ?? {}, locale) : undefined
 	const names = ownValue(translations.fieldNames, locale)
@@ -89,7 +89,7 @@ function translateWith(
 }
 
 /** `error` in `locale`, as a copy; `error` itself when nothing translates. */
-export function translateError(error: HoneyError, translations: ErrorTranslations, locale: string): HoneyError {
+export function translateError(error: HttpError, translations: ErrorTranslations, locale: string): HttpError {
 	return translateWith(new Formatter(), error, translations, locale)
 }
 
@@ -99,6 +99,6 @@ export function createErrorTranslator<TEnv = unknown>(config: ErrorTranslatorCon
 	const translations: ErrorTranslations = { errors: config.errors, fieldNames: config.fieldNames }
 	return Object.freeze({
 		resolveLocale: config.resolveLocale,
-		translate: (error: HoneyError, locale: string) => translateWith(formatter, error, translations, locale),
+		translate: (error: HttpError, locale: string) => translateWith(formatter, error, translations, locale),
 	})
 }

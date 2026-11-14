@@ -1,7 +1,7 @@
 {
 	"compilerOptions": {
 		"allowImportingTsExtensions": true,
-		"customConditions": ["honey-source"],
+		"customConditions": ["backend-source"],
 		"emitDecoratorMetadata": true,
 		"esModuleInterop": true,
 		"experimentalDecorators": true,

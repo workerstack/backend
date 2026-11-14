@@ -7,7 +7,7 @@ import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 const REPO = resolve(import.meta.dirname, "../../../..")
 const SELF = "packages/core/tests/structure/neutral-names.test.ts"
 
-/* honey stays neutral (plan 39 8.9): no consumer's name in its packages or its docs. Tests and fixtures model an API
+/* backend stays neutral (plan 39 8.9): no consumer's name in its packages or its docs. Tests and fixtures model an API
  * as Acme's, and the reserved example domains stand in for a real one. The changelog and the blueprint, which record
  * history, sit outside the two trees this guard reads; neither needs an exemption here. */
 const NAMES = /anyrow|lifeonomous/i
@@ -35,7 +35,7 @@ function named(file: string): string[] {
 		.flatMap((line, i) => (NAMES.test(line) ? [`${file}:${i + 1}`] : []))
 }
 
-describe("honey names no consumer (plan 39 8.9)", () => {
+describe("backend names no consumer (plan 39 8.9)", () => {
 	it("no file under packages/ or docs/ names one, in its path or its text", { timeout: SPAWN_TIMEOUT }, () => {
 		expect(scanned().flatMap(named)).toEqual([])
 	})

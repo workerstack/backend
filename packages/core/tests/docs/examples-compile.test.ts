@@ -31,7 +31,7 @@ const SHOWN = new Set([
 	"http",
 ])
 
-/* inside core, so `@workerstack/backend` resolves through the workspace link with core's honey-source condition */
+/* inside core, so `@workerstack/backend` resolves through the workspace link with core's backend-source condition */
 mkdirSync(join(CORE, ".tmp"), { recursive: true })
 const scratch = mkdtempSync(join(CORE, ".tmp/docs-blocks-"))
 afterAll(() => rmSync(scratch, { force: true, recursive: true }))
@@ -68,7 +68,7 @@ export function runFailures(blocks: readonly Block[], dir: string): string[] {
 	return blocks.flatMap((block, index) => {
 		const file = join(dir, `run${index}.ts`)
 		writeFileSync(file, moduleOf(block))
-		const ran = spawnSync("node", ["--conditions=honey-source", "--no-warnings", file], {
+		const ran = spawnSync("node", ["--conditions=backend-source", "--no-warnings", file], {
 			cwd: dir,
 			encoding: "utf8",
 			timeout: 20_000,
@@ -127,11 +127,11 @@ describe("the docs' compile check itself", () => {
 			'const count: number = "three"',
 			"```",
 			"```ts",
-			'const app = honey().get("/").handler((ctx) => ctx.res.text("ok", "hi"))',
+			'const app = httpApp().get("/").handler((ctx) => ctx.res.text("ok", "hi"))',
 			"```",
 			"```ts",
-			'import { honey } from "@workerstack/backend/http"',
-			'honey().get("/").handler((ctx) => ctx.res.text("ok", "hi"))',
+			'import { httpApp } from "@workerstack/backend/http"',
+			'httpApp().get("/").handler((ctx) => ctx.res.text("ok", "hi"))',
 			"```",
 		].join("\n")
 		const dir = mkdtempSync(join(scratch, "fixture-"))

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { PEER_ADDRESS } from "../context/peer.ts"
-import { honey } from "../routing/app.ts"
-import { memoryRateLimitStore, rateLimit, type RateLimitOptions } from "./rate-limit.ts"
+import { httpApp } from "../routing/app.ts"
+import { memoryRateLimitStore, rateLimit, type HttpRateLimitOptions } from "./rate-limit.ts"
 
 const T0 = Date.UTC(2026, 9, 14, 12, 0, 0)
 
@@ -14,8 +14,8 @@ afterEach(() => {
 })
 
 /** GET /t behind rateLimit(options); `handled` counts the requests that reached the handler. */
-function app(options: RateLimitOptions) {
-	const a = honey<{}>()
+function app(options: HttpRateLimitOptions) {
+	const a = httpApp<{}>()
 	const seen = { handled: 0 }
 	a.use(rateLimit(options))
 		.get("/t")
@@ -176,7 +176,7 @@ describe("rateLimit(): a custom store", () => {
 
 describe("rateLimit(): the answer it edits", () => {
 	it("a 101 upgrade passes through untouched", async () => {
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 		const upgraded = new Response(null)
 		Object.defineProperty(upgraded, "status", { value: 101 })
 		a.use(rateLimit({ limit: 5, windowMs: 60_000 }))

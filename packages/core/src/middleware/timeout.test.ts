@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "./middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { timeout } from "./timeout.ts"
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** GET /t behind timeout({ duration }), answered by `handler`. */
 function app(duration: number, handler: (ctx: { signal: AbortSignal }) => Promise<Response> | Response) {
-	const a = honey<{}>()
+	const a = httpApp<{}>()
 	a.use(timeout({ duration }))
 		.get("/t")
 		.handler((ctx) => handler(ctx) as never)
@@ -55,7 +55,7 @@ describe("timeout(): a slow chain answers 504", () => {
 
 	// v0: 0c96eb1578
 	it("covers the middleware below it too", async () => {
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 		a.use(timeout({ duration: 10 }))
 			.use(
 				createMiddleware(async (_ctx, next) => {

@@ -5,18 +5,18 @@ import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
 import { streamed } from "../input/input.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { gatewayTree } from "../routing/gateway-tree.ts"
 import { createNode, insertRoute, type RouteEntry, type RouteTree } from "../routing/tree.ts"
 import { mergeTree } from "../routing/tree-merge.ts"
-import { SILENT, type Logger } from "../telemetry/logger.ts"
+import { SILENT, type BackendLogger } from "../telemetry/logger.ts"
 import { generateOpenApi } from "./generate.ts"
 import { ws } from "../ws/route.ts"
 
 const INFO = { title: "T", version: "1" }
 
 /** A logger that keeps each warning's message. */
-function recording(): { logger: Logger; warnings: string[] } {
+function recording(): { logger: BackendLogger; warnings: string[] } {
 	const warnings: string[] = []
 	const warn = (first: unknown, second?: unknown) =>
 		void warnings.push(String(typeof first === "string" ? first : second))
@@ -38,7 +38,7 @@ function resolved(doc: ReturnType<typeof generateOpenApi>, schema: unknown): Rec
 describe("generateOpenApi: synchronous, and the metaSpec it is built with", () => {
 	// v0: 3b5bb5fab8
 	it("writes the built-in policy's keys in its order when no metaSpec is declared, and leaves an internal route out", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/users").handler((c) => c.res.json("ok", []))
 		app
 			.post("/users")
@@ -68,7 +68,7 @@ describe("generateOpenApi: synchronous, and the metaSpec it is built with", () =
 				"security",
 				"x-invalidate",
 				"x-mcp",
-				"x-honey-route",
+				"x-backend-route",
 				"responses",
 			],
 			undefined,
@@ -77,7 +77,7 @@ describe("generateOpenApi: synchronous, and the metaSpec it is built with", () =
 
 	// v0: 57c863da1c
 	it("builds the document of the profile it is asked for", () => {
-		const app = honey<{}>().metaType<{ tenant?: string }>()
+		const app = httpApp<{}>().metaType<{ tenant?: string }>()
 		app.metaSpec({ meta: { tenant: "x-tenant" }, profiles: { public: { exclude: ["x-tenant"] } } })
 		app
 			.get("/a")
@@ -93,7 +93,7 @@ describe("generateOpenApi: synchronous, and the metaSpec it is built with", () =
 describe("generateOpenApi: one diagnostics channel", () => {
 	// v0: b1941b54e2
 	it("throws every policy error at once, one aggregate", () => {
-		const app = honey<{}>().metaType<{ rateLimit?: string; worker?: string }>()
+		const app = httpApp<{}>().metaType<{ rateLimit?: string; worker?: string }>()
 		app.metaSpec({ meta: {} } as never)
 		app
 			.get("/a")
@@ -104,7 +104,7 @@ describe("generateOpenApi: one diagnostics channel", () => {
 
 	// v0: 3e900e5370
 	it("hands each warning to the logger, never the console, and still generates", () => {
-		const app = honey<{}>().metaType<{ rateLimit?: string }>()
+		const app = httpApp<{}>().metaType<{ rateLimit?: string }>()
 		app.metaSpec({ meta: { permissions: "x-permissions" }, strict: "warn" } as never)
 		app
 			.get("/a")
@@ -131,7 +131,7 @@ describe("generateOpenApi: one diagnostics channel", () => {
 				version: 1 as const,
 			},
 		}
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/a")
 			.input({ json: broken })
@@ -152,7 +152,7 @@ describe("generateOpenApi: which routes it documents", () => {
 	// v0: fab8f185bc
 	// v0: 357170d642
 	it("documents every route without filterRoutes, drops the ones it rejects, and always hands it an object for meta", () => {
-		const app = honey<{}>().metaType<{ auth?: false | string }>()
+		const app = httpApp<{}>().metaType<{ auth?: false | string }>()
 		app
 			.get("/public")
 			.meta({ auth: false })
@@ -182,7 +182,7 @@ describe("generateOpenApi: which routes it documents", () => {
 	it("reads each route's resolved meta, middleware's included, the same standalone and mounted behind a gateway", () => {
 		const shard = createMiddleware(async (_c, next) => next({}), { meta: { tenant: "project_id" } })
 		const worker = () => {
-			const w = honey<{}>().metaType<{ tenant?: string }>()
+			const w = httpApp<{}>().metaType<{ tenant?: string }>()
 			w.metaSpec({ meta: { tenant: { key: "x-tenant", map: (value) => ({ column: value }) } } })
 			w.use(shard)
 				.get("/orgs/:orgId/users")
@@ -191,7 +191,7 @@ describe("generateOpenApi: which routes it documents", () => {
 			return w
 		}
 		const standalone = generateOpenApi(worker(), { info: INFO })
-		const gateway = honey<{}>()
+		const gateway = httpApp<{}>()
 		gateway.route(worker())
 		const mounted = generateOpenApi(gateway, { info: INFO })
 		expect([
@@ -204,7 +204,7 @@ describe("generateOpenApi: which routes it documents", () => {
 describe("generateOpenApi: schemas, from every vendor and the converters it is given", () => {
 	// v0: 6b98b9158b
 	it("converts each slot through its own vendor: zod in, valibot out", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/items")
 			.input({ json: z.object({ name: z.string() }) })
@@ -223,7 +223,7 @@ describe("generateOpenApi: schemas, from every vendor and the converters it is g
 
 	// v0: b3ec257e17
 	it("hands Effect schemas to the converter the caller passes, lifting its $defs into components", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/items")
 			.input({ json: Schema.standardSchemaV1(Schema.Struct({ at: Schema.Date, name: Schema.String })) })
@@ -248,7 +248,7 @@ describe("generateOpenApi: schema-derived meta reads the route's own schemas", (
 	// v0: 873fa23717
 	// v0: cc7dfec1a1
 	it("reads the lowest 2xx JSON output first, then input.search, through the converted schemas", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.metaSpec({
 			schema: { entity: { expand: (e: { name: string }) => ({ "x-entity": e.name, "x-generated": ["id"] }) } },
 		})
@@ -274,7 +274,7 @@ describe("generateOpenApi: schema-derived meta reads the route's own schemas", (
 
 /** A mutation and the read of its path, with no invalidate declared. */
 function tables() {
-	const a = honey<{}>()
+	const a = httpApp<{}>()
 	a.post("/tables").handler((c) => c.res.text("ok", "ok"))
 	a.get("/tables").handler((c) => c.res.text("ok", "ok"))
 	return a
@@ -293,9 +293,9 @@ describe("generateOpenApi: the invalidate check over the emitted operations", ()
 		generateOpenApi(tables(), { info: INFO, invalidate: "off", logger })
 		expect(warnings).toEqual([expect.stringMatching(/POST\s+\/tables → GET \/tables/)])
 		expect(() => generateOpenApi(tables(), { info: INFO, invalidate: "error" })).toThrow(
-			/honey:invalidate.*1 mutation/s,
+			/backend:invalidate.*1 mutation/s,
 		)
-		const typo = honey<{}>()
+		const typo = httpApp<{}>()
 		typo
 			.post("/users")
 			.meta({ invalidate: ["GET /userz"] } as never)
@@ -306,7 +306,7 @@ describe("generateOpenApi: the invalidate check over the emitted operations", ()
 
 	// v0: 6339079314
 	it("reads entities off the emitted operations when given an entity key", () => {
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 		a.metaSpec({
 			schema: {
 				entityFacts: {
@@ -339,7 +339,7 @@ function treeOf(routes: readonly (readonly [string, string, RouteEntry?])[]): Ro
 
 /** A gateway's own routes beside a root /:slug and the catch-all its downstream routes delegate to. */
 function gatewayOwn(tree?: RouteTree) {
-	const app = tree === undefined ? honey<{}>() : honey<{}>().routeTree(tree)
+	const app = tree === undefined ? httpApp<{}>() : httpApp<{}>().routeTree(tree)
 	app.get("/health").handler((c) => c.res.text("ok", "up"))
 	app.get("/:slug").handler((c) => c.res.text("ok", "slug"))
 	app.all("/*").handler((c) => c.res.text("ok", "proxy"))
@@ -351,13 +351,13 @@ describe("generateOpenApi: documents of loaded trees and gateways", () => {
 	// v0: 438b804def
 	// v0: 0b05bc22a6
 	it("documents a loaded tree's leaves by their metadata, while the live app keeps bodies, answers and parameters", () => {
-		const live = honey<{}>()
+		const live = httpApp<{}>()
 		live
 			.post("/v1/projects/:project_id/suggest-schema")
 			.input({ json: z.object({ url: z.string() }), search: z.object({ limit: z.number().optional() }) })
 			.output({ "application/json": { ok: z.object({ schema: z.string() }) } })
 			.handler((c) => c.res.json("ok", { schema: "s" }))
-		const intern = honey<{}>().routeTree(
+		const intern = httpApp<{}>().routeTree(
 			treeOf([["POST", "/v1/projects/:project_id/suggest-schema", { mt: { summary: "Suggest" } }]]),
 		)
 		const fromLive = op(generateOpenApi(live, { info: INFO }), "/v1/projects/{project_id}/suggest-schema", "post")
@@ -367,15 +367,15 @@ describe("generateOpenApi: documents of loaded trees and gateways", () => {
 			Object.keys(fromTree),
 			(fromLive.parameters as { name: string }[]).map((p) => p.name),
 		]).toEqual([
-			["x-honey-route", "requestBody", "parameters", "responses"],
-			["summary", "x-honey-route", "parameters", "responses"],
+			["x-backend-route", "requestBody", "parameters", "responses"],
+			["summary", "x-backend-route", "parameters", "responses"],
 			["project_id", "limit"],
 		])
 	})
 
 	// v0: dc053efc6e
 	it("documents a gateway's own routes beside its downstream ones", () => {
-		const users = honey<{}>()
+		const users = httpApp<{}>()
 		users.get("/users/list").handler((c) => c.res.text("ok", "remote"))
 		users.get("/users/:id").handler((c) => c.res.text("ok", "remote"))
 		const app = gatewayOwn(gatewayTree(gatewayOwn(), mergeTree([users.toRouteTree(), { worker: "users" }])))
@@ -392,7 +392,7 @@ const standard = (vendor: string, jsonSchema?: Record<string, () => unknown>) =>
 
 describe("generateOpenApi: schemas no converter can describe", () => {
 	it("documents a vendor no converter knows unconstrained with a warning, and reports a thrown non-Error by its text", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/a")
 			.input({ json: standard("mystery") })
@@ -421,7 +421,7 @@ const named = (name: string) => z.object({ id: z.string() }).meta({ entity: { na
 
 describe("generateOpenApi: schema-derived meta over every shape a route takes", () => {
 	it("reads a WS route's search, skips a binary body, unwraps a stream, and reads no output from an error, a bare body or none", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.metaSpec({ schema: { entity: { expand: (e: { name: string }) => ({ "x-entity": e.name }) } } })
 		ws(app, "/live")
 			.input({ search: named("live") })
@@ -454,13 +454,13 @@ describe("generateOpenApi: schema-derived meta over every shape a route takes", 
 	})
 })
 
-describe("generateOpenApi: the declared errors for codegen (x-honey-errors, x-honey-error)", () => {
+describe("generateOpenApi: the declared errors for codegen (x-backend-errors, x-backend-error)", () => {
 	it("lists every declared key with its status and own schema, and marks only the responses errors produce", () => {
 		const errors = defineErrors({
 			taken: "conflict",
 			too_big: { schema: z.object({ limit: z.number() }), status: "unprocessable_entity" },
 		})
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app
 			.post("/items")
 			.errors("taken", "too_big")
@@ -468,9 +468,9 @@ describe("generateOpenApi: the declared errors for codegen (x-honey-errors, x-ho
 			.handler((c) => c.res.json("created", {}))
 		const doc = generateOpenApi(app, { info: INFO })
 		const operation = op(doc, "/items", "post")
-		const declared = operation["x-honey-errors"] as Record<string, { schema?: unknown; status: number | null }>
+		const declared = operation["x-backend-errors"] as Record<string, { schema?: unknown; status: number | null }>
 		const marked = Object.entries(operation.responses as Record<string, Record<string, unknown>>).map(
-			([code, response]) => [code, response["x-honey-error"] ?? false],
+			([code, response]) => [code, response["x-backend-error"] ?? false],
 		)
 		expect([Object.keys(declared), declared.taken, declared.too_big?.status, marked]).toEqual([
 			["taken", "too_big"],

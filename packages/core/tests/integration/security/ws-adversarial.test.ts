@@ -10,7 +10,7 @@ import { guardNamed } from "../../structure/mutation-harness.ts"
 
 const REPO = resolvePath(import.meta.dirname, "../../../../..")
 
-const mutant = guardNamed(process.env.HONEY_MUTANT)
+const mutant = guardNamed(process.env.BACKEND_MUTANT)
 if (mutant !== undefined) {
 	vi.doMock(resolvePath(REPO, mutant.module), async (importOriginal) => {
 		const original = await importOriginal<Record<string, unknown>>()
@@ -19,7 +19,7 @@ if (mutant !== undefined) {
 }
 
 /* imported after the mock, so a mutant reaches every module that uses it */
-const { honey } = (await import(
+const { httpApp } = (await import(
 	resolvePath(REPO, "packages/core/src/routing/app.ts")
 )) as typeof import("../../../src/routing/app.ts")
 const { WSContextImpl } = (await import(
@@ -79,7 +79,7 @@ describe("v1 adversarial: cross-site WebSocket hijacking (H18.12)", () => {
 		["a non-browser client, no Origin", { cookie: "sid=1" }, 101],
 	])("%s: %i, and a refused one never reaches the handler", async (_name, headers, status) => {
 		const { adapter, opened } = recordingAdapter()
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		let opens = 0
 		ws(app, "/live").handler({ onOpen: () => void opens++ })
 		const res = await app.fetch(handshake("/live", headers), {})
@@ -91,7 +91,7 @@ describe("v1 adversarial: cross-site WebSocket hijacking (H18.12)", () => {
 describe("v1 adversarial: a client that floods or stops reading", () => {
 	it("a handler queue that never drains closes 1008 at 1024 waiting, and the flood never reaches the handler", async () => {
 		const { adapter, opened } = recordingAdapter()
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		let calls = 0
 		ws(app, "/live").handler({
 			onMessage: () => {
@@ -111,7 +111,7 @@ describe("v1 adversarial: a client that floods or stops reading", () => {
 		["drop", [], []],
 	] as const)("a reader that stopped reading meets the backpressure policy %s", async (policy, closes, sent) => {
 		const { adapter, opened } = recordingAdapter({ backpressureLimit: 1024, backpressurePolicy: policy })
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		ws(app, "/live").handler({})
 		await app.fetch(handshake("/live"), {})
 		const [conn] = opened
@@ -128,7 +128,7 @@ describe("v1 adversarial: an oversized frame", () => {
 	})
 
 	it("a frame over maxPayload closes 1009 before the handler sees a byte of it", async () => {
-		/* Workers' socket pair, stubbed: honey's own payload check, the same on any test runtime */
+		/* Workers' socket pair, stubbed: backend's own payload check, the same on any test runtime */
 		const server = Object.assign(new EventTarget(), {
 			accept() {},
 			closes: [] as [number, string][],
@@ -141,7 +141,7 @@ describe("v1 adversarial: an oversized frame", () => {
 		vi.stubGlobal("WebSocketPair", function WebSocketPair() {
 			return [new EventTarget(), server]
 		})
-		const app = honey<{}>().wsAdapter(workersWebSocket({ maxPayload: 1024 }))
+		const app = httpApp<{}>().wsAdapter(workersWebSocket({ maxPayload: 1024 }))
 		const seen: unknown[] = []
 		ws(app, "/live").handler({ onMessage: (_ctx, _ws, data) => void seen.push(data) })
 		await app.fetch(handshake("/live"), {})
@@ -159,7 +159,7 @@ describe("v1 adversarial: a forged resume token", () => {
 	])("%s reaches onReconnect as the data it is: never identity, never routing", async (_name, token) => {
 		const { adapter } = recordingAdapter()
 		const seen: unknown[] = []
-		const app = honey<{}>().wsAdapter(adapter)
+		const app = httpApp<{}>().wsAdapter(adapter)
 		ws(app, "/rooms/:room").handler({
 			onOpen: () => void seen.push("open"),
 			onReconnect: (ctx, _ws, given) => void seen.push([given, ctx.params.room, new URL(ctx.req.url).pathname]),

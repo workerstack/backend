@@ -1,7 +1,7 @@
 /**
  * Seeded generators for the fuzz suites. CI runs a fixed seed, so a failure reproduces; set
- * `HONEY_FUZZ_SEED` to explore other seeds and `HONEY_FUZZ_RUNS` to scale every suite's iteration
- * count (e.g. `HONEY_FUZZ_RUNS=50 bunx vitest run tests/integration/security`).
+ * `BACKEND_FUZZ_SEED` to explore other seeds and `BACKEND_FUZZ_RUNS` to scale every suite's iteration
+ * count (e.g. `BACKEND_FUZZ_RUNS=50 bunx vitest run tests/integration/security`).
  */
 
 export type Rng = {
@@ -12,10 +12,10 @@ export type Rng = {
 	pick<T>(items: readonly T[]): T
 }
 
-const BASE_SEED = Number(process.env.HONEY_FUZZ_SEED ?? 0x5eed)
-const SCALE = Math.max(1, Number(process.env.HONEY_FUZZ_RUNS ?? 1))
+const BASE_SEED = Number(process.env.BACKEND_FUZZ_SEED ?? 0x5eed)
+const SCALE = Math.max(1, Number(process.env.BACKEND_FUZZ_RUNS ?? 1))
 
-/** Iterations for a suite: `base` in CI, multiplied by `HONEY_FUZZ_RUNS` locally. */
+/** Iterations for a suite: `base` in CI, multiplied by `BACKEND_FUZZ_RUNS` locally. */
 export function runs(base: number): number {
 	return Math.round(base * SCALE)
 }

@@ -5,12 +5,12 @@
  *
  *     bun bench/src/finalize.ts   # judged against blueprint/baselines/bench.json
  *
- * Per grid point, v1's finalize is a ratio to a raw twin doing the work honey cannot skip: each
+ * Per grid point, v1's finalize is a ratio to a raw twin doing the work backend cannot skip: each
  * route keyed by method and path, and each route's scopes found by a segment-prefix test over every
  * scope, on fresh tables in interleaved samples (gate.ts). Until bit 20 e it was gated against v0.
  */
 import { createMiddleware } from "../../packages/core/src/middleware/middleware.ts"
-import { GRAPH, honey } from "../../packages/core/src/routing/app.ts"
+import { GRAPH, httpApp } from "../../packages/core/src/routing/app.ts"
 import { finalTable } from "../../packages/core/src/routing/dispatch.ts"
 import { gate } from "./gate.ts"
 
@@ -34,7 +34,7 @@ const pathOf = (i: number, scopes: number) => `/area${i % Math.max(scopes, 1)}/r
 
 /** A fresh v1 app of one shape and the call that finalizes it. */
 function v1App(routes: number, scopes: number): () => void {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	for (let j = 0; j < scopes; j++) app.use(scopeOf(j), pass)
 	for (let i = 0; i < routes; i++)
 		app.get(pathOf(i, scopes)).handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))

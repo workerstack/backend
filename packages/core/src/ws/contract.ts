@@ -56,7 +56,7 @@ export type WSHandler<TCtx = unknown> = {
  */
 export type WSAdapter = {
 	/**
-	 * Upgrade `req` to a WebSocket handled by `handler`. Returns the 101 response and the connection's context. Honey
+	 * Upgrade `req` to a WebSocket handled by `handler`. Returns the 101 response and the connection's context. Backend
 	 * calls this for each WebSocket route; app code does not.
 	 */
 	upgrade(
@@ -93,7 +93,7 @@ type Limits = Pick<ResolvedWSOptions, "backpressureLimit" | "backpressurePolicy"
  * through its prototype, so its methods use the original's queue and limits rather than throwing for the
  * private fields it lacks.
  */
-const SELF: unique symbol = /* @__PURE__ */ Symbol("honey.wsContext")
+const SELF: unique symbol = /* @__PURE__ */ Symbol("backend.wsContext")
 
 /** `WSContext` over a runtime socket: JSON for objects, a queue while opening, the backpressure policy. */
 export class WSContextImpl<T extends RawSocket = RawSocket> implements WSContext<T> {

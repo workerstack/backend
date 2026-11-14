@@ -151,7 +151,7 @@ function mergeAdditions(ctx: object, additions: Record<string, unknown>): void {
 	for (const key in additions) if (!isReservedCtxKey(key)) (ctx as Record<string, unknown>)[key] = additions[key]
 }
 
-/** Whether a layer answered: a Response, or honey's own built one. */
+/** Whether a layer answered: a Response, or backend's own built one. */
 export const isAnswer = (value: unknown): value is Response => value instanceof Response
 
 /** Settle one layer's result: anything but a Response (nothing, a string…) and a throw both go to the boundary. */

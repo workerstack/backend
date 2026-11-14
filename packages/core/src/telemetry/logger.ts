@@ -1,10 +1,10 @@
 /**
  * The app logger (H17): pino-compatible levels and line shape, children that bind fields, and a
- * sink. Every server-side line honey writes goes through one; `app.logger(value)` replaces the
+ * sink. Every server-side line backend writes goes through one; `app.logger(value)` replaces the
  * default, `app.logger(false)` silences it. Below the level nothing is built: no fields read, no
  * clock read. A plain module: importing it registers nothing (H23).
  */
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { formatLine, type LogFormat } from "./log-format.ts"
 
 /** A log level, from `trace` (most verbose) to `fatal`; `silent` writes nothing. */
@@ -30,11 +30,11 @@ type LogFn = {
 }
 
 /** A leveled logger. A call below the logger's level does no work. */
-export type Logger = {
+export type BackendLogger = {
 	/** The level this logger writes at or above. */
 	readonly level: LogLevel
 	/** A logger that writes `bindings` into every line, over this one's. */
-	child(bindings: Record<string, unknown>): Logger
+	child(bindings: Record<string, unknown>): BackendLogger
 	/** Writes at level `debug` (20). */
 	debug: LogFn
 	/** Writes at level `error` (50). */
@@ -111,14 +111,14 @@ function withErrors(fields: Record<string, unknown>): Record<string, unknown> {
 		const value = fields[key]
 		if (value instanceof Error) {
 			out ??= { ...fields }
-			out[key] = HoneyError.serialize(value)
+			out[key] = HttpError.serialize(value)
 		}
 	}
 	return out ?? fields
 }
 
 /* methods live on the prototype: a per-request child must not allocate a closure per level */
-class LoggerImpl implements Logger {
+class LoggerImpl implements BackendLogger {
 	readonly level: LogLevel
 	readonly #base: Record<string, unknown>
 	readonly #format: LogFormat
@@ -133,7 +133,7 @@ class LoggerImpl implements Logger {
 		this.#write = write
 	}
 
-	child(bindings: Record<string, unknown>): Logger {
+	child(bindings: Record<string, unknown>): BackendLogger {
 		return new LoggerImpl(this.level, this.#format, this.#write, { ...this.#base, ...bindings })
 	}
 
@@ -176,7 +176,7 @@ class LoggerImpl implements Logger {
 }
 
 /** A logger. Unset level and format follow NODE_ENV, read now (`defaultsFor`). */
-export function createLogger(options: CreateLoggerOptions = {}): Logger {
+export function createLogger(options: CreateLoggerOptions = {}): BackendLogger {
 	const defaults = options.level === undefined || options.format === undefined ? defaultsFor(nodeEnv()) : null
 	return new LoggerImpl(
 		options.level ?? (defaults as { level: LogLevel }).level,
@@ -188,12 +188,12 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
 
 function noop(): void {}
 
-function silentChild(): Logger {
+function silentChild(): BackendLogger {
 	return SILENT
 }
 
 /** The logger that writes nothing: what `app.logger(false)` sets. Its children are itself. */
-export const SILENT: Logger = /* @__PURE__ */ Object.freeze({
+export const SILENT: BackendLogger = /* @__PURE__ */ Object.freeze({
 	child: silentChild,
 	debug: noop,
 	error: noop,

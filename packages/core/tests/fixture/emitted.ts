@@ -11,7 +11,7 @@ import type { RouteTree } from "@workerstack/clients"
 
 /** A fresh directory under the toolchain cache. */
 export const scratchDir = (name: string): string => {
-	const root = join(process.env.HOME ?? "", ".cache/honey-tmp/gen-mcp")
+	const root = join(process.env.HOME ?? "", ".cache/backend-tmp/gen-mcp")
 	mkdirSync(root, { recursive: true })
 	return mkdtempSync(join(root, `${name}-`))
 }
@@ -27,7 +27,7 @@ export function written(files: Readonly<Record<string, string>>): string {
 }
 
 /** Where emitted files land: under the toolchain cache, never /tmp. */
-const root = () => join(process.env.HOME ?? homedir(), ".cache/honey-tmp/gen-ts")
+const root = () => join(process.env.HOME ?? homedir(), ".cache/backend-tmp/gen-ts")
 
 /** Write `files` once per content; the path of `entry` among them. */
 function writtenEntry(files: Readonly<Record<string, string>>, entry: string): string {

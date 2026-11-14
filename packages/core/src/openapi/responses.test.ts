@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { gatewayTree, overlaySchemas } from "../routing/gateway-tree.ts"
 import { createNode, insertRoute, type RouteTree } from "../routing/tree.ts"
 import { mergeTree } from "../routing/tree-merge.ts"
@@ -40,7 +40,7 @@ describe("success responses: by status, by media type", () => {
 	// v0: b08bfff521
 
 	it("documents each status key under its code with the converted schema", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/items")
 			.output({
@@ -64,7 +64,7 @@ describe("success responses: by status, by media type", () => {
 	// v0: d7d6c63d0f
 
 	it("keeps each media type's schema at one status, documents a body with no schema bare, and answers 200 Success for a route that declares nothing", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/doc")
 			.output({
@@ -96,7 +96,7 @@ describe("redirects and declared headers", () => {
 	// v0: 7c63527a4f
 
 	it("documents a redirect by its code with a Location header and no body, beside a JSON answer", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/oauth/callback")
 			.output({ redirect: { found: true } })
@@ -123,7 +123,7 @@ describe("redirects and declared headers", () => {
 	})
 
 	it("documents the headers each status declares, by name, with their schemas and whether they are required", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/users")
 			.output({
@@ -148,7 +148,7 @@ describe("redirects and declared headers", () => {
 
 describe("a bodiless answer that is no redirect", () => {
 	it("documents a declared 304 by its code with no Location and no body, beside the 200 and 206 it revalidates", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/export.csv")
 			.output({ "text/csv": { ok: z.string(), partial_content: true }, redirect: { not_modified: true } })
@@ -164,7 +164,7 @@ describe("a bodiless answer that is no redirect", () => {
 describe("a declared 204 or 205: no body in the document", () => {
 	it("writes no content for it, in the shorthand or under a media type, and keeps the headers it declares", () => {
 		const row = z.object({ id: z.string() })
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.delete("/a")
 			.output({ headers: { no_content: z.object({ etag: z.string() }) }, no_content: true, ok: row })
@@ -191,7 +191,7 @@ describe("a declared 204 or 205: no body in the document", () => {
 	})
 })
 
-describe("errors in honey's envelope (the default format)", () => {
+describe("errors in backend's envelope (the default format)", () => {
 	// v0: 57edf5ff79
 	// v0: 2b63ae7db8
 	// v0: 9136b422cf
@@ -201,7 +201,7 @@ describe("errors in honey's envelope (the default format)", () => {
 
 	it("documents every key of a status in one envelope: its key and status as enums, every field but vars required", () => {
 		const errors = defineErrors({ email_taken: "conflict", forbidden: "forbidden", slug_taken: "conflict" })
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app
 			.post("/orgs")
 			.errors("slug_taken", "email_taken", "forbidden")
@@ -244,10 +244,10 @@ describe("errors in honey's envelope (the default format)", () => {
 	// v0: bbc57a1707
 })
 
-describe("errors in honey's envelope (the default format)", () => {
+describe("errors in backend's envelope (the default format)", () => {
 	it("puts a named key in its own route's enum only, beside the app's default keys", () => {
 		const errors = defineErrors({ item_not_found: "not_found", not_found: "not_found" })
-		const app = honey<{}>().errorFactory(errors).defaultErrors("not_found")
+		const app = httpApp<{}>().errorFactory(errors).defaultErrors("not_found")
 		app
 			.get("/items/:id")
 			.errors("item_not_found")
@@ -276,7 +276,7 @@ describe("errors: a custom envelope schema", () => {
 			success: z.literal(false),
 		})
 		const without = z.object({ code: z.string(), ok: z.literal(false) })
-		const base = () => honey<{}>().errorFactory(errors)
+		const base = () => httpApp<{}>().errorFactory(errors)
 		const schemaUnder = (formatter: (app: ReturnType<typeof base>) => void) => {
 			const app = base()
 			formatter(app)
@@ -318,7 +318,7 @@ describe("errors: a custom envelope schema", () => {
 describe("errors: a custom envelope schema", () => {
 	it("is the app's setting, so it holds under basePath() and use()", () => {
 		const errors = defineErrors({ unauthorized: "unauthorized" })
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.errorFactory(errors)
 			.defaultErrorFormatter(z.object({ code: z.string(), ok: z.literal(false) }), (e) => ({
 				code: e.errorKey,
@@ -359,7 +359,7 @@ describe("errors with a schema of their own", () => {
 	// v0: ccf2e07f22
 
 	it("documents a schema error by its own body, each at its status, beside 2xx answers", () => {
-		const app = honey<{}>().errorFactory(schemaErrors())
+		const app = httpApp<{}>().errorFactory(schemaErrors())
 		app
 			.get("/a")
 			.errors("item_gone", "rate_limited")
@@ -378,7 +378,7 @@ describe("errors with a schema of their own", () => {
 	// v0: e2136c2427
 
 	it("offers a standard key and a schema error at one status as oneOf, merging the custom schema into each schema error by allOf", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.errorFactory(schemaErrors())
 			.payloadErrorFormatter(z.object({ trace: z.string() }), (_e, data) => ({ ...data, trace: "t" }))
 		app
@@ -397,7 +397,7 @@ describe("errors with a schema of their own", () => {
 
 describe("errors as Problem Details (errorFormat problem+json)", () => {
 	it("documents standard errors as application/problem+json, their type URIs and status as enums, and schema errors under application/json", () => {
-		const app = honey<{}>().errorFactory(schemaErrors()).errorFormat("problem+json")
+		const app = httpApp<{}>().errorFactory(schemaErrors()).errorFormat("problem+json")
 		app
 			.get("/a")
 			.errors("user_not_found", "item_gone")
@@ -413,14 +413,14 @@ describe("errors as Problem Details (errorFormat problem+json)", () => {
 		]).toEqual([
 			["application/problem+json", "application/json"],
 			["detail", "status", "title", "type"],
-			{ enum: ["https://honey.dev/errors/user_not_found"], type: "string" },
+			{ enum: ["https://backend.dev/errors/user_not_found"], type: "string" },
 			{ enum: [404], type: "integer" },
 			["reason"],
 		])
 	})
 
 	it("documents a status of standard keys as problem+json only, and one of schema errors as application/json only", () => {
-		const app = honey<{}>().errorFactory(schemaErrors()).errorFormat("problem+json")
+		const app = httpApp<{}>().errorFactory(schemaErrors()).errorFormat("problem+json")
 		app
 			.get("/plain")
 			.errors("user_not_found")
@@ -446,19 +446,24 @@ describe("errors: where a key's status comes from", () => {
 	// v0: fd7332a3e0
 
 	it("takes a loaded leaf's status from the factory of the app it came from, then the key's status suffix", () => {
-		const worker = honey<{}>()
+		const worker = httpApp<{}>()
 			.errorFactory(defineErrors({ item_not_found: "not_found", not_found: "not_found" }))
 			.defaultErrors("not_found")
 		worker
 			.get("/items/:id")
 			.errors("item_not_found")
 			.handler((c) => c.res.json("ok", {}))
-		const gateway = honey<{}>()
+		const gateway = httpApp<{}>()
 			.errorFactory(defineErrors({ not_found: "not_found" }))
 			.routeTree(worker.toRouteTree())
 		const root = createNode()
 		const id = insertRoute(root, "GET", "/events/:id")
-		const loose = honey<{}>().routeTree({ meta: {}, root, routes: { [id]: { ek: ["billing_event_not_found"] } }, v: 2 })
+		const loose = httpApp<{}>().routeTree({
+			meta: {},
+			root,
+			routes: { [id]: { ek: ["billing_event_not_found"] } },
+			v: 2,
+		})
 		const doc = generateOpenApi(gateway, { info: INFO })
 		expect([
 			keysOf(errorSchema(doc, "/items/{id}", "404")),
@@ -468,7 +473,7 @@ describe("errors: where a key's status comes from", () => {
 
 	// v0: 41d060c00f
 	it("documents a delegated route's own keys under its own app's statuses, beside the gateway's default keys", () => {
-		const down = honey<{}>()
+		const down = httpApp<{}>()
 			.errorFactory(errorsOf({ column_name_taken: "conflict" }))
 			.defaultBoundary("internal_server_error")
 		down
@@ -477,7 +482,7 @@ describe("errors: where a key's status comes from", () => {
 			.handler((c) => c.res.json("ok", {}))
 		const source = mergeTree([down.toRouteTree(), { worker: "down" }])
 		const gateway = (tree?: RouteTree) => {
-			const app = honey<{}>()
+			const app = httpApp<{}>()
 				.errorFactory(errorsOf({ captcha_failed: "bad_request" }))
 				.defaultBoundary("internal_server_error")
 				.defaultErrors("captcha_failed")
@@ -498,7 +503,7 @@ describe("errors: what a route declares, and nothing more", () => {
 	it("documents a scoped middleware's keys on the routes it covers only", () => {
 		const errors = defineErrors({ blocked: "forbidden" })
 		const block = createMiddleware(async (_c, next) => next(), { errors: [errors, "blocked"] })
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app.use("/admin", block)
 		app.get("/admin/x").handler((c) => c.res.json("ok", {}))
 		app.get("/public").handler((c) => c.res.json("ok", {}))
@@ -512,7 +517,7 @@ describe("errors: what a route declares, and nothing more", () => {
 
 describe("declared headers beside a redirect", () => {
 	it("keeps a redirect's Location beside the headers it declares, and documents a record of headers as none named", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/move")
 			.output({
@@ -530,9 +535,9 @@ describe("errors a route does not get documented", () => {
 	it("leaves out a key with no status anywhere, and a status the route answers itself", () => {
 		const root = createNode()
 		const id = insertRoute(root, "GET", "/odd")
-		const loose = honey<{}>().routeTree({ meta: {}, root, routes: { [id]: { ek: ["mystery"] } }, v: 2 })
+		const loose = httpApp<{}>().routeTree({ meta: {}, root, routes: { [id]: { ek: ["mystery"] } }, v: 2 })
 		/* an error key may carry any status; at one the route's output declares, the output's answer is documented */
-		const app = honey<{}>().errorFactory(defineErrors({ still_queued: "accepted" }))
+		const app = httpApp<{}>().errorFactory(defineErrors({ still_queued: "accepted" }))
 		app
 			.post("/users")
 			.errors("still_queued")
@@ -546,8 +551,8 @@ describe("errors a route does not get documented", () => {
 })
 
 describe("framework keys: declared on a route without the app re-declaring them", () => {
-	it("documents a declared framework key under honey's status, in the route's enum", () => {
-		const app = honey<{}>().errorFactory(defineErrors({ org_limit_reached: "forbidden" }))
+	it("documents a declared framework key under backend's status, in the route's enum", () => {
+		const app = httpApp<{}>().errorFactory(defineErrors({ org_limit_reached: "forbidden" }))
 		app
 			.post("/orgs")
 			.errors("validation_failed", "org_limit_reached")

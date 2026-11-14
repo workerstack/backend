@@ -3,10 +3,10 @@
  * services merged by `mergeTree`; a served gateway app with its own routes and errors that loads its own generated
  * tree, stale in one service's leaves as on a new downstream route; and its Vite config's three OpenAPI outputs
  * (internal: every route and scheme; contract: a filterRoutes subset reading `route.meta`, the one scheme its routes
- * name; public: the API-key routes showing only `security: ["apiKey"]`, every x- key dropped but honey's own
- * x-honey-*), the schemes declared once beside them (plan 39 7.4). `honey generate` writes
+ * name; public: the API-key routes showing only `security: ["apiKey"]`, every x- key dropped but backend's own
+ * x-backend-*), the schemes declared once beside them (plan 39 7.4). `backend generate` writes
  * the tree (the services' routes plus the gateway's) and the documents from the served gateway; each document's
- * operations, schemes and keys are its own; and `honey-clients generate --spec` builds an SDK from a filtered one.
+ * operations, schemes and keys are its own; and `clients generate --spec` builds an SDK from a filtered one.
  */
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -24,8 +24,8 @@ afterEach(() => {
 /** A service: its routes, each with its security and the meta the gateway's filters read. */
 const service = (name: string, routes: readonly (readonly [string, string | string[], string])[]) =>
 	[
-		'import { honey } from "@workerstack/backend/http"',
-		`export const ${name} = honey()`,
+		'import { httpApp } from "@workerstack/backend/http"',
+		`export const ${name} = httpApp()`,
 		...routes.map(
 			([path, security, kind]) =>
 				`\t.get(${JSON.stringify(path)}).meta({ kind: ${JSON.stringify(kind)}, security: ${JSON.stringify(security)} } as never).handler((c) => c.res.text("ok", "ok"))`,
@@ -50,8 +50,8 @@ const FILES = {
 	]),
 	/* acme.gateway.app.ts: its own routes and errors, and the catch-all its services' routes delegate to */
 	"src/gateway.ts": [
-		'import { defineErrors, honey } from "@workerstack/backend/http"',
-		'export const app = honey().errorFactory(defineErrors({ maintenance: "service_unavailable" }))',
+		'import { defineErrors, httpApp } from "@workerstack/backend/http"',
+		'export const app = httpApp().errorFactory(defineErrors({ maintenance: "service_unavailable" }))',
 		'app.metaSpec({ meta: { kind: "x-kind", worker: false } } as never)',
 		'app.get("/health").errors("maintenance").handler((c) => c.res.text("ok", "up"))',
 		'app.get("/robots.txt").handler((c) => c.res.text("ok", "User-agent: *"))',
@@ -87,14 +87,14 @@ const FILES = {
 		"export const app = gateway",
 		"",
 	].join("\n"),
-	"vite.config.ts": `import { honeyPlugin } from "@workerstack/backend/plugin"
+	"vite.config.ts": `import { backendPlugin } from "@workerstack/backend/plugin"
 
 const isContractRoute = (meta) => meta.kind === "contract"
 const hasApiKey = (meta) => [meta.security].flat().includes("apiKey")
 
 export default {
 	plugins: [
-		honeyPlugin({
+		backendPlugin({
 			app: "src/gateway.app.ts",
 			codegen: {
 				mergeTree: "src/route-tree.ts",
@@ -179,14 +179,14 @@ describe("an Acme-shaped gateway (bit 19 h2)", () => {
 			"openapi.public.gen.json",
 		].map((name) => documentAt(made.dir, name)) as [Document, Document, Document]
 		expect(operations(internal)).toEqual([
-			["/extract/admin", [{ iaKey: [] }], ["x-kind", "x-honey-route"]],
-			["/extract/jobs", [{ apiKey: [] }, { jwt: [] }], ["x-kind", "x-honey-route"]],
-			["/growth/actors", [{ iaActor: [] }], ["x-kind", "x-honey-route"]],
-			["/growth/contracts", [{ jwt: [] }], ["x-kind", "x-honey-route"]],
-			["/health", undefined, ["x-honey-route", "x-honey-errors"]],
-			["/robots.txt", undefined, ["x-honey-route"]],
-			["/saas/billing", [{ jwt: [] }], ["x-kind", "x-honey-route"]],
-			["/saas/projects", [{ apiKey: [] }], ["x-kind", "x-honey-route"]],
+			["/extract/admin", [{ iaKey: [] }], ["x-kind", "x-backend-route"]],
+			["/extract/jobs", [{ apiKey: [] }, { jwt: [] }], ["x-kind", "x-backend-route"]],
+			["/growth/actors", [{ iaActor: [] }], ["x-kind", "x-backend-route"]],
+			["/growth/contracts", [{ jwt: [] }], ["x-kind", "x-backend-route"]],
+			["/health", undefined, ["x-backend-route", "x-backend-errors"]],
+			["/robots.txt", undefined, ["x-backend-route"]],
+			["/saas/billing", [{ jwt: [] }], ["x-kind", "x-backend-route"]],
+			["/saas/projects", [{ apiKey: [] }], ["x-kind", "x-backend-route"]],
 		])
 		/* the gateway's own errors and its own metaSpec, which only the served gateway carries */
 		expect(Object.keys(internal.paths["/health"]?.get.responses ?? {})).toEqual(["503"])
@@ -195,12 +195,12 @@ describe("an Acme-shaped gateway (bit 19 h2)", () => {
 			"contract",
 		])
 		expect(operations(contract)).toEqual([
-			["/growth/contracts", [{ jwt: [] }], ["x-kind", "x-honey-route"]],
-			["/saas/billing", [{ jwt: [] }], ["x-kind", "x-honey-route"]],
+			["/growth/contracts", [{ jwt: [] }], ["x-kind", "x-backend-route"]],
+			["/saas/billing", [{ jwt: [] }], ["x-kind", "x-backend-route"]],
 		])
 		expect(operations(published)).toEqual([
-			["/extract/jobs", [{ apiKey: [] }], ["x-honey-route"]],
-			["/saas/projects", [{ apiKey: [] }], ["x-honey-route"]],
+			["/extract/jobs", [{ apiKey: [] }], ["x-backend-route"]],
+			["/saas/projects", [{ apiKey: [] }], ["x-backend-route"]],
 		])
 		expect([internal, contract, published].map(schemes)).toEqual([
 			["apiKey", "iaActor", "iaKey", "jwt"],
@@ -214,7 +214,7 @@ describe("an Acme-shaped gateway (bit 19 h2)", () => {
 		])
 	}, 60_000)
 
-	it("feeds a filtered document to honey-clients generate --spec, its SDK holding only that document's operations", async () => {
+	it("feeds a filtered document to clients generate --spec, its SDK holding only that document's operations", async () => {
 		const made = await seeded()
 		expect(await main(["generate"], quiet, { cwd: made.dir, env: {} })).toBe(0)
 		const args = ["generate", "--spec", "src/_gen/openapi.contract.gen.json", "--target", "ts", "--out", "sdk"]

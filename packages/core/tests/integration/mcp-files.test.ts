@@ -18,7 +18,7 @@ import { type McpHandler, mcp } from "../../src/mcp/mount.ts"
 import { memoryUploadStore, uploads } from "../../src/mcp/uploads.ts"
 import { urlFiles } from "../../src/mcp/url-files.ts"
 import { generateOpenApi } from "../../src/openapi/generate.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import { fileInput } from "./mcp-files/client.ts"
 import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 
@@ -31,7 +31,7 @@ const FILES = ["io.modelcontextprotocol", "files"].join("/")
 
 /** The app: one file tool, `docs_save`, answering the file's name, size and SHA-256 (hex). */
 function app() {
-	return honey()
+	return httpApp()
 		.post("/docs")
 		.meta({ mcp: true, operationId: "docs.save", security: [{ apiKey: [] }] })
 		.input({ form: z.object({ file: z.file() }) })

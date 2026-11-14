@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { createLogger, SILENT } from "../telemetry/logger.ts"
 import type { StandardSchemaLike } from "../validation/standard-schema.ts"
-import { type Honey, honey } from "./app.ts"
+import { type HttpApp, httpApp } from "./app.ts"
 import { createSettings } from "./settings.ts"
 
 /** Status and body of one GET through `app`. */
-async function get(app: Honey<{}>, path: string): Promise<[number, string]> {
+async function get(app: HttpApp<{}>, path: string): Promise<[number, string]> {
 	const res = await app.fetch(new Request(`http://localhost${path}`), {})
 	return [res.status, await res.text()]
 }
 
 /** An app that answers `path` with `body`, after `configure`. */
-function serving(configure: (app: Honey<{}>) => Honey<{}>, path: string, body = "ok"): Honey<{}> {
-	const app = configure(honey<{}>())
+function serving(configure: (app: HttpApp<{}>) => HttpApp<{}>, path: string, body = "ok"): HttpApp<{}> {
+	const app = configure(httpApp<{}>())
 	app.get(path).handler((ctx) => ctx.res.text("ok", body))
 	return app
 }
@@ -49,7 +49,7 @@ describe("settings setters apply to the whole app", () => {
 	})
 
 	it("encodedSlashes allow keeps an encoded slash inside a param", async () => {
-		const app = honey<{}>().encodedSlashes("allow")
+		const app = httpApp<{}>().encodedSlashes("allow")
 		app.get("/repos/:id").handler((ctx) => ctx.res.text("ok", ctx.params.id))
 		expect(await get(app, "/repos/group%2Fproject")).toEqual([200, "group/project"])
 	})
@@ -57,7 +57,7 @@ describe("settings setters apply to the whole app", () => {
 
 describe("settings setters: handles and formatters", () => {
 	it("a setter on a derived handle reaches the root", async () => {
-		const root = honey<{}>()
+		const root = httpApp<{}>()
 		root.basePath("/v1").stripPrefix("/api")
 		root.get("/x").handler((ctx) => ctx.res.text("ok", "x"))
 		expect(await get(root, "/api/x")).toEqual([200, "x"])
@@ -67,37 +67,37 @@ describe("settings setters: handles and formatters", () => {
 	// v0: c0310f239e
 	// v0: fad3d93a79
 	it("the error formatters take a function or a schema with a mapper", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.defaultErrorFormatter((_e, shape) => ({ ...shape, plain: true }))
 			.payloadErrorFormatter((_e, data) => ({ ...data, custom: true }))
 		app.get("/std").handler(() => {
-			throw new HoneyError({ errorKey: "gone", status: "gone" })
+			throw new HttpError({ errorKey: "gone", status: "gone" })
 		})
 		app.get("/data").handler(() => {
-			throw new HoneyError({ data: { d: 1 }, errorKey: "x", status: "conflict" })
+			throw new HttpError({ data: { d: 1 }, errorKey: "x", status: "conflict" })
 		})
 		expect(JSON.parse((await get(app, "/std"))[1])).toMatchObject({ error_key: "gone", plain: true })
 		expect(JSON.parse((await get(app, "/data"))[1])).toEqual({ custom: true, d: 1 })
-		const mapped = honey<{}>()
+		const mapped = httpApp<{}>()
 			.defaultErrorFormatter(schema, (e) => ({ code: e.errorKey }))
 			.payloadErrorFormatter(schema, (e, data) => ({ code: e.errorKey, ...data }))
 		mapped.get("/std").handler(() => {
-			throw new HoneyError({ errorKey: "gone", status: "gone" })
+			throw new HttpError({ errorKey: "gone", status: "gone" })
 		})
 		mapped.get("/data").handler(() => {
-			throw new HoneyError({ data: { d: 1 }, errorKey: "x", status: "conflict" })
+			throw new HttpError({ data: { d: 1 }, errorKey: "x", status: "conflict" })
 		})
 		expect(JSON.parse((await get(mapped, "/std"))[1])).toEqual({ code: "gone" })
 		expect(JSON.parse((await get(mapped, "/data"))[1])).toEqual({ code: "x", d: 1 })
 	})
 
-	it("a schema formatter gets honey's default body, so a 500 keeps its digest and an error its vars", async () => {
-		const app = honey<{}>().defaultErrorFormatter(schema, (_e, base) => ({ ...base, trace: "t" }))
+	it("a schema formatter gets backend's default body, so a 500 keeps its digest and an error its vars", async () => {
+		const app = httpApp<{}>().defaultErrorFormatter(schema, (_e, base) => ({ ...base, trace: "t" }))
 		app.get("/crash").handler(() => {
 			throw new Error("db down")
 		})
 		app.get("/quota").handler(() => {
-			throw new HoneyError({ errorKey: "quota_exceeded", status: "too_many_requests", vars: { limit: 5 } })
+			throw new HttpError({ errorKey: "quota_exceeded", status: "too_many_requests", vars: { limit: 5 } })
 		})
 		const crash = JSON.parse((await get(app, "/crash"))[1]) as Record<string, unknown>
 		expect(crash).toMatchObject({
@@ -123,7 +123,7 @@ function recordingLogger() {
 describe("the logger and requestLog settings", () => {
 	it("default to a NODE_ENV logger and no request log; set on any handle, they apply to the app", () => {
 		const fresh = createSettings()
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const { logger } = recordingLogger()
 		app
 			.use(createMiddleware((_ctx, next) => next()))
@@ -144,12 +144,12 @@ describe("the logger and requestLog settings", () => {
 		[false, null],
 		[{ skip: () => true }, { skip: expect.any(Function) }],
 	] as const)("requestLog(%o) is %o", (value, setting) => {
-		const app = honey<{}>().requestLog(value)
+		const app = httpApp<{}>().requestLog(value)
 		expect((app as unknown as { settings: { requestLog: unknown } }).settings.requestLog).toEqual(setting)
 	})
 
 	it("logger(false) is the SILENT logger", () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		expect((app as unknown as { settings: { logger: unknown } }).settings.logger).toBe(SILENT)
 	})
 
@@ -157,7 +157,7 @@ describe("the logger and requestLog settings", () => {
 		const refused = serving((app) => app.requestLog(true).logger(false), "/t")
 		const quiet = serving((app) => app.requestLog(true).logger(createLogger({ level: "silent" })), "/t")
 		await expect(async () => refused.fetch(new Request("http://localhost/t"), {})).rejects.toThrow(
-			"honey: requestLog() is on, but logger(false) writes nothing: set a logger, or turn requestLog off",
+			"backend: requestLog() is on, but logger(false) writes nothing: set a logger, or turn requestLog off",
 		)
 		expect(await get(quiet, "/t")).toEqual([200, "ok"])
 	})

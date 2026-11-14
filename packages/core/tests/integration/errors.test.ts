@@ -4,10 +4,10 @@
  * default and boundary keys), ctx.errors, and the app's onError, onNotFound and onMethodNotAllowed.
  */
 import { describe, expect, it } from "vitest"
-import { FRAMEWORK_ERRORS, HoneyError } from "../../src/errors/error.ts"
+import { FRAMEWORK_ERRORS, HttpError } from "../../src/errors/error.ts"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type Fetchable = { fetch: (r: Request, env: never) => Response | Promise<Response> }
 
@@ -52,24 +52,24 @@ const STAMPS = { "x-one": "1", "x-two": "2" }
 /** An app whose outermost middleware records ctx.error's cause once the rest has answered. */
 function observedApp() {
 	const causes: unknown[] = []
-	const observer = createMiddleware(async (ctx: { error?: HoneyError }, next) => {
+	const observer = createMiddleware(async (ctx: { error?: HttpError }, next) => {
 		const res = await next()
 		causes.push(ctx.error?.cause)
 		return res
 	})
-	return { app: honey<{}>().use(observer), causes }
+	return { app: httpApp<{}>().use(observer), causes }
 }
 
-type App = ReturnType<typeof honey<{}>>
+type App = ReturnType<typeof httpApp<{}>>
 
 /** Where a throw happens, and the answer it becomes. */
 const THROWS: Array<{ answer: ReturnType<typeof failure> | object; label: string; route: (app: App) => void }> = [
 	{
 		answer: failure("bad_request", 400, "bad_request", STAMPS),
-		label: "a handler throws a HoneyError",
+		label: "a handler throws a HttpError",
 		route: (app) =>
 			app.get("/t").handler(() => {
-				throw new HoneyError({ errorKey: "bad_request", status: "bad_request" })
+				throw new HttpError({ errorKey: "bad_request", status: "bad_request" })
 			}),
 	},
 	{
@@ -78,14 +78,14 @@ const THROWS: Array<{ answer: ReturnType<typeof failure> | object; label: string
 		route: (app) =>
 			app.get("/t").handler(async () => {
 				await Promise.resolve()
-				throw new HoneyError({ errorKey: "not_found", status: "not_found" })
+				throw new HttpError({ errorKey: "not_found", status: "not_found" })
 			}),
 	},
 	{
 		answer: failure("bad_request", 400, "bad_request", STAMPS),
 		label: "a handler returns a rejected promise",
 		route: (app) =>
-			app.get("/t").handler(() => Promise.reject(new HoneyError({ errorKey: "bad_request", status: "bad_request" }))),
+			app.get("/t").handler(() => Promise.reject(new HttpError({ errorKey: "bad_request", status: "bad_request" }))),
 	},
 	{
 		answer: failure("internal_server_error", 500, "internal_server_error", STAMPS),
@@ -150,7 +150,7 @@ const THROWS: Array<{ answer: ReturnType<typeof failure> | object; label: string
 				.get("/t")
 				.use(stamp("x-route", "yes"))
 				.handler(() => {
-					throw new HoneyError({ errorKey: "conflict", status: "conflict" })
+					throw new HttpError({ errorKey: "conflict", status: "conflict" })
 				}),
 	},
 	{
@@ -174,7 +174,7 @@ describe("a throw anywhere in the chain becomes one error answer", () => {
 	// v0: a226a39432
 	// v0: c0fd3fbd05
 	it.each(THROWS)("when $label, every middleware around it still stamps the answer", async ({ answer, route }) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		route(app.use(stamp("x-one", "1")).use(stamp("x-two", "2")))
 		expect(await send(app, "/t")).toEqual(answer)
 	})
@@ -225,7 +225,7 @@ describe("a layer that answers nothing, or throws mid-chain", () => {
 	// v0: e96926060d
 	it("a throw stops the chain: later middleware and the handler never run", async () => {
 		const trace: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const fail = createMiddleware(() => {
 			trace.push("mw1")
 			throw new Error("early fail")
@@ -262,7 +262,7 @@ describe("a middleware rewriting the error answer", () => {
 			{ body: { ...envelope("internal_server_error", 500), extra: true }, headers: JSON_TYPE, status: 500 },
 		],
 	])("a middleware that %s changes the error answer the client gets", async (_label, rewrite, answer) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(createMiddleware(async (_ctx, next) => rewrite(await next())))
 			.get("/t")
@@ -285,7 +285,7 @@ const errors = defineErrors({
  * `thrown`; `boundary` sets the app's defaultBoundary (auth_failed under "both"), the route's, or both.
  */
 function factoryApp(thrown: () => unknown, boundary: "app" | "both" | "none" | "route" = "none") {
-	const app = honey<{}>().errorFactory(errors).defaultErrors("auth_failed")
+	const app = httpApp<{}>().errorFactory(errors).defaultErrors("auth_failed")
 	if (boundary === "app") app.defaultBoundary("wrapped")
 	if (boundary === "both") app.defaultBoundary("auth_failed")
 	const route = app.get("/t").errors("not_found")
@@ -303,14 +303,14 @@ const REACHES: Array<[string, () => unknown, object]> = [
 	["a default key the route did not declare", () => errors.auth_failed(), failure("auth_failed", 401, "unauthorized")],
 	["an undeclared key", () => errors.rate_limited(), INTERNAL],
 	[
-		"a HoneyError from outside the factory",
-		() => new HoneyError({ errorKey: "teapot", status: "bad_request" }),
+		"a HttpError from outside the factory",
+		() => new HttpError({ errorKey: "teapot", status: "bad_request" }),
 		INTERNAL,
 	],
 	["a plain Error", () => new Error("raw"), INTERNAL],
 	[
-		"a HoneyError with an unknown status key",
-		() => new HoneyError({ errorKey: "not_found", status: "nope" as never }),
+		"a HttpError with an unknown status key",
+		() => new HttpError({ errorKey: "not_found", status: "nope" as never }),
 		INTERNAL,
 	],
 ]
@@ -319,7 +319,7 @@ const REACHES: Array<[string, () => unknown, object]> = [
 const WRAPPED: Array<() => unknown> = [
 	() => new Error("raw"),
 	() => errors.rate_limited(),
-	() => new HoneyError({ errorKey: "teapot", status: "conflict" }),
+	() => new HttpError({ errorKey: "teapot", status: "conflict" }),
 	() => "oops",
 ]
 
@@ -368,7 +368,7 @@ describe("which errors reach the client under an errorFactory", () => {
 			},
 			{ errors: [own, "auth_required"] },
 		)
-		const app = honey<{}>().errorFactory(own)
+		const app = httpApp<{}>().errorFactory(own)
 		app
 			.get("/p")
 			.use(auth)
@@ -386,7 +386,7 @@ describe("what a factory error's answer leaves out", () => {
 	// v0: f08e5dd7b8
 	it("its cause, and any secret in it, never reaches the client; its key does", async () => {
 		const dbErrors = defineErrors({ db_error: "internal_server_error" })
-		const app = honey<{}>().errorFactory(dbErrors).logger(false)
+		const app = httpApp<{}>().errorFactory(dbErrors).logger(false)
 		app
 			.get("/test")
 			.errors("db_error")
@@ -411,7 +411,7 @@ describe("ctx.errors", () => {
 	// v0: d8b2121635
 	// v0: 14c568d896
 	it("holds, frozen, the route's declared and boundary keys (named alone or with the factory) and the app's defaults", async () => {
-		const app = honey<{}>().errorFactory(errors).defaultErrors("auth_failed")
+		const app = httpApp<{}>().errorFactory(errors).defaultErrors("auth_failed")
 		app
 			.get("/declared")
 			.errors("not_found")
@@ -447,7 +447,7 @@ describe("ctx.errors", () => {
 describe("ctx.errors: open routes and named factories", () => {
 	// v0: a88f6dff48
 	it("a route with neither declared keys nor app defaults is open: the whole factory, and any of its keys reaches the client", async () => {
-		const app = honey<{}>().errorFactory(errors)
+		const app = httpApp<{}>().errorFactory(errors)
 		app.get("/open").handler((ctx) => ctx.res.json("ok", errorsOf(ctx.errors)))
 		app.get("/throw").handler(() => {
 			throw errors.rate_limited()
@@ -459,7 +459,7 @@ describe("ctx.errors: open routes and named factories", () => {
 
 	it("errors(factory, ...keys) puts those keys of that factory on ctx.errors, beside the app's defaults", async () => {
 		const named = defineErrors({ email_taken: "conflict", org_limit: "forbidden" })
-		const bare = honey<{}>()
+		const bare = httpApp<{}>()
 		bare
 			.get("/keys")
 			.errors(named, "email_taken")
@@ -470,7 +470,7 @@ describe("ctx.errors: open routes and named factories", () => {
 			.handler((ctx) => {
 				throw ctx.errors.email_taken()
 			})
-		const withDefaults = honey<{}>().errorFactory(errors).defaultErrors("auth_failed")
+		const withDefaults = httpApp<{}>().errorFactory(errors).defaultErrors("auth_failed")
 		withDefaults
 			.get("/keys")
 			.errors(named, "email_taken")
@@ -484,7 +484,7 @@ describe("ctx.errors: open routes and named factories", () => {
 
 describe("the app's error handlers", () => {
 	it("onNotFound answers unknown paths; onMethodNotAllowed answers wrong methods, keeping Allow", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.onNotFound((ctx) => Response.json({ missing: new URL(ctx.req.url).pathname }, { status: 404 }))
 			.onMethodNotAllowed((ctx) => Response.json({ allowed: ctx.allowed }, { status: 405 }))
 		app.get("/t").handler((ctx) => ctx.res.json("ok", {}))

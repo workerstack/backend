@@ -25,11 +25,11 @@ const ADAPTER_BUCKETS = new Set(["workers"])
 
 const MESSAGES = {
 	adapter: "only the Workers adapter may import the Workers adapter",
-	codegen: "core reaches honey-clients from build/ only",
-	codegenStatic: "core imports honey-clients through import() only: it is an optional peer",
+	codegen: "core reaches clients from build/ only",
+	codegenStatic: "core imports clients through import() only: it is an optional peer",
 	escape: "an import stays inside its package's src (no repo path outside it, no sibling package)",
 	node: "node builtins are for build-time code only",
-	tsMorph: "ts-morph is honey-clients's dependency, not core's",
+	tsMorph: "ts-morph is clients' dependency, not core's",
 }
 
 /** The src-relative path of a non-test file under core's src/, else null. */
@@ -117,6 +117,6 @@ export const rule = {
 }
 
 export default {
-	meta: { name: "honey" },
+	meta: { name: "backend" },
 	rules: { boundaries: rule },
 }

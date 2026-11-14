@@ -35,5 +35,5 @@
 
 | value | required | default | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- |
-| `defineErrors({...})` / `HoneyError` | — | — | typed error factory; serialized as honey error-key JSON | the error key is the SDK's typed error discriminator | `errors/errors.test.ts`, `integration/errors.test.ts` |
+| `defineErrors({...})` / `HttpError` | — | — | typed error factory; serialized as honey error-key JSON | the error key is the SDK's typed error discriminator | `errors/errors.test.ts`, `integration/errors.test.ts` |
 | problem+json formatter | no | off | **[A7]** opt-in RFC 9457 `application/problem+json` | native model stays the default; opt in per app | `errors/problem-json.test.ts` |

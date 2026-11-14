@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { SCALAR } from "./docs-page.ts"
 import { scalar } from "./scalar.ts"
 
 /** The HTML `handler` answers at /docs. */
 async function page(handler: unknown): Promise<Response> {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app.get("/docs").handler(handler as never)
 	return app.fetch(new Request("http://x/docs"), {})
 }

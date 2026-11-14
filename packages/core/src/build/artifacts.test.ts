@@ -6,10 +6,10 @@
 import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import * as codegen from "@workerstack/clients"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { appSource, type Project, project } from "./__fixtures__/project.ts"
 import { artifactsOf, documentOf, prepare, virtualCode } from "./artifacts.ts"
-import { type HoneyVitePluginConfig, MCP_COMPANIONS, resolveHoneyConfig } from "./config.ts"
+import { type BackendPluginConfig, MCP_COMPANIONS, resolveBackendConfig } from "./config.ts"
 import type { ModuleLoader } from "./loaders.ts"
 import { sourceOf } from "./source.ts"
 
@@ -35,7 +35,7 @@ const SCHEMES = {
 
 /** An app with a public route (apiKey or jwt), an internal one (iaKey) and a contract one. */
 function app() {
-	return honey<{}>()
+	return httpApp<{}>()
 		.get("/public")
 		.meta({
 			extensions: { "x-team": "growth" },
@@ -90,10 +90,10 @@ describe("documentOf: each output its own (bit 19 h2, plan 39 7.4)", () => {
 		).toEqual([["apiKey", "iaKey", "jwt"], ["jwt"], ["apiKey"]])
 		const extensions = (document: Document, path: string) =>
 			Object.keys(document.paths[path]?.get ?? {}).filter((key) => key.startsWith("x-"))
-		/* the published document drops the app's own extension and keeps the one honey's generators read */
+		/* the published document drops the app's own extension and keeps the one backend's generators read */
 		expect([extensions(all, "/public"), extensions(published, "/public")]).toEqual([
-			["x-team", "x-honey-route"],
-			["x-honey-route"],
+			["x-team", "x-backend-route"],
+			["x-backend-route"],
 		])
 		expect([all.paths["/public"]?.get.security, published.paths["/public"]?.get.security]).toEqual([
 			[{ apiKey: [] }, { jwt: [] }],
@@ -123,10 +123,10 @@ describe("documentOf: each output its own (bit 19 h2, plan 39 7.4)", () => {
 const native: ModuleLoader = (path) => import(path) as Promise<Record<string, unknown>>
 
 /** Every artifact of `config` for the project at `dir`, through prepare() then artifactsOf(), with what it reported. */
-async function artifacts(config: HoneyVitePluginConfig, dir: string) {
+async function artifacts(config: BackendPluginConfig, dir: string) {
 	const reports: string[] = []
 	const run = { codegen, load: native, report: (line: string) => void reports.push(line), root: dir }
-	const resolved = resolveHoneyConfig(config)
+	const resolved = resolveBackendConfig(config)
 	const { rewrite, source } = await prepare(resolved, { ...run, first: true })
 	/* a tree to write first is written before any artifact, as generate.ts does */
 	const files = rewrite === undefined ? Object.fromEntries(await artifactsOf(resolved, run, source)) : {}
@@ -228,7 +228,7 @@ describe("artifactsOf (bit 19 h2), continued (2)", () => {
 			const degraded = reports.filter((line) => line.includes("SCHEMA_DEGRADED"))
 			expect([degraded, logged]).toEqual([
 				[
-					'[honey:openapi] SCHEMA_DEGRADED: POST /custom: no JSON Schema converter for vendor "custom" (input); documented unconstrained',
+					'[backend:openapi] SCHEMA_DEGRADED: POST /custom: no JSON Schema converter for vendor "custom" (input); documented unconstrained',
 				],
 				[],
 			])
@@ -259,7 +259,7 @@ describe("artifactsOf (bit 19 h2), continued (2)", () => {
 describe("prepare: the tree written first (bit 19 h2)", () => {
 	const GATEWAY = {
 		"src/app.ts":
-			'import { honey } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = honey().routeTree(routeTree)\n',
+			'import { httpApp } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = httpApp().routeTree(routeTree)\n',
 		"src/down.ts": appSource(),
 		"src/routes.ts":
 			'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n',
@@ -284,9 +284,9 @@ describe("prepare: the tree written first (bit 19 h2)", () => {
 	it("asks nothing of an app that does not load its tree, of a later pass, or with no tree to write", async () => {
 		const made = fresh({ ...GATEWAY, "src/_gen/routes.gen.ts": "stale" })
 		const run = { codegen, load: native, root: made.dir }
-		const plain = await prepare(resolveHoneyConfig({ app: "src/down.ts" }), { ...run, first: true })
-		const later = resolveHoneyConfig({ app: "src/down.ts", codegen: { mergeTree: "src/routes.ts" } })
-		const off = resolveHoneyConfig({ app: "src/down.ts", codegen: { mergeTree: "src/routes.ts", tree: false } })
+		const plain = await prepare(resolveBackendConfig({ app: "src/down.ts" }), { ...run, first: true })
+		const later = resolveBackendConfig({ app: "src/down.ts", codegen: { mergeTree: "src/routes.ts" } })
+		const off = resolveBackendConfig({ app: "src/down.ts", codegen: { mergeTree: "src/routes.ts", tree: false } })
 		const results = [plain, await prepare(later, { ...run, first: false }), await prepare(off, { ...run, first: true })]
 		expect(results.map(({ rewrite }) => rewrite)).toEqual([undefined, undefined, undefined])
 	})
@@ -299,7 +299,7 @@ describe("virtualCode (bit 19 h2)", () => {
 			"src/routes.ts",
 			'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "../down/app.ts"\nexport const tree = mergeTree([app.toRouteTree(), { worker: "down" }])\n',
 		)
-		const config = resolveHoneyConfig({
+		const config = resolveBackendConfig({
 			codegen: {
 				manifest: true,
 				mergeTree: "src/routes.ts",
@@ -323,7 +323,7 @@ describe("virtualCode (bit 19 h2)", () => {
 		"reports none of the document's diagnostics on a module load, since the generation already did",
 		async () => {
 			const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_UNCONVERTIBLE }) })
-			const config = resolveHoneyConfig({ app: "src/app.ts", codegen: { openApi: [output({ title: "T" })] } })
+			const config = resolveBackendConfig({ app: "src/app.ts", codegen: { openApi: [output({ title: "T" })] } })
 			const logged = ((globalThis as { appLines?: string[] }).appLines = [])
 			let printed = ""
 			vi.spyOn(process.stderr, "write").mockImplementation((chunk) => ((printed += String(chunk)), true))
@@ -338,7 +338,7 @@ describe("virtualCode (bit 19 h2)", () => {
 describe("sourceOf, natively (bit 19 h2)", () => {
 	it("imports the app into this core's graph, its default export when it names no app", async () => {
 		const { dir } = fresh({ "src/app.ts": appSource({ named: false }) })
-		const source = await sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), dir, native)
+		const source = await sourceOf(resolveBackendConfig({ app: "src/app.ts" }), dir, native)
 		const { entry, exportName } = await source.documented()
 		expect([exportName, entry, Object.keys(source.tree.routes)]).toEqual([
 			"default",

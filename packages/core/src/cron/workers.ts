@@ -22,7 +22,7 @@ const rethrow = (controller: WorkersScheduledController, failures: readonly unkn
 }
 
 /**
- * The `scheduled` handler for `cron`. Export it under that name from the app's entry and honey's
+ * The `scheduled` handler for `cron`. Export it under that name from the app's entry and backend's
  * Workers build moves it onto the default export. A trigger's text must match an expression exactly,
  * as one with no schedule fails. The platform never retries a failed run.
  *

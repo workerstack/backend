@@ -11,7 +11,7 @@
  *
  * A refusal is a 403 `forbidden`, declared on the middleware.
  */
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { type MiddlewareFn, namedMiddleware } from "./middleware.ts"
 
 /** The cross-origin callers `csrf` lets through. With no options, it lets none through. */
@@ -47,7 +47,7 @@ function hostOf(origin: string): string | null {
 }
 
 function forbidden(): never {
-	throw new HoneyError({ errorKey: "forbidden", status: "forbidden" })
+	throw new HttpError({ errorKey: "forbidden", status: "forbidden" })
 }
 
 /**

@@ -20,5 +20,5 @@ const stubWs: WSAdapter = {
 
 export const app = createApp(stubWs)
 
-/* what `honey-clients generate --app` documents the SDK from: kitchen's routes and its webhook events */
-export const openApi = { info: { title: "Honey E2E", version: "0.0.1" }, webhooks: events }
+/* what `clients generate --app` documents the SDK from: kitchen's routes and its webhook events */
+export const openApi = { info: { title: "Backend E2E", version: "0.0.1" }, webhooks: events }

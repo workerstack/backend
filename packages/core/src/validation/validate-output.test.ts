@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import * as z from "zod"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { rangeResponse } from "../response/range.ts"
-import { HoneyRes } from "../response/response.ts"
-import { honey } from "../routing/app.ts"
+import { HttpRes } from "../response/response.ts"
+import { httpApp } from "../routing/app.ts"
 import { recorder } from "../telemetry/__fixtures__/recording-tracer.ts"
 import type { StandardSchemaLike } from "./standard-schema.ts"
 import { compileOutput } from "./output-check.ts"
 import { validateOutput, withOutput } from "./validate-output.ts"
 
 /** A Response the route does not declare: a fault injected on purpose, past the handler's typed return. */
-const undeclared = (ctx: { readonly res: object }, response: Response) => (ctx.res as HoneyRes).raw(response) as never
+const undeclared = (ctx: { readonly res: object }, response: Response) => (ctx.res as HttpRes).raw(response) as never
 
 afterEach(() => {
 	vi.restoreAllMocks()
@@ -34,7 +34,7 @@ const get = (path: string) => new Request(`http://localhost${path}`)
 const bytes = (text: string) => new TextEncoder().encode(text)
 const post = (path: string) => new Request(`http://localhost${path}`, { method: "POST" })
 
-/** A response honey did not build, of `type`. */
+/** A response backend did not build, of `type`. */
 const foreign = (type: string) => new Response('{"a":1}', { headers: { "content-type": type } })
 
 describe("validateOutput: one body against its status's schema", () => {
@@ -52,15 +52,15 @@ describe("validateOutput: one body against its status's schema", () => {
 			try {
 				validateOutput(schemaOf([{ message: "SECRET_ISSUE", path: ["id"] }]), "created", { wrong: true })
 			} catch (thrown) {
-				return thrown as HoneyError
+				return thrown as HttpError
 			}
 			throw new Error("did not throw")
 		})()
 		const rejected = (await (validateOutput(schemaOf([{ message: "x" }], true), "ok", {}) as Promise<void>).catch(
 			(e: unknown) => e,
-		)) as HoneyError
+		)) as HttpError
 		expect([
-			error instanceof HoneyError,
+			error instanceof HttpError,
 			error.status,
 			error.errorKey,
 			error.vars,
@@ -72,7 +72,7 @@ describe("validateOutput: one body against its status's schema", () => {
 
 /** An app with one route per case under /: every app checks the answers of its `.output()` routes. */
 function validating() {
-	return honey<{}>().logger(false)
+	return httpApp<{}>().logger(false)
 }
 
 describe("output validation through the app: the body", () => {
@@ -159,7 +159,7 @@ describe("output validation through the app: the status key", () => {
 			.delete("/gone")
 			.output(strict)
 			/* the types refuse a 204 the route does not declare; this is the answer that reaches the check anyway */
-			.handler((ctx) => (ctx.res as unknown as HoneyRes).noContent() as never)
+			.handler((ctx) => (ctx.res as unknown as HttpRes).noContent() as never)
 		app
 			.get("/partial")
 			.output(strict)
@@ -255,7 +255,7 @@ describe("output validation through the app: a type other than JSON", () => {
 
 describe("output validation through the app: where the body is read from", () => {
 	// v0: 5c990e0a3a
-	it("a body honey built is validated from what it retained: never cloned, still whole for the client", async () => {
+	it("a body backend built is validated from what it retained: never cloned, still whole for the client", async () => {
 		const clone = vi.spyOn(Response.prototype, "clone")
 		const app = validating()
 		app
@@ -265,7 +265,7 @@ describe("output validation through the app: where the body is read from", () =>
 		expect([await answer(app.fetch(get("/t"), {})), clone.mock.calls.length]).toEqual([[200, { id: "abc" }], 0])
 	})
 
-	it("a body honey kept as bytes is validated from them", async () => {
+	it("a body backend kept as bytes is validated from them", async () => {
 		const app = validating()
 		const out = { "application/json": { ok: z.object({ id: z.string() }) } }
 		app
@@ -284,17 +284,17 @@ describe("output validation through the app: where the body is read from", () =>
 		]).toEqual([[200, { id: "a" }], "output_validation_failed"])
 	})
 
-	it("an empty body honey built is validated as null", async () => {
+	it("an empty body backend built is validated as null", async () => {
 		const check = compileOutput({ "application/json": { created: z.null(), ok: z.object({ id: z.string() }) } }, null)
-		const res = new HoneyRes()
+		const res = new HttpRes()
 		const passed = await check(res.json("created", undefined), {})
 		const failed = (await Promise.resolve()
 			.then(() => check(res.json("ok", undefined), {}))
-			.catch((e: unknown) => e)) as HoneyError
+			.catch((e: unknown) => e)) as HttpError
 		expect([passed.status, failed.errorKey]).toEqual([201, "output_validation_failed"])
 	})
 
-	it("a body honey did not build is read from a clone, and the client still gets it whole", async () => {
+	it("a body backend did not build is read from a clone, and the client still gets it whole", async () => {
 		const app = validating()
 		app
 			.get("/t")
@@ -306,7 +306,7 @@ describe("output validation through the app: where the body is read from", () =>
 	})
 })
 
-describe("output validation through the app: a stream honey produced", () => {
+describe("output validation through the app: a stream backend produced", () => {
 	it("is never buffered: its producer is not drained to validate it", async () => {
 		const validate = vi.fn(() => ({ value: {} }))
 		let produced = 0
@@ -317,7 +317,7 @@ describe("output validation through the app: a stream honey produced", () => {
 			.handler(
 				(ctx) =>
 					/* generate() is not on a ctx.res narrowed to json, nor is its answer a declared one; the runtime has both */
-					(ctx.res as unknown as HoneyRes).generate(
+					(ctx.res as unknown as HttpRes).generate(
 						(function* () {
 							for (;;) yield `${++produced}\n`
 						})(),
@@ -346,7 +346,7 @@ describe("output validation through the app: on with nothing set", () => {
 	// v0: ceb527377f
 	// v0: 22076a3067
 	it("a mismatched .output() answer is the 500 with no setting and no plugin; a route without .output() is not checked", async () => {
-		const app = honey<{}>().logger(false)
+		const app = httpApp<{}>().logger(false)
 		app
 			.get("/t")
 			.output({ "application/json": { ok: z.object({ id: z.string() }) } })
@@ -381,9 +381,9 @@ describe("output validation beside the rest of the request", () => {
 	it("a failed check reaches onError and telemetry as the thrown error it is", async () => {
 		const seen: string[] = []
 		const app = validating()
-		app.onError((error) => void seen.push((error as HoneyError).errorKey))
+		app.onError((error) => void seen.push((error as HttpError).errorKey))
 		const { telemetry } = recorder()
-		app.telemetry({ ...telemetry, onError: (report) => void seen.push(`telemetry:${report.honeyError.errorKey}`) })
+		app.telemetry({ ...telemetry, onError: (report) => void seen.push(`telemetry:${report.httpError.errorKey}`) })
 		app
 			.get("/t")
 			.output({ "application/json": { ok: z.object({ id: z.string() }) } })

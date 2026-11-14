@@ -6,12 +6,12 @@
  */
 import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
-import type { HoneyContext } from "../../src/context/context.ts"
+import type { HttpContext } from "../../src/context/context.ts"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware, type MiddlewareFn } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import { definePreset } from "../../src/routing/preset.ts"
-import type { HoneyCtx, HoneyMeta } from "../../src/routing/app-types.ts"
+import type { HttpCtx, HttpMeta } from "../../src/routing/app-types.ts"
 import type {
 	InferBasePath,
 	InferCtx,
@@ -35,12 +35,12 @@ type DbCtx = { db: { query: Query } }
 type AuthCtx = { orgId: string; userId: string }
 type AppMeta = { auth?: "public" | "required"; tags?: string }
 
-describe("HoneyMeta", () => {
+describe("HttpMeta", () => {
 	/* 0.7.3's public alias for "the OpenAPI keys and mine" (bit 22 a): a consumer declares its route meta with it */
 	it("is the built-in meta keys beside the consumer's own", () => {
-		expectTypeOf<HoneyMeta<{ worker: "extract" }>>().toExtend<{ summary?: string; worker: "extract" }>()
-		expectTypeOf<HoneyMeta["summary"]>().toEqualTypeOf<string | undefined>()
-		const app = honey<{}>().metaType<HoneyMeta<{ worker: "extract" }>>().meta({ worker: "extract" })
+		expectTypeOf<HttpMeta<{ worker: "extract" }>>().toExtend<{ summary?: string; worker: "extract" }>()
+		expectTypeOf<HttpMeta["summary"]>().toEqualTypeOf<string | undefined>()
+		const app = httpApp<{}>().metaType<HttpMeta<{ worker: "extract" }>>().meta({ worker: "extract" })
 		app
 			.get("/tables")
 			.meta({ summary: "List tables" })
@@ -55,10 +55,10 @@ describe("a built-in meta key the app's meta type declares its own way", () => {
 	type Scheme = "jwt" | "key"
 	type RouteMeta = { security?: Scheme | Scheme[][] }
 
-	it("takes the app's type, so a route's ctx passes to a function typed HoneyCtx<Env, RouteMeta>", () => {
-		expectTypeOf<HoneyMeta<RouteMeta>["security"]>().toEqualTypeOf<Scheme | Scheme[][] | undefined>()
-		const audited = (ctx: HoneyCtx<{}, RouteMeta>) => String(ctx.meta.security)
-		honey<{}>()
+	it("takes the app's type, so a route's ctx passes to a function typed HttpCtx<Env, RouteMeta>", () => {
+		expectTypeOf<HttpMeta<RouteMeta>["security"]>().toEqualTypeOf<Scheme | Scheme[][] | undefined>()
+		const audited = (ctx: HttpCtx<{}, RouteMeta>) => String(ctx.meta.security)
+		httpApp<{}>()
 			.metaType<RouteMeta>()
 			.get("/a")
 			.meta({ security: [["jwt", "key"]] })
@@ -69,9 +69,9 @@ describe("a built-in meta key the app's meta type declares its own way", () => {
 describe("meta.extensions: the x- keys the app's meta type declares", () => {
 	type RouteMeta = { extensions?: { "x-after"?: string; "x-before"?: string } }
 
-	it("refuses a key the declared extensions lack, on a route and on the chain, wrapped in HoneyMeta or not", () => {
-		expectTypeOf<HoneyMeta<RouteMeta>["extensions"]>().toEqualTypeOf<RouteMeta["extensions"]>()
-		for (const app of [honey<{}>().metaType<RouteMeta>(), honey<{}>().metaType<HoneyMeta<RouteMeta>>()]) {
+	it("refuses a key the declared extensions lack, on a route and on the chain, wrapped in HttpMeta or not", () => {
+		expectTypeOf<HttpMeta<RouteMeta>["extensions"]>().toEqualTypeOf<RouteMeta["extensions"]>()
+		for (const app of [httpApp<{}>().metaType<RouteMeta>(), httpApp<{}>().metaType<HttpMeta<RouteMeta>>()]) {
 			app
 				.get("/a")
 				.meta({ extensions: { "x-before": "table.delete" } })
@@ -87,8 +87,8 @@ describe("meta.extensions: the x- keys the app's meta type declares", () => {
 	})
 
 	it("keeps every x- key open while the app declares none", () => {
-		expectTypeOf<HoneyMeta["extensions"]>().toEqualTypeOf<Record<`x-${string}`, unknown> | undefined>()
-		honey<{}>()
+		expectTypeOf<HttpMeta["extensions"]>().toEqualTypeOf<Record<`x-${string}`, unknown> | undefined>()
+		httpApp<{}>()
 			.metaType<{ worker?: string }>()
 			.get("/c")
 			.meta({ extensions: { "x-anything": 1 } })
@@ -104,7 +104,7 @@ describe("InferCtx", () => {
 	// v0: 302eb8e2c0
 	// v0: 2fa5d0c8f3
 	it("is the handler ctx without res, and never for anything but an app", () => {
-		expectTypeOf<InferCtx<ReturnType<typeof honey<TestEnv>>>>().toMatchTypeOf<Omit<HoneyContext<TestEnv>, "res">>()
+		expectTypeOf<InferCtx<ReturnType<typeof httpApp<TestEnv>>>>().toMatchTypeOf<Omit<HttpContext<TestEnv>, "res">>()
 		expectTypeOf<InferCtx<string>>().toBeNever()
 	})
 
@@ -113,7 +113,7 @@ describe("InferCtx", () => {
 	// v0: 22f939dce9
 	// v0: 61583f2251
 	it("accumulates what each use() adds, beside context() values", () => {
-		const app = honey<TestEnv>()
+		const app = httpApp<TestEnv>()
 			.context({ region: "eu" })
 			.use(withDb)
 			.use(withAuth)
@@ -126,7 +126,7 @@ describe("InferCtx", () => {
 	// v0: 15a01a5968
 	// v0: 84dca20c67
 	it("holds context() values readonly, accumulated across calls, a later value for a key winning", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.context({ config: { debug: true }, x: "first" as string })
 			.context({ b: "two" })
 			.context({ c: true, x: "second" as const })
@@ -148,7 +148,7 @@ describe("the rest of the ladder through use(), context() and metaType<T>()", ()
 	// v0: a05cd6822b
 	// v0: ba08ca3116
 	it("InferEnv and InferBasePath survive use() and context(), and InferEnv is never off an app", () => {
-		const app = honey<TestEnv>().basePath("/api").use(withDb).context({ ready: true })
+		const app = httpApp<TestEnv>().basePath("/api").use(withDb).context({ ready: true })
 		expectTypeOf<InferEnv<typeof app>>().toEqualTypeOf<TestEnv>()
 		expectTypeOf<InferBasePath<typeof app>>().toEqualTypeOf<"/api">()
 		expectTypeOf<InferEnv<{ foo: string }>>().toBeNever()
@@ -163,9 +163,9 @@ describe("the rest of the ladder through use(), context() and metaType<T>()", ()
 	// v0: 46c948e313
 	it("InferMeta is the metaType<T>() type wherever use() and context() sit, and never without it", () => {
 		const auth = createMiddleware((_ctx, next) => next({ userId: "u-1" }))
-		expectTypeOf<InferMeta<ReturnType<typeof honey<TestEnv>>>>().toBeNever()
-		const after = honey<TestEnv>().metaType<AppMeta>().use(auth).context({ db: "sqlite" })
-		const before = honey<TestEnv>().use(auth).context({ db: "sqlite" }).metaType<AppMeta>()
+		expectTypeOf<InferMeta<ReturnType<typeof httpApp<TestEnv>>>>().toBeNever()
+		const after = httpApp<TestEnv>().metaType<AppMeta>().use(auth).context({ db: "sqlite" })
+		const before = httpApp<TestEnv>().use(auth).context({ db: "sqlite" }).metaType<AppMeta>()
 		expectTypeOf<InferMeta<typeof after>>().toEqualTypeOf<AppMeta>()
 		expectTypeOf<InferMeta<typeof before>>().toEqualTypeOf<AppMeta>()
 	})
@@ -177,9 +177,9 @@ describe("the rest of the ladder through use(), context() and metaType<T>()", ()
 	// v0: 75fe2e249d
 	it("InferErrorFactory survives use(), so a route on the chain declares the factory's keys; never without one", () => {
 		const errors = defineErrors({ email_taken: "conflict" })
-		const chain = honey<{}>().errorFactory(errors).use(withDb)
+		const chain = httpApp<{}>().errorFactory(errors).use(withDb)
 		expectTypeOf<InferErrorFactory<typeof chain>>().toEqualTypeOf<typeof errors>()
-		expectTypeOf<InferErrorFactory<ReturnType<typeof honey<TestEnv>>>>().toBeNever()
+		expectTypeOf<InferErrorFactory<ReturnType<typeof httpApp<TestEnv>>>>().toBeNever()
 		chain
 			.get("/t")
 			.errors("email_taken")
@@ -196,7 +196,7 @@ describe("methods, paths and a route's ctx", () => {
 	// v0: 35f9728ea3
 	// v0: c5991fd973
 	it("InferMethods, InferRoutePaths and InferRouteMethods list what was registered, once each", () => {
-		const app = honey<TestEnv>()
+		const app = httpApp<TestEnv>()
 			.get("/health")
 			.handler((ctx) => ctx.res.raw(new Response("ok")))
 			.get("/users")
@@ -214,7 +214,7 @@ describe("methods, paths and a route's ctx", () => {
 	// v0: 1a7aaf5581
 	// v0: a836b6bac8
 	it("InferRouteCtx is a registered route's full ctx, and only a registered route's", () => {
-		const app = honey<TestEnv>()
+		const app = httpApp<TestEnv>()
 			.use(withDb)
 			.use(withAuth)
 			.get("/orgs/:orgId")
@@ -235,7 +235,7 @@ describe("InferRouteErrors", () => {
 	// v0: b387308a03
 	// v0: 63f68628c4
 	it("is the app's default keys beside the route's declared ones", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.errorFactory(errs)
 			.defaultErrors("a")
 			.get("/defaults")
@@ -255,7 +255,7 @@ describe("InferRouteErrors", () => {
 	// v0: 6d05acb711
 	// v0: e74a5a0747
 	it("is each route's own keys, named with their factory; never for a route with none; kept through route(sub)", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.get("/a")
 			.errors(errs, "a", "b")
 			.handler((ctx) => ctx.res.text("ok", "ok"))
@@ -267,11 +267,11 @@ describe("InferRouteErrors", () => {
 		expectTypeOf<InferRouteErrors<typeof app, "/a", "get">>().toEqualTypeOf<"a" | "b">()
 		expectTypeOf<InferRouteErrors<typeof app, "/b", "post">>().toEqualTypeOf<"c">()
 		expectTypeOf<InferRouteErrors<typeof app, "/health", "get">>().toBeNever()
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 			.get("/items")
 			.errors(errs, "sub_err")
 			.handler((ctx) => ctx.res.text("ok", "ok"))
-		const mounted = honey<{}>().route(sub)
+		const mounted = httpApp<{}>().route(sub)
 		expectTypeOf<InferRouteErrors<typeof mounted, "/items", "get">>().toEqualTypeOf<"sub_err">()
 	})
 })
@@ -283,7 +283,7 @@ describe("the public surface", () => {
 	// v0: 826cf2dd72
 	// v0: 557604c912
 	it("offers the builder and fetch, and none of the internals", () => {
-		type App = ReturnType<typeof honey<{}>>
+		type App = ReturnType<typeof httpApp<{}>>
 		expectTypeOf<App>().toHaveProperty("get")
 		expectTypeOf<App>().toHaveProperty("post")
 		expectTypeOf<App>().toHaveProperty("use")
@@ -300,7 +300,7 @@ describe("the public surface", () => {
 describe("services typed from the base app", () => {
 	// v0: b79e634bd7
 	it("a service takes InferCtx<typeof base>, and a route on the base passes its ctx", () => {
-		const base = honey<TestEnv>().use(withDb).use(withAuth)
+		const base = httpApp<TestEnv>().use(withDb).use(withAuth)
 		const orgService = { list: (ctx: InferCtx<typeof base>) => ctx.db.query(`SELECT * FROM orgs WHERE ${ctx.orgId}`) }
 		const app = base.get("/orgs").handler((ctx) => ctx.res.json("ok", orgService.list(ctx)))
 		expectTypeOf<InferRoutes<typeof app>>().toHaveProperty("/orgs")
@@ -320,12 +320,12 @@ describe("chain meta and the types around it", () => {
 	// v0: 2220f8b4e7
 	// v0: a783ced1ad
 	it("InferMeta stays the metaType<T>() type through chain values, use, basePath and context, per sub-chain; never without it", () => {
-		const phantom = honey<{}>().metaType<AppMeta>()
-		const valued = honey<{}>().metaType<AppMeta>().meta({ tags: "Auth" })
+		const phantom = httpApp<{}>().metaType<AppMeta>()
+		const valued = httpApp<{}>().metaType<AppMeta>().meta({ tags: "Auth" })
 		const chained = phantom.meta({ auth: "public" }).meta({ tags: "Auth" })
 		const through = chained.use(trace).basePath("/api").context({ db: "sqlite" })
-		const other = honey<{}>().metaType<{ version?: number }>().meta({ version: 1 })
-		const untyped = honey<{}>().meta({ summary: "hello", tags: "test" })
+		const other = httpApp<{}>().metaType<{ version?: number }>().meta({ version: 1 })
+		const untyped = httpApp<{}>().meta({ summary: "hello", tags: "test" })
 		expectTypeOf<InferMeta<typeof phantom>>().toEqualTypeOf<AppMeta>()
 		expectTypeOf<InferMeta<typeof valued>>().toEqualTypeOf<AppMeta>()
 		expectTypeOf<InferMeta<typeof chained>>().toEqualTypeOf<AppMeta>()
@@ -341,7 +341,7 @@ describe("chain meta and the types around it", () => {
 	// v0: 872c60de41
 	// v0: c1b08aeb6d
 	it("leaves InferCtx, InferEnv and InferBasePath as they were", () => {
-		const app = honey<TestEnv>().basePath("/api").metaType<AppMeta>().meta({ auth: "public" }).use(trace)
+		const app = httpApp<TestEnv>().basePath("/api").metaType<AppMeta>().meta({ auth: "public" }).use(trace)
 		expectTypeOf<InferCtx<typeof app>>().toMatchTypeOf<{ env: TestEnv; traceId: string }>()
 		expectTypeOf<InferEnv<typeof app>>().toEqualTypeOf<TestEnv>()
 		expectTypeOf<InferBasePath<typeof app>>().toEqualTypeOf<"/api">()
@@ -363,8 +363,8 @@ describe("ctx.meta beside chain meta", () => {
 	// v0: 1e6272505d
 	// v0: 28628ff81e
 	// v0: 81869ea9bd
-	it("ctx.meta beside chain meta: a route's values narrow it, HoneyMeta's keys beside TMeta's; a bare route gets the app type", () => {
-		const base = honey<TestEnv>().metaType<AppMeta>().meta({ auth: "required" }).context({ region: "eu" }).use(trace)
+	it("ctx.meta beside chain meta: a route's values narrow it, HttpMeta's keys beside TMeta's; a bare route gets the app type", () => {
+		const base = httpApp<TestEnv>().metaType<AppMeta>().meta({ auth: "required" }).context({ region: "eu" }).use(trace)
 		base
 			.post("/orgs/:orgId")
 			.meta({ invalidate: ["GET /orgs"] as const, summary: "Create", tags: "Orgs" })
@@ -383,14 +383,14 @@ describe("ctx.meta beside chain meta", () => {
 			expectTypeOf(ctx.meta.tags).toEqualTypeOf<AppMeta["tags"]>()
 			return ctx.res.text("ok", "ok")
 		})
-		// @ts-expect-error a key neither TMeta nor HoneyMeta has
+		// @ts-expect-error a key neither TMeta nor HttpMeta has
 		base.get("/x").meta({ unknown: true })
 	})
 })
 
 describe("every Infer* over a get and a post on one path, without .meta()", () => {
 	const withQuery = createMiddleware((_ctx, next) => next({ db: { query: (_sql: string): unknown[] => [] } }))
-	const app = honey<TestEnv>()
+	const app = httpApp<TestEnv>()
 		.use(withQuery)
 		.get("/hello")
 		.input({ search: z.object({ q: z.string() }) })
@@ -441,11 +441,11 @@ describe("the route builder's phantoms: what codegen's extractor reads", () => {
 	it("a builder carries its middleware ctx (scoped and builder .use() included), its methods and its full path", () => {
 		const scoped = createMiddleware((_ctx, next) => next({ scoped: 1 }))
 		const added = createMiddleware((_ctx, next) => next({ added: "a" }))
-		const app = honey<{ DB: string }>().basePath("/v1").use("/admin", scoped)
+		const app = httpApp<{ DB: string }>().basePath("/v1").use("/admin", scoped)
 		const builder = app.on(["GET", "PUT"], "/admin/x").use(added)
 		expectTypeOf(builder.$path).toEqualTypeOf<"/v1/admin/x">()
 		expectTypeOf(builder.$method).toEqualTypeOf<"GET" | "PUT">()
-		expectTypeOf(builder.$ctx).toEqualTypeOf<HoneyContext<{ DB: string }> & { scoped: number } & { added: string }>()
+		expectTypeOf(builder.$ctx).toEqualTypeOf<HttpContext<{ DB: string }> & { scoped: number } & { added: string }>()
 		/* the ctx before the handler re-declares params, meta, errors and input */
 		expectTypeOf(builder.$ctx).not.toHaveProperty("input")
 		expectTypeOf(app.get("/plain").$method).toEqualTypeOf<"GET">()
@@ -454,12 +454,12 @@ describe("the route builder's phantoms: what codegen's extractor reads", () => {
 
 describe("output validation is the build's, never the app's (plan 40)", () => {
 	it("no app, preset or scoped chain has an outputValidation setter", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const scoped = app.use(
 			"/admin",
 			createMiddleware((_ctx, next) => next()),
 		)
-		// @ts-expect-error: answers are checked unless a Vite production build drops the check (honeyPlugin's option)
+		// @ts-expect-error: answers are checked unless a Vite production build drops the check (backendPlugin's option)
 		app.outputValidation("always")
 		// @ts-expect-error: a preset carries no such setting either
 		definePreset<{}>().outputValidation("always")

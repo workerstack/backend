@@ -7,7 +7,7 @@ import { requestId } from "../middleware/request-id.ts"
 import { timeout } from "../middleware/timeout.ts"
 import { type CurlLogData, curlLogger } from "../observability/curl-logger.ts"
 import { generateOpenApi } from "../openapi/generate.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { testClient } from "../testing/testing.ts"
 import { type BodyLimitOptions, bodyLimit } from "./body-limit.ts"
 
@@ -17,7 +17,7 @@ const size = async (ctx: { req: Request; res: { text(key: "ok", body: string): R
 
 /** An app under `bodyLimit(options)` whose routes answer with the body's byte length. */
 function limited(options: BodyLimitOptions) {
-	const app = honey<{}>().use(bodyLimit(options))
+	const app = httpApp<{}>().use(bodyLimit(options))
 	for (const method of ["POST", "PUT", "PATCH", "DELETE", "OPTIONS", "PROPFIND"])
 		app.on([method as "POST"], "/x").handler(size as never)
 	app.get("/x").handler((ctx) => ctx.res.text("ok", "get"))
@@ -111,7 +111,7 @@ describe("bodyLimit: a streamed body, and what reading it may raise", () => {
 	// v0: 92ad81b4ec
 	// v0: ab3d027267
 	it("an error reading the body passes through as it is, not as an overflow", async () => {
-		const app = honey<{}>().use(bodyLimit({ maxSize: 100 }))
+		const app = httpApp<{}>().use(bodyLimit({ maxSize: 100 }))
 		app.post("/x").handler(async (ctx) => {
 			const read = await ctx.req.text().then(
 				() => "read",
@@ -133,7 +133,7 @@ describe("bodyLimit: a streamed body, and what reading it may raise", () => {
 				controller.enqueue(new Uint8Array(10))
 			},
 		})
-		const app = honey<{}>().use(bodyLimit({ maxSize: 1000 }))
+		const app = httpApp<{}>().use(bodyLimit({ maxSize: 1000 }))
 		app.post("/x").handler(async (ctx) => {
 			await (ctx.req.body as ReadableStream<Uint8Array>).cancel()
 			return ctx.res.text("ok", "cancelled")
@@ -166,7 +166,7 @@ describe("bodyLimit: Content-Length", () => {
 	// v0: 52aa92269b
 	it("a declared length over the limit is a 413 before anything is read; one at the limit passes", async () => {
 		let read = false
-		const app = honey<{}>().use(bodyLimit({ maxSize: 5 }))
+		const app = httpApp<{}>().use(bodyLimit({ maxSize: 5 }))
 		app.post("/x").handler(async (ctx) => {
 			read = true
 			return ctx.res.text("ok", await ctx.req.text())
@@ -213,7 +213,7 @@ describe("bodyLimit: which requests it limits", () => {
 	// v0: 76b261e2e5
 	it("a request with no body and no declared length passes whatever its method; an app without it takes any body", async () => {
 		const app = limited({ maxSize: 0 })
-		const open = honey<{}>()
+		const open = httpApp<{}>()
 		open.post("/x").handler(async (ctx) => ctx.res.text("ok", String((await ctx.req.text()).length)))
 		expect([
 			await answer(app.fetch(to("GET", null), {})),
@@ -260,7 +260,7 @@ describe("bodyLimit: the request the rest of the chain sees", () => {
 	// v0: 433391df04
 	// v0: d57e7166a3
 	it("keeps the method and headers, and the body reads whole for middleware, .input() and the handler", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(bodyLimit({ maxSize: 10_000 }))
 			.use(createMiddleware((_ctx, next) => next({ logged: true })))
 		app
@@ -290,7 +290,7 @@ describe("bodyLimit: the request the rest of the chain sees", () => {
 
 	// v0: a8e625d92f
 	it("an overflow while .input() reads the body stays 413, never a malformed body", async () => {
-		const app = honey<{}>().use(bodyLimit({ maxSize: 8 }))
+		const app = httpApp<{}>().use(bodyLimit({ maxSize: 8 }))
 		app
 			.post("/j")
 			.input({ json: z.object({ a: z.string() }) })
@@ -312,7 +312,7 @@ describe("bodyLimit: an overflow", () => {
 		const unhandled = vi.fn()
 		process.on("unhandledRejection", unhandled)
 		try {
-			const app = honey<{}>().use(bodyLimit({ maxSize: 1000 }))
+			const app = httpApp<{}>().use(bodyLimit({ maxSize: 1000 }))
 			app
 				.post("/upload")
 				.handler(async (ctx) => ctx.res.json("ok", { n: (await ctx.req.formData()).getAll("f").length }))
@@ -353,7 +353,7 @@ describe("bodyLimit beside other middleware", () => {
 	// v0: b9d77ddfe3
 	it("a request log after it sees the bounded body; one it refused is never logged", async () => {
 		const logged: CurlLogData[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(bodyLimit({ maxSize: 64, trustContentLength: true }))
 			.use(curlLogger({ body: { maxBytes: 64 }, log: (data) => logged.push(data) }))
 		app.post("/users").handler(async (ctx) => ctx.res.json("ok", (await ctx.req.json()) as object))
@@ -376,7 +376,7 @@ describe("bodyLimit beside other middleware", () => {
 
 	// v0: 3eba97996a
 	it("composes with request ids, a timeout and an IP allow-list on one app", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(requestId())
 			.use(timeout({ duration: 1000 }))
@@ -395,7 +395,7 @@ describe("bodyLimit beside other middleware", () => {
 
 describe("bodyLimit: the error it declares", () => {
 	it("documents 413 content_too_large on each route behind it, with no app-wide declaration", () => {
-		const app = honey<{}>().errorFactory(defineErrors({}))
+		const app = httpApp<{}>().errorFactory(defineErrors({}))
 		app
 			.post("/upload")
 			.use(bodyLimit({ maxSize: 1 }))

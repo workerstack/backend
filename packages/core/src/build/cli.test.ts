@@ -1,5 +1,5 @@
 /**
- * The `honey` CLI (bit 19 h2): `generate` from the honeyPlugin() config of a Vite config (a function-form one too, the
+ * The `backend` CLI (bit 19 h2): `generate` from the backendPlugin() config of a Vite config (a function-form one too, the
  * plugin asked for when there are several), from `--app` alone or over the config's app, strict about its flags;
  * through the bin on Node and Bun, ending once it has written whatever the app left running, and handing its Bun child
  * a signal that lands as it spawns it; `--watch`, each
@@ -25,7 +25,7 @@ const HIDDEN_ADDITION = [
 	"\t.use(createMiddleware((_c, next) => next({ hidden: 1 })))",
 	'\t.handler((c) => c.res.text("ok", "h"))',
 ]
-const BIN = resolve(import.meta.dirname, "../../bin/honey.js")
+const BIN = resolve(import.meta.dirname, "../../bin/backend.js")
 /* the preload that signals the process as spawn returns: the window between the bin's spawn and its next statement */
 const SIGNAL_ON_SPAWN = resolve(import.meta.dirname, "../../tests/fixture/signal-on-spawn.ts")
 const projects: Project[] = []
@@ -45,9 +45,9 @@ function fresh(files: Record<string, string> = {}): Project {
 }
 
 const CONFIG = (options: string) =>
-	`import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin(${options})] }\n`
+	`import { backendPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [backendPlugin(${options})] }\n`
 
-/** `honey <argv>` in process from `dir`: its exit code and what it wrote. */
+/** `backend <argv>` in process from `dir`: its exit code and what it wrote. */
 async function run(argv: readonly string[], dir: string, signal?: AbortSignal) {
 	let [out, err] = ["", ""]
 	const io = { err: (text: string) => void (err += text), out: (text: string) => void (out += text) }
@@ -64,7 +64,7 @@ async function until(check: () => boolean, ms = 20_000): Promise<boolean> {
 	return true
 }
 
-describe("honey generate (bit 19 h2)", () => {
+describe("backend generate (bit 19 h2)", () => {
 	// v0: 959b999f6f
 	// v0: b4d1303b14
 	it(
@@ -74,9 +74,9 @@ describe("honey generate (bit 19 h2)", () => {
 			const { dir } = fresh()
 			const runs = [await run([], dir), await run(["serve"], dir), await run(["generate"], dir)]
 			expect(runs.map(({ err, status }) => [status, err.split("\n")[0]])).toEqual([
-				[1, "honey: missing command"],
-				[1, "honey: unknown command: serve"],
-				[1, "honey: no config found: add honeyPlugin() to a vite.config.ts, or pass --app"],
+				[1, "backend: missing command"],
+				[1, "backend: unknown command: serve"],
+				[1, "backend: no config found: add backendPlugin() to a vite.config.ts, or pass --app"],
 			])
 			expect(runs[0]?.err.endsWith(`${USAGE}\n`)).toBe(true)
 			expect([await run(["--help"], dir), await run(["generate", "-h"], dir)]).toEqual([
@@ -89,7 +89,7 @@ describe("honey generate (bit 19 h2)", () => {
 	// v0: 62e5575589
 	// v0: 6e3d7e688e
 	it(
-		"generates by the Vite config's honeyPlugin(), with --app over its app",
+		"generates by the Vite config's backendPlugin(), with --app over its app",
 		async () => {
 			const { dir } = fresh({
 				"src/app.ts": appSource(),
@@ -98,7 +98,7 @@ describe("honey generate (bit 19 h2)", () => {
 					'{ app: "src/app.ts", codegen: { manifest: true, openApi: { title: "CLI", version: "1" } } }',
 				),
 			})
-			expect(await run(["generate"], dir)).toEqual({ err: "", out: "honey: generated\n", status: 0 })
+			expect(await run(["generate"], dir)).toEqual({ err: "", out: "backend: generated\n", status: 0 })
 			expect(
 				["routes.gen.ts", "manifest.gen.json", "openapi.gen.json"].map((file) => read(dir, `src/_gen/${file}`) !== ""),
 			).toEqual([true, true, true])
@@ -122,10 +122,10 @@ describe("honey generate (bit 19 h2)", () => {
 	)
 })
 
-describe("honey generate (bit 19 h2), continued (2)", () => {
+describe("backend generate (bit 19 h2), continued (2)", () => {
 	// v0: f3c257c447
 	it(
-		"refuses an unknown flag and a missing explicit config even with --app, and a config without honeyPlugin()",
+		"refuses an unknown flag and a missing explicit config even with --app, and a config without backendPlugin()",
 		async () => {
 			const { dir } = fresh({ "src/app.ts": appSource(), "vite.config.ts": "export default { plugins: [] }\n" })
 			const runs = [
@@ -134,9 +134,12 @@ describe("honey generate (bit 19 h2), continued (2)", () => {
 				await run(["generate"], dir),
 			]
 			expect(runs.map(({ err, status }) => [status, err.split("\n")[0]])).toEqual([
-				[1, "honey: unknown option --manifset"],
-				[1, "honey: config file not found: nope.ts"],
-				[1, `honey: no honeyPlugin() found in ${join(dir, "vite.config.ts")}; add honeyPlugin() to it or pass --app`],
+				[1, "backend: unknown option --manifset"],
+				[1, "backend: config file not found: nope.ts"],
+				[
+					1,
+					`backend: no backendPlugin() found in ${join(dir, "vite.config.ts")}; add backendPlugin() to it or pass --app`,
+				],
 			])
 			expect(read(dir, "src/_gen/routes.gen.ts")).toBe("")
 		},
@@ -149,7 +152,7 @@ describe("honey generate (bit 19 h2), continued (2)", () => {
 		async () => {
 			const { dir } = fresh({
 				"src/app.ts": appSource(),
-				"vite.config.ts": `import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default ({ command, mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: command === "build" && mode === "production" } })] })\n`,
+				"vite.config.ts": `import { backendPlugin } from "@workerstack/backend/plugin"\nexport default ({ command, mode }) => ({ plugins: [backendPlugin({ app: "src/app.ts", codegen: { manifest: command === "build" && mode === "production" } })] })\n`,
 			})
 			expect((await run(["generate"], dir)).status).toBe(0)
 			expect(read(dir, "src/_gen/manifest.gen.json")).not.toBe("")
@@ -158,7 +161,7 @@ describe("honey generate (bit 19 h2), continued (2)", () => {
 	)
 })
 
-describe("honey generate (bit 19 h2), continued (3)", () => {
+describe("backend generate (bit 19 h2), continued (3)", () => {
 	// v0: 8181e4ba07
 	it(
 		"asks which plugin when the config has several, picks by --plugin or a matching --app, and refuses one out of range",
@@ -166,13 +169,13 @@ describe("honey generate (bit 19 h2), continued (3)", () => {
 			const { dir } = fresh({
 				"src/a.ts": appSource(),
 				"src/b.ts": appSource({ extra: ['\t.get("/b").handler((c) => c.res.text("ok", "b"))'] }),
-				"vite.config.ts": `import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [honeyPlugin({ app: "src/a.ts" }), [honeyPlugin({ app: "src/b.ts" })], honeyPlugin({})] }\n`,
+				"vite.config.ts": `import { backendPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [backendPlugin({ app: "src/a.ts" }), [backendPlugin({ app: "src/b.ts" })], backendPlugin({})] }\n`,
 			})
 			const asked = await run(["generate"], dir)
 			expect([asked.status, asked.err.split("\n").slice(0, 4)]).toEqual([
 				1,
 				[
-					`honey: ${join(dir, "vite.config.ts")} has 3 honeyPlugin() entries; pick one with --plugin <n>:`,
+					`backend: ${join(dir, "vite.config.ts")} has 3 backendPlugin() entries; pick one with --plugin <n>:`,
 					"  0: src/a.ts",
 					"  1: src/b.ts",
 					"  2: (no app)",
@@ -183,7 +186,7 @@ describe("honey generate (bit 19 h2), continued (3)", () => {
 			expect((await run(["generate", "--app", "src/a.ts"], dir)).status).toBe(0)
 			expect(read(dir, "src/_gen/routes.gen.ts")).not.toContain('"GET /b"')
 			expect((await run(["generate", "--plugin", "7"], dir)).err.split("\n")[0]).toBe(
-				`honey: --plugin 7: ${join(dir, "vite.config.ts")} has 3 honeyPlugin() entries`,
+				`backend: --plugin 7: ${join(dir, "vite.config.ts")} has 3 backendPlugin() entries`,
 			)
 		},
 		SLOW,
@@ -195,7 +198,7 @@ describe("honey generate (bit 19 h2), continued (3)", () => {
 			const { dir } = fresh({ "src/app.ts": "export const app = 1\n" })
 			const { err, out, status } = await run(["generate", "--app", "src/app.ts"], dir)
 			expect({ first: err.split("\n")[0], out, status }).toEqual({
-				first: `honey: generation failed: Expected a honey app as the app or default export of ${join(dir, "src/app.ts")}`,
+				first: `backend: generation failed: Expected a backend app as the app or default export of ${join(dir, "src/app.ts")}`,
 				out: "",
 				status: 1,
 			})
@@ -204,7 +207,7 @@ describe("honey generate (bit 19 h2), continued (3)", () => {
 	)
 })
 
-describe("honey generate's failure report (bit 19 j2)", () => {
+describe("backend generate's failure report (bit 19 j2)", () => {
 	it(
 		"follows a failed generation's message with the stack, naming the frame that threw",
 		async () => {
@@ -214,7 +217,7 @@ describe("honey generate's failure report (bit 19 j2)", () => {
 			const [first, ...frames] = err.trimEnd().split("\n")
 			expect([status, first, frames.some((line) => /^\s+at .*src\/app\.ts:2\b/.test(line))]).toEqual([
 				1,
-				"honey: generation failed: boom at load",
+				"backend: generation failed: boom at load",
 				true,
 			])
 		},
@@ -222,12 +225,12 @@ describe("honey generate's failure report (bit 19 j2)", () => {
 	)
 })
 
-describe("honey generate through the bin (bit 19 h2)", () => {
+describe("backend generate through the bin (bit 19 h2)", () => {
 	const bin = (runtime: string, dir: string, args: readonly string[]) =>
 		spawnSync(runtime, [BIN, "generate", ...args], {
 			cwd: dir,
 			encoding: "utf8",
-			env: { ...process.env, HONEY_NO_BUN_HANDOFF: "1" },
+			env: { ...process.env, BACKEND_NO_BUN_HANDOFF: "1" },
 			timeout: SLOW,
 		})
 
@@ -238,8 +241,8 @@ describe("honey generate through the bin (bit 19 h2)", () => {
 			const { dir } = fresh({ "src/app.ts": appSource(), "vite.config.ts": CONFIG('{ app: "src/app.ts" }') })
 			const runs = ["node", "bun"].map((runtime) => bin(runtime, dir, []))
 			expect(runs.map((done) => [done.status, done.stdout, done.stderr])).toEqual([
-				[0, "honey: generated\n", ""],
-				[0, "honey: generated\n", ""],
+				[0, "backend: generated\n", ""],
+				[0, "backend: generated\n", ""],
 			])
 		},
 		SLOW,
@@ -264,10 +267,10 @@ describe("honey generate through the bin (bit 19 h2)", () => {
 	)
 })
 
-describe("honey generate through the bin, a signal as it spawns (CI 40547426989)", () => {
+describe("backend generate through the bin, a signal as it spawns (CI 40547426989)", () => {
 	it("forwards a signal that lands the instant its Bun child is spawned, before any other statement", async () => {
 		const mark = markOf()
-		const dir = mkdtempSync(join(tmpdir(), "honey-bun-"))
+		const dir = mkdtempSync(join(tmpdir(), "backend-bun-"))
 		/* a Bun that runs nothing: it only has to live until the bin hands it the signal */
 		writeFileSync(join(dir, "bun"), "#!/bin/sh\nexec sleep 30\n", { mode: 0o755 })
 		const parent = spawn(process.execPath, ["--import", SIGNAL_ON_SPAWN, BIN, "generate"], {
@@ -289,7 +292,7 @@ describe("honey generate through the bin, a signal as it spawns (CI 40547426989)
 	}, 30_000)
 })
 
-/** `honey generate --watch <args>` in `dir`, until the leg ends. */
+/** `backend generate --watch <args>` in `dir`, until the leg ends. */
 function watching(dir: string, args: readonly string[] = []) {
 	const controller = new AbortController()
 	const ended = run(["generate", "--watch", ...args], dir, controller.signal)
@@ -297,7 +300,7 @@ function watching(dir: string, args: readonly string[] = []) {
 	return { controller, ended }
 }
 
-describe("honey generate --watch (bit 19 h2)", () => {
+describe("backend generate --watch (bit 19 h2)", () => {
 	// v0: 3c166848de
 	// v0: 80932aac33
 	it(
@@ -305,7 +308,7 @@ describe("honey generate --watch (bit 19 h2)", () => {
 		async () => {
 			const made = fresh({
 				"src/app.ts":
-					'import { honey } from "@workerstack/backend/http"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
+					'import { httpApp } from "@workerstack/backend/http"\nimport { path } from "./routes.ts"\nexport const app = httpApp().get(path).handler((c) => c.res.text("ok", "ok"))\n',
 				"src/routes.ts": 'export const path = "/first"\n',
 			})
 			watching(made.dir, ["--app", "src/app.ts"])
@@ -315,7 +318,7 @@ describe("honey generate --watch (bit 19 h2)", () => {
 			expect(await until(() => tree().includes('"GET /second"'))).toBe(true)
 			made.write(
 				"src/app.ts",
-				'import { honey } from "@workerstack/backend/http"\nexport const app = honey().get("/third").handler((c) => c.res.text("ok", "ok"))\n',
+				'import { httpApp } from "@workerstack/backend/http"\nexport const app = httpApp().get("/third").handler((c) => c.res.text("ok", "ok"))\n',
 			)
 			expect(await until(() => tree().includes('"GET /third"'))).toBe(true)
 		},
@@ -336,7 +339,7 @@ describe("honey generate --watch (bit 19 h2)", () => {
 	)
 })
 
-describe("honey generate --watch (bit 19 h2), continued (2)", () => {
+describe("backend generate --watch (bit 19 h2), continued (2)", () => {
 	// v0: 6893b6cc95
 	// v0: 872ff08c17
 	it(
@@ -360,7 +363,7 @@ describe("honey generate --watch (bit 19 h2), continued (2)", () => {
 			await new Promise((done) => setTimeout(done, 1500))
 			expect([settled, read(made.dir, "evaluations.log").length]).toEqual([settled, settled])
 			watch.controller.abort()
-			expect((await watch.ended).out).toBe(`honey: watching ${join(made.dir, "src")}\n`)
+			expect((await watch.ended).out).toBe(`backend: watching ${join(made.dir, "src")}\n`)
 		},
 		SLOW,
 	)
@@ -370,12 +373,12 @@ describe("honey generate --watch (bit 19 h2), continued (2)", () => {
 		async () => {
 			const { dir } = fresh({ "vite.config.ts": CONFIG("{}") })
 			expect((await run(["generate", "--watch"], dir)).err.split("\n")[0]).toBe(
-				"honey: --watch requires --app or a honeyPlugin() config with app",
+				"backend: --watch requires --app or a backendPlugin() config with app",
 			)
 			const child = await main(
 				["generate", "--watch", "--app", "src/app.ts"],
 				{ err: () => {}, out: () => {} },
-				{ cwd: dir, env: { HONEY_WATCH_CHILD: "1" } },
+				{ cwd: dir, env: { BACKEND_WATCH_CHILD: "1" } },
 			)
 			expect(child).toBe(1)
 		},
@@ -383,7 +386,7 @@ describe("honey generate --watch (bit 19 h2), continued (2)", () => {
 	)
 })
 
-describe("honey init (bit 19 h2)", () => {
+describe("backend init (bit 19 h2)", () => {
 	// v0: e0df49e6b5
 	it(
 		"scaffolds a project whose generate picks up a route added between two runs",
@@ -406,20 +409,20 @@ describe("honey init (bit 19 h2)", () => {
 	)
 })
 
-describe("honey generate's edges (bit 19 h2)", () => {
+describe("backend generate's edges (bit 19 h2)", () => {
 	it(
 		"reads the Vite command and mode a parent passes, and reports to its stderr",
 		async () => {
 			const { dir } = fresh({
 				"src/app.ts": appSource({ extra: HIDDEN_ADDITION }),
-				"vite.config.ts": `import { honeyPlugin } from "@workerstack/backend/plugin"\nexport default ({ command, mode }) => ({ plugins: [honeyPlugin({ app: "src/app.ts", codegen: { manifest: command === "serve" && mode === "development", tree: false, types: true } })] })\n`,
+				"vite.config.ts": `import { backendPlugin } from "@workerstack/backend/plugin"\nexport default ({ command, mode }) => ({ plugins: [backendPlugin({ app: "src/app.ts", codegen: { manifest: command === "serve" && mode === "development", tree: false, types: true } })] })\n`,
 			})
 			let err = ""
 			const io = { err: (text: string) => void (err += text), out: () => {} }
-			expect(await main(["generate"], io, { cwd: dir, env: { HONEY_VITE_COMMAND: "serve" } })).toBe(0)
+			expect(await main(["generate"], io, { cwd: dir, env: { BACKEND_VITE_COMMAND: "serve" } })).toBe(0)
 			expect([read(dir, "src/_gen/manifest.gen.json") !== "", err]).toEqual([
 				true,
-				"honey: GET /hidden: extracted ctx additions match no documented operation (internal and filtered routes are not documented); not typed\n",
+				"backend: GET /hidden: extracted ctx additions match no documented operation (internal and filtered routes are not documented); not typed\n",
 			])
 		},
 		SLOW,
@@ -432,13 +435,13 @@ describe("honey generate's edges (bit 19 h2)", () => {
 	})
 })
 
-describe("honey generate --watch's edges (bit 19 h2)", () => {
+describe("backend generate --watch's edges (bit 19 h2)", () => {
 	it(
 		"goes on past a failed generation to the next edit's",
 		async () => {
 			const made = fresh()
 			const log = join(made.dir, "evaluations.log")
-			/* evaluated, then refused: not a honey app */
+			/* evaluated, then refused: not a backend app */
 			made.write(
 				"src/app.ts",
 				`import { appendFileSync } from "node:fs"\nappendFileSync(${JSON.stringify(log)}, "x")\nexport const app = 1\n`,
@@ -448,7 +451,7 @@ describe("honey generate --watch's edges (bit 19 h2)", () => {
 			made.write("src/app.ts", appSource())
 			expect(await until(() => read(made.dir, "src/_gen/routes.gen.ts").includes('"GET /health"'))).toBe(true)
 			watch.controller.abort()
-			expect((await watch.ended).out).toBe(`honey: watching ${join(made.dir, "src")}\n`)
+			expect((await watch.ended).out).toBe(`backend: watching ${join(made.dir, "src")}\n`)
 		},
 		SLOW,
 	)
@@ -467,7 +470,7 @@ describe("honey generate --watch's edges (bit 19 h2)", () => {
 			})
 			watches.push({ controller: stop, ended })
 			/* written only once the watch is armed over an entry that was not there */
-			expect(await until(() => out.includes("honey: watching"))).toBe(true)
+			expect(await until(() => out.includes("backend: watching"))).toBe(true)
 			made.write("src/late.ts", appSource())
 			expect(await until(() => read(made.dir, "src/_gen/routes.gen.ts").includes('"GET /health"'))).toBe(true)
 		},

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { defineErrors } from "../errors/errors.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { SILENT } from "../telemetry/logger.ts"
 import { basic, credentialsMatch, type ServedAuth } from "./auth.ts"
 import { scalar } from "./scalar.ts"
@@ -39,7 +39,7 @@ const SERVING: Record<string, (app: App, auth?: ServedAuth) => App> = {
 		}),
 }
 
-const plain = () => honey<Env>().logger(SILENT)
+const plain = () => httpApp<Env>().logger(SILENT)
 
 const errors = defineErrors({ oops: "internal_server_error" })
 
@@ -47,18 +47,18 @@ const errors = defineErrors({ oops: "internal_server_error" })
 const APPS: Record<string, () => App> = {
 	plain,
 	formatted: () =>
-		honey<Env>()
+		httpApp<Env>()
 			.logger(SILENT)
 			.errorFactory(errors)
 			.defaultBoundary("oops")
 			.defaultErrorFormatter((error) => ({ code: error.errorKey })),
 	replaced: () =>
-		honey<Env>()
+		httpApp<Env>()
 			.logger(SILENT)
 			.onError(() => new Response("nope", { status: 401 })),
 }
 
-/** What a refused request's body says on each app: honey's envelope, the formatter's shape, the onError answer. */
+/** What a refused request's body says on each app: backend's envelope, the formatter's shape, the onError answer. */
 const REFUSED_BODY: Record<string, unknown> = {
 	formatted: { code: "unauthorized" },
 	plain: expect.objectContaining({ error_key: "unauthorized", status: 401, success: false }),
@@ -182,7 +182,7 @@ describe("credentialsMatch and basic()", () => {
 	it("refuses auth beside a cacheControl, whose public cache would hand the guarded document to anyone", () => {
 		expect(() =>
 			// @ts-expect-error cacheControl: a guarded document is never cached in public
-			serveStaticOpenApi(honey<Env>(), {
+			serveStaticOpenApi(httpApp<Env>(), {
 				auth: docsOnly,
 				cacheControl: "public, max-age=60",
 				json: { inline: DOC },

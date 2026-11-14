@@ -4,7 +4,7 @@
  * status, or names one its slot cannot answer: a body is a 2xx, `redirect` a 3xx, `headers` a 2xx or 3xx, and an
  * error answer is declared with `.errors()`. Every document keys an answer by its status's code, so such a key would
  * be documented under none, or as an answer the route never gives. It sits on the generation paths only
- * (collectRoutes, and the tree `honey generate` writes), never on the request path: an app that serves no document
+ * (collectRoutes, and the tree `backend generate` writes), never on the request path: an app that serves no document
  * bundles none of it, and the types refuse the key where it is written.
  */
 import { type StatusKey, statusKeyToCode } from "../response/status.ts"

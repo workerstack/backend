@@ -1,5 +1,5 @@
 /**
- * honeyPlugin()'s memory of recent saves, through its real hotUpdate (bit 19 i): each save generates once, and once more
+ * backendPlugin()'s memory of recent saves, through its real hotUpdate (bit 19 i): each save generates once, and once more
  * saves than SAVES_REMEMBERED have come, the oldest save's key generates again. The generation is a counting stub,
  * so the leg needs no app and no build; plugin.test.ts drives real generations (9d8e902099).
  */
@@ -15,11 +15,11 @@ vi.mock("./generate.ts", async (actual) => ({
 	},
 }))
 
-const { honeyPlugin, SAVES_REMEMBERED } = await import("./plugin.ts")
+const { backendPlugin, SAVES_REMEMBERED } = await import("./plugin.ts")
 
-describe("honeyPlugin()'s recent saves (bit 19 i)", () => {
+describe("backendPlugin()'s recent saves (bit 19 i)", () => {
 	it("generates once per save and again for a save it has forgotten", async () => {
-		const [plugin] = honeyPlugin({ app: "src/app.ts", watch: ["src/**/*.ts"] })
+		const [plugin] = backendPlugin({ app: "src/app.ts", watch: ["src/**/*.ts"] })
 		plugin.configResolved({ root: "/project" })
 		const save = (timestamp: number) =>
 			plugin.hotUpdate({

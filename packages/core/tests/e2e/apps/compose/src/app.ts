@@ -1,6 +1,6 @@
 import type { WSAdapter } from "@workerstack/backend/http"
 import type { RouteTree } from "@workerstack/backend/http/tree"
-import { createMiddleware, defineErrors, honey } from "@workerstack/backend/http"
+import { createMiddleware, defineErrors, httpApp } from "@workerstack/backend/http"
 import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
 import * as z from "zod"
@@ -28,7 +28,7 @@ export type AppOptions = { routeTree?: RouteTree }
 
 /** Shared base + .route() groups. User /docs owns /docs, so Scalar is served at /reference. */
 export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
-	const root = options?.routeTree ? honey<Env>().routeTree(options.routeTree) : honey<Env>()
+	const root = options?.routeTree ? httpApp<Env>().routeTree(options.routeTree) : httpApp<Env>()
 	const base = root.errorFactory(errors).defaultErrors("invalid_token", "expired_token").use(withCache).use(withSession)
 	if (wsAdapter) base.wsAdapter(wsAdapter)
 
@@ -73,5 +73,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		})
 
 	const app = publicRoutes.route(accountRoutes).route(resourceRoutes)
-	return serveManifest(serveOpenApi(app, { docs: { "/reference": scalar }, title: "Honey Compose", version: "0.0.1" }))
+	return serveManifest(
+		serveOpenApi(app, { docs: { "/reference": scalar }, title: "Backend Compose", version: "0.0.1" }),
+	)
 }

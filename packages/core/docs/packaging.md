@@ -1,4 +1,4 @@
-# Packaging: why honey ships declarations and JavaScript, not source
+# Packaging: why backend ships declarations and JavaScript, not source
 
 ## The problem
 
@@ -34,7 +34,7 @@ whose runtime entry is `.ts` cannot run on plain Node at all.
 {
 	"exports": {
 		"./http": {
-			"honey-source": "./src/index.ts",
+			"backend-source": "./src/index.ts",
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
 		}
@@ -43,14 +43,14 @@ whose runtime entry is `.ts` cannot run on plain Node at all.
 ```
 
 - **TypeScript** resolves `types` to the generated `.d.ts`, which `skipLibCheck` covers. A consumer never type-checks
-  honey's source, so honey's own compiler flags stay honey's.
+  backend's source, so backend's own compiler flags stay backend's.
 - **Node, Bun, Cloudflare Workers and every bundler** resolve `default`, the compiled `dist/`. v0's `bun` condition,
   which pointed Bun at the source, is gone: an install runs the same `dist/` on every runtime.
-- **`honey-source`** is this repository's own condition. Every tool here resolves it first: `customConditions` in the
-  tsconfigs, `resolve.conditions` in the Vite and vitest configs, `--conditions=honey-source` for Node and Bun
+- **`backend-source`** is this repository's own condition. Every tool here resolves it first: `customConditions` in the
+  tsconfigs, `resolve.conditions` in the Vite and vitest configs, `--conditions=backend-source` for Node and Bun
   (`NODE_OPTIONS` and `BUN_OPTIONS` in the e2e runners), and `WRANGLER_BUILD_CONDITIONS` for wrangler. Development and
   tests run the source and never a stale `dist/`. A consumer never sets it.
-- **The bin** (`bin/honey.js`) follows the same split: in a repository checkout, marked by `tsconfig.json`, which is
+- **The bin** (`bin/backend.js`) follows the same split: in a repository checkout, marked by `tsconfig.json`, which is
   not published, it runs the source; an install runs `dist/`.
 
 ## How a tarball is made
@@ -66,7 +66,7 @@ in the copy, and the checkout never gets a `dist/`. The release workflow and the
 ## The trade-off
 
 A build step, and compiled output and declarations in the tarball, which `prepack` keeps current. In exchange,
-consumers are decoupled from honey's compiler flags, and the package runs on every runtime the README names.
+consumers are decoupled from backend's compiler flags, and the package runs on every runtime the README names.
 
 ## The tests
 

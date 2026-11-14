@@ -1,9 +1,9 @@
-/* H19.7: a client controls every request header, so a header that switches honey into another mode
+/* H19.7: a client controls every request header, so a header that switches backend into another mode
  * (debug output, a bypass, a format) is a switch an attacker can flip. The server reads standard
- * headers and names the app configured, never one in honey's own namespace. */
-const MESSAGE = "a request header never selects an internal mode: do not read a honey-namespaced header (H19.7)"
+ * headers and names the app configured, never one in backend's own namespace. */
+const MESSAGE = "a request header never selects an internal mode: do not read a backend-namespaced header (H19.7)"
 
-const HONEY_HEADER = /^(?:x-)?honey-/i
+const BACKEND_HEADER = /^(?:x-)?backend-/i
 const READS = new Set(["get", "has"])
 
 function inScope(filename) {
@@ -26,13 +26,13 @@ export const rule = {
 				const callee = node.callee
 				if (callee?.type !== "MemberExpression" || callee.computed || !READS.has(callee.property.name)) return
 				const header = literalText(node.arguments[0])
-				if (header !== null && HONEY_HEADER.test(header)) context.report({ message: MESSAGE, node })
+				if (header !== null && BACKEND_HEADER.test(header)) context.report({ message: MESSAGE, node })
 			},
 		}
 	},
 }
 
 export default {
-	meta: { name: "honey" },
+	meta: { name: "backend" },
 	rules: { "no-header-mode": rule },
 }

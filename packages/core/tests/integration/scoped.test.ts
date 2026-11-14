@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 type Fetchable = { fetch: (r: Request, env: never) => Response | Promise<Response> }
 
@@ -24,7 +24,7 @@ const tracer = (trace: string[], name: string) =>
 
 const deny = createMiddleware(() => new Response("blocked", { status: 403 }))
 
-type App = ReturnType<typeof honey<{}>>
+type App = ReturnType<typeof httpApp<{}>>
 
 /** A route answering with the path it served. */
 const echo = (app: App, path: string) => app.get(path).handler((ctx) => ctx.res.text("ok", ctx.path))
@@ -50,7 +50,7 @@ describe("which paths a scope covers", () => {
 		["/", "/admin/x", ["scope"]],
 	])("use(%j) on %s runs %j", async (scope, target, ran) => {
 		const trace: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const scoped = app.use(scope, tracer(trace, "scope"))
 		for (const path of ["/admin", "/admin/x"]) echo(scoped, path)
 		for (const path of ["/administration", "/public"]) echo(app, path)
@@ -65,7 +65,7 @@ describe("scope order, and what scoped middleware sees and answers", () => {
 	// v0: fc47d0719b
 	it("chain middleware runs first, then every covering scope in declaration order", async () => {
 		const trace: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const handle = app
 			.use("/admin", tracer(trace, "a"))
 			.use("/admin/billing", tracer(trace, "b"))
@@ -83,7 +83,7 @@ describe("scope order, and what scoped middleware sees and answers", () => {
 	// v0: f30fcde369
 	// v0: b650e4fa13
 	it("scoped middleware sees the chain's additions, and its own reach the handler", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.use(createMiddleware((_ctx, next) => next({ db: "connected" })))
 			.use(
 				"/admin",
@@ -98,7 +98,7 @@ describe("scope order, and what scoped middleware sees and answers", () => {
 	// v0: 421223b0c8
 	it("a scope that answers without next() is the answer on paths it covers, and nowhere else", async () => {
 		const handled: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const guarded = app.use("/admin", deny)
 		for (const path of ["/admin/x", "/public"])
 			guarded.get(path).handler((ctx) => {
@@ -120,7 +120,7 @@ describe("scopes on unknown paths and wrong methods", () => {
 		["/admin/x", "POST", 405, ["scope"]],
 	])("%s %s answers %i after running %j", async (target, method, status, ran) => {
 		const trace: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		echo(app.use("/admin", tracer(trace, "scope")), "/admin/x")
 		expect((await send(app, target, method)).status).toBe(status)
 		expect(trace).toEqual(ran)
@@ -130,7 +130,7 @@ describe("scopes on unknown paths and wrong methods", () => {
 	it("a scope's declared errors reach the routes it covers, and only those", async () => {
 		const errors = defineErrors({ admin_only: "forbidden", internal_server_error: "internal_server_error" })
 		const declares = createMiddleware((_ctx, next) => next(), { errors: [errors, "admin_only"] })
-		const app = honey<{}>().errorFactory(errors).defaultBoundary("internal_server_error").use("/admin", declares)
+		const app = httpApp<{}>().errorFactory(errors).defaultBoundary("internal_server_error").use("/admin", declares)
 		for (const path of ["/admin/x", "/public"])
 			app.get(path).handler(() => {
 				throw errors.admin_only()
@@ -148,9 +148,9 @@ describe("scopes across mounts, basePath, stripPrefix and handles", () => {
 	// v0: abbbaf02f4
 	it("a mounted route runs the parent's scopes and the sub's in declaration order, the sub's joining at the mount", async () => {
 		const trace: string[] = []
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		echo(sub.use("/admin", tracer(trace, "sub")), "/admin/y")
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use("/admin", tracer(trace, "parent")).route(sub)
 		app.use("/admin", tracer(trace, "late"))
 		echo(app, "/public")
@@ -165,13 +165,13 @@ describe("scopes across mounts, basePath, stripPrefix and handles", () => {
 	// v0: 7a37077351
 	it("a scope's path is relative to the handle it is registered on", async () => {
 		const trace: string[] = []
-		const underApi = honey<{}>()
+		const underApi = httpApp<{}>()
 		underApi
 			.basePath("/api")
 			.use("/admin", tracer(trace, "under-api"))
 			.get("/admin/x")
 			.handler((ctx) => ctx.res.text("ok", ctx.path))
-		const atRoot = honey<{}>()
+		const atRoot = httpApp<{}>()
 		atRoot
 			.use("/admin", tracer(trace, "at-root"))
 			.basePath("/api")
@@ -186,7 +186,7 @@ describe("scopes across mounts, basePath, stripPrefix and handles", () => {
 	// v0: eac6e1e6e9
 	it("scopes match after stripPrefix, and a handle derived with context() keeps them", async () => {
 		const trace: string[] = []
-		const app = honey<{}>().stripPrefix("/app")
+		const app = httpApp<{}>().stripPrefix("/app")
 		app
 			.use("/admin", tracer(trace, "scope"))
 			.context({ foo: 1 })

@@ -17,7 +17,7 @@ import type { StandardSchemaLike } from "../validation/standard-schema.ts"
 import { checkTargetKey, type MetaSpecDiagnostics, type SchemaRead } from "./meta-spec-validate.ts"
 
 export type {
-	HoneyMetaSpec,
+	HttpMetaSpec,
 	MetaSpecConfig,
 	MetaSpecContext,
 	MetaSpecEntry,

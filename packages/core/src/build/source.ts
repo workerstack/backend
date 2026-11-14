@@ -11,13 +11,13 @@
 import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 import { assertTreeOutputKeys } from "../openapi/output-keys.ts"
-import { type Honey, honey } from "../routing/app.ts"
+import { type HttpApp, httpApp } from "../routing/app.ts"
 import { gatewayTree, overlaySchemas } from "../routing/gateway-tree.ts"
 import type { RouteTree } from "../routing/tree.ts"
-import type { ResolvedHoneyConfig } from "./config.ts"
+import type { ResolvedBackendConfig } from "./config.ts"
 import type { ModuleLoader } from "./loaders.ts"
 
-export type App = Honey<unknown>
+export type App = HttpApp<unknown>
 
 /** The app a generation documents, and the module and export its types are read from (none, no types). */
 export type Documented = { app: App; entry: string; exportName: string | undefined }
@@ -30,11 +30,11 @@ const isTree = (value: unknown): value is RouteTree =>
 	typeof (value as RouteTree | null)?.root === "object" && typeof (value as RouteTree | null)?.routes === "object"
 
 /** `run()`, an app's stale-tree failure named for what it is: the app loads the tree this generation writes. */
-async function unlessStale<T>(run: () => T | Promise<T>, config: ResolvedHoneyConfig): Promise<T> {
+async function unlessStale<T>(run: () => T | Promise<T>, config: ResolvedBackendConfig): Promise<T> {
 	try {
 		return await run()
 	} catch (error) {
-		if (!/Run `honey generate`/.test(String(error))) throw error
+		if (!/Run `backend generate`/.test(String(error))) throw error
 		const { mergeTree, tree } = config.codegen
 		const fix =
 			mergeTree === undefined
@@ -48,17 +48,17 @@ async function unlessStale<T>(run: () => T | Promise<T>, config: ResolvedHoneyCo
 }
 
 /** The app `config.app` names. */
-async function appOf(config: ResolvedHoneyConfig, root: string, load: ModuleLoader): Promise<Documented> {
+async function appOf(config: ResolvedBackendConfig, root: string, load: ModuleLoader): Promise<Documented> {
 	const entry = resolve(root, config.app as string)
 	const mod = await unlessStale(() => load(entry), config)
 	const exportName = ["app", "default"].find((name) => isApp(mod[name]))
-	if (exportName === undefined) throw new Error(`Expected a honey app as the app or default export of ${entry}`)
+	if (exportName === undefined) throw new Error(`Expected a backend app as the app or default export of ${entry}`)
 	return { app: mod[exportName] as App, entry, exportName }
 }
 
 /** A gateway's source, as the header says. */
 async function gatewayOf(
-	config: ResolvedHoneyConfig,
+	config: ResolvedBackendConfig,
 	root: string,
 	load: ModuleLoader,
 	first: boolean,
@@ -70,7 +70,7 @@ async function gatewayOf(
 	const own = isApp(mod.app) ? { app: mod.app, entry, exportName: "app" } : undefined
 	if (config.app === undefined) {
 		const tree = own === undefined ? merged : await unlessStale(() => gatewayTree(own.app, merged), config)
-		const app = honey().routeTree(tree) as unknown as App
+		const app = httpApp().routeTree(tree) as unknown as App
 		overlaySchemas(app, merged)
 		return { documented: async () => ({ app, entry, exportName: own?.exportName }), loadsTree: false, tree }
 	}
@@ -95,7 +95,7 @@ async function gatewayOf(
 }
 
 /** The app `config` names: its snapshot is the tree written. */
-async function appSource(config: ResolvedHoneyConfig, root: string, load: ModuleLoader): Promise<Source> {
+async function appSource(config: ResolvedBackendConfig, root: string, load: ModuleLoader): Promise<Source> {
 	if (config.app === undefined) throw new Error("No app configured: set app, or codegen.mergeTree for a gateway")
 	const documented = await appOf(config, root, load)
 	const tree = await unlessStale(() => documented.app.toRouteTree(), config)
@@ -108,7 +108,7 @@ async function appSource(config: ResolvedHoneyConfig, root: string, load: Module
  * Its tree holds no output key `.output()`'s types refuse: a generated tree is checked here, never where it is served.
  */
 export async function sourceOf(
-	config: ResolvedHoneyConfig,
+	config: ResolvedBackendConfig,
 	root: string,
 	load: ModuleLoader,
 	first = false,

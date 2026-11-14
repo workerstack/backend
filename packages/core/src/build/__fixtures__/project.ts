@@ -1,7 +1,7 @@
 /**
  * A project whose `@workerstack/backend` is this checkout's source (bit 19 h2): the package carries every subpath of the
- * exports map (bit 19 i) and every subpath import (`#output-check`), each at its `honey-source` file, and `zod` links to the repo's, so an app, a Vite config and
- * a merge entry import honey as a user's do. Its `src` is a copy of packages/core/src made for this project and
+ * exports map (bit 19 i) and every subpath import (`#output-check`), each at its `backend-source` file, and `zod` links to the repo's, so an app, a Vite config and
+ * a merge entry import backend as a user's do. Its `src` is a copy of packages/core/src made for this project and
  * removed with it: a generation evaluates the app's core through jiti in this process, and jiti evaluating the very
  * files coverage measures would merge phantom statements into their report. A native leg, which imports the app
  * through the test runner and shares the test's own core, asks for a link instead.
@@ -16,26 +16,27 @@ export type Project = { readonly dir: string; readonly done: () => void; write(p
 
 /** A fresh project of `files` with core's source copied, or linked when `link`; `done()` removes it. */
 export function project(files: Readonly<Record<string, string>> = {}, options: { link?: boolean } = {}): Project {
-	const dir = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "honey-plugin-"))
-	const honey = join(dir, "node_modules/@workerstack/backend")
-	mkdirSync(honey, { recursive: true })
-	if (options.link === true) symlinkSync(join(CORE, "src"), join(honey, "src"), "dir")
-	else cpSync(join(CORE, "src"), join(honey, "src"), { filter: (path) => !path.endsWith(".test.ts"), recursive: true })
+	const dir = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "backend-plugin-"))
+	const backend = join(dir, "node_modules/@workerstack/backend")
+	mkdirSync(backend, { recursive: true })
+	if (options.link === true) symlinkSync(join(CORE, "src"), join(backend, "src"), "dir")
+	else
+		cpSync(join(CORE, "src"), join(backend, "src"), { filter: (path) => !path.endsWith(".test.ts"), recursive: true })
 	symlinkSync(resolve(CORE, "../../node_modules/zod"), join(dir, "node_modules/zod"), "dir")
 	const manifest = JSON.parse(readFileSync(join(CORE, "package.json"), "utf8")) as {
-		exports: Record<string, { "honey-source"?: string } | string>
-		imports: Record<string, { "honey-source": string }>
+		exports: Record<string, { "backend-source"?: string } | string>
+		imports: Record<string, { "backend-source": string }>
 	}
 	const exports = Object.fromEntries(
 		Object.entries(manifest.exports).flatMap(([subpath, target]) =>
-			typeof target === "object" && target["honey-source"] ? [[subpath, target["honey-source"]]] : [],
+			typeof target === "object" && target["backend-source"] ? [[subpath, target["backend-source"]]] : [],
 		),
 	)
 	const imports = Object.fromEntries(
-		Object.entries(manifest.imports).map(([name, target]) => [name, target["honey-source"]]),
+		Object.entries(manifest.imports).map(([name, target]) => [name, target["backend-source"]]),
 	)
 	writeFileSync(
-		join(honey, "package.json"),
+		join(backend, "package.json"),
 		JSON.stringify({ exports, imports, name: "@workerstack/backend", type: "module" }),
 	)
 	const write = (path: string, text: string) => {
@@ -49,9 +50,9 @@ export function project(files: Readonly<Record<string, string>> = {}, options: {
 /** An app module: `export const app` (or `export default`) with GET /health and POST /items, plus `extra` lines. */
 export function appSource(options: { extra?: readonly string[]; named?: boolean } = {}): string {
 	return [
-		'import { createMiddleware, honey } from "@workerstack/backend/http"',
+		'import { createMiddleware, httpApp } from "@workerstack/backend/http"',
 		'import * as z from "zod"',
-		`${options.named === false ? "export default" : "export const app ="} honey()`,
+		`${options.named === false ? "export default" : "export const app ="} httpApp()`,
 		'\t.get("/health").handler((c) => c.res.text("ok", "ok"))',
 		'\t.post("/items")',
 		"\t.input({ json: z.object({ name: z.string() }) })",

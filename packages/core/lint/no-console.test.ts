@@ -1,5 +1,5 @@
 /**
- * honey/no-console (bit 20 scope): every file under packages/core/{src,tests,lint}, tests, fixtures and helpers
+ * backend/no-console (bit 20 scope): every file under packages/core/{src,tests,lint}, tests, fixtures and helpers
  * included, logs through telemetry/logger.ts; only the logger and the scripts whose stdout
  * is their protocol, each by exact path, may touch console. A console call inside a string is no member expression.
  */
@@ -12,7 +12,7 @@ const rule = plugin.rules["no-console"]
 const MESSAGE = "console belongs to telemetry/logger.ts; log through the logger"
 const LOG = 'console.log("x")\n'
 
-describe("honey/no-console", () => {
+describe("backend/no-console", () => {
 	it("rejects console in core source", () => {
 		const fixture = {
 			"packages/core/src/routing/app.ts": LOG,
@@ -43,7 +43,7 @@ describe("honey/no-console", () => {
 	})
 })
 
-describe("honey/no-console: what stays allowed", () => {
+describe("backend/no-console: what stays allowed", () => {
 	it("allows the same call inside a string a test spawns, and a property named console", () => {
 		const fixture = {
 			"packages/core/src/build/cli.test.ts": 'export const child = "console.log(process.pid)"\n',
@@ -57,7 +57,7 @@ describe("honey/no-console: what stays allowed", () => {
 			["packages/core/src/telemetry/logger.ts", 'export const log = () => console.info("x")\n'],
 			...[...PROTOCOL.keys()].map((path) => [path, LOG]),
 			["bench/src/hotpath.ts", 'console.table("x")\n'],
-			["packages/core/bin/honey.js", LOG],
+			["packages/core/bin/backend.js", LOG],
 		])
 		expect([PROTOCOL.size, reportsOf(rule, fixture)]).toEqual([6, []])
 	})
@@ -72,7 +72,7 @@ describe("honey/no-console: what stays allowed", () => {
 		expect(reportsOf(rule, fixture).map((report) => report.file)).toEqual(Object.keys(fixture))
 	})
 
-	it("fails oxlint through the honey plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
+	it("fails oxlint through the backend plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
 		const fixture = {
 			"packages/core/src/routing/app.ts": LOG,
 			"packages/core/src/telemetry/logger.ts": LOG,

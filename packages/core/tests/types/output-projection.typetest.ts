@@ -1,14 +1,14 @@
 /**
  * `.output(schemas, { projection })`, as typed: the projection reads the route's ctx, `.input()`'s typed search
- * included, and answers a `Projection` or `null`; comb's `FieldSelection` passes as a `Selection` with no adapter.
+ * included, and answers an `HttpProjection` or `null`; comb's `FieldSelection` passes as an `HttpSelection` with no adapter.
  * Checked by typecheck.
  */
 import { describe, expectTypeOf, it } from "vitest"
 import * as z from "zod"
-import type { OutputOptions, Projection, Selection } from "../../src/index.ts"
-import { honey } from "../../src/routing/app.ts"
+import type { OutputOptions, HttpProjection, HttpSelection } from "../../src/index.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
-/* comb's `FieldSelection` (comb packages/core/src/query/types.ts:8), copied: honey does not depend on comb */
+/* comb's `FieldSelection` (comb packages/core/src/query/types.ts:8), copied: backend does not depend on comb */
 type CombFieldSelection = { relations: Record<string, CombFieldSelection | null>; scalars: string[] }
 
 /* an answer with no `select` */
@@ -17,8 +17,8 @@ const noSelect = () => ({ at: "items" })
 describe(".output()'s projection option", () => {
 	const page = z.object({ items: z.array(z.object({ id: z.string() })) })
 
-	it("reads the route's typed search and answers a Projection or null", () => {
-		const app = honey<{}>()
+	it("reads the route's typed search and answers an HttpProjection or null", () => {
+		const app = httpApp<{}>()
 		app
 			.get("/a")
 			.input({ search: z.object({ select: z.string().optional() }) })
@@ -36,18 +36,18 @@ describe(".output()'s projection option", () => {
 			.handler((c) => c.res.json("ok", { items: [] }))
 	})
 
-	it("refuses an answer that is no Projection", () => {
+	it("refuses an answer that is no HttpProjection", () => {
 		expectTypeOf(noSelect).not.toExtend<NonNullable<OutputOptions<{}>["projection"]>>()
-		honey<{}>()
+		httpApp<{}>()
 			.get("/b")
 			// @ts-expect-error a projection answers `{ at?, select }` or null
 			.output({ ok: page }, { projection: noSelect })
 			.handler((c) => c.res.json("ok", { items: [] }))
 	})
 
-	it("takes comb's FieldSelection as a Selection", () => {
-		expectTypeOf<CombFieldSelection>().toExtend<Selection>()
-		expectTypeOf<{ at: "items"; select: CombFieldSelection }>().toExtend<Projection>()
-		expectTypeOf<OutputOptions<{}>>().toEqualTypeOf<{ readonly projection?: (ctx: {}) => Projection | null }>()
+	it("takes comb's FieldSelection as an HttpSelection", () => {
+		expectTypeOf<CombFieldSelection>().toExtend<HttpSelection>()
+		expectTypeOf<{ at: "items"; select: CombFieldSelection }>().toExtend<HttpProjection>()
+		expectTypeOf<OutputOptions<{}>>().toEqualTypeOf<{ readonly projection?: (ctx: {}) => HttpProjection | null }>()
 	})
 })

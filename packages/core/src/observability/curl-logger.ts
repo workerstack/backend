@@ -10,10 +10,10 @@
  * whole. `skip` runs before any formatting. A failing hook or sink is logged as "curlLogger failed"
  * and never turns the answer into a 500; nothing it starts can reject unobserved.
  */
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { type MiddlewareFn, namedMiddleware } from "../middleware/middleware.ts"
 import { isSensitiveHeader } from "../telemetry/fields.ts"
-import type { Logger } from "../telemetry/logger.ts"
+import type { BackendLogger } from "../telemetry/logger.ts"
 import { shellQuote } from "./request-to-curl.ts"
 
 /** Why a log record has no body: body logging is off, the request has none, its type is not allowed, it is too large, or it could not be read. */
@@ -205,7 +205,7 @@ export async function buildCurlLogData(
 /** The parts of the request context `curlLogger` reads. */
 type CurlCtx = {
 	/** The logger a record goes to unless the `log` option is set; a failing hook or sink is always reported here. */
-	readonly log: Logger
+	readonly log: BackendLogger
 	/** The normalized request path, without the query. */
 	readonly path: string
 	/** The request, cloned before the handler runs when the body is logged. */
@@ -244,7 +244,7 @@ export function curlLogger(options: CurlLoggerOptions = {}): MiddlewareFn<CurlCt
 			if (options.log) options.log(data)
 			else ctx.log.info({ ...data }, "request curl")
 		} catch (failure) {
-			ctx.log.error({ err: HoneyError.serialize(failure) }, "curlLogger failed")
+			ctx.log.error({ err: HttpError.serialize(failure) }, "curlLogger failed")
 		}
 		return response
 	})

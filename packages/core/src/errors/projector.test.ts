@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { rawBodyOf } from "../response/builder.ts"
-import { HoneyError } from "./error.ts"
+import { HttpError } from "./error.ts"
 import { defineErrors } from "./errors.ts"
-import { asHoneyError, boundaryError, createErrorResponse, projectThrown, safeErrorResponse } from "./projector.ts"
+import { asHttpError, boundaryError, createErrorResponse, projectThrown, safeErrorResponse } from "./projector.ts"
 
 /** A minimal Standard Schema that accepts anything and types its output as `T`. */
 function schemaOf<T>() {
@@ -24,17 +24,17 @@ const errors = defineErrors({
 	unauthorized: "unauthorized",
 })
 
-const identity = (_e: HoneyError, shape: Record<string, unknown>) => shape
+const identity = (_e: HttpError, shape: Record<string, unknown>) => shape
 
 async function bodyOf(res: Response): Promise<Record<string, unknown>> {
 	return (await res.json()) as Record<string, unknown>
 }
 
-const defaultFormatter = (_error: HoneyError, defaultShape: Record<string, unknown>) => ({
+const defaultFormatter = (_error: HttpError, defaultShape: Record<string, unknown>) => ({
 	...defaultShape,
 	timestamp: 1234567890,
 })
-const payloadFormatter = (_error: HoneyError, data: Record<string, unknown>) => ({ ...data, timestamp: 1234567890 })
+const payloadFormatter = (_error: HttpError, data: Record<string, unknown>) => ({ ...data, timestamp: 1234567890 })
 const crashingFormatter = () => {
 	throw new Error("formatter crashed")
 }
@@ -43,7 +43,7 @@ describe("createErrorResponse with dual formatters", () => {
 	// v0: f290147486
 	it("standard error uses defaultFormatter", async () => {
 		const res = createErrorResponse(
-			new HoneyError({ errorKey: "email_taken", status: "conflict" }),
+			new HttpError({ errorKey: "email_taken", status: "conflict" }),
 			defaultFormatter,
 			null,
 		)
@@ -56,7 +56,7 @@ describe("createErrorResponse with dual formatters", () => {
 
 	// v0: 17f03fe815
 	it("custom schema error uses data as-is when no payloadFormatter", async () => {
-		const err = new HoneyError({
+		const err = new HttpError({
 			data: { reason: "not found", suggestions: ["/a"] },
 			errorKey: "item_not_found",
 			status: "not_found",
@@ -68,7 +68,7 @@ describe("createErrorResponse with dual formatters", () => {
 
 	// v0: af9d5715eb
 	it("custom schema error uses payloadFormatter when provided", async () => {
-		const err = new HoneyError({
+		const err = new HttpError({
 			data: { reason: "not found", suggestions: [] },
 			errorKey: "item_not_found",
 			status: "not_found",
@@ -80,13 +80,13 @@ describe("createErrorResponse with dual formatters", () => {
 
 	// v0: 90cc980f6a
 	it("payloadFormatter crash falls back to raw data", async () => {
-		const err = new HoneyError({ data: { reason: "not found" }, errorKey: "item_not_found", status: "not_found" })
+		const err = new HttpError({ data: { reason: "not found" }, errorKey: "item_not_found", status: "not_found" })
 		expect((await bodyOf(createErrorResponse(err, defaultFormatter, crashingFormatter))).reason).toBe("not found")
 	})
 
 	// v0: f259315ca0
 	it("defaultFormatter crash falls back to default shape", async () => {
-		const err = new HoneyError({ errorKey: "email_taken", status: "conflict" })
+		const err = new HttpError({ errorKey: "email_taken", status: "conflict" })
 		const body = await bodyOf(createErrorResponse(err, crashingFormatter, null))
 		expect(body.error_key).toBe("email_taken")
 		expect(body.success).toBe(false)
@@ -125,9 +125,9 @@ describe("createErrorResponse: deep coverage", () => {
 	})
 
 	// v0: 74f1a6b55c
-	it("payloadFormatter receives correct HoneyError and data", async () => {
+	it("payloadFormatter receives correct HttpError and data", async () => {
 		const seen: unknown[] = []
-		const payloadFmt = (error: HoneyError, data: Record<string, unknown>) => {
+		const payloadFmt = (error: HttpError, data: Record<string, unknown>) => {
 			seen.push(error, data)
 			return { ...data, injected: true }
 		}
@@ -152,7 +152,7 @@ describe("createErrorResponse: deep coverage, formatter routing", () => {
 	// v0: f2812b3db6
 	it("defaultFormatter does NOT fire for custom schema errors", () => {
 		let defaultCalled = false
-		const defaultFmt = (_e: HoneyError, shape: Record<string, unknown>) => {
+		const defaultFmt = (_e: HttpError, shape: Record<string, unknown>) => {
 			defaultCalled = true
 			return shape
 		}
@@ -162,7 +162,7 @@ describe("createErrorResponse: deep coverage, formatter routing", () => {
 
 	// v0: 3b076f4db0
 	it("custom error with data={} produces empty JSON object", async () => {
-		const err = new HoneyError({ data: {}, errorKey: "empty", status: "bad_request" })
+		const err = new HttpError({ data: {}, errorKey: "empty", status: "bad_request" })
 		expect(await bodyOf(createErrorResponse(err, identity, null))).toEqual({})
 	})
 
@@ -173,7 +173,7 @@ describe("createErrorResponse: deep coverage, formatter routing", () => {
 	})
 })
 
-const withRequestId = (_e: HoneyError, data: Record<string, unknown>) => ({ ...data, request_id: "req-abc" })
+const withRequestId = (_e: HttpError, data: Record<string, unknown>) => ({ ...data, request_id: "req-abc" })
 
 describe("integration: payloadErrorFormatter via createErrorResponse", () => {
 	// v0: f33d557eb6
@@ -197,7 +197,7 @@ describe("createErrorResponse headers and raw body", () => {
 describe("projectThrown: the route's error boundary", () => {
 	const open = { boundaryKey: null, declared: null, factory: null }
 
-	it("a HoneyError passes through when the route does not enforce declared errors", () => {
+	it("a HttpError passes through when the route does not enforce declared errors", () => {
 		const err = errors.email_taken()
 		expect(projectThrown(err, open)).toBe(err)
 	})
@@ -212,7 +212,7 @@ describe("projectThrown: the route's error boundary", () => {
 	it("a declared or framework key passes an enforcing route", () => {
 		const policy = { boundaryKey: null, declared: new Set(["email_taken"]), factory: null }
 		const declared = errors.email_taken()
-		const framework = new HoneyError({ errorKey: "validation_failed", status: "bad_request" })
+		const framework = new HttpError({ errorKey: "validation_failed", status: "bad_request" })
 		expect(projectThrown(declared, policy)).toBe(declared)
 		expect(projectThrown(framework, policy)).toBe(framework)
 	})
@@ -228,8 +228,8 @@ describe("projectThrown: the route's error boundary", () => {
 		expect(bounded.cause).toBe(undeclared)
 	})
 
-	it("a HoneyError with an unknown status key is masked as a 500 on any route, or takes the boundary", () => {
-		const unknown = new HoneyError({ errorKey: "weird", status: "not_a_status" as never })
+	it("a HttpError with an unknown status key is masked as a 500 on any route, or takes the boundary", () => {
+		const unknown = new HttpError({ errorKey: "weird", status: "not_a_status" as never })
 		for (const policy of [open, { boundaryKey: null, declared: new Set(["weird"]), factory: null }]) {
 			const masked = projectThrown(unknown, policy)
 			expect(masked).toMatchObject({
@@ -249,7 +249,7 @@ describe("projectThrown: the route's error boundary", () => {
 	})
 })
 
-describe("boundaryError and asHoneyError", () => {
+describe("boundaryError and asHttpError", () => {
 	it("builds the boundary from the factory's standard error", () => {
 		const err = boundaryError("unauthorized", "c", errors)
 		expect(err).toMatchObject({ cause: "c", errorKey: "unauthorized", status: 401 })
@@ -265,15 +265,15 @@ describe("boundaryError and asHoneyError", () => {
 		expect(boundaryError("missing", "c", null)).toMatchObject({ errorKey: "missing", status: 500 })
 	})
 
-	it("asHoneyError keeps a HoneyError and wraps anything else as a 500", () => {
+	it("asHttpError keeps a HttpError and wraps anything else as a 500", () => {
 		const err = errors.email_taken()
-		expect(asHoneyError(err)).toBe(err)
-		expect(asHoneyError(1)).toMatchObject({ cause: 1, errorKey: "internal_server_error", status: 500 })
+		expect(asHttpError(err)).toBe(err)
+		expect(asHttpError(1)).toMatchObject({ cause: 1, errorKey: "internal_server_error", status: 500 })
 	})
 })
 
 describe("safeErrorResponse: the last resort", () => {
-	it("answers a HoneyError with its own response, anything else with a bare 500", async () => {
+	it("answers a HttpError with its own response, anything else with a bare 500", async () => {
 		expect(safeErrorResponse(errors.email_taken(), identity, null).status).toBe(409)
 		const res = safeErrorResponse(new Error("secret"), identity, null)
 		expect(res.status).toBe(500)
@@ -281,20 +281,17 @@ describe("safeErrorResponse: the last resort", () => {
 	})
 
 	it("answers a fixed 500 when even the response cannot be built", async () => {
-		const unserializable = new HoneyError({ data: { n: 1n }, errorKey: "x", status: "bad_request" })
+		const unserializable = new HttpError({ data: { n: 1n }, errorKey: "x", status: "bad_request" })
 		const res = safeErrorResponse(unserializable, identity, null)
 		expect(res.status).toBe(500)
 		expect(await bodyOf(res)).toEqual({ error: { errorKey: "internal_server_error" } })
 	})
 })
 
-describe("HoneyContext — response helpers", () => {
+describe("HttpContext — response helpers", () => {
 	// v0: 7781a04c11
 	it("createErrorResponse", async () => {
-		const res = createErrorResponse(
-			new HoneyError({ errorKey: "not_found", status: "not_found" }),
-			(_e, shape) => shape,
-		)
+		const res = createErrorResponse(new HttpError({ errorKey: "not_found", status: "not_found" }), (_e, shape) => shape)
 		expect(res.status).toBe(404)
 		expect(await bodyOf(res)).toMatchObject({ error_key: "not_found", success: false })
 	})

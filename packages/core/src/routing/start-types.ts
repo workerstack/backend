@@ -3,13 +3,13 @@
  * handle's own type.
  */
 import type { ApplyScoped, InitAccMeta, ScopedMwEntry } from "./app-types.ts"
-import type { Honey } from "./app.ts"
+import type { HttpApp } from "./app.ts"
 import type { BuilderChain } from "./route-builder.ts"
 import type { MergePath, ParamsFromPath } from "./types.ts"
 
 /** The builder `app.get(path)` starts, from the app handle's own type. */
 export type StartOf<H, TPath extends string, TMethod extends string> =
-	H extends Honey<
+	H extends HttpApp<
 		infer TEnv,
 		infer TCtx,
 		infer TRoutes,

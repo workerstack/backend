@@ -1,5 +1,5 @@
 /**
- * honey validates, converts and types schemas only through Standard Schema (F2): no file it ships
+ * backend validates, converts and types schemas only through Standard Schema (F2): no file it ships
  * imports a validator vendor. zod and valibot are test-only devDependencies, there so the vendor
  * fallbacks are pinned against the real libraries.
  */

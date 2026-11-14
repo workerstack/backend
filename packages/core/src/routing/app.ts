@@ -1,11 +1,11 @@
 /**
- * The app: `honey()` and the `Honey` handle. A handle is a view (basePath, chain, context values,
+ * The app: `httpApp()` and the `Backend` handle. A handle is a view (basePath, chain, context values,
  * chain meta) over one shared graph; `use()`, `basePath()`, `context()` and `meta()` return a new
  * handle on the same graph, and the settings setters apply to the whole app.
  */
-import { type ExecutionCtx, type HoneyContext, isReservedCtxKey } from "../context/context.ts"
+import { type ExecutionCtx, type HttpContext, isReservedCtxKey } from "../context/context.ts"
 import type { MaybePromise, MiddlewareErrorKeys, MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts"
-import type { DeclaredMeta, HoneyMeta, ScopedMwEntry, WithChainMeta, WithMiddlewareMeta } from "./app-types.ts"
+import type { DeclaredMeta, HttpMeta, ScopedMwEntry, WithChainMeta, WithMiddlewareMeta } from "./app-types.ts"
 import { dispatch } from "./dispatch.ts"
 import { joinPatterns } from "./pattern.ts"
 import {
@@ -14,7 +14,7 @@ import {
 	createGraph,
 	GRAPH,
 	type HandleView,
-	type HoneyGraph,
+	type HttpGraph,
 	markUsed,
 	mount,
 	ROOT_VIEW,
@@ -23,7 +23,7 @@ import {
 } from "./register.ts"
 import { startRoute } from "./route-builder.ts"
 import type { StartOf } from "./start-types.ts"
-import type { Preset } from "./preset.ts"
+import type { HttpPreset } from "./preset.ts"
 import type { AppSettings } from "./settings.ts"
 import { RouteTreeChain } from "./route-tree.ts"
 import type { HttpMethod, MergePath, PrefixRoutes } from "./types.ts"
@@ -34,11 +34,11 @@ export { GRAPH } from "./register.ts"
  * An app handle. Start a route with `get`, `post` or another method call and register it with `.handler()`, mount
  * sub-apps with `route`, and serve through `fetch`. `use()`, `basePath()`, `context()` and `meta(values)` return a new
  * handle on the same app and leave this one's chain, base path and values as they were; a scope from `use(path, mw)`
- * still covers the whole app, this handle's routes included. Create an app with `honey()`.
+ * still covers the whole app, this handle's routes included. Create an app with `httpApp()`.
  */
-export class Honey<
+export class HttpApp<
 	TEnv,
-	TCtx = HoneyContext<TEnv>,
+	TCtx = HttpContext<TEnv>,
 	TRoutes = {},
 	TMeta = never,
 	TErrorFactory = never,
@@ -51,7 +51,7 @@ export class Honey<
 	declare readonly $basePath: TBasePath
 	/** The ctx type routes of this app start from. Type only. */
 	declare readonly $ctx: TCtx
-	/** The env type given to `honey<TEnv>()`. Type only. */
+	/** The env type given to `httpApp<TEnv>()`. Type only. */
 	declare readonly $env: TEnv
 	/** The type of the factory set with `errorFactory()`; `never` until then. Type only. */
 	declare readonly $errorFactory: TErrorFactory
@@ -61,24 +61,24 @@ export class Honey<
 	declare readonly $routes: TRoutes
 	/** The declared tap payloads. Type only. */
 	declare readonly $taps: TTaps
-	readonly #graph: HoneyGraph
+	readonly #graph: HttpGraph
 	/** this handle's view: read-only, reached through a symbol the package does not export */
 	readonly [VIEW]: HandleView
 
-	/** Without arguments, starts a new app, as `honey()` does; the arguments are for the handles honey derives itself. */
-	constructor(graph: HoneyGraph = createGraph(), view: HandleView = ROOT_VIEW) {
+	/** Without arguments, starts a new app, as `httpApp()` does; the arguments are for the handles backend derives itself. */
+	constructor(graph: HttpGraph = createGraph(), view: HandleView = ROOT_VIEW) {
 		super(graph.settings as AppSettings<TEnv>)
 		this.#graph = graph
 		this[VIEW] = view
 	}
 
-	get [GRAPH](): HoneyGraph {
+	get [GRAPH](): HttpGraph {
 		return this.#graph
 	}
 
 	/** A new handle on the same graph with part of this handle's view replaced. */
 	#derive(changes: Partial<HandleView>): never {
-		return new Honey<TEnv>(this.#graph, { ...this[VIEW], ...changes }) as never
+		return new HttpApp<TEnv>(this.#graph, { ...this[VIEW], ...changes }) as never
 	}
 
 	/**
@@ -87,17 +87,17 @@ export class Honey<
 	 */
 	basePath<P extends string>(
 		prefix: P,
-	): Honey<TEnv, TCtx, TRoutes, TMeta, TErrorFactory, TDefaultErrors, MergePath<TBasePath, P>, TTaps, TScopedMw> {
+	): HttpApp<TEnv, TCtx, TRoutes, TMeta, TErrorFactory, TDefaultErrors, MergePath<TBasePath, P>, TTaps, TScopedMw> {
 		return this.#derive({ basePath: joinPatterns(this[VIEW].basePath, prefix) })
 	}
 
 	/**
 	 * Static values every route registered or mounted through the new handle finds on `ctx`. They are not set on a 404, a
-	 * 405 or a CORS preflight, even for middleware those run. Throws on a name honey keeps for itself, such as `env`.
+	 * 405 or a CORS preflight, even for middleware those run. Throws on a name backend keeps for itself, such as `env`.
 	 */
 	context<TAdds extends Record<string, unknown>>(
 		values: TAdds,
-	): Honey<TEnv, TCtx & Readonly<TAdds>, TRoutes, TMeta, TErrorFactory, TDefaultErrors, TBasePath, TTaps, TScopedMw> {
+	): HttpApp<TEnv, TCtx & Readonly<TAdds>, TRoutes, TMeta, TErrorFactory, TDefaultErrors, TBasePath, TTaps, TScopedMw> {
 		for (const key in values) if (isReservedCtxKey(key)) throw new Error(`context() cannot set reserved key "${key}"`)
 		return this.#derive({ contextValues: { ...this[VIEW].contextValues, ...values } })
 	}
@@ -106,8 +106,8 @@ export class Honey<
 		this.#graph.epoch++
 	}
 
-	protected override onGraph(graph: HoneyGraph): this {
-		return new Honey<TEnv>(graph, this[VIEW]) as never
+	protected override onGraph(graph: HttpGraph): this {
+		return new HttpApp<TEnv>(graph, this[VIEW]) as never
 	}
 
 	/**
@@ -115,12 +115,12 @@ export class Honey<
 	 * values reach the routes' types with their literal types (`internal: true`, `worker: "extract"`).
 	 */
 	meta<
-		const TValues extends HoneyMeta<
+		const TValues extends HttpMeta<
 			[DeclaredMeta<TMeta>] extends [never] ? Record<string, unknown> : Partial<DeclaredMeta<TMeta>>
 		>,
 	>(
 		values: TValues,
-	): Honey<
+	): HttpApp<
 		TEnv,
 		TCtx,
 		TRoutes,
@@ -140,7 +140,7 @@ export class Honey<
 	 */
 	use<TAdds, TMwMeta = {}, TMwErrors extends string = never>(
 		mw: MiddlewareFn<TCtx, TAdds, TMwErrors, TMwMeta>,
-	): Honey<
+	): HttpApp<
 		TEnv,
 		TCtx & TAdds,
 		TRoutes,
@@ -159,7 +159,7 @@ export class Honey<
 	use<const TPath extends string, TAdds>(
 		path: TPath,
 		mw: MiddlewareFn<TCtx, TAdds>,
-	): Honey<
+	): HttpApp<
 		TEnv,
 		TCtx,
 		TRoutes,
@@ -193,8 +193,8 @@ export class Honey<
 	 * handle unused or a route without `.handler()`. Mounting a handle of this same app does nothing.
 	 */
 	route<TSubRoutes, TSubMeta, TSubFactory, TSubDefaults extends string, TSubBase extends string>(
-		sub: Honey<TEnv, TCtx, TSubRoutes, TSubMeta, TSubFactory, TSubDefaults, TSubBase>,
-	): Honey<
+		sub: HttpApp<TEnv, TCtx, TSubRoutes, TSubMeta, TSubFactory, TSubDefaults, TSubBase>,
+	): HttpApp<
 		TEnv,
 		TCtx,
 		TRoutes & PrefixRoutes<TBasePath, TSubRoutes>,
@@ -222,8 +222,8 @@ export class Honey<
 		TSubBase extends string,
 	>(
 		prefix: TPrefix,
-		sub: Honey<TEnv, TCtx, TSubRoutes, TSubMeta, TSubFactory, TSubDefaults, TSubBase>,
-	): Honey<
+		sub: HttpApp<TEnv, TCtx, TSubRoutes, TSubMeta, TSubFactory, TSubDefaults, TSubBase>,
+	): HttpApp<
 		TEnv,
 		TCtx,
 		TRoutes & PrefixRoutes<MergePath<TBasePath, TPrefix>, TSubRoutes>,
@@ -236,15 +236,15 @@ export class Honey<
 	>
 	route(prefixOrSub: unknown, maybeSub?: unknown): unknown {
 		if (typeof prefixOrSub === "string") {
-			if (!(maybeSub instanceof Honey)) throw new TypeError("honey: route(prefix, sub) needs the sub-app")
+			if (!(maybeSub instanceof HttpApp)) throw new TypeError("backend: route(prefix, sub) needs the sub-app")
 			markUsed(this[VIEW].node)
-			;(this.basePath(prefixOrSub) as unknown as Honey<TEnv>).#mount(maybeSub as Honey<TEnv>)
+			;(this.basePath(prefixOrSub) as unknown as HttpApp<TEnv>).#mount(maybeSub as HttpApp<TEnv>)
 			return this
 		}
-		return this.#mount(prefixOrSub as Honey<TEnv>)
+		return this.#mount(prefixOrSub as HttpApp<TEnv>)
 	}
 
-	#mount(sub: Honey<TEnv>): this {
+	#mount(sub: HttpApp<TEnv>): this {
 		markUsed(this[VIEW].node)
 		markUsed(sub[VIEW].node)
 		mount(this.#graph, this[VIEW], sub.#graph)
@@ -351,12 +351,12 @@ export class Honey<
  * on every route, and the types they give. A setter on the app, or on the preset later, changes neither the other nor
  * another app started from it.
  */
-export function honey<TEnv, TCtx, TMeta, TFactory, TDefaults extends string, TTaps extends Record<string, unknown>>(
-	preset: Preset<TEnv, TCtx, TMeta, TFactory, TDefaults, TTaps>,
-): Honey<TEnv, TCtx, {}, TMeta, TFactory, TDefaults, "/", TTaps>
-/* last, so `ReturnType<typeof honey>` is the plain app */
+export function httpApp<TEnv, TCtx, TMeta, TFactory, TDefaults extends string, TTaps extends Record<string, unknown>>(
+	preset: HttpPreset<TEnv, TCtx, TMeta, TFactory, TDefaults, TTaps>,
+): HttpApp<TEnv, TCtx, {}, TMeta, TFactory, TDefaults, "/", TTaps>
+/* last, so `ReturnType<typeof httpApp>` is the plain app */
 /** A new app typed to the runtime env `TEnv`. */
-export function honey<TEnv>(): Honey<TEnv>
-export function honey<TEnv>(preset?: Preset<TEnv, unknown, unknown, unknown, string, {}>): Honey<TEnv> {
-	return preset?.[SEED]() ?? new Honey<TEnv>()
+export function httpApp<TEnv>(): HttpApp<TEnv>
+export function httpApp<TEnv>(preset?: HttpPreset<TEnv, unknown, unknown, unknown, string, {}>): HttpApp<TEnv> {
+	return preset?.[SEED]() ?? new HttpApp<TEnv>()
 }

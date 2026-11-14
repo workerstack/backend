@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { SERVED } from "../routing/register.ts"
 import { SILENT } from "../telemetry/logger.ts"
 import { generateOpenApi } from "./generate.ts"
@@ -23,7 +23,7 @@ const get = (app: App, path: string, env: object = {}, init?: RequestInit) =>
 	app.fetch(new Request(`http://x${path}`, init), env)
 /** An app with one route of its own, so a document route is never the only one. */
 function host() {
-	const app = honey<{}>().logger(SILENT)
+	const app = httpApp<{}>().logger(SILENT)
 	app.get("/health").handler((c) => c.res.text("ok", "ok"))
 	return app
 }
@@ -223,7 +223,7 @@ describe("serveStaticOpenApi: where it mounts", () => {
 
 describe("serveStaticOpenApi: where it mounts", () => {
 	it("serves each docs page at its own path, every one pointing at the JSON URL the browser sees", async () => {
-		const app = honey<{}>().stripPrefix("/edge")
+		const app = httpApp<{}>().stripPrefix("/edge")
 		serveStaticOpenApi(app.basePath("/v1"), {
 			docs: { "/openapi/scalar": scalar, "/openapi/swagger": swagger },
 			json: { inline: DOC },
@@ -327,7 +327,7 @@ describe("serveStaticOpenApi: what it answers with", () => {
 		const causes: string[] = []
 		/* the formatter an app sets is where it sees the error itself: the envelope says only that it was a 500 */
 		const app = () =>
-			honey<{}>()
+			httpApp<{}>()
 				.logger(SILENT)
 				.defaultErrorFormatter((error, shape) => {
 					causes.push(String((error.cause as Error | undefined)?.message))

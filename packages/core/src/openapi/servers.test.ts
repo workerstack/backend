@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { generateOpenApi } from "./generate.ts"
 import { serversOf } from "./servers.ts"
 
@@ -15,7 +15,7 @@ function errorsOf(servers: Parameters<typeof serversOf>[0], stripPrefix: string 
 describe("servers: the default, and the list a caller gives", () => {
 	// v0: 3901a90210
 	it("names the stripped prefix as the one server, and keeps the slash trailingSlash enforce makes clients send", () => {
-		const app = honey<{}>().stripPrefix("/api").trailingSlash("enforce")
+		const app = httpApp<{}>().stripPrefix("/api").trailingSlash("enforce")
 		app.get("/users/:id").handler((c) => c.res.text("ok", "ok"))
 		app.get("/").handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
@@ -23,13 +23,13 @@ describe("servers: the default, and the list a caller gives", () => {
 	})
 
 	it("has no servers without a prefix or a list", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/a").handler((c) => c.res.text("ok", "ok"))
 		expect(generateOpenApi(app, { info: INFO }).servers).toBeUndefined()
 	})
 
 	it("replaces the default with the list given, each URL as written and basePath left in the paths", () => {
-		const app = honey<{}>().stripPrefix("/api")
+		const app = httpApp<{}>().stripPrefix("/api")
 		app
 			.basePath("/v1")
 			.get("/users")
@@ -108,7 +108,7 @@ describe("servers: a list that cannot be served is refused", () => {
 	})
 
 	it("fails the document on any of them, as INVALID_SERVER, all at once", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/a").handler((c) => c.res.text("ok", "ok"))
 		expect(() =>
 			generateOpenApi(app, {

@@ -47,7 +47,7 @@ export const consumer = defineConsumer<Env>()(jobs, {
 ```
 
 `defineConsumer<Env>()(contract, options)` is called twice so you can write `Env` while the contract's types are inferred.
-`logger` is optional, honey's logger by default.
+`logger` is optional, backend's logger by default.
 
 Delivery is at-least-once, so a handler must be safe to run twice.
 
@@ -91,9 +91,9 @@ const consumer = defineConsumer<{}>()(jobs, { handlers: { ping: async () => {} }
 export const queue = workersQueue(consumer, { maxRetries: 5 })
 ```
 
-Export `queue` from the entry your build points at, and honey's build moves it onto the Worker's default export.
+Export `queue` from the entry your build points at, and backend's build moves it onto the Worker's default export.
 
-Configure a dead-letter queue. Without one, **Workers deletes a message past `max_retries`**, and the body honey kept
+Configure a dead-letter queue. Without one, **Workers deletes a message past `max_retries`**, and the body backend kept
 retrying is gone.
 
 ```json

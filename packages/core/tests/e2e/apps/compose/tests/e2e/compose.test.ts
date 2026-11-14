@@ -70,7 +70,7 @@ test.describe("openapi collision", () => {
 		const res = await request.get("/openapi.json")
 		expect(res.status()).toBe(200)
 		const spec = await res.json()
-		expect(spec.info.title).toBe("Honey Compose")
+		expect(spec.info.title).toBe("Backend Compose")
 		expect(spec.paths["/health"]).toBeDefined()
 		expect(spec.paths["/account"]).toBeDefined()
 		expect(spec.paths["/resources"]).toBeDefined()

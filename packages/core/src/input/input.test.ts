@@ -2,7 +2,7 @@ import * as v from "valibot"
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { streamed } from "./input.ts"
 import { ws } from "../ws/route.ts"
 
@@ -50,7 +50,7 @@ describe("streamed(schema) on a route", () => {
 	// v0: 8a2417c04a
 	// v0: 8012e6f3db
 	it("leaves a json or form body unread and unvalidated, for the handler to read", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/json")
 			.input({ json: streamed(untouchable) })
@@ -88,7 +88,7 @@ describe("route .input(): each source validated before the handler", () => {
 	// v0: 9fe7088757
 	// v0: fc72b85ad2
 	it("puts every declared source on ctx.input, as its schema produced it", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/orgs/:id")
 			.input({
@@ -127,7 +127,7 @@ describe("route .input(): the first source that fails answers", () => {
 	// v0: fef91c9180
 	it("stops at the first source that fails: a 400 naming its fields, and the handler never runs", async () => {
 		let ran = false
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/api/:version")
 			.input({
@@ -162,7 +162,7 @@ describe("route .input() beside middleware", () => {
 	// v0: 2bd120b92c
 	it("runs after the chain and route middleware, whose additions the handler still sees", async () => {
 		const seen: string[] = []
-		const app = honey<{}>().context({ region: "eu" })
+		const app = httpApp<{}>().context({ region: "eu" })
 		app
 			.use(createMiddleware((_ctx, next) => (seen.push("chain"), next({ fromMw: true }))))
 			.post("/t")
@@ -186,14 +186,14 @@ describe("route .input() beside middleware", () => {
 	})
 
 	it("ctx.input is the framework's: a middleware's addition never lands, nor can context() set one", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(createMiddleware((_ctx, next) => next({ input: { json: { admin: true } } } as {})))
 			.post("/t")
 			.input({ json: z.object({ admin: z.boolean().default(false) }) })
 			.handler((ctx) => ctx.res.json("ok", ctx.input))
 		expect(await answer(app.fetch(post("/t", "{}", "application/json"), {}))).toEqual([200, { json: { admin: false } }])
-		expect(() => honey<{}>().context({ input: {} } as never)).toThrow('context() cannot set reserved key "input"')
+		expect(() => httpApp<{}>().context({ input: {} } as never)).toThrow('context() cannot set reserved key "input"')
 	})
 })
 
@@ -207,7 +207,7 @@ describe("route .input(): the declared body against the request", () => {
 	// v0: 10ae07be0f
 	// v0: a0ed558af4
 	it("answers 415 for a body its media type does not declare, 400 for one the schema refuses", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/json")
 			.input({ json: z.object({ name: z.string() }) })
@@ -238,11 +238,11 @@ describe("route .input(): which methods take a body", () => {
 	// v0: 7599defa48
 	it("refuses a body schema on GET when the route registers; DELETE validates its body", async () => {
 		expect(() =>
-			honey<{}>()
+			httpApp<{}>()
 				.get("/x")
 				.input({ json: z.object({}) }),
 		).toThrow(/GET \/x declares a json body schema/)
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.delete("/d")
 			.input({ json: z.object({ reason: z.string() }) })
@@ -276,7 +276,7 @@ function schema(async = false) {
 describe("the sync spine (F6): a request stays synchronous until something has to wait", () => {
 	// v0: 6fcfbe9c6f
 	it("no .input(), or only sync validators and no body schema: app.fetch returns the Response itself", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/plain").handler((ctx) => ctx.res.text("ok", "plain"))
 		app
 			.get("/u/:id")
@@ -292,7 +292,7 @@ describe("the sync spine (F6): a request stays synchronous until something has t
 	})
 
 	it("an async validator, or a body schema, makes only that route's answer a promise", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/async")
 			.input({ search: schema(true) })
@@ -322,7 +322,7 @@ describe("the sync spine (F6): a request stays synchronous until something has t
 				version: 1 as const,
 			},
 		}
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/s")
 			.input({ search: refusing })
@@ -342,7 +342,7 @@ describe("ws .input(): validated before the upgrade", () => {
 		Object.defineProperty(upgraded, "status", { value: 101 })
 		const opened: unknown[] = []
 		const socket = { close() {}, raw: null, readyState: 1 as const, send() {} }
-		const app = honey<{}>().wsAdapter({
+		const app = httpApp<{}>().wsAdapter({
 			upgrade: (_req, _env, handler) => {
 				handler.onOpen?.(undefined, socket)
 				return { response: upgraded, socket }
@@ -364,7 +364,7 @@ describe("route .input() across validators, methods and encodings", () => {
 		["zod", z.object({ q: z.string() }), z.object({ "x-tenant": z.string() })],
 		["valibot", v.object({ q: v.string() }), v.object({ "x-tenant": v.string() })],
 	] as const)("with %s, search and headers validate the request's own values", async (_lib, search, headers) => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/search")
 			.input({ search })
@@ -389,7 +389,7 @@ describe("route .input() across validators, methods and encodings", () => {
 	// v0: 0891578be7
 	// v0: bce4fc21e6
 	it("one path's methods declare their own sources: search on GET, a form on POST, params only on DELETE", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/item/:id")
 			.input({ search: z.object({ q: z.string() }) })
@@ -418,7 +418,7 @@ describe("route .input(): validated search beside ctx.search", () => {
 	// v0: fa37f1b147
 	// v0: a9cdacf82e
 	it("validated search and ctx.search agree on a repeated key's first value", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.get("/s")
 			.input({ search: z.object({ role: z.string() }) })
@@ -434,7 +434,7 @@ describe("route .input() under load and slow validators", () => {
 	// v0: 6c2e7eb44a
 	// v0: c05eda8bee
 	it("50 requests at once each validate their own body: valid ones answer their own value, invalid ones 400", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/api")
 			.input({ json: z.object({ value: z.number() }) })
@@ -457,7 +457,7 @@ describe("route .input() under load and slow validators", () => {
 			order.push("refined")
 			if (value.length < 1) ctx.addIssue({ code: "custom", message: "too short" })
 		})
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/t")
 			.input({ json: z.object({ name: slow }) })

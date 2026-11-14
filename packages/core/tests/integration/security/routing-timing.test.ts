@@ -4,7 +4,7 @@
  * per-path difference), on warm medians sampled round-robin, so machine load lands on every path alike.
  */
 import { describe, expect, it } from "vitest"
-import { honey } from "../../../src/routing/app.ts"
+import { httpApp } from "../../../src/routing/app.ts"
 
 /* a near miss of the one route, a short and a long unrelated path, and one between */
 const PATHS = ["/a", "/aaaaaaaaaa", "/secret-admin-pane", "/zzzzzzzzzzz"]
@@ -28,7 +28,7 @@ async function medianMs(fetch: (req: Request) => Promise<Response> | Response): 
 describe("a miss's timing", () => {
 	// v0: e76f7ba03c
 	it("answers 404 for a near miss of a route in the time of any other path (within 4x on warm medians)", async () => {
-		const app = honey()
+		const app = httpApp()
 			.get("/secret-admin-panel")
 			.handler((c) => c.res.text("ok", "admin"))
 		const statuses = await Promise.all(

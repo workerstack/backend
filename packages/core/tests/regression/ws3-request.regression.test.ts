@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 
 describe("the request path middleware sees", () => {
 	// regression: M ctx.path raw
@@ -15,7 +15,7 @@ describe("the request path middleware sees", () => {
 			seen.push(ctx.path)
 			return ctx.path.startsWith("/admin") ? new Response("no", { status: 401 }) : next()
 		})
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.use(guard)
 			.get("/admin/secret")

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
-import { serverTiming, type Timing } from "./server-timing.ts"
+import { httpApp } from "../routing/app.ts"
+import { serverTiming, type ServerTimingHandle } from "./server-timing.ts"
 
 /** The Server-Timing entries `use` produces, as [name, desc?, dur]. */
 async function timings(
-	use: (timing: Timing) => void | Promise<void>,
+	use: (timing: ServerTimingHandle) => void | Promise<void>,
 	init?: { status?: number; upstream?: string; throws?: boolean },
 ) {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app
 		.use(serverTiming())
 		.get("/t")

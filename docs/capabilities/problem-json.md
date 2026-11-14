@@ -2,17 +2,17 @@
 
 `app.errorFormat("problem+json")` answers every error as RFC 9457
 `application/problem+json`: the error key as its `type`, the status's reason phrase as its `title`, the message as
-its `detail`, field errors under `errors`, and the request id as `instance`. The default format stays honey's own
+its `detail`, field errors under `errors`, and the request id as `instance`. The default format stays backend's own
 error JSON, and the OpenAPI document and SDKs follow the format you choose.
 
 ## Example
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend/http"
+import { defineErrors, httpApp } from "@workerstack/backend/http"
 
 const errors = defineErrors({ out_of_stock: "conflict" })
 
-const app = honey().errorFormat("problem+json")
+const app = httpApp().errorFormat("problem+json")
 
 app
 	.post("/orders")
@@ -29,7 +29,7 @@ and the answer stays `application/problem+json`. An error `defineErrors` gave a 
 under either format: `payloadErrorFormatter` shapes that body, and it answers `application/json`.
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend/http"
+import { defineErrors, httpApp } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const errors = defineErrors({
@@ -37,7 +37,7 @@ const errors = defineErrors({
 	sold_out: "gone",
 })
 
-const app = honey()
+const app = httpApp()
 	.errorFactory(errors)
 	.errorFormat("problem+json")
 	.defaultErrorFormatter((error, problem) => ({ ...problem, retriable: error.status >= 500 }))

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import type { HoneyError } from "../errors/error.ts"
-import { honey } from "../routing/app.ts"
+import type { HttpError } from "../errors/error.ts"
+import { httpApp } from "../routing/app.ts"
 import { formInput } from "./form.ts"
 import { streamed } from "./input.ts"
 
@@ -20,11 +20,11 @@ const multipart = (form: FormData) => new Request("http://localhost/", { body: f
 const passing = { "~standard": { validate: (value: unknown) => ({ value }), vendor: "test", version: 1 } }
 
 /** The error `run` rejects with. */
-async function rejected(run: () => Promise<unknown>): Promise<HoneyError> {
+async function rejected(run: () => Promise<unknown>): Promise<HttpError> {
 	try {
 		await run()
 	} catch (error) {
-		return error as HoneyError
+		return error as HttpError
 	}
 	throw new Error("did not reject")
 }
@@ -143,7 +143,7 @@ describe("formInput: dangerous keys", () => {
 describe("a form's file on a route, beside a body left to the handler", () => {
 	// v0: 9a8fa7b812
 	it("a multipart File reaches the handler whole beside its fields; a streamed body as it was sent", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app
 			.post("/upload")
 			.input({ form: z.object({ blob: z.file(), title: z.string() }) })

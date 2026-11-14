@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
-import { HoneyError } from "../errors/error.ts"
+import { HttpError } from "../errors/error.ts"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
-import { honey } from "./app.ts"
+import { httpApp } from "./app.ts"
 
 const get = (path: string, init: RequestInit = {}) => new Request(`http://app.test${path}`, init)
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10))
@@ -11,7 +11,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 10))
 /** An app recording every tap it receives, as [key, payload]. */
 function recording() {
 	const received: [string, unknown][] = []
-	const app = honey<{ REGION: string }>()
+	const app = httpApp<{ REGION: string }>()
 	const tap = (key: string) => app.tap(key, (_ctx, payload) => void received.push([key, payload]))
 	return { app, received, tap }
 }
@@ -50,7 +50,7 @@ describe("ctx.tap(): payloads queued during the handler fire after its answer", 
 			ctx.tap("unknown", {})
 			return ctx.res.json("ok", {})
 		})
-		const bare = honey<{}>()
+		const bare = httpApp<{}>()
 		bare.get("/t").handler((ctx) => {
 			ctx.tap("anything", { x: 1 })
 			return ctx.res.json("ok", {})
@@ -90,7 +90,7 @@ describe("app.tap(): registration", () => {
 	// v0: ab1bdcfc0d
 	it("chainable; the last handler for a key wins; shared by every handle; registered after the routes, still fires", async () => {
 		const received: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const scoped = app.use(createMiddleware((_ctx, next) => next()))
 		scoped.get("/t").handler((ctx) => {
 			ctx.tap("audit", {})
@@ -107,7 +107,7 @@ describe("app.tap(): registration", () => {
 	// v0: b399142eba
 	it(".taps<T>() is types only: the same handle, and taps fire as without it", async () => {
 		const received: unknown[] = []
-		const base = honey<{}>().metaType<{ purge?: { key: string } }>()
+		const base = httpApp<{}>().metaType<{ purge?: { key: string } }>()
 		const typed = base.taps<{ purge: { key: string } }>()
 		typed.tap("purge", (_ctx, payload) => void received.push(payload.key))
 		typed
@@ -210,9 +210,9 @@ function failingApp() {
 	tap("audit")
 	const withMeta = app.metaType<{ audit?: unknown }>().errorFactory(errors)
 	const audited = withMeta.meta({ audit: { on: "chain" } })
-	audited.get("/honey").handler(
+	audited.get("/backend").handler(
 		tapped(() => {
-			throw new HoneyError({ errorKey: "gone", status: "gone" })
+			throw new HttpError({ errorKey: "gone", status: "gone" })
 		}),
 	)
 	audited.get("/unknown").handler(
@@ -262,11 +262,11 @@ describe("taps fire only after a handler's answer, never on an error answer", ()
 	// v0: 59780c02bb
 	// v0: a66409cf0d
 	it.each([
-		["a thrown HoneyError", "/honey", 410],
+		["a thrown HttpError", "/backend", 410],
 		["an unknown throw", "/unknown", 500],
 		["a factory error", "/factory", 410],
 		["a 404", "/nowhere", 404],
-		["a 405", "/honey?m=post", 405],
+		["a 405", "/backend?m=post", 405],
 		["a middleware throw before the handler", "/mw-before", 500],
 		["a middleware throw after the handler answered", "/mw-after", 500],
 		["a middleware that answers without calling the handler", "/short", 204],
@@ -284,7 +284,7 @@ describe("taps and .input()", () => {
 	// v0: 60ef649f55
 	it("a tap fires after input validation passed, with the validated value; never when it failed", async () => {
 		const received: unknown[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.tap("audit", (_ctx, payload) => void received.push(payload))
 		app
 			.post("/users")

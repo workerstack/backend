@@ -89,7 +89,7 @@ describe("missingInvalidateReport", () => {
 	it("summarizes every finding in one report, capped at 20 lines", () => {
 		const ops = Array.from({ length: 22 }, (_, i) => [op("get", `/t${i}`), op("post", `/t${i}`)]).flat()
 		const report = missingInvalidateReport(ops, undefined) as string
-		expect(report.startsWith("[honey:invalidate] 22 mutation(s) declare no `invalidate`")).toBe(true)
+		expect(report.startsWith("[backend:invalidate] 22 mutation(s) declare no `invalidate`")).toBe(true)
 		expect(report).toContain("  POST /t0 → GET /t0")
 		expect(report).not.toContain("/t20 ")
 		expect(report).toContain("… and 2 more")

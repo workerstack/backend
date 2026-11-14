@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 import { SILENT } from "../telemetry/logger.ts"
-import { ABORT_CONTEXT, HoneyContext, NO_ROUTE, type RequestState, TAPS } from "./context.ts"
+import { ABORT_CONTEXT, HttpContext, NO_ROUTE, type RequestState, TAPS } from "./context.ts"
 
 function makeCtx(state?: Partial<RequestState<{ DB: string }>>) {
-	return new HoneyContext(
+	return new HttpContext(
 		{ env: { DB: "test" }, executionCtx: undefined, logger: SILENT, path: "/test", req: makeReq(), ...state },
 		NO_ROUTE,
 		{},
@@ -16,11 +16,11 @@ function makeReq(url = "http://localhost/test", headers?: Record<string, string>
 
 /* A consumer's service derived `Object.assign(Object.create(ctx), { shardDb })`: on 1.0.0-rc.4 every lazy getter threw
    "Cannot read private member", since a private field lives only on the instance the constructor built. */
-function derive(ctx: HoneyContext<{ DB: string }>) {
+function derive(ctx: HttpContext<{ DB: string }>) {
 	return Object.assign(Object.create(ctx) as typeof ctx, { shardDb: "s1" })
 }
 
-describe("HoneyContext > a context derived with Object.create", () => {
+describe("HttpContext > a context derived with Object.create", () => {
 	it("reads every lazy view the base has, as the base's own", () => {
 		const base = makeCtx({
 			req: makeReq("http://localhost/test?a=1&a=2", { cookie: "sid=abc", "x-k": "v" }),
@@ -37,16 +37,16 @@ describe("HoneyContext > a context derived with Object.create", () => {
 
 	it("reads every getter on the class without throwing, so a new one cannot bring the fault back", () => {
 		const derived = derive(makeCtx())
-		const getters = Reflect.ownKeys(HoneyContext.prototype).filter(
-			(key) => Object.getOwnPropertyDescriptor(HoneyContext.prototype, key)?.get !== undefined,
+		const getters = Reflect.ownKeys(HttpContext.prototype).filter(
+			(key) => Object.getOwnPropertyDescriptor(HttpContext.prototype, key)?.get !== undefined,
 		)
 		expect(getters.length).toBeGreaterThanOrEqual(8)
 		for (const key of getters) expect(() => Reflect.get(derived, key)).not.toThrow()
 	})
 
 	it.each([
-		["Object.setPrototypeOf", (ctx: HoneyContext<{ DB: string }>) => Object.setPrototypeOf({}, ctx) as typeof ctx],
-		["a Proxy", (ctx: HoneyContext<{ DB: string }>) => new Proxy(ctx, {})],
+		["Object.setPrototypeOf", (ctx: HttpContext<{ DB: string }>) => Object.setPrototypeOf({}, ctx) as typeof ctx],
+		["a Proxy", (ctx: HttpContext<{ DB: string }>) => new Proxy(ctx, {})],
 	])("reads the original's state through %s too", (_name, wrap) => {
 		const base = makeCtx({ req: makeReq("http://localhost/test?a=1", { cookie: "sid=abc" }) })
 		const wrapped = wrap(base)

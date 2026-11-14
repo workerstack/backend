@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { PEER_ADDRESS } from "../context/peer.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { ipAllowed, ipRestrict, type IpRestrictOptions, isIpRule } from "./ip-restrict.ts"
 
 function app(options: IpRestrictOptions) {
-	const a = honey<{}>()
+	const a = httpApp<{}>()
 	a.use(ipRestrict(options))
 		.get("/admin")
 		.handler((ctx) => ctx.res.json("ok", { access: true }))

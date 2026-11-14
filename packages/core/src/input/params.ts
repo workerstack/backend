@@ -1,5 +1,5 @@
 /** The route's path params as `.input({ params })` declares them: a schema per param that needs one. */
-import { EK, HoneyError } from "../errors/error.ts"
+import { EK, HttpError } from "../errors/error.ts"
 import type { StandardSchemaLike, StandardSchemaResult } from "../validation/standard-schema.ts"
 import { issuesToFieldErrors, type NormalizedIssue, normalizeIssues } from "../validation/validate-input.ts"
 
@@ -39,7 +39,7 @@ function merged(
 				issues.push({ ...issue, meta: { field: name }, path: [name, ...issue.path] })
 	}
 	if (issues.length === 0) return out
-	throw new HoneyError({
+	throw new HttpError({
 		errorKey: EK.validation_failed,
 		fields: issuesToFieldErrors(issues, "params"),
 		status: "bad_request",

@@ -13,7 +13,7 @@ const inject = (headers: HeaderEdit) => headers.set("x-echo", "a\r\nx-injected: 
 
 describe("withHeaders: which response it edits, and how", () => {
 	// v0: 11b4d16e64
-	it("a response honey built is edited on its own headers: the same object, no native Headers built", () => {
+	it("a response backend built is edited on its own headers: the same object, no native Headers built", () => {
 		const response = withRawBody(new Response("{}", { headers: { "content-type": "application/json" } }), "{}")
 		const native = Headers
 		let built = 0
@@ -116,10 +116,10 @@ describe("withHeaders: what it never does", () => {
 		expect([withHeaders(upgraded, edit) === upgraded, edit.mock.calls.length]).toEqual([true, 0])
 	})
 
-	it("an edit that sets a header Fetch refuses throws, on a response honey built as on a foreign one", () => {
-		const honey = withRawBody(new Response(""), "")
+	it("an edit that sets a header Fetch refuses throws, on a response backend built as on a foreign one", () => {
+		const backend = withRawBody(new Response(""), "")
 		const native = new Response("")
-		expect(() => withHeaders(honey, inject)).toThrow(TypeError)
+		expect(() => withHeaders(backend, inject)).toThrow(TypeError)
 		expect(() => withHeaders(native, inject)).toThrow(TypeError)
 	})
 })

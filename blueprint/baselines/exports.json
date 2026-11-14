@@ -1,8 +1,8 @@
 {
 	"./build": [
 		"BuildApp",
+		"BuildConfig",
 		"BuildTarget",
-		"HoneyBuildConfig",
 		"createBuildPlugin"
 	],
 	"./cron": [
@@ -25,14 +25,17 @@
 		"ERROR_META",
 		"ErrorFormatter",
 		"ErrorMetaEntry",
-		"Honey",
-		"HoneyCodegen",
-		"HoneyContext",
-		"HoneyCtx",
-		"HoneyError",
-		"HoneyMeta",
-		"HoneyMetaSpec",
-		"HoneyRes",
+		"HttpApp",
+		"HttpCodegen",
+		"HttpContext",
+		"HttpCtx",
+		"HttpError",
+		"HttpMeta",
+		"HttpMetaSpec",
+		"HttpPreset",
+		"HttpProjection",
+		"HttpRes",
+		"HttpSelection",
 		"InferBasePath",
 		"InferCtx",
 		"InferEnv",
@@ -66,8 +69,6 @@
 		"OutputOptions",
 		"PayloadErrorFormatter",
 		"PrefixRoutes",
-		"Preset",
-		"Projection",
 		"ProxyConfig",
 		"RealtimeBus",
 		"RealtimeLimits",
@@ -78,7 +79,6 @@
 		"SSEEvent",
 		"SSEOptions",
 		"SSEStream",
-		"Selection",
 		"StandardSchemaLike",
 		"StatusKey",
 		"TapContext",
@@ -93,7 +93,7 @@
 		"createMiddleware",
 		"defineErrors",
 		"definePreset",
-		"honey",
+		"httpApp",
 		"mergeTree"
 	],
 	"./http/accepts": [
@@ -176,13 +176,13 @@
 	],
 	"./http/jwt": [
 		"AsymmetricAlgorithm",
-		"Jwk",
 		"JwkLookup",
 		"JwkSource",
 		"JwsAlgorithm",
 		"JwtClaimOptions",
 		"JwtClaimsOf",
 		"JwtHeader",
+		"JwtJwk",
 		"JwtKeySetOptions",
 		"JwtPayload",
 		"JwtPublicKeyOptions",
@@ -223,8 +223,8 @@
 		"toYaml"
 	],
 	"./http/openapi/auth": [
+		"AuthCredentials",
 		"BasicAuthOptions",
-		"Credentials",
 		"ServedAuth",
 		"basic",
 		"credentialsMatch"
@@ -262,10 +262,10 @@
 		"rangeResponse"
 	],
 	"./http/rate-limit": [
+		"HttpRateLimitOptions",
 		"MemoryRateLimitStore",
 		"MemoryRateLimitStoreOptions",
 		"RateLimitHit",
-		"RateLimitOptions",
 		"RateLimitStore",
 		"memoryRateLimitStore",
 		"rateLimit"
@@ -285,7 +285,7 @@
 		"secureHeaders"
 	],
 	"./http/server-timing": [
-		"Timing",
+		"ServerTimingHandle",
 		"serverTiming"
 	],
 	"./http/static": [
@@ -325,9 +325,9 @@
 		"webhookContract"
 	],
 	"./logger": [
+		"BackendLogger",
 		"CreateLoggerOptions",
 		"LogLevel",
-		"Logger",
 		"createLogger"
 	],
 	"./mcp": [
@@ -358,11 +358,11 @@
 		"urlFiles"
 	],
 	"./plugin": [
-		"HoneyCodegenConfig",
-		"HoneyOpenApiOutputConfig",
-		"HoneyVitePlugin",
-		"HoneyVitePluginConfig",
-		"honeyPlugin"
+		"BackendCodegenConfig",
+		"BackendPlugin",
+		"BackendPluginConfig",
+		"OpenApiOutputConfig",
+		"backendPlugin"
 	],
 	"./queue": [
 		"QueueBatchEntry",
@@ -372,12 +372,12 @@
 		"QueueContext",
 		"QueueContract",
 		"QueueDeadLetter",
+		"QueueDelayOptions",
 		"QueueEntry",
 		"QueueHandler",
 		"QueueLetter",
 		"QueueMessageHandle",
 		"QueueSchemas",
-		"QueueSendOptions",
 		"QueueTarget",
 		"WorkersQueueBatch",
 		"WorkersQueueContext",
@@ -395,19 +395,19 @@
 	],
 	"./telemetry/otel": [
 		"AttributeValue",
-		"Attributes",
 		"OtelAdapterOptions",
 		"OtelApi",
+		"OtelAttributes",
+		"OtelSpan",
+		"OtelTelemetry",
+		"OtelTracer",
 		"RemoteContext",
-		"Span",
 		"SpanOptions",
-		"Telemetry",
 		"TelemetryErrorReport",
-		"Tracer",
 		"otelAdapter"
 	],
 	"./ws": [
-		"AnyHoneyHandle",
+		"AnyHttpApp",
 		"WsRouteOf",
 		"workersWebSocket",
 		"ws"

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { requestId } from "../middleware/request-id.ts"
 import { withRawBody } from "../response/builder.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { createLogger } from "./logger.ts"
 import { ws } from "../ws/route.ts"
 
@@ -29,7 +29,7 @@ const entries = (lines: Record<string, unknown>[]): Record<string, unknown>[] =>
 /** An app with every body kind, logging to a recording logger with the request log on. */
 function app(log = true) {
 	const { lines, logger } = recording()
-	const a = honey<{}>().logger(logger).requestLog(log)
+	const a = httpApp<{}>().logger(logger).requestLog(log)
 	a.get("/json/:id").handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
 	a.get("/text").handler((ctx) => ctx.res.text("ok", "héllo"))
 	a.get("/empty").handler(() => new Response(null, { status: 204 }) as never)
@@ -56,7 +56,7 @@ const get = (path: string, init?: RequestInit) => new Request(`https://app.examp
 describe("requestLog: off by default", () => {
 	it("an app that never turned it on writes no request line", async () => {
 		const { lines, logger } = recording()
-		const a = honey<{}>().logger(logger)
+		const a = httpApp<{}>().logger(logger)
 		a.get("/t").handler((ctx) => ctx.res.text("ok", "x"))
 		await (await a.fetch(get("/t"), {})).text()
 		expect(lines).toEqual([])
@@ -115,7 +115,7 @@ describe("requestLog: one line per request, from the field catalog", () => {
 describe("requestLog: the path and the request id", () => {
 	it("logs the path under stripPrefix, the route it matched, and the id requestId() gave under its own header", async () => {
 		const { lines, logger } = recording()
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 			.logger(logger)
 			.requestLog(true)
 			.stripPrefix("/api")
@@ -131,7 +131,7 @@ describe("requestLog: skip and a failing sink", () => {
 	// v0: dbd3492d50
 	it("skip answers true for a line not to write; a skip that throws is logged and the line still written", async () => {
 		const { lines, logger } = recording()
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 			.logger(logger)
 			.requestLog({
 				skip: (entry) => {
@@ -149,7 +149,7 @@ describe("requestLog: skip and a failing sink", () => {
 
 	// v0: 5e3943861c
 	it("a sink that throws never fails the request", async () => {
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 			.logger(
 				createLogger({
 					level: "info",
@@ -204,7 +204,7 @@ describe("requestLog: a streamed body is logged when it ends", () => {
 			)
 		}
 		const reads = async (log: boolean, side: "off" | "on") => {
-			const a = honey<{}>().logger(false).requestLog(false)
+			const a = httpApp<{}>().logger(false).requestLog(false)
 			if (log) a.logger(recording().logger).requestLog(true)
 			a.get("/s").handler(() => new Response(counting(side)) as never)
 			const reader = ((await a.fetch(get("/s"), {})).body as ReadableStream<Uint8Array>).getReader()
@@ -245,7 +245,7 @@ describe("requestLog: never changes what goes out", () => {
 		const upgraded = new Response(null)
 		Object.defineProperty(upgraded, "status", { value: 101 })
 		const socket = { close() {}, raw: null, readyState: 1 as const, send() {} }
-		const a = honey<{}>()
+		const a = httpApp<{}>()
 			.logger(logger)
 			.requestLog(true)
 			.wsAdapter({ upgrade: () => ({ response: upgraded, socket }) })
@@ -312,7 +312,7 @@ describe("requestLog: bytes and early answers", () => {
 
 	it("an answer before routing (a bad path, a trailing-slash redirect) is logged with no route", async () => {
 		const { lines, logger } = recording()
-		const a = honey<{}>().logger(logger).requestLog(true).trailingSlash("strip")
+		const a = httpApp<{}>().logger(logger).requestLog(true).trailingSlash("strip")
 		a.get("/page").handler((ctx) => ctx.res.text("ok", "x"))
 		await a.fetch(get("/a%2Fb"), {})
 		await a.fetch(get("/page/"), {})

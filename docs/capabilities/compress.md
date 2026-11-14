@@ -9,10 +9,10 @@ from precompressed static files (`staticFiles({ precompressed: true })`) rather 
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { compress } from "@workerstack/backend/http/compress"
 
-const app = honey().use(compress({ threshold: 2048 }))
+const app = httpApp().use(compress({ threshold: 2048 }))
 
 app.get("/report").handler((ctx) => ctx.res.text("ok", "row\n".repeat(5000)))
 ```

@@ -1,5 +1,5 @@
 {
-	"name": "@honey/e2e-kitchen",
+	"name": "@backend/e2e-kitchen",
 	"version": "0.0.1",
 	"private": true,
 	"type": "module",
@@ -7,8 +7,8 @@
 		".": "./src/app.ts"
 	},
 	"scripts": {
-		"generate": "BUN_OPTIONS=--conditions=honey-source honey generate && BUN_OPTIONS=--conditions=honey-source honey-clients generate --app src/gen-app.ts --target ts --ts-name Kitchen --out src/_gen/sdk",
-		"test": "bun test --conditions=honey-source tests/smoke.test.ts",
+		"generate": "BUN_OPTIONS=--conditions=backend-source backend generate && BUN_OPTIONS=--conditions=backend-source clients generate --app src/gen-app.ts --target ts --ts-name Kitchen --out src/_gen/sdk",
+		"test": "bun test --conditions=backend-source tests/smoke.test.ts",
 		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {

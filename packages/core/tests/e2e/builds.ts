@@ -1,5 +1,5 @@
 /**
- * Build registry. Every production bundle a honey app can be asked for,
+ * Build registry. Every production bundle a backend app can be asked for,
  * paired with the artifacts that build must emit and the size it must stay under.
  *
  * A target is one (app, deploy target) pair. The runtime that *runs* the build is
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url"
 export const RUNTIME_IDS = ["node"] as const
 export type RuntimeId = (typeof RUNTIME_IDS)[number]
 
-/** Deploy target the bundle is produced for — honey/build's `target`. */
+/** Deploy target the bundle is produced for — backend/build's `target`. */
 export const TARGET_IDS = ["workers"] as const
 export type TargetId = (typeof TARGET_IDS)[number]
 
@@ -31,7 +31,7 @@ export interface BuildSpec {
 	/** `<app>×<target>`. */
 	id: string
 	/**
-	 * Ceiling for the entry bundle, in KB gzipped. A honey bundle rots by silently
+	 * Ceiling for the entry bundle, in KB gzipped. A backend bundle rots by silently
 	 * absorbing an optional dependency — `effect` and `zod` are loaded dynamically and
 	 * must stay out of a bundle that never calls them. Size is the only signal that
 	 * catches that, so it is asserted rather than merely reported.
@@ -132,7 +132,7 @@ export function missingBuildApps(): string[] {
 	return knownBuildApps().filter((app) => !onDisk.has(app))
 }
 
-/* vite's bin, started by the runtime itself: bunx drops BUN_OPTIONS, the honey-source condition a checkout build needs */
+/* vite's bin, started by the runtime itself: bunx drops BUN_OPTIONS, the backend-source condition a checkout build needs */
 const VITE_BIN = join(dirname(createRequire(import.meta.url).resolve("vite/package.json")), "bin/vite.js")
 
 /** `vite build` with `config` (relative to the cwd it runs in), started by `runtime` itself. */
@@ -144,5 +144,5 @@ export function buildCommand(spec: BuildSpec, runtime: RuntimeId): string[] {
 	return viteBuildCommand(spec.config, runtime)
 }
 
-/** The build gate's honey-free reference (reference/vite.config.ts): where it builds and the config it builds with. */
+/** The build gate's backend-free reference (reference/vite.config.ts): where it builds and the config it builds with. */
 export const REFERENCE_BUILD = { config: "vite.config.ts", cwd: join(e2eRoot, "reference") } as const

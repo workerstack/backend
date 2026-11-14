@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { createLogger } from "../telemetry/logger.ts"
-import { honey } from "./app.ts"
+import { httpApp } from "./app.ts"
 
 const get = (path: string, init: RequestInit = {}) => new Request(`http://app.test${path}`, init)
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10))
@@ -10,7 +10,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 10))
 /** An app recording every tap it receives, as [key, payload]. */
 function recording() {
 	const received: [string, unknown][] = []
-	const app = honey<{ REGION: string }>()
+	const app = httpApp<{ REGION: string }>()
 	const tap = (key: string) => app.tap(key, (_ctx, payload) => void received.push([key, payload]))
 	return { app, received, tap }
 }
@@ -24,7 +24,7 @@ describe("a failing tap never touches the answer", () => {
 		const lines: Record<string, unknown>[] = []
 		const onError = vi.fn()
 		const received: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.logger(
 			createLogger({
 				format: "json",
@@ -73,7 +73,7 @@ describe("what a tap sees", () => {
 	// v0: 36f5ca835f
 	it("the request's params, headers, meta, env, path, pattern, and what middleware added", async () => {
 		let seen: Record<string, unknown> = {}
-		const app = honey<{ REGION: string }>().metaType<{ audit?: boolean }>()
+		const app = httpApp<{ REGION: string }>().metaType<{ audit?: boolean }>()
 		app.tap("audit", (ctx) => {
 			seen = {
 				added: (ctx as unknown as { user: string }).user,
@@ -107,7 +107,7 @@ describe("what a tap sees", () => {
 	// v0: 18d4adb0e5
 	it("each payload as given: one tap changing its own leaves another's untouched", async () => {
 		const seen: unknown[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.tap("first", (_ctx, payload) => {
 			;(payload as Record<string, unknown>).mutated = true
 		})
@@ -128,7 +128,7 @@ describe("when taps run", () => {
 		/* no clock: the tap waits until the test releases it, so an answer that waited for it never comes */
 		let release = () => {}
 		let tapped = false
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.tap("slow", async () => {
 			await new Promise<void>((resolve) => (release = resolve))
 			tapped = true
@@ -147,7 +147,7 @@ describe("when taps run", () => {
 	// v0: 339d1aec69
 	it("through waitUntil, called as a method of the execution context", async () => {
 		const received: unknown[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.tap("audit", async (_ctx, payload) => {
 			await settle()
 			received.push(payload)
@@ -174,7 +174,7 @@ describe("when taps run: after the whole chain", () => {
 	// v0: a566eaf468
 	it("after the whole chain, an async handler's awaited work included", async () => {
 		const order: string[] = []
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.tap("audit", () => void order.push("tap"))
 		app
 			.use(
@@ -224,20 +224,20 @@ describe("mounted apps", () => {
 	// v0: 9b1bc502c2
 	it("a mounted app's own taps fire for its routes, even when the app serving it has none", async () => {
 		const received: unknown[] = []
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.tap("audit", (_ctx, payload) => void received.push(payload))
 		sub.get("/tapped").handler((ctx) => {
 			ctx.tap("audit", { from: "sub" })
 			return ctx.res.text("ok", "ok")
 		})
-		await honey<{}>().route(sub).fetch(get("/tapped"), {})
+		await httpApp<{}>().route(sub).fetch(get("/tapped"), {})
 		expect(received).toEqual([{ from: "sub" }])
 	})
 
 	// v0: efd8986f2d
 	it("a mounted app's routes fire the serving app's taps and their own; the serving app's win a shared key", async () => {
 		const seen: string[] = []
-		const child = honey<{}>()
+		const child = httpApp<{}>()
 		child.tap("own", (_ctx, payload) => void seen.push(`child own ${String(payload)}`))
 		child.tap("shared", () => void seen.push("child shared"))
 		child.get("/child").handler((ctx) => {
@@ -246,7 +246,7 @@ describe("mounted apps", () => {
 			ctx.tap("shared", "s")
 			return ctx.res.json("ok", {})
 		})
-		const parent = honey<{}>()
+		const parent = httpApp<{}>()
 		parent.tap("parent", (_ctx, payload) => void seen.push(`parent ${String(payload)}`))
 		parent.tap("shared", () => void seen.push("parent shared"))
 		parent.route(child)
@@ -261,7 +261,7 @@ describe("taps beside errorI18n", () => {
 		const { createErrorTranslator } = await import("../i18n/error-i18n.ts")
 		const received: unknown[] = []
 		const errors = defineErrors({ gone: "not_found" })
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 			.errorFactory(errors)
 			.metaType<{ audit?: { action: string } }>()
 			.errorI18n(createErrorTranslator({ errors: { en: { gone: "missing {id}" } }, resolveLocale: () => "en" }))

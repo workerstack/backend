@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { secureHeaders, type SecureHeadersOptions } from "./secure-headers.ts"
 
 const SECURITY = [
@@ -20,7 +20,7 @@ const security = (res: Response) =>
 	Object.fromEntries(SECURITY.flatMap((name) => (res.headers.has(name) ? [[name, res.headers.get(name)]] : [])))
 
 async function answer(options?: SecureHeadersOptions, path = "/json") {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	const guarded = app.use(secureHeaders(options))
 	guarded.get("/json").handler((ctx) => ctx.res.json("ok", { ok: true }))
 	guarded.get("/strict").handler((ctx) =>

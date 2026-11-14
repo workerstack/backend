@@ -1,5 +1,5 @@
 {
-	"name": "honey-monorepo",
+	"name": "backend-monorepo",
 	"version": "0.1.1",
 	"private": true,
 	"workspaces": {
@@ -29,11 +29,11 @@
 	},
 	"type": "module",
 	"scripts": {
-		"bench:finalize": "bun --conditions=honey-source bench/src/finalize.ts",
-		"bench:hotpath": "bun --conditions=honey-source --conditions=honey-no-output-check bench/src/hotpath.ts",
-		"bench:middleware": "bun --conditions=honey-source bench/src/middleware.ts",
-		"bench:streaming": "bun --conditions=honey-source bench/src/streaming.ts",
-		"deploy:e2e:cf": "bun run --filter @honey/e2e-cf-workers deploy",
+		"bench:finalize": "bun --conditions=backend-source bench/src/finalize.ts",
+		"bench:hotpath": "bun --conditions=backend-source --conditions=backend-no-output-check bench/src/hotpath.ts",
+		"bench:middleware": "bun --conditions=backend-source bench/src/middleware.ts",
+		"bench:streaming": "bun --conditions=backend-source bench/src/streaming.ts",
+		"deploy:e2e:cf": "bun run --filter @backend/e2e-cf-workers deploy",
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
 		"generate": "bun run --filter './packages/core/tests/e2e/apps/*' generate",
@@ -62,18 +62,18 @@
 		"lint:fix": "oxlint --fix",
 		"prepare": "lefthook install --reset-hooks-path",
 		"test": "bun run test:v1; v1=$?; bun run test:bench; bench=$?; exit $((v1 | bench))",
-		"test:bench": "bun run --filter @honey/bench test",
+		"test:bench": "bun run --filter @backend/bench test",
 		"test:build": "bun packages/core/tests/e2e/run-build.ts",
 		"test:build:ci": "bun packages/core/tests/e2e/run-build.ts --check-generated",
-		"test:consumers": "bun test --conditions=honey-source packages/core/tests/e2e/apps/kitchen/tests/smoke.test.ts packages/core/tests/e2e/apps/defaults/tests/smoke.test.ts packages/core/tests/e2e/apps/compose/tests/smoke.test.ts packages/core/tests/e2e/apps/surface/tests/smoke.test.ts packages/core/tests/e2e/apps/gateway/tests/smoke.test.ts packages/core/tests/e2e/apps/mcp/tests/smoke.test.ts",
+		"test:consumers": "bun test --conditions=backend-source packages/core/tests/e2e/apps/kitchen/tests/smoke.test.ts packages/core/tests/e2e/apps/defaults/tests/smoke.test.ts packages/core/tests/e2e/apps/compose/tests/smoke.test.ts packages/core/tests/e2e/apps/surface/tests/smoke.test.ts packages/core/tests/e2e/apps/gateway/tests/smoke.test.ts packages/core/tests/e2e/apps/mcp/tests/smoke.test.ts",
 		"test:e2e": "bun packages/core/tests/e2e/run.ts --env cf",
 		"test:e2e:cf": "bun packages/core/tests/e2e/run.ts --env cf",
 		"test:e2e:cf:prod": "bun packages/core/tests/e2e/run.ts --env cf --mode prod",
-		"test:live:cf": "bun run --filter @honey/e2e-cf-workers test:live",
+		"test:live:cf": "bun run --filter @backend/e2e-cf-workers test:live",
 		"test:packaging": "bun packages/core/tests/e2e/run-strict-consumer.ts",
 		"test:v1": "cd packages/core && vitest run --coverage",
 		"typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p bench/tsconfig.json",
-		"typecheck:consumers": "bun run --filter './packages/core/tests/e2e/apps/*' --filter @honey/e2e-cf-workers type:check"
+		"typecheck:consumers": "bun run --filter './packages/core/tests/e2e/apps/*' --filter @backend/e2e-cf-workers type:check"
 	},
 	"devDependencies": {
 		"@clack/prompts": "^0.11.0",

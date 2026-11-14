@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
 import { type StatusKey, statusKeyToCode } from "../response/status.ts"
-import { honey } from "../routing/app.ts"
+import { httpApp } from "../routing/app.ts"
 import { createNode, insertRoute, type RouteEntry, type RouteTree } from "../routing/tree.ts"
 import { generateOpenApi } from "./generate.ts"
 import { assertTreeOutputKeys } from "./output-keys.ts"
@@ -21,7 +21,7 @@ function treeOf(entry: RouteEntry): RouteTree {
 
 /** An app whose `GET /o` declares `output`, a JS app's or a cast's: the types refuse a bad key, `.output()` takes it. */
 function declaring(output: object, method: "get" | "post" = "get") {
-	const app = honey<{}>()
+	const app = httpApp<{}>()
 	app[method]("/o")
 		.output(output as { no_content: true })
 		.handler((c) => c.res.noContent())
@@ -89,7 +89,7 @@ describe("generateOpenApi: every output key a media type or a status", () => {
 describe("generateOpenApi: a response is keyed by its status code, never by a name", () => {
 	it("documents every status key .output() takes, a 2xx body, a 3xx redirect and their headers, under its code alone", () => {
 		const keys = [...SUCCESS, ...REDIRECTS]
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		for (const key of keys)
 			app
 				.get(`/${key}`)
@@ -110,7 +110,7 @@ describe("generateOpenApi: a response is keyed by its status code, never by a na
 			{ redirect: { orders: true } },
 			{ orders: { ok: z.string() } },
 		]
-		const apps = smuggled.flatMap((out) => [declaring(out), honey<{}>().routeTree(treeOf({ out: out as never }))])
+		const apps = smuggled.flatMap((out) => [declaring(out), httpApp<{}>().routeTree(treeOf({ out: out as never }))])
 		const named = apps.flatMap((app) => {
 			let responses: object
 			/* a refused document documents nothing */

@@ -14,7 +14,7 @@ import {
 	chainErrorMeta,
 	createGraph,
 	GRAPH,
-	type HoneyGraph,
+	type HttpGraph,
 	isServed,
 	type RouteHandler,
 	statusKeysOf,
@@ -37,13 +37,13 @@ import { declaredBody } from "../validation/content-type.ts"
  * A new graph serving `tree`, frozen in place with its live records copied: `g`'s settings copied, its scopes, and
  * every route `g` registered replayed onto the tree, as later registrations bind. A tree `g` loaded is left behind.
  */
-export function routeTreeGraph(g: HoneyGraph, tree: RouteTree): HoneyGraph {
+export function routeTreeGraph(g: HttpGraph, tree: RouteTree): HttpGraph {
 	assertTreeFormat(tree)
 	forEachLeaf(tree.root, (method, path, id) => {
 		if (!Object.hasOwn(tree.routes, id))
 			throw new Error(`routeTree(): leaf ${method} ${path} has no route entry (${id})`)
 	})
-	const next: HoneyGraph = { ...createGraph(), scoped: [...g.scoped], settings: copySettings(g.settings) }
+	const next: HttpGraph = { ...createGraph(), scoped: [...g.scoped], settings: copySettings(g.settings) }
 	next.root = freezeTree(tree.root)
 	next.loaded = Object.assign(dict<RouteEntry>(), tree.routes)
 	for (const [id, entry] of Object.entries(tree.routes)) {
@@ -57,7 +57,7 @@ export function routeTreeGraph(g: HoneyGraph, tree: RouteTree): HoneyGraph {
 }
 
 /** `g`'s routes as a tree another app serves; nothing in it is shared with `g`. */
-export function snapshotRouteTree(g: HoneyGraph): RouteTree {
+export function snapshotRouteTree(g: HttpGraph): RouteTree {
 	const { plans } = finalTable(g)
 	const routes = Object.assign(dict<RouteEntry>(), g.loaded)
 	const served = new Set<string>()
@@ -90,10 +90,10 @@ export function snapshotRouteTree(g: HoneyGraph): RouteTree {
 
 /** `app.routeTree()` and `app.toRouteTree()`: every app handle has them. */
 export abstract class RouteTreeChain<TEnv> extends SettingsChain<TEnv> {
-	abstract get [GRAPH](): HoneyGraph
+	abstract get [GRAPH](): HttpGraph
 
 	/** This handle's view on `graph`: the app `routeTree()` returns. */
-	protected abstract onGraph(graph: HoneyGraph): this
+	protected abstract onGraph(graph: HttpGraph): this
 
 	/**
 	 * A new app serving `tree` (a generated `routes.gen.ts`, a `toRouteTree()` snapshot, or a `mergeTree()` of them):

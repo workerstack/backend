@@ -6,10 +6,10 @@
  */
 import { describe, expect, it } from "vitest"
 import { threadCpuMs } from "../fixture/cpu-time.ts"
-import { HoneyError } from "../../src/errors/error.ts"
+import { HttpError } from "../../src/errors/error.ts"
 import { defineErrors } from "../../src/errors/errors.ts"
 import { createMiddleware } from "../../src/middleware/middleware.ts"
-import { honey } from "../../src/routing/app.ts"
+import { httpApp } from "../../src/routing/app.ts"
 import { ws } from "../../src/ws/route.ts"
 
 type Fetchable = { fetch: (r: Request, env: never) => Response | Promise<Response> }
@@ -50,10 +50,10 @@ describe("what a route runs is fixed at registration, not by the serving handle"
 	// regression: H10
 	// v0: 8ae1637ed8
 	it("H10: serving a sub on its own first does not let a mounting chain skip its auth", async () => {
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.get("/data").handler((ctx) => ctx.res.json("ok", { data: 1 }))
 		expect(await send(sub, "/data")).toEqual({ body: { data: 1 }, status: 200 })
-		const parent = honey<{}>().use(deny).route(sub)
+		const parent = httpApp<{}>().use(deny).route(sub)
 		expect(await send(parent, "/data")).toEqual(denied)
 		expect(await send(sub, "/data")).toEqual({ body: { data: 1 }, status: 200 })
 	})
@@ -61,10 +61,10 @@ describe("what a route runs is fixed at registration, not by the serving handle"
 	// regression: H11
 	// v0: c63de00b48
 	it("H11: routes mounted through an authed chain handle are protected when the root serves", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		const authed = app.use(deny)
 		authed.get("/me").handler((ctx) => ctx.res.json("ok", {}))
-		const admin = honey<{}>()
+		const admin = httpApp<{}>()
 		admin.get("/admin/users").handler((ctx) => ctx.res.json("ok", { users: [] }))
 		authed.route(admin)
 		expect(await send(app, "/me")).toEqual(denied)
@@ -75,7 +75,7 @@ describe("what a route runs is fixed at registration, not by the serving handle"
 	// v0: e0fb56f160
 	it("H15: a route registered before a later use() runs its chain once and never the later auth", async () => {
 		const trace: string[] = []
-		const withA = honey<{}>().use(tracer(trace, "a"))
+		const withA = httpApp<{}>().use(tracer(trace, "a"))
 		withA.get("/public").handler((ctx) => ctx.res.json("ok", {}))
 		const withAuth = withA.use(tracer(trace, "auth"))
 		withAuth.get("/private").handler((ctx) => ctx.res.json("ok", {}))
@@ -89,7 +89,7 @@ describe("what a route runs is fixed at registration, not by the serving handle"
 	// regression: H bare use (was M)
 	// v0: f277e1a831
 	it("H-bare-use: a bare app.use(mw) statement fails loudly instead of leaving later routes unprotected", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.use(deny)
 		app.get("/secret").handler((ctx) => ctx.res.json("ok", { secret: true }))
 		expect(() => app.fetch(new Request("http://x/secret"), {})).toThrow(
@@ -115,7 +115,7 @@ describe("scopes guard request paths", () => {
 	] as const)(
 		"H12: use($scope) over $method $pattern answers $target with $answer.status",
 		async ({ answer, method, pattern, scope, target }) => {
-			const app = honey<{}>()
+			const app = httpApp<{}>()
 			app.use(scope, deny)
 			app.on([method], pattern).handler((ctx) => ctx.res.json("ok", { ok: true }))
 			expect(await send(app, target)).toEqual(answer)
@@ -129,10 +129,10 @@ describe("scopes guard request paths", () => {
 		const requireUser = createMiddleware((ctx: { user?: string }, next) =>
 			ctx.user === undefined ? new Response("no user", { status: 500 }) : next(),
 		)
-		const sub = honey<{}>().use(auth)
+		const sub = httpApp<{}>().use(auth)
 		sub.use("/admin", requireUser)
 		sub.get("/admin/x").handler((ctx) => ctx.res.json("ok", { user: ctx.user }))
-		const parent = honey<{}>()
+		const parent = httpApp<{}>()
 		parent.route(sub)
 		for (const app of [sub, parent]) expect(await send(app, "/admin/x")).toEqual({ body: { user: "u1" }, status: 200 })
 	})
@@ -146,10 +146,10 @@ describe("the 404, 405 and preflight pipeline", () => {
 		const seen: string[] = []
 		const lock = createMiddleware((ctx: { errors: Readonly<Record<string, unknown>>; path: string }, next) => {
 			seen.push(ctx.path)
-			if (ctx.path.startsWith("/locked")) throw (ctx.errors.unauthorized as () => HoneyError)()
+			if (ctx.path.startsWith("/locked")) throw (ctx.errors.unauthorized as () => HttpError)()
 			return next()
 		})
-		const app = honey<{}>().errorFactory(errors).use(lock)
+		const app = httpApp<{}>().errorFactory(errors).use(lock)
 		app.get("/open").handler((ctx) => ctx.res.json("ok", {}))
 		expect(await send(app, "/locked/nope")).toEqual(envelope("unauthorized", 401))
 		expect(await send(app, "/nope")).toEqual(envelope("not_found", 404))
@@ -160,7 +160,7 @@ describe("the 404, 405 and preflight pipeline", () => {
 	// v0: 63e0cc5148
 	it("M-preflight-twice: a preflight that is not short-circuited runs the chain once", async () => {
 		const trace: string[] = []
-		const app = honey<{}>().use(tracer(trace, "count"))
+		const app = httpApp<{}>().use(tracer(trace, "count"))
 		app.post("/p").handler((ctx) => ctx.res.json("ok", {}))
 		const preflight = { "access-control-request-method": "POST", origin: "https://a.example" }
 		expect(await send(app, "/p", { headers: preflight, method: "OPTIONS" })).toEqual(
@@ -180,9 +180,9 @@ describe("errors keep their shape through the chain", () => {
 			return res
 		})
 		const inner = createMiddleware(() => {
-			throw new HoneyError({ errorKey: "forbidden", status: "forbidden" })
+			throw new HttpError({ errorKey: "forbidden", status: "forbidden" })
 		})
-		const app = honey<{}>().use(outer).use(inner)
+		const app = httpApp<{}>().use(outer).use(inner)
 		app.get("/x").handler((ctx) => ctx.res.json("ok", {}))
 		const res = await app.fetch(new Request("http://x/x"), {})
 		expect([res.status, res.headers.get("x-outer"), await res.json()]).toEqual([
@@ -202,7 +202,7 @@ describe("errors keep their shape through the chain", () => {
 			},
 			{ errors: [errors, "blocked"] },
 		)
-		const app = honey<{}>().errorFactory(errors).defaultErrors("teapot").use(block)
+		const app = httpApp<{}>().errorFactory(errors).defaultErrors("teapot").use(block)
 		app.get("/b").handler((ctx) => ctx.res.json("ok", {}))
 		expect(await send(app, "/b")).toEqual(envelope("blocked", 403, "forbidden"))
 	})
@@ -210,9 +210,9 @@ describe("errors keep their shape through the chain", () => {
 	// regression: L unknown status key
 	// v0: 245588843b
 	it("L-status-key: an unknown status key answers the full internal error, never 200 (H18.17)", async () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/e").handler(() => {
-			throw new HoneyError({ errorKey: "weird", status: "not_a_status" as never })
+			throw new HttpError({ errorKey: "weird", status: "not_a_status" as never })
 		})
 		expect(await send(app, "/e")).toEqual(envelope("internal_server_error", 500))
 	})
@@ -223,7 +223,7 @@ describe("mounted routes keep their error factory, context and meta", () => {
 	// v0: f91146be1d
 	it("M-sub-config: a mounted sub keeps its errorFactory and context values", async () => {
 		const errors = defineErrors({ teapot: "forbidden" })
-		const sub = honey<{}>().errorFactory(errors).context({ answer: 42 })
+		const sub = httpApp<{}>().errorFactory(errors).context({ answer: 42 })
 		sub.get("/ctx").handler((ctx) => ctx.res.json("ok", { answer: ctx.answer }))
 		sub
 			.get("/err")
@@ -231,7 +231,7 @@ describe("mounted routes keep their error factory, context and meta", () => {
 			.handler((ctx) => {
 				throw ctx.errors.teapot()
 			})
-		const parent = honey<{}>()
+		const parent = httpApp<{}>()
 		parent.route(sub)
 		expect(await send(parent, "/ctx")).toEqual({ body: { answer: 42 }, status: 200 })
 		expect(await send(parent, "/err")).toEqual(envelope("teapot", 403, "forbidden"))
@@ -241,9 +241,9 @@ describe("mounted routes keep their error factory, context and meta", () => {
 	// v0: 6586ee8fcf
 	it("M-mw-meta: meta contributed by the mounting chain reaches the mounted routes", async () => {
 		const tag = createMiddleware((_ctx, next) => next(), { meta: { tier: "gold" } })
-		const sub = honey<{}>()
+		const sub = httpApp<{}>()
 		sub.get("/m").handler((ctx) => ctx.res.json("ok", { meta: ctx.meta }))
-		const parent = honey<{}>()
+		const parent = httpApp<{}>()
 		parent.use(tag).route(sub)
 		expect(await send(parent, "/m")).toEqual({ body: { meta: { tier: "gold" } }, status: 200 })
 	})
@@ -255,14 +255,14 @@ describe("registration fails loudly, and stays fast", () => {
 	it.each(["searchAll", "path"])(
 		"L-reserved: context() with the framework key %j is rejected at registration",
 		(key) => {
-			expect(() => honey<{}>().context({ [key]: 1 } as never)).toThrow(`context() cannot set reserved key "${key}"`)
+			expect(() => httpApp<{}>().context({ [key]: 1 } as never)).toThrow(`context() cannot set reserved key "${key}"`)
 		},
 	)
 
 	// regression: L RouteBuilder without handler
 	// v0: 7f27ea285c
 	it("L-no-handler: a route builder without .handler() is reported when the app serves", () => {
-		const app = honey<{}>()
+		const app = httpApp<{}>()
 		app.get("/forgot")
 		app.get("/ok").handler((ctx) => ctx.res.json("ok", {}))
 		expect(() => app.fetch(new Request("http://x/ok"), {})).toThrow(
@@ -277,9 +277,9 @@ describe("registration fails loudly, and stays fast", () => {
 		const scoped = createMiddleware((_ctx, next) => next(), { errors: [errors, "blocked"], meta: { area: "admin" } })
 		/* this thread's CPU time, not the wall: a loaded runner's time off the CPU is not the mount's cost */
 		const started = threadCpuMs()
-		const parent = honey<{}>().errorFactory(errors)
+		const parent = httpApp<{}>().errorFactory(errors)
 		for (let i = 0; i < 200; i++) {
-			const sub = honey<{}>().errorFactory(errors)
+			const sub = httpApp<{}>().errorFactory(errors)
 			sub.use(`/s/${i}`, scoped)
 			for (let r = 0; r < 5; r++) sub.get(`/s/${i}/r${r}`).handler((ctx) => ctx.res.json("ok", { r }))
 			parent.route(sub)
@@ -295,7 +295,7 @@ describe("websocket routes run the same order", () => {
 	it("NEW-H ws-order: a WS route runs the chain before scoped middleware, before the upgrade", async () => {
 		const trace: string[] = []
 		const socket = { close() {}, raw: null, readyState: 1 as const, send() {} }
-		const app = honey<{}>().wsAdapter({
+		const app = httpApp<{}>().wsAdapter({
 			upgrade() {
 				trace.push("upgrade")
 				const response = new Response(null)

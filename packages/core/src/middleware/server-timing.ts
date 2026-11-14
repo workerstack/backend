@@ -9,7 +9,7 @@ import { withHeaders } from "../response/with-headers.ts"
 import { type MiddlewareFn, namedMiddleware } from "./middleware.ts"
 
 /** The `ctx.timing` handle `serverTiming` adds. */
-export type Timing = {
+export type ServerTimingHandle = {
 	/** Stops the timing started under `name`; ignored when none was started. */
 	end(name: string): void
 	/** Starts timing `name`, with an optional description shown in the header. Starting a name again restarts it. */
@@ -55,13 +55,13 @@ export function serverTiming(): MiddlewareFn<
 	{},
 	{
 		/** Times the work this request does. */
-		timing: Timing
+		timing: ServerTimingHandle
 	}
 > {
 	return namedMiddleware("serverTiming", async (_ctx, next) => {
 		const started = performance.now()
 		const entries = new Map<string, TimingEntry>()
-		const timing: Timing = {
+		const timing: ServerTimingHandle = {
 			end(name) {
 				const entry = entries.get(name)
 				if (entry) entry.end = performance.now()

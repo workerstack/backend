@@ -4,7 +4,7 @@
 
 | value | required | default | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- |
-| `honey<TEnv>()` | yes | — | a fresh app typed to `TEnv` | `TEnv` is the runtime env (Workers bindings); it is not request data | `routing/app.test.ts` |
+| `httpApp<TEnv>()` | yes | — | a fresh app typed to `TEnv` | `TEnv` is the runtime env (Workers bindings); it is not request data | `routing/app.test.ts` |
 | `.basePath(prefix)` | no | `/` | rebases every route and the OpenAPI path under `prefix` | patterns are rebased at `.use` time; registering before `basePath` is a different path | `routing/request-path.test.ts`, `integration/routing.test.ts` |
 | `.context(values)` | no | none | static values every route registered through the new handle finds on `ctx`, typed into the handler | values are fixed at registration; per-request data belongs in middleware (`next({ … })`); a reserved ctx key throws | `context/context.test.ts` |
 | `.use(mw)` | no | — | installs middleware on this handle and its descendants | a `use()` that never registers a route is reported at finalize | `middleware/middleware.test.ts`, `integration/middleware.test.ts` |

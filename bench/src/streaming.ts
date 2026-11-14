@@ -10,10 +10,10 @@
  *     bun bench/src/streaming.ts   # judged against blueprint/baselines/bench.json
  *
  * Each scenario is a ratio to a raw twin: a hand-written fetch handler whose ReadableStream yields
- * the same bytes, one chunk per pull at high-water mark 0 as honey's producer does, read the same
+ * the same bytes, one chunk per pull at high-water mark 0 as backend's producer does, read the same
  * way; its cancel resolves the release (gate.ts). Until bit 20 e it was gated against v0.
  */
-import { honey } from "../../packages/core/src/routing/app.ts"
+import { httpApp } from "../../packages/core/src/routing/app.ts"
 import { gate } from "./gate.ts"
 
 const RELEASES = 200
@@ -25,7 +25,7 @@ const encoder = new TextEncoder()
 type FetchApp = { fetch(request: Request, env: {}): Response | Promise<Response> }
 
 const released: (() => void)[] = []
-const app = honey<{}>()
+const app = httpApp<{}>()
 app.get("/sse").handler((ctx) =>
 	ctx.res.sse(async (stream) => {
 		for (let i = 0; i < 1000; i++) await stream.send({ data: "tick", event: "m" })

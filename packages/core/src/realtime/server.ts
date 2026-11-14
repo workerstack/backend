@@ -66,7 +66,7 @@ type CloseFn = (reason: string) => Promise<void> | void
  * through its prototype, so its methods run on the original's private state rather than throwing for the
  * private fields it lacks.
  */
-const SELF: unique symbol = /* @__PURE__ */ Symbol("honey.realtimeSession")
+const SELF: unique symbol = /* @__PURE__ */ Symbol("backend.realtimeSession")
 
 class Session implements RealtimeSession {
 	readonly [SELF]: Session = this

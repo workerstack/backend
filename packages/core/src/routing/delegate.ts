@@ -9,11 +9,11 @@ import { binaryRanges, binaryType } from "../input/binary.ts"
 import type { RuntimeMiddleware } from "../middleware/middleware.ts"
 import { assertRequestContentType, type DeclaredBody } from "../validation/content-type.ts"
 import { parsePattern, type RouteId, splitRouteId } from "./pattern.ts"
-import type { HoneyGraph, RouteHandler } from "./register.ts"
+import type { HttpGraph, RouteHandler } from "./register.ts"
 import type { RouteEntry } from "./tree.ts"
 
 /** The catch-all serving `method`: the one registered for it, else the one for every method. */
-function catchAllFor(g: HoneyGraph, method: string): RouteHandler | undefined {
+function catchAllFor(g: HttpGraph, method: string): RouteHandler | undefined {
 	const all = [...g.catchAll.values()]
 	return all.find((r) => splitRouteId(r.id).method === method) ?? all.find((r) => splitRouteId(r.id).method === "ALL")
 }
@@ -51,13 +51,13 @@ function delegated(id: RouteId, entry: RouteEntry, catchAll: RouteHandler): Rout
 }
 
 /** The loaded leaves no route serves: a WebSocket leaf or one without a catch-all for its method answers as a miss. */
-function unserved(g: HoneyGraph): [RouteId, RouteEntry][] {
+function unserved(g: HttpGraph): [RouteId, RouteEntry][] {
 	if (g.loaded === null) return []
 	return Object.entries(g.loaded).filter(([id]) => !g.records.has(id))
 }
 
 /** The records the unserved leaves of a loaded tree run, through the app's catch-all. */
-export function delegatedRecords(g: HoneyGraph): [RouteId, RouteHandler][] {
+export function delegatedRecords(g: HttpGraph): [RouteId, RouteHandler][] {
 	const out: [RouteId, RouteHandler][] = []
 	for (const [id, entry] of unserved(g)) {
 		const { method } = splitRouteId(id)
@@ -69,9 +69,9 @@ export function delegatedRecords(g: HoneyGraph): [RouteId, RouteHandler][] {
 
 /**
  * A loaded tree that disagrees with what the app registers is stale: a route it lacks, or a
- * catch-all with no leaf left to serve. Regenerating it (`honey generate`) brings them back in step.
+ * catch-all with no leaf left to serve. Regenerating it (`backend generate`) brings them back in step.
  */
-export function assertTreeCurrent(g: HoneyGraph): void {
+export function assertTreeCurrent(g: HttpGraph): void {
 	const stale =
 		g.catchAll.size > 0 && unserved(g).length === 0
 			? [...g.unexpected.keys(), ...g.catchAll.keys()]
@@ -79,6 +79,6 @@ export function assertTreeCurrent(g: HoneyGraph): void {
 	if (stale.length === 0) return
 	const verb = stale.length === 1 ? "is" : "are"
 	throw new Error(
-		`${stale.join(", ")} ${verb} registered but missing from the loaded route tree. Run \`honey generate\`.`,
+		`${stale.join(", ")} ${verb} registered but missing from the loaded route tree. Run \`backend generate\`.`,
 	)
 }

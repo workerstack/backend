@@ -10,11 +10,11 @@ A WebSocket route needs the Workers adapter, `workersWebSocket()` from `@workers
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend/http"
+import { httpApp } from "@workerstack/backend/http"
 import { realtime } from "@workerstack/backend/realtime"
 import { ws } from "@workerstack/backend/ws"
 
-const app = honey()
+const app = httpApp()
 
 ws(app, "/echo").handler({
 	onMessage(_ctx, socket, data) {
@@ -44,7 +44,7 @@ app.post("/announce").handler(async (ctx) => {
 | WS `.input()` / `.meta()` / `.errors()` / `.origins()` / `.use()` | —       | typed WS message input, meta, errors, origin policy, middleware                                                                 | an open `origins` policy accepts any origin — set it    |
 | WS origin policy                                                  | —       | allow/deny upgrade by `Origin`                                                                                                  | a missing policy is a cross-site WS risk                |
 | `ctx.res.sse(...)`                                                | —       | `text/event-stream`; v1 types the declared event schema                                                                         | the declared event schema must reach the SDK types      |
-| `.meta({ extensions: { "x-realtime": true } })`                   | off     | opts the operation into the resume protocol                                                                                     | consumer-driven; honey never sets it itself             |
+| `.meta({ extensions: { "x-realtime": true } })`                   | off     | opts the operation into the resume protocol                                                                                     | consumer-driven; backend never sets it itself           |
 | `Last-Event-ID` resume                                            | —       | resume a dropped SSE/WS stream from the last id                                                                                 | reconnect parity is uniform across all SDKs in v1       |
 | reference resume server                                           | ships   | the conformance target the SDK reconnect tests run against                                                                      | kept in `tests/` so reconnect is actually exercised     |
 | realtime bus / publisher (`RealtimeBus`, `RealtimePublisher`)     | —       | server-side pub/sub backing the resume stream                                                                                   | at-least-once vs at-most-once is the app's choice       |

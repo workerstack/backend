@@ -47,7 +47,7 @@ test.describe("openapi at root", () => {
 		expect(res.status()).toBe(200)
 		const spec = await res.json()
 		expect(spec.openapi).toBe("3.1.0")
-		expect(spec.info.title).toBe("Honey Defaults")
+		expect(spec.info.title).toBe("Backend Defaults")
 		expect(spec.paths["/health"]).toBeDefined()
 		expect(spec.paths["/users/{id}"]).toBeDefined()
 		expect(spec.paths["/openapi.json"]).toBeUndefined()
@@ -58,7 +58,7 @@ test.describe("openapi at root", () => {
 		const res = await request.get("/openapi.yaml")
 		expect(res.status()).toBe(200)
 		expect(res.headers()["content-type"]).toMatch(/yaml/)
-		expect(await res.text()).toContain("Honey Defaults")
+		expect(await res.text()).toContain("Backend Defaults")
 	})
 
 	test("GET /docs is Scalar pointing at /openapi.json", async ({ request }) => {

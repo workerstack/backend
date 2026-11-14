@@ -4,21 +4,21 @@
  */
 
 /* weak keys: a response's entry goes with the response; no property is defined on the host object.
- * A stream honey produced (sse, stream, generate) is recorded under PRODUCED instead of a body, a forwarded
+ * A stream backend produced (sse, stream, generate) is recorded under PRODUCED instead of a body, a forwarded
  * answer under FORWARDED. */
 // per-process-constant: raw-body
 const rawBodies = /* @__PURE__ */ new WeakMap<Response, string | Uint8Array | typeof PRODUCED | typeof FORWARDED>()
 
-/** The entry of a response whose body is a stream honey produced: possibly endless, never buffered. */
-const PRODUCED: unique symbol = /* @__PURE__ */ Symbol("honey.produced")
+/** The entry of a response whose body is a stream backend produced: possibly endless, never buffered. */
+const PRODUCED: unique symbol = /* @__PURE__ */ Symbol("backend.produced")
 
 /** The entry of a response `forward()` answered: checked against the route's declaration, its body opaque. */
-const FORWARDED: unique symbol = /* @__PURE__ */ Symbol("honey.forwarded")
+const FORWARDED: unique symbol = /* @__PURE__ */ Symbol("backend.forwarded")
 
 export type RawBody = string | Uint8Array
 
 /**
- * Record the buffered body a native response was built from. Only for a response honey constructed:
+ * Record the buffered body a native response was built from. Only for a response backend constructed:
  * a recorded body also tells withHeaders the headers are mutable.
  */
 export function withRawBody(response: Response, body: RawBody): Response {
@@ -32,13 +32,13 @@ export function rawBodyOf(response: Response): RawBody | null {
 	return raw === undefined || typeof raw === "symbol" ? null : raw
 }
 
-/** Record that `response` streams a body honey produced (sse, stream, generate). */
+/** Record that `response` streams a body backend produced (sse, stream, generate). */
 export function withProducedBody(response: Response): Response {
 	rawBodies.set(response, PRODUCED)
 	return response
 }
 
-/** Whether `response` streams a body honey produced: one never to be buffered, as it may not end. */
+/** Whether `response` streams a body backend produced: one never to be buffered, as it may not end. */
 export function isProducedStream(response: Response): boolean {
 	return rawBodies.get(response) === PRODUCED
 }

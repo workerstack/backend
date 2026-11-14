@@ -243,7 +243,7 @@ test.describe("OpenAPI", () => {
 		expect(res.status()).toBe(200)
 		const spec = await res.json()
 		expect(spec.openapi).toBe("3.1.0")
-		expect(spec.info.title).toBe("Honey E2E")
+		expect(spec.info.title).toBe("Backend E2E")
 		expect(spec.info.version).toBe("1.0.0")
 		expect(spec.paths).toBeDefined()
 	})
@@ -259,7 +259,7 @@ test.describe("OpenAPI", () => {
 		const yamlText = await yaml.text()
 		expect(ymlText).toBe(yamlText)
 		expect(ymlText).toMatch(/openapi:\s*"?3\.1\.0"?/)
-		expect(ymlText).toContain("Honey E2E")
+		expect(ymlText).toContain("Backend E2E")
 		expect(ymlText).toContain("/api/v1/organizations")
 	})
 
@@ -371,7 +371,7 @@ test.describe("a document served from an asset binding", () => {
 		const res = await request.get("/api/static-openapi.json")
 		expect(res.status()).toBe(200)
 		expect(res.headers()["content-type"]).toBe("application/json; charset=utf-8")
-		expect(((await res.json()) as { info: { title: string } }).info.title).toBe("Honey CF assets")
+		expect(((await res.json()) as { info: { title: string } }).info.title).toBe("Backend CF assets")
 		const etag = res.headers()["etag"] ?? ""
 		expect(etag).toMatch(/^"/)
 		const again = await request.get("/api/static-openapi.json", { headers: { "if-none-match": etag } })

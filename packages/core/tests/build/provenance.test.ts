@@ -116,7 +116,7 @@ describe("release.yml: each package's tag check, run", () => {
 	/** The check step for `name` run by bash in a directory holding `manifest`, on ref `refName` of type `refType`. */
 	function check(name: string, manifest: object, refType: string, refName: string) {
 		const step = allSteps().find((s) => s.env?.PACKAGE === name && s["working-directory"] === SHIPPED[name])
-		const dir = mkdtempSync(join(tmpdir(), "honey-release-check-"))
+		const dir = mkdtempSync(join(tmpdir(), "backend-release-check-"))
 		dirs.push(dir)
 		writeFileSync(join(dir, "package.json"), JSON.stringify(manifest))
 		const env = { ...process.env, ...step?.env, GITHUB_REF_NAME: refName, GITHUB_REF_TYPE: refType }
@@ -160,7 +160,7 @@ describe("release.yml: publishing waits on main's ci.yml run green on the tagged
 
 	/** The wait step run by bash with a `gh` that answers `runs` and records its arguments. */
 	function wait(runs: readonly object[], grace = "600") {
-		const dir = mkdtempSync(join(tmpdir(), "honey-release-wait-"))
+		const dir = mkdtempSync(join(tmpdir(), "backend-release-wait-"))
 		dirs.push(dir)
 		mkdirSync(join(dir, "bin"))
 		writeFileSync(join(dir, "runs.json"), JSON.stringify(runs))

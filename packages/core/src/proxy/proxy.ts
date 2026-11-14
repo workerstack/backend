@@ -11,7 +11,7 @@
  * follows `ctx.signal`: a disconnect, `timeout()` or shutdown cancels it and its body. Redirects go
  * back to the client, never followed.
  */
-import { type HoneyContext, REQUEST, TRACE } from "../context/context.ts"
+import { type HttpContext, REQUEST, TRACE } from "../context/context.ts"
 import type { TypedResponse } from "../response/response.ts"
 import { searchOfUrl } from "../routing/request-path.ts"
 import { clientHeaders, upstreamHeaders } from "./headers.ts"
@@ -96,7 +96,7 @@ const untraced: Send = (call) => call()
  * request's trace, never the caller's (a trusted caller's tracestate goes on with it).
  */
 function traced(ctx: unknown, method: string, headers: Headers): Send {
-	const outbound = (ctx as HoneyContext)[TRACE]?.outbound("http.proxy", method)
+	const outbound = (ctx as HttpContext)[TRACE]?.outbound("http.proxy", method)
 	if (outbound === undefined) return untraced
 	if (outbound.traceparent === null) headers.delete("traceparent")
 	else headers.set("traceparent", outbound.traceparent)
@@ -119,7 +119,7 @@ export function proxy<TCtx>(config: ProxyConfig<TCtx>): (ctx: TCtx) => Promise<T
 		const url = config.rewriteUrl ? config.rewriteUrl(ctx, pathQuery) : pathQuery
 		const headers = upstreamHeaders(req, { client: forwarded ? ip : undefined, websocket })
 		/* requestHeaders below still has the last word on these */
-		const requestId = (ctx as unknown as HoneyContext)[REQUEST].requestId
+		const requestId = (ctx as unknown as HttpContext)[REQUEST].requestId
 		if (requestId !== undefined) headers.set(requestId.header, requestId.id)
 		const send = traced(ctx, req.method, headers)
 		const body = await forwardBody(req)

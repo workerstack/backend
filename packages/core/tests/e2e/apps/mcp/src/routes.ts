@@ -5,7 +5,7 @@
  * name, size and SHA-256, a text part as sent. The streams send a batch, one progress per file, then the completion.
  * No mount here: gen-app.ts documents these routes, so generation never imports the handler it writes.
  */
-import { createMiddleware, honey } from "@workerstack/backend/http"
+import { createMiddleware, httpApp } from "@workerstack/backend/http"
 import type { RouteTree } from "@workerstack/backend/http/tree"
 import * as z from "zod"
 import { KEY } from "./key.ts"
@@ -45,7 +45,7 @@ async function readOf(form: Record<string, unknown>) {
 const apiKeyAccess = createMiddleware(async (ctx: { req: Request }, next) =>
 	ctx.req.headers.get("authorization") === `ApiKey ${KEY}`
 		? next()
-		: new Response(null, { headers: { "www-authenticate": 'ApiKey realm="honey-e2e"' }, status: 401 }),
+		: new Response(null, { headers: { "www-authenticate": 'ApiKey realm="backend-e2e"' }, status: 401 }),
 )
 
 const SECURED = { mcp: true as const, security: [{ apiKey: ["extract:write"] }] }
@@ -55,8 +55,8 @@ export type AppOptions = { routeTree?: RouteTree }
 /** The app with its five operations, and the handle under no guard an MCP mount goes on. */
 export function createRoutes(options?: AppOptions) {
 	const app = options?.routeTree
-		? honey().routeTree(options.routeTree).stripPrefix("/api")
-		: honey().stripPrefix("/api")
+		? httpApp().routeTree(options.routeTree).stripPrefix("/api")
+		: httpApp().stripPrefix("/api")
 	app
 		.use(apiKeyAccess)
 		.post("/v1/projects/:project_id/extract")

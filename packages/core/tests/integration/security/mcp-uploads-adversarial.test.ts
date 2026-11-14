@@ -12,12 +12,12 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 import * as z from "zod"
 import { written } from "../../fixture/emitted.ts"
 import { generateMcpHandler } from "@workerstack/clients"
-import { HoneyError } from "../../../src/errors/error.ts"
+import { HttpError } from "../../../src/errors/error.ts"
 import { bodyLimit } from "../../../src/input/body-limit.ts"
 import { type McpHandler, mcp } from "../../../src/mcp/mount.ts"
 import { memoryUploadStore, type UploadStore, uploads } from "../../../src/mcp/uploads.ts"
 import { generateOpenApi } from "../../../src/openapi/generate.ts"
-import { honey } from "../../../src/routing/app.ts"
+import { httpApp } from "../../../src/routing/app.ts"
 import {
 	type Altered,
 	callWithUploads,
@@ -46,10 +46,10 @@ type Saw = { op: string; name: string; size: number; sha256: string; note?: stri
 function shop(seen: Saw[], limit?: number) {
 	const app =
 		limit === undefined
-			? honey()
-			: (honey().use(
+			? httpApp()
+			: (httpApp().use(
 					bodyLimit({ limits: { "application/json": 1 << 20, "multipart/": 1 << 20 }, maxSize: limit }),
-				) as unknown as ReturnType<typeof honey>)
+				) as unknown as ReturnType<typeof httpApp>)
 	for (const op of ["docs.save", "archive.save"])
 		app
 			.post(`/v1/${op.split(".")[0]}`)
@@ -59,7 +59,7 @@ function shop(seen: Saw[], limit?: number) {
 			.handler(async (ctx) => {
 				if (!KEYS.has(ctx.req.headers.get("authorization") ?? "")) {
 					const headers = { "www-authenticate": "ApiKey" }
-					throw new HoneyError({ errorKey: "unauthorized", headers, status: "unauthorized" })
+					throw new HttpError({ errorKey: "unauthorized", headers, status: "unauthorized" })
 				}
 				const { file, note } = ctx.input.form
 				const sha256 = createHash("sha256")

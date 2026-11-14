@@ -1,6 +1,6 @@
 /**
  * The e2e build tier's time gate (tests/e2e/build-gate.ts, bit 21 cfb), judged as a pure function on injected timings:
- * a cell's build time over a honey-free reference build's, against a ceiling CI records, and an absolute hang guard.
+ * a cell's build time over a backend-free reference build's, against a ceiling CI records, and an absolute hang guard.
  * Each regression below reds the ratio on CI's fast runner class and on its slow one, which an absolute ceiling
  * cannot both do; the hang guard reds a runaway build in every mode. The ceilings themselves are pending CI's record
  * runs, and are owed before bit 21 closes.
@@ -13,8 +13,8 @@ import { COMPLETE } from "./check-tree.ts"
 import KNOWN_REDS from "./fixtures/known-perf-reds.json" with { type: "json" }
 
 /*
- * surface×workers on bun 1.3.11 on this machine, under the heavy lock (bit 21 cfb, cfb-cause.md): its honey
- * generate child 1286 ms and its bundle 135 ms (medians of 9), the honey-free reference 96 ms (median of 30)
+ * surface×workers on bun 1.3.11 on this machine, under the heavy lock (bit 21 cfb, cfb-cause.md): its backend
+ * generate child 1286 ms and its bundle 135 ms (medians of 9), the backend-free reference 96 ms (median of 30)
  */
 const LOCAL = { bundle: 135, generate: 1286, reference: 96 }
 /* CI's runner classes over this machine: 2.7 s and 5.5 s against 1.42 s here (cfb-cause.md) */
@@ -72,7 +72,7 @@ describe("the e2e build gate's ratio", () => {
 	})
 
 	/* 1.5x slower reads 21.5, under the 23.18 ceiling: the cost of a margin that holds a runner-class swing (plan 37) */
-	it("reds honey generate made 1.75x slower, on the fast runner class and on the slow one", () => {
+	it("reds backend generate made 1.75x slower, on the fast runner class and on the slow one", () => {
 		const slower = LOCAL.generate * 1.75 + LOCAL.bundle
 		const regressed = "build ratio 24.85 over its 23.18 ceiling (CI median 15.1)"
 		expect(Object.values(PROFILES).map((factor) => judge(slower, LOCAL.reference, factor))).toEqual([
@@ -81,17 +81,17 @@ describe("the e2e build gate's ratio", () => {
 		])
 	})
 
-	it("reds a regression slowing every honey app alike, which an app-over-sibling-app ratio passes", () => {
+	it("reds a regression slowing every backend app alike, which an app-over-sibling-app ratio passes", () => {
 		/* CI's cf-workers prod job on a fast runner, run 40734198419: surface built in 2.7 s, defaults in 2.4 s */
 		const sibling = { defaults: 2_400, surface: 2_700 }
 		const added = LOCAL.generate * 0.75 * PROFILES.fast /* +75% of generation's time, in every app's build alike */
 		const local = (ms: number) => ms / PROFILES.fast
 		const verdict = judge(local(sibling.surface + added), LOCAL.reference, PROFILES.fast)
 		expect({
-			honeyFree: verdict.status,
+			backendFree: verdict.status,
 			siblingAfter: Number(((sibling.surface + added) / (sibling.defaults + added)).toFixed(2)),
 			siblingBefore: Number((sibling.surface / sibling.defaults).toFixed(2)),
-		}).toEqual({ honeyFree: "REGRESSED", siblingAfter: 1.07, siblingBefore: 1.13 })
+		}).toEqual({ backendFree: "REGRESSED", siblingAfter: 1.07, siblingBefore: 1.13 })
 	})
 
 	it("never judges in record mode or with no recorded ceiling: report-only until CI records one", () => {

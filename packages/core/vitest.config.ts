@@ -4,11 +4,11 @@ import { defineConfig } from "vitest/config"
 /* The package name resolves to this package, and a test that imports it reads its source, never a stale
  * or missing dist/. */
 export default defineConfig({
-	resolve: { conditions: ["honey-source", ...defaultClientConditions] },
+	resolve: { conditions: ["backend-source", ...defaultClientConditions] },
 	ssr: {
 		/* tests run on Node, so packages resolve as Node resolves them: "module" names bundler-only
 		 * builds (OpenTelemetry's has extensionless imports Node cannot load) */
-		resolve: { conditions: ["honey-source", ...defaultServerConditions.filter((c) => c !== "module")] },
+		resolve: { conditions: ["backend-source", ...defaultServerConditions.filter((c) => c !== "module")] },
 	},
 	test: {
 		coverage: {
