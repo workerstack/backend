@@ -128,7 +128,7 @@ describe("the guide carries every break a 0.7.3 app can meet (bit 22 a)", () => 
 			baseline: Object.keys(baseline).length,
 			live: Object.keys(live).length,
 			http: live["./http"]?.size ?? 0,
-		}).toEqual({ baseline: 48, live: 48, http: 76 })
+		}).toEqual({ baseline: 48, live: 48, http: 78 })
 	})
 
 	it("moves every 0.7.3 subpath it names to one 1.0 exports, and leaves no moved subpath exported", () => {

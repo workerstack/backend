@@ -13,7 +13,7 @@ import type { HttpRes, StreamBody, TypedResponse } from "../../src/response/resp
 import { httpApp } from "../../src/routing/app.ts"
 import { defineErrors } from "../../src/errors/errors.ts"
 import type { HttpMeta, InferRouteInput, InferRouteOutput, InferRoutes } from "../../src/routing/app-types.ts"
-import type { RouteSelectorOf, SelectorOf, WithOutput } from "../../src/routing/codegen-types.ts"
+import type { HttpOperationId, HttpOperationIdOf, OperationIdOf, WithOutput } from "../../src/routing/codegen-types.ts"
 import type { AllowedResMethods, ApplyOutput, DeclaredAnswer, OutputSchemas } from "../../src/routing/output-types.ts"
 
 const withDb = createMiddleware((_ctx, next) => next({ db: "test-db" }))
@@ -530,15 +530,17 @@ describe(".output() on the builder and in the route map", () => {
 	})
 })
 
-describe("the codegen surface (O6): WithOutput, HttpCodegen and route selectors", () => {
-	it("narrows invalidate to the generated selectors, and keeps any string before codegen ran", () => {
-		expectTypeOf<SelectorOf<{ routeSelector: "GET /a" | "POST /b" }>>().toEqualTypeOf<"GET /a" | "POST /b">()
-		expectTypeOf<SelectorOf<{}>>().toEqualTypeOf<string>()
-		expectTypeOf<RouteSelectorOf>().toEqualTypeOf<string>()
+describe("the codegen surface (O6): WithOutput, HttpCodegen and operation ids", () => {
+	it("narrows invalidate to the generated HTTP operation ids, and keeps any string before codegen ran", () => {
+		type Slot = { operationId: { "a.list": { kind: "http"; ctx: {} }; "b.connect": { kind: "ws"; ctx: {} } } }
+		expectTypeOf<OperationIdOf<Slot>>().toEqualTypeOf<"a.list" | "b.connect">()
+		expectTypeOf<HttpOperationIdOf<Slot>>().toEqualTypeOf<"a.list">()
+		expectTypeOf<HttpOperationIdOf<{}>>().toEqualTypeOf<string>()
+		expectTypeOf<HttpOperationId>().toEqualTypeOf<string>()
 		expectTypeOf<NonNullable<HttpMeta["invalidate"]>>().toEqualTypeOf<readonly string[]>()
 		httpApp<{}>()
 			.get("/a")
-			.meta({ invalidate: ["GET /a", "GET /anything"] })
+			.meta({ invalidate: ["a.list", "anything"] })
 			.handler((c) => c.res.json("ok", {}))
 	})
 

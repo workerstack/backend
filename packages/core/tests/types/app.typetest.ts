@@ -367,11 +367,11 @@ describe("ctx.meta beside chain meta", () => {
 		const base = httpApp<TestEnv>().metaType<AppMeta>().meta({ auth: "required" }).context({ region: "eu" }).use(trace)
 		base
 			.post("/orgs/:orgId")
-			.meta({ invalidate: ["GET /orgs"] as const, summary: "Create", tags: "Orgs" })
+			.meta({ invalidate: ["orgs.list"] as const, summary: "Create", tags: "Orgs" })
 			.input({ json: z.object({ name: z.string() }) })
 			.handler((ctx) => {
 				expectTypeOf(ctx.meta.tags).toEqualTypeOf<string>()
-				expectTypeOf(ctx.meta.invalidate).toEqualTypeOf<readonly ["GET /orgs"]>()
+				expectTypeOf(ctx.meta.invalidate).toEqualTypeOf<readonly ["orgs.list"]>()
 				expectTypeOf(ctx.region).toEqualTypeOf<string>()
 				expectTypeOf(ctx.traceId).toEqualTypeOf<string>()
 				expectTypeOf(ctx.input.json.name).toEqualTypeOf<string>()

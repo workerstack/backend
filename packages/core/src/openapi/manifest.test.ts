@@ -105,7 +105,7 @@ describe("generateManifest: a route's meta", () => {
 	// v0: 78e7bb7ebc
 	// v0: ab8fc55fcf
 	// v0: 3634311714
-	it("keeps every meta key as written, invalidate included, its selectors once each, and {} for none", () => {
+	it("keeps every meta key as written, invalidate included, its ids once each, and {} for none", () => {
 		const app = httpApp<{}>().metaType<{ auth?: string; rateLimit?: string }>()
 		app.get("/v1/users").handler((c) => c.res.text("ok", "ok"))
 		app.get("/v1/users/:id").handler((c) => c.res.text("ok", "ok"))
@@ -115,7 +115,7 @@ describe("generateManifest: a route's meta", () => {
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/v1/users")
-			.meta({ invalidate: ["GET /v1/users", "GET /v1/users/:id", "GET /v1/users"], operationId: "user.create" })
+			.meta({ invalidate: ["user.list", "user.retrieve", "user.list"], operationId: "user.create" })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/v1/never")
@@ -135,7 +135,7 @@ describe("generateManifest: a route's meta", () => {
 		]).toEqual([
 			{},
 			{ auth: "required", operationId: "listOrgs", rateLimit: "strict", summary: "List orgs", tags: ["Org"] },
-			{ invalidate: ["GET /v1/users", "GET /v1/users/:id"], operationId: "user.create" },
+			{ invalidate: ["user.list", "user.retrieve"], operationId: "user.create" },
 			null,
 			[],
 		])

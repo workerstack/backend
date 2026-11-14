@@ -1,7 +1,7 @@
 /** The app's type machinery: the handler ctx, each route's record, and the `Infer*` ladder. Type-only. */
 import type { HttpContext, REQUEST } from "../context/context.ts"
 import type { HttpApp } from "./app.ts"
-import type { RouteSelectorOf } from "./codegen-types.ts"
+import type { HttpOperationId } from "./codegen-types.ts"
 import type { ApplyOutput } from "./output-types.ts"
 import type { DeclaredMeta, InitAccMeta, RouteMeta, WithChainMeta, WithMiddlewareMeta } from "./meta-types.ts"
 import type { MiddlewareErrorKeys } from "../middleware/middleware.ts"
@@ -36,12 +36,13 @@ type BuiltinMeta = {
 	/** an internal route never appears in generated artifacts */
 	internal?: boolean
 	/**
-	 * Routes a successful call to this route makes stale, as `"METHOD /pattern"` selectors such as `"GET /users/:id"`.
-	 * Generated clients read the list to mark those routes stale or refetch them. `null` or `[]` records that the call
-	 * invalidates nothing, which also answers the document's check for mutations without `invalidate`. A selector that
-	 * names no route fails the document unless that check is off.
+	 * Operations a successful call to this route makes stale, by their declared HTTP operationIds such as
+	 * `"users.retrieve"`. The document emits each id as the `"METHOD /pattern"` selectors its route serves, which
+	 * generated clients read to mark those routes stale or refetch them. `null` or `[]` records that the call
+	 * invalidates nothing, which also answers the document's check for mutations without `invalidate`. An id that names
+	 * no declared HTTP operation fails every document build.
 	 */
-	invalidate?: readonly RouteSelectorOf[] | null
+	invalidate?: readonly HttpOperationId[] | null
 	/**
 	 * When `true`, marks the operation with `x-mcp` in the generated OpenAPI document, so the generated MCP server can
 	 * offer it as a tool.

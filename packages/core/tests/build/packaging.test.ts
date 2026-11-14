@@ -45,13 +45,34 @@ const APP = [
 	"",
 ].join("\n")
 
-/* the generated selectors narrow `RouteSelectorOf` through the root entry's re-export, or the expect-error is unused */
-const SELECTORS = [
-	'import type { RouteSelectorOf } from "@workerstack/backend/http"',
+/* the consumer fills the operation slot as the clients emitter will, read through the root entry's re-exports: each
+ * expect-error is unused unless the ids narrow, and `live.connect`, a WebSocket id, is no invalidate target */
+const SLOT = [
+	'import type { RouteCtx } from "./_gen/types.gen.js"',
 	"",
-	'export const health: RouteSelectorOf = "GET /health"',
-	"// @ts-expect-error a route the app does not have",
-	'export const missing: RouteSelectorOf = "GET /missing"',
+	'declare module "@workerstack/backend/http" {',
+	"\tinterface HttpCodegen {",
+	"\t\toperationId: {",
+	'\t\t\t"health.list": { kind: "http"; ctx: RouteCtx<"/health", "get"> }',
+	'\t\t\t"live.connect": { kind: "ws"; ctx: {} }',
+	"\t\t}",
+	"\t}",
+	"}",
+	"",
+].join("\n")
+
+const OPERATIONS = [
+	'import type { HttpMeta, HttpOperationId, OperationId } from "@workerstack/backend/http"',
+	"",
+	'export const live: OperationId = "live.connect"',
+	"// @ts-expect-error an id the app does not declare",
+	'export const missing: OperationId = "health.lst"',
+	'export const target: HttpOperationId = "health.list"',
+	"// @ts-expect-error a WebSocket operation is no invalidate target",
+	'export const socket: HttpOperationId = "live.connect"',
+	'export const meta: HttpMeta = { invalidate: ["health.list"] }',
+	"// @ts-expect-error a target the app does not declare",
+	'export const typo: HttpMeta = { invalidate: ["health.lst"] }',
 	"",
 ].join("\n")
 
@@ -98,7 +119,7 @@ beforeAll(() => {
 		{ "@workerstack/backend": `file:${tarball}`, "@workerstack/clients": CLIENTS, zod: ZOD },
 		["@types/node", "vite"],
 	)
-	write(app, { "src/app.ts": APP, "src/selectors.ts": SELECTORS })
+	write(app, { "src/app.ts": APP, "src/operations.ts": OPERATIONS, "src/slot.d.ts": SLOT })
 }, 180_000)
 afterAll(() => files.done())
 
