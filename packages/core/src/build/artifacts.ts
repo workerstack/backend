@@ -2,8 +2,8 @@
  * An app's artifacts as text (bit 19 h2): the route tree, the manifest, each OpenAPI document (JSON and YAML, Q7) and
  * the types; bit 21 e: the MCP handler the app mounts, from its own unsanitized document of the routes `filterRoutes`
  * keeps, honey-clients's generateMcpHandler writing its entry and the companion directory's runtime and SDK. This module runs inside the app's module graph: generate.ts loads it through the loader that loads the
- * app, and it imports the app itself, so the app and the core reading it are one instance (core's symbols are
- * per module). source.ts says which tree is written and which app is documented.
+ * app, and hands it that loader for the app, so the app and the core reading it are one instance (core's symbols
+ * are per module). source.ts says which tree is written and which app is documented.
  */
 import { existsSync, readFileSync } from "node:fs"
 import { basename, dirname, resolve } from "node:path"
@@ -23,7 +23,7 @@ import {
 	type ResolvedMcpOutput,
 	type ResolvedOpenApiOutput,
 } from "./config.ts"
-import { effectConverter } from "./loaders.ts"
+import { effectConverter, type ModuleLoader } from "./loaders.ts"
 import { type Documented, type Source, sourceOf } from "./source.ts"
 
 /** This module's path, which generate.ts loads into the app's graph. */
@@ -134,9 +134,9 @@ async function typesOf(
  */
 export async function prepare(
 	config: ResolvedHoneyConfig,
-	run: Pick<Run, "codegen" | "root"> & { first: boolean },
+	run: Pick<Run, "codegen" | "root"> & { first: boolean; load: ModuleLoader },
 ): Promise<{ rewrite: [string, string] | undefined; source: Source }> {
-	const source = await sourceOf(config, run.root, run.first)
+	const source = await sourceOf(config, run.root, run.load, run.first)
 	const { tree } = config.codegen
 	if (!run.first || !source.loadsTree || tree === false) return { rewrite: undefined, source }
 	const text = run.codegen.generateRouteTree(source.tree)
@@ -203,9 +203,9 @@ const SILENT: { readonly warn: Report } = { warn: () => {} }
 export async function virtualCode(
 	kind: "manifest" | "openApi" | "routes",
 	config: ResolvedHoneyConfig,
-	run: Pick<Run, "root"> & { codegen: () => Promise<Clients> },
+	run: Pick<Run, "root"> & { codegen: () => Promise<Clients>; load: ModuleLoader },
 ): Promise<string> {
-	const source = await sourceOf(config, run.root)
+	const source = await sourceOf(config, run.root, run.load)
 	if (kind === "routes") return (await run.codegen()).generateRouteTree(source.tree)
 	const { app } = await source.documented()
 	/* the generation reported the document's warnings; a module load must not again */

@@ -16,23 +16,33 @@ export type ModuleLoaderOptions = {
 	fresh: boolean
 	/** the file imports resolve from */
 	from: string
-	/** a fresh loader after one that evaluated the project in this process: on Bun it must evict some module */
+	/** a fresh loader after one that evaluated the project in this process: it must evict some module */
 	reload?: boolean
 }
 
-/** Bun's module registry, its ES modules included, keyed by path: what a fresh loader evicts. */
+/** The runtime's module registry (Bun's, its ES modules included; Node's require cache, jiti's), keyed by path. */
 export type ModuleRegistry = Record<string, unknown>
 
 /**
- * A loader for one generation: each path evaluated at most once, so the app never runs twice. Through jiti on Node;
- * on Bun (`registry` is its module registry), Bun's own import: jiti there re-evaluates a module that threw through
- * its Babel, whose stack hook then breaks Bun (bit 20 k-fix).
+ * A loader for one generation: each path evaluated at most once, so the app never runs twice, and every path's
+ * imports shared through the runtime's registry, so an app and the core reading it are one instance. Fresh, it first
+ * evicts every module outside node_modules, what a user may have edited or a generation written (a gateway's tree).
+ * Through jiti on Node; on Bun, Bun's own import: jiti there re-evaluates a module that threw through its Babel, whose
+ * stack hook then breaks Bun (bit 20 k-fix).
  */
 export async function createModuleLoader(
 	options: ModuleLoaderOptions,
-	registry = bunRegistry(),
+	registry: ModuleRegistry = createRequire(import.meta.url).cache,
+	bun = typeof (globalThis as { Bun?: unknown }).Bun !== "undefined",
 ): Promise<ModuleLoader> {
-	const evaluate = registry === undefined ? await jitiEvaluator(options) : bunEvaluator(registry, options)
+	const evicted = options.fresh ? Object.keys(registry).filter((key) => !/[\\/]node_modules[\\/]/.test(key)) : []
+	for (const key of evicted) delete registry[key]
+	/* a registry keyed otherwise than this reads (a runtime upgrade) leaves a reload the stale graph: said, not served */
+	if (options.reload === true && evicted.length === 0)
+		throw new Error("the module registry held none of the project's modules to evict: a reload would read them stale")
+	const evaluate = bun
+		? (path: string) => import(pathToFileURL(path).href) as Promise<Record<string, unknown>>
+		: await jitiEvaluator(options)
 	const loaded = new Map<string, Promise<Record<string, unknown>>>()
 	return (path) => {
 		const abs = resolve(path)
@@ -45,30 +55,12 @@ export async function createModuleLoader(
 	}
 }
 
-function bunRegistry(): ModuleRegistry | undefined {
-	return typeof (globalThis as { Bun?: unknown }).Bun === "undefined" ? undefined : createRequire(import.meta.url).cache
-}
-
 async function jitiEvaluator(
 	options: ModuleLoaderOptions,
 ): Promise<(path: string) => Promise<Record<string, unknown>>> {
 	const { createJiti } = await import("jiti")
-	const jiti = createJiti(options.from, { fsCache: false, interopDefault: true, moduleCache: !options.fresh })
+	const jiti = createJiti(options.from, { fsCache: false, interopDefault: true, moduleCache: true })
 	return (path) => jiti.import(path) as Promise<Record<string, unknown>>
-}
-
-function bunEvaluator(
-	registry: ModuleRegistry,
-	options: ModuleLoaderOptions,
-): (path: string) => Promise<Record<string, unknown>> {
-	/* Bun keeps a module for the process: evicted, the next import evaluates it anew. Every module outside
-	 * node_modules goes, what a user may have edited or a generation written (a gateway's tree) */
-	const evicted = options.fresh ? Object.keys(registry).filter((key) => !/[\\/]node_modules[\\/]/.test(key)) : []
-	for (const key of evicted) delete registry[key]
-	/* a registry keyed otherwise than this reads (a Bun upgrade) leaves a reload the stale graph: said, not served */
-	if (options.reload === true && evicted.length === 0)
-		throw new Error("Bun's module registry held none of the project's modules to evict: a reload would read them stale")
-	return (path) => import(pathToFileURL(path).href) as Promise<Record<string, unknown>>
 }
 
 export const VITE_CONFIG_FILES: readonly string[] = [

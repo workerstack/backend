@@ -55,10 +55,16 @@ export function artifactsFor(root: string, own = ARTIFACTS): string {
 	}
 }
 
-/** artifacts.ts as `load` evaluates it, so the app it imports shares its core; a fresh loader from `root` by default. */
-export async function inAppGraph(root: string, load?: ModuleLoader): Promise<typeof Artifacts> {
+/**
+ * artifacts.ts as `load` evaluates it, and `load` for the app it reads, so the app shares its core; a fresh loader
+ * from `root` by default.
+ */
+export async function inAppGraph(
+	root: string,
+	load?: ModuleLoader,
+): Promise<{ graph: typeof Artifacts; load: ModuleLoader }> {
 	const loader = load ?? (await createModuleLoader({ fresh: true, from: resolve(root, "index.ts") }))
-	return (await loader(artifactsFor(root))) as unknown as typeof Artifacts
+	return { graph: (await loader(artifactsFor(root))) as unknown as typeof Artifacts, load: loader }
 }
 
 /** Every artifact `config` asks for, written under `root`; the files it rewrote. */
@@ -77,17 +83,17 @@ export async function generateAndWrite(
 	const sources = openApiSourcesOf(config, root)
 	if (sources !== null && codegen.writeFileIfChanged(resolve(root, OPENAPI_SOURCES), sources))
 		written.push(resolve(root, OPENAPI_SOURCES))
-	let graph = await inAppGraph(root, options.load)
-	let { rewrite, source } = await graph.prepare(config, { ...run, first: true })
+	let { graph, load } = await inAppGraph(root, options.load)
+	let { rewrite, source } = await graph.prepare(config, { ...run, first: true, load })
 	if (rewrite !== undefined) {
 		/* a gateway app imports the tree this writes: written first, then the pass redone over it on a fresh graph */
 		codegen.writeFileIfChanged(resolve(root, rewrite[0]), rewrite[1])
 		written.push(resolve(root, rewrite[0]))
-		graph = await inAppGraph(
+		;({ graph, load } = await inAppGraph(
 			root,
 			await createModuleLoader({ fresh: true, from: resolve(root, "index.ts"), reload: true }),
-		)
-		;({ source } = await graph.prepare(config, { ...run, first: false }))
+		))
+		;({ source } = await graph.prepare(config, { ...run, first: false, load }))
 	}
 	/* the tree just written is the same text again, so it is not rewritten nor listed twice */
 	for (const [path, text] of await graph.artifactsOf(config, run, source))

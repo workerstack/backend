@@ -245,7 +245,8 @@ async function virtualModule(id: string, config: ResolvedHoneyConfig, root: stri
 	const kind = (Object.keys(RESOLVED) as (keyof typeof RESOLVED)[]).find((key) => RESOLVED[key] === id)
 	if (kind === undefined || (kind === "manifest" && config.codegen.manifest === false)) return undefined
 	if (kind === "openApi" && config.codegen.openApi.length === 0) return undefined
-	const code = await (await inAppGraph(root)).virtualCode(kind, config, { codegen: () => loadClients(), root })
+	const { graph, load } = await inAppGraph(root)
+	const code = await graph.virtualCode(kind, config, { codegen: () => loadClients(), load, root })
 	return kind === "routes" ? toJavaScript(code) : { code, moduleType: "js" }
 }
 
