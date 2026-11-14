@@ -1,9 +1,9 @@
 ---
 name: run-the-gates-that-read-your-source
 paths: ["packages/core/src/**","packages/core/lint/**","blueprint/files.tsv"]
-hits: 6
-last-hit: 2026-11-09
-evidence: ["roadmap 2","plan 32","plan 33","plan 40 rc.22: init.test.ts spawned bun -e on core source without --conditions=honey-source, so the new #output-check package import resolved to an unbuilt dist; lane gates passed, the first tip verify caught it","plan 48: lint max-lines on route-builder.ts and a 113-line describe, and a docs block examples-compile reads, failed after the touched suites were green"]
+hits: 8
+last-hit: 2026-11-14
+evidence: ["plan 33","plan 40 rc.22: init.test.ts spawned bun -e on core source without --conditions=honey-source, so the new #output-check package import resolved to an unbuilt dist; lane gates passed, the first tip verify caught it","plan 48: lint max-lines on route-builder.ts and a 113-line describe, and a docs block examples-compile reads, failed after the touched suites were green","plan 59: the full CI-env test run's 100% branch floor caught resolveInvalidate's untested non-string branch after the touched suites were green","plan 60: the full lint found the bare Tap export and three typetests without assertions, and the CI-env test found the runtime bundle 454 bytes over its lock; neither showed in the touched suites"]
 ---
 
 # Changed source reds the gates that read it, not only its own tests
