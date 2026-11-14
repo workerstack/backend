@@ -32,6 +32,7 @@ describe("honey/boundaries: imports", () => {
 			"packages/core/src/context/peer.ts": 'export const load = () => import("../ws/workers.ts")\n',
 			"packages/core/src/response/sse.ts": 'export { workersWebSocket } from "../ws/workers.ts"\n',
 			"packages/core/src/ws/route.ts": 'import { WSContextImpl } from "./contract.ts"\n',
+			"packages/core/src/ws/ws-subpath.ts": 'export { workersWebSocket } from "./workers.ts"\n',
 			"packages/core/src/adapters/workers/serve.ts": 'import { workersWebSocket } from "../../ws/workers.ts"\n',
 		}
 		expect(reportsOf(rule, fixture)).toEqual([

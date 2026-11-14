@@ -130,7 +130,7 @@ describe("the docs' compile check itself", () => {
 			'const app = honey().get("/").handler((ctx) => ctx.res.text("ok", "hi"))',
 			"```",
 			"```ts",
-			'import { honey } from "@workerstack/backend"',
+			'import { honey } from "@workerstack/backend/http"',
 			'honey().get("/").handler((ctx) => ctx.res.text("ok", "hi"))',
 			"```",
 		].join("\n")

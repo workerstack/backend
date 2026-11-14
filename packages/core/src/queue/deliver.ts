@@ -1,5 +1,5 @@
 /**
- * One message's run, the rules `./queue/workers` and `./queue/serve` share: what a body must be to
+ * One message's run, the rules `./queue` (on Workers) and `./queue/serve` share: what a body must be to
  * reach a handler, who settles a message, how long a retry waits, and what a letter holds. Each
  * runtime supplies a `Delivery` saying what settling means there.
  */

@@ -37,7 +37,7 @@ function subpaths(consumer: string): string[] {
 	}
 	return Object.entries(manifest.exports)
 		.filter(([, target]) => typeof target === "object" && target.default !== undefined)
-		.map(([subpath]) => (subpath === "." ? "@workerstack/backend" : `@workerstack/backend/${subpath.slice(2)}`))
+		.map(([subpath]) => `@workerstack/backend/${subpath.slice(2)}`)
 }
 
 /**

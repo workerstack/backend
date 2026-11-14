@@ -1,8 +1,8 @@
-import type { WSAdapter } from "@workerstack/backend"
-import type { RouteTree } from "@workerstack/backend/tree"
-import { createMiddleware, defineErrors, honey } from "@workerstack/backend"
-import { serveManifest, serveOpenApi } from "@workerstack/backend/openapi"
-import { scalar } from "@workerstack/backend/openapi/scalar"
+import type { WSAdapter } from "@workerstack/backend/http"
+import type { RouteTree } from "@workerstack/backend/http/tree"
+import { createMiddleware, defineErrors, honey } from "@workerstack/backend/http"
+import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
 import * as z from "zod"
 
 type Env = { JWT_SECRET: string; REDIS_URL: string }

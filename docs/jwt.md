@@ -1,13 +1,13 @@
 # JWT
 
-`@workerstack/backend/jwt` signs and verifies compact JWS tokens on WebCrypto, so the same code runs on Node, Bun and
+`@workerstack/backend/http/jwt` signs and verifies compact JWS tokens on WebCrypto, so the same code runs on Node, Bun and
 Workers with no JWT library. It is functions, not middleware: your app decides where a token comes from and what a
 refusal answers.
 
 ## Example
 
 ```ts run
-import { signJwt, verifyJwt } from "@workerstack/backend/jwt"
+import { signJwt, verifyJwt } from "@workerstack/backend/http/jwt"
 
 const secret = "a-secret-of-at-least-32-bytes-long"
 const exp = Math.floor(Date.now() / 1000) + 3600
@@ -26,7 +26,7 @@ Pass a Standard Schema (zod, valibot, arktype) as `schema` and the payload is it
 reaches it.
 
 ```ts run
-import { signJwt, verifyJwt } from "@workerstack/backend/jwt"
+import { signJwt, verifyJwt } from "@workerstack/backend/http/jwt"
 import * as z from "zod"
 
 const secret = "a-secret-of-at-least-32-bytes-long"
@@ -45,7 +45,7 @@ if (result.success) console.log(result.payload.role)
 Create one `remoteJwks` per issuer, once, and pass it to every verify. Its cache lives in the source it returns.
 
 ```ts
-import { remoteJwks, verifyJwt } from "@workerstack/backend/jwt"
+import { remoteJwks, verifyJwt } from "@workerstack/backend/http/jwt"
 
 declare const clientId: string
 declare const token: string

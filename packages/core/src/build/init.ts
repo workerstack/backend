@@ -16,9 +16,9 @@ type PackageJson = {
 	type?: string
 }
 
-const APP_TS = `import { honey } from "@workerstack/backend"
-import { serveOpenApi } from "@workerstack/backend/openapi"
-import { scalar } from "@workerstack/backend/openapi/scalar"
+const APP_TS = `import { honey } from "@workerstack/backend/http"
+import { serveOpenApi } from "@workerstack/backend/http/openapi"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
 export const app = serveOpenApi(
 	honey()
@@ -39,7 +39,7 @@ export default {
 }
 `
 
-const WORKER_TS = `import { workersWebSocket } from "@workerstack/backend/ws/workers"
+const WORKER_TS = `import { workersWebSocket } from "@workerstack/backend/ws"
 import { app } from "./app.ts"
 
 app.wsAdapter(workersWebSocket())

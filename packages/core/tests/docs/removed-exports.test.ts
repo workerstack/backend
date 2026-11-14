@@ -9,7 +9,14 @@
 import { readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
-import { exportedNames, REMOVED_NAMES, REMOVED_SUBPATHS, removed, surfaceOf } from "./removed-exports.ts"
+import {
+	exportedNames,
+	MOVED_SUBPATHS,
+	REMOVED_NAMES,
+	REMOVED_SUBPATHS,
+	removed,
+	surfaceOf,
+} from "./removed-exports.ts"
 
 const REPO = resolve(import.meta.dirname, "../../../..")
 const CORE = join(REPO, "packages/core")
@@ -38,7 +45,7 @@ const snapshot = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/exports
 	string,
 	string[]
 >
-const gone = removed(baseline, live)
+const gone = removed(baseline, live, MOVED_SUBPATHS)
 const guide = readFileSync(join(REPO, GUIDE), "utf8")
 /** whether `text` names the identifier `name`, whole-token (a phrase is looked for as written) */
 const names = (text: string) => (name: string) =>
@@ -75,7 +82,28 @@ describe("removed", () => {
 	it("separates a subpath that went whole from a name a kept subpath lost", () => {
 		const old = { ".": ["honey", "trustProxy"], "./trust": ["trustProxy"] }
 		const now = { ".": new Set(["honey"]) }
-		expect(removed(old, now)).toEqual({ names: ["trustProxy"], subpaths: ["./trust"] })
+		expect(removed(old, now, new Map())).toEqual({ names: ["trustProxy"], subpaths: ["./trust"] })
+	})
+
+	it("looks a moved subpath's names up at its new subpath, and does not call the move a removal", () => {
+		const old = { ".": ["honey", "trustProxy"], "./cors": ["cors"] }
+		const moved = new Map([
+			[".", "./http"],
+			["./cors", "./http/cors"],
+		])
+		const now = { "./http": new Set(["honey"]), "./http/cors": new Set(["cors"]) }
+		expect(removed(old, now, moved)).toEqual({ names: ["trustProxy"], subpaths: [] })
+	})
+
+	it("loses a moved name that now sits at some other subpath, because the move's target is where it is checked", () => {
+		const old = { "./cors": ["cors"] }
+		const now = { "./http/cors": new Set<string>(), "./logger": new Set(["cors"]) }
+		expect(removed(old, now, new Map([["./cors", "./http/cors"]]))).toEqual({ names: ["cors"], subpaths: [] })
+	})
+
+	it("still calls a moved subpath whose target is missing a removed subpath", () => {
+		const old = { "./cors": ["cors"] }
+		expect(removed(old, {}, new Map([["./cors", "./http/cors"]]))).toEqual({ names: [], subpaths: ["./cors"] })
 	})
 })
 
@@ -84,8 +112,16 @@ describe("the guide carries every break a 0.7.3 app can meet (bit 22 a)", () => 
 		expect({
 			baseline: Object.keys(baseline).length,
 			live: Object.keys(live).length,
-			root: live["."]?.size ?? 0,
-		}).toEqual({ baseline: 48, live: 51, root: 76 })
+			http: live["./http"]?.size ?? 0,
+		}).toEqual({ baseline: 48, live: 48, http: 76 })
+	})
+
+	it("moves every 0.7.3 subpath it names to one 1.0 exports, and leaves no moved subpath exported", () => {
+		const unreached = [...MOVED_SUBPATHS.values()].filter((target) => !Object.hasOwn(live, target))
+		const stillExported = [...MOVED_SUBPATHS.keys()].filter((old) => Object.hasOwn(live, old))
+		expect({ stillExported, unreached }).toEqual({ stillExported: [], unreached: [] })
+		expect(MOVED_SUBPATHS.get(".")).toBe("./http")
+		for (const fold of ["cron", "queue", "ws"]) expect(MOVED_SUBPATHS.get(`./${fold}/workers`)).toBe(`./${fold}`)
 	})
 
 	it("judges every removed name, and no name it no longer loses", () => {

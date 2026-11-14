@@ -33,7 +33,7 @@ whose runtime entry is `.ts` cannot run on plain Node at all.
 ```json
 {
 	"exports": {
-		".": {
+		"./http": {
 			"honey-source": "./src/index.ts",
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"

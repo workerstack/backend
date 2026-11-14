@@ -20,13 +20,13 @@ if (!(await timingSafeEqual("guess", expected))) console.log("guess refused")
 
 ## Signing a webhook
 
-`signWebhook({ id, timestamp, body, secrets })` from `@workerstack/backend/webhook` answers the three
+`signWebhook({ id, timestamp, body, secrets })` from `@workerstack/backend/http/webhook` answers the three
 [Standard Webhooks](https://www.standardwebhooks.com) headers for one delivery, so a receiver verifies with any library
 for that scheme. For the events your API declares, `webhookContract` builds the body and signs each attempt through
 it: see [webhooks](capabilities/webhooks.md).
 
 ```ts
-import { signWebhook } from "@workerstack/backend/webhook"
+import { signWebhook } from "@workerstack/backend/http/webhook"
 
 const body = JSON.stringify({ type: "invoice.paid" })
 const headers = await signWebhook({

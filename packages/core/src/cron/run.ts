@@ -1,4 +1,4 @@
-/** One job's run, the part `./cron/workers` and `./cron/serve` share. */
+/** One job's run, the part `./cron` (on Workers) and `./cron/serve` share. */
 import type { CronDefinition, CronHandler } from "./define.ts"
 
 /** The run to make. */

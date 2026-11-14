@@ -11,7 +11,7 @@ OpenTelemetry the spans nest (`http.request`, then each middleware, then the han
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 type Env = { GREETING: string }
 
@@ -30,10 +30,10 @@ same types the chain on `honey()` would give: the meta type, the error factory a
 middleware adds to `ctx`. Each app copies the preset, so a setter on one app, or on the preset later, changes no other.
 
 ```ts
-import { defineErrors, definePreset, honey } from "@workerstack/backend"
-import { createErrorTranslator } from "@workerstack/backend/i18n"
+import { defineErrors, definePreset, honey } from "@workerstack/backend/http"
+import { createErrorTranslator } from "@workerstack/backend/http/i18n"
 import { createLogger } from "@workerstack/backend/logger"
-import { requestId } from "@workerstack/backend/request-id"
+import { requestId } from "@workerstack/backend/http/request-id"
 
 type Env = { REGION: string }
 type RouteMeta = { team?: string; worker?: "billing" | "search" }

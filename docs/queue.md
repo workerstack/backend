@@ -1,6 +1,6 @@
 # Queue
 
-`@workerstack/backend/queue` defines a typed queue. `@workerstack/backend/queue/workers` consumes it from a Workers Queue
+`@workerstack/backend/queue` defines a typed queue. `@workerstack/backend/queue` consumes it from a Workers Queue
 binding.
 
 ## Example
@@ -83,7 +83,7 @@ platform after the report.
 
 ```ts
 import { defineConsumer, queueContract, queueMessage } from "@workerstack/backend/queue"
-import { workersQueue } from "@workerstack/backend/queue/workers"
+import { workersQueue } from "@workerstack/backend/queue"
 
 const jobs = queueContract({ ping: queueMessage<number>() })
 const consumer = defineConsumer<{}>()(jobs, { handlers: { ping: async () => {} } })

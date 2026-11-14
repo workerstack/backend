@@ -156,15 +156,15 @@ describe("publicSurface: limits", () => {
 
 	it("carries the first entry key that reaches each name", () => {
 		const root = packageOf(
-			{ ".": "./src/index.ts", "./cors": "./src/cors.ts" },
+			{ "./http": "./src/index.ts", "./http/cors": "./src/cors.ts" },
 			{
 				"src/index.ts": 'export { shared } from "./cors.ts"\n',
 				"src/cors.ts": "export const shared = 1\nexport const only = 2\n",
 			},
 		)
 		const names = publicSurface(root).names.get(join(root, "src/cors.ts"))
-		expect(names?.get("shared")).toBe(".")
-		expect(names?.get("only")).toBe("./cors")
+		expect(names?.get("shared")).toBe("./http")
+		expect(names?.get("only")).toBe("./http/cors")
 	})
 
 	it("ignores packages outside the graph", () => {

@@ -305,7 +305,7 @@ describe("honey generate --watch (bit 19 h2)", () => {
 		async () => {
 			const made = fresh({
 				"src/app.ts":
-					'import { honey } from "@workerstack/backend"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
+					'import { honey } from "@workerstack/backend/http"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
 				"src/routes.ts": 'export const path = "/first"\n',
 			})
 			watching(made.dir, ["--app", "src/app.ts"])
@@ -315,7 +315,7 @@ describe("honey generate --watch (bit 19 h2)", () => {
 			expect(await until(() => tree().includes('"GET /second"'))).toBe(true)
 			made.write(
 				"src/app.ts",
-				'import { honey } from "@workerstack/backend"\nexport const app = honey().get("/third").handler((c) => c.res.text("ok", "ok"))\n',
+				'import { honey } from "@workerstack/backend/http"\nexport const app = honey().get("/third").handler((c) => c.res.text("ok", "ok"))\n',
 			)
 			expect(await until(() => tree().includes('"GET /third"'))).toBe(true)
 		},

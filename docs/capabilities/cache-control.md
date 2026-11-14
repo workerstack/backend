@@ -1,16 +1,16 @@
 # Cache-Control
 
-`cacheControl(options)` from `@workerstack/backend/cache-control` sets the
+`cacheControl(options)` from `@workerstack/backend/http/cache-control` sets the
 `Cache-Control` header on every answer below it: `maxAge`, `sMaxAge`, `staleWhileRevalidate`, `public`, `private`,
 `noCache`, `noStore`, `mustRevalidate` and `immutable`. An answer that already set its own `Cache-Control` keeps it.
-Pair it with `etag()` from `@workerstack/backend/etag` for revalidation with 304 answers.
+Pair it with `etag()` from `@workerstack/backend/http/etag` for revalidation with 304 answers.
 
 ## Example
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { cacheControl } from "@workerstack/backend/cache-control"
-import { etag } from "@workerstack/backend/etag"
+import { honey } from "@workerstack/backend/http"
+import { cacheControl } from "@workerstack/backend/http/cache-control"
+import { etag } from "@workerstack/backend/http/etag"
 
 const app = honey()
 	.use(etag())

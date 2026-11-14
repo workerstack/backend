@@ -12,7 +12,12 @@ const SELF = "packages/core/tests/structure/old-name.test.ts"
  * recorded: the changelog, the migration notes (migration.md's before blocks are the code a v0 or rc user wrote; its
  * after blocks are compiled, so an old name there fails the docs tests), the blueprint and the lessons' evidence. */
 const OLD = /lovrozagar(?:\\?\/|-)honey|lovrozagar%2fhoney/i /* \/ too: a regex literal escapes the slash */
-const HISTORY = ["CHANGELOG.md", "docs/migrating-to-workerstack.md", "docs/migration.md"]
+const HISTORY = [
+	"CHANGELOG.md",
+	"docs/migrating-from-honey.md",
+	"docs/migrating-to-workerstack.md",
+	"docs/migration.md",
+]
 const HISTORY_TREES = ["blueprint/", ".rulesync/lessons/"]
 
 /** Whether `file` records history, where the old name stays. */

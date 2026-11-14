@@ -98,7 +98,7 @@ describe("honey generate --watch on Bun (bit 20 k-fix)", () => {
 			const mark = markOf()
 			const made = fresh({
 				"src/app.ts":
-					'import { honey } from "@workerstack/backend"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
+					'import { honey } from "@workerstack/backend/http"\nimport { path } from "./routes.ts"\nexport const app = honey().get(path).handler((c) => c.res.text("ok", "ok"))\n',
 				"src/routes.ts": 'export const path = "/first"\n',
 			})
 			const watch = spawn("bun", [BIN, "generate", "--watch", "--app", "src/app.ts"], {

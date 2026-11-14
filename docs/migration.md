@@ -19,9 +19,9 @@ Apps run on Cloudflare Workers only: `export default app` is the Worker. A Node 
 | Before                                                                      | Now                                                                                     |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `serve(app, options)` from `@workerstack/backend/node` or `/bun`            | `export default app`; run it with `wrangler dev`                                        |
-| `@workerstack/backend/ws/node`, `/ws/bun` (`nodeWebSocket`, `bunWebSocket`) | `workersWebSocket()` from `@workerstack/backend/ws/workers`                             |
-| `serveCron` from `@workerstack/backend/cron/serve`                          | `workersCron` from `@workerstack/backend/cron/workers`, on a Workers cron trigger       |
-| `serveQueue`, `memoryQueueStore` from `@workerstack/backend/queue/serve`    | `workersQueue` from `@workerstack/backend/queue/workers`, on a Workers Queue binding    |
+| `@workerstack/backend/ws/node`, `/ws/bun` (`nodeWebSocket`, `bunWebSocket`) | `workersWebSocket()` from `@workerstack/backend/ws`                                     |
+| `serveCron` from `@workerstack/backend/cron/serve`                          | `workersCron` from `@workerstack/backend/cron`, on a Workers cron trigger               |
+| `serveQueue`, `memoryQueueStore` from `@workerstack/backend/queue/serve`    | `workersQueue` from `@workerstack/backend/queue`, on a Workers Queue binding            |
 | `testClient(app, { transport: serve })`                                     | `testClient(app, { env })`, in process; the option is gone                              |
 | `createBuildPlugin({ target: "node" })` or `"bun"`, and its `port` option   | the one target is `workers`; any other target is refused with `expected workers`        |
 | `toFetchRequest(ctx.req)`                                                   | `ctx.req`: it is the Fetch `Request`                                                    |
@@ -30,8 +30,8 @@ Apps run on Cloudflare Workers only: `export default app` is the Worker. A Node 
 | `honey init --workers`; `honey init` writing `src/server.ts`                | `honey init` always writes `src/worker.ts` and `wrangler.jsonc`; `--workers` is refused |
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { testClient } from "@workerstack/backend/testing"
+import { honey } from "@workerstack/backend/http"
+import { testClient } from "@workerstack/backend/http/testing"
 
 const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "ok"))
@@ -84,7 +84,7 @@ app
 ```
 
 ```ts
-import { defineErrors, honey } from "@workerstack/backend"
+import { defineErrors, honey } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const errors = defineErrors({ book_not_found: "not_found" })
@@ -130,15 +130,15 @@ same code an rc.20 app has; the breaks no section shows follow the table, each w
 | `.input({ params: z.object({...}) })`, read on `ctx.input.params`                                                                                 | `.input({ params: { name: schema } })`, read on `ctx.params`                                                                                          | `params` is a schema per path param, onto `ctx.params`                                   |
 | `readableStream()`, `ReadableStreamSchema`, on any source; `proxy({ rewriteUrl: (url) => … })`                                                    | `streamed()`, `StreamedSchema`, on a body only; `rewriteUrl: (ctx, url) => …`                                                                         | `readableStream()` is `streamed()`, for a body only                                      |
 | `app.routeTree(tree)` loads the tree into `app`, before any route                                                                                 | `routeTree(tree)` returns a new app, at any point                                                                                                     | `routeTree()` returns a new app, callable at any point                                   |
-| `@workerstack/backend/errors`: `defineErrors`, `ERROR_META`, `ErrorMetaEntry`, `ErrorFactories`                                                   | the root's `defineErrors`, `ERROR_META`, `ErrorMetaEntry`; `typeof errors` for a factory's type                                                       | One import path per name                                                                 |
-| `@workerstack/backend/openapi`'s `scalar`, `swagger`, `serveStaticOpenApi` and its types                                                          | `@workerstack/backend/openapi/scalar`, `@workerstack/backend/openapi/swagger`, `@workerstack/backend/openapi/static`                                  | One import path per name                                                                 |
+| `@workerstack/backend/errors`: `defineErrors`, `ERROR_META`, `ErrorMetaEntry`, `ErrorFactories`                                                   | `@workerstack/backend/http`'s `defineErrors`, `ERROR_META`, `ErrorMetaEntry`; `typeof errors` for a factory's type                                    | One import path per name                                                                 |
+| `@workerstack/backend/openapi`'s `scalar`, `swagger`, `serveStaticOpenApi` and its types                                                          | `@workerstack/backend/http/openapi/scalar`, `@workerstack/backend/http/openapi/swagger`, `@workerstack/backend/http/openapi/static`                   | One import path per name                                                                 |
 | `@workerstack/backend/tree`'s tree builders                                                                                                       | the tree's types only; honey builds the tree                                                                                                          | One import path per name                                                                 |
 | `honey()` from `@workerstack/backend/plugin` or `@workerstack/backend/build`, its config types from `@workerstack/backend/build`                  | `honeyPlugin()` and its config types from `@workerstack/backend/plugin`                                                                               | The Vite plugin is `honeyPlugin()`                                                       |
 | `customErrorFormatter()`, `CustomErrorFormatter`, `createErrorResponse`                                                                           | `payloadErrorFormatter()`, `PayloadErrorFormatter`; an error answers through `throw`                                                                  | `customErrorFormatter()` is `payloadErrorFormatter()`, and `createErrorResponse` is gone |
 | an output's `securitySchemes`, `sanitize.stripSecurityRequirements`, `sanitize.stripSecuritySchemes`, a YAML twin                                 | `codegen.securitySchemes` once, each output's `security`, its `formats`                                                                               | Codegen declares security schemes once; each document lists the ones it shows            |
 | `sign`, `verify`, `SignOptions`, `VerifyOptions`, `legacy`                                                                                        | `createCookieSigner({ name, secrets })`, `CookieSignerOptions`                                                                                        | `createCookieSigner({ name, secrets })` signs one cookie                                 |
 | `errorI18n(config)`, `ErrorI18nConfig`                                                                                                            | `createErrorTranslator(config)`, `ErrorTranslatorConfig`                                                                                              | `.errorI18n(config)` takes `createErrorTranslator(config)`                               |
-| `InferInputMap` from `@workerstack/backend/input`                                                                                                 | `InferInputMap` from `@workerstack/backend`                                                                                                           | below                                                                                    |
+| `InferInputMap` from `@workerstack/backend/input`                                                                                                 | `InferInputMap` from `@workerstack/backend/http`                                                                                                      | below                                                                                    |
 | `memoryStore`, `MemoryStore`, `MemoryStoreOptions`                                                                                                | `memoryRateLimitStore`, `MemoryRateLimitStore`, `MemoryRateLimitStoreOptions`                                                                         | below                                                                                    |
 | `@workerstack/backend/serve`'s `serve`, `ServeOptions`, `ServeHandle`, `DEFAULT_MAX_REQUEST_BODY`; `detectRuntime`, `ServeRuntime`, `HoneyServer` | `serve` from `@workerstack/backend/node` (`NodeServeOptions`) or `@workerstack/backend/bun` (`BunServeOptions`, `BunServer`), each with `ServeHandle` | below                                                                                    |
 | `RouteTreeV2` from `@workerstack/clients`                                                                                                         | `RouteTree`                                                                                                                                           | below                                                                                    |
@@ -146,7 +146,7 @@ same code an rc.20 app has; the breaks no section shows follow the table, each w
 | any Go or CLI module path                                                                                                                         | one Go would publish: a domain first, and a major suffix only from `/v2`                                                                              | below                                                                                    |
 | the Java target's own default group, artifact, package and client                                                                                 | `com.example`, `sdk` and `ExampleClient`                                                                                                              | below                                                                                    |
 
-### `memoryStore` is `memoryRateLimitStore`, and `InferInputMap` comes from the root
+### `memoryStore` is `memoryRateLimitStore`, and `InferInputMap` comes from `/http`
 
 Both are renamed or moved, nothing else: the store's options and answers are the same.
 
@@ -157,8 +157,8 @@ const limited = rateLimit({ limit: 60, store: memoryStore({ windowMs: 60_000 }) 
 ```
 
 ```ts
-import type { InferInputMap } from "@workerstack/backend"
-import { memoryRateLimitStore, rateLimit } from "@workerstack/backend/rate-limit"
+import type { InferInputMap } from "@workerstack/backend/http"
+import { memoryRateLimitStore, rateLimit } from "@workerstack/backend/http/rate-limit"
 
 export type Inputs<T> = InferInputMap<T>
 export const limited = rateLimit({ limit: 60, store: memoryRateLimitStore({ windowMs: 60_000 }) })
@@ -176,8 +176,8 @@ const client = testClient(app, { env, transport: "serve" })
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { testClient } from "@workerstack/backend/testing"
+import { honey } from "@workerstack/backend/http"
+import { testClient } from "@workerstack/backend/http/testing"
 
 const app = honey()
 export const client = testClient(app, { env: {} })
@@ -249,7 +249,7 @@ app.serve({ port: 3000 })
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 export const app = honey()
 app.get("/health").handler((ctx) => ctx.res.text("ok", "up"))
@@ -668,7 +668,7 @@ app.ws("/feed").meta({ deprecated: true })
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { ws } from "@workerstack/backend/ws"
 
 const app = honey()
@@ -758,7 +758,7 @@ app.get("/items").meta({ summary: "List items", worker: "shop" }).handler(handle
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 type AppMeta = { tenant?: "organization" | "project"; worker: "shop" }
 
@@ -788,7 +788,7 @@ onRequest: [(ctx) => void ctx.headers.set(fresh[`${ctx.method} ${ctx.path}`] ?? 
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 /* the template, which is what the document says and what onLog reports */
 const fresh: Record<string, string> = { "GET /items/{id}": "x-fresh" }
@@ -815,7 +815,7 @@ import type { RouteCtx } from "./_gen/types.gen.d.ts"
 ```
 
 ```ts
-import { honey, type InferRouteCtx } from "@workerstack/backend"
+import { honey, type InferRouteCtx } from "@workerstack/backend/http"
 
 const routed = honey()
 	.get("/items")
@@ -849,7 +849,7 @@ app.use(logger({ instance: log }))
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { createLogger, type Logger } from "@workerstack/backend/logger"
 
 const log: Logger = createLogger({ base: { service: "shop" } })
@@ -889,8 +889,8 @@ app.use(curlLogger({ instance: log }))
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { curlLogger } from "@workerstack/backend/curl-logger"
+import { honey } from "@workerstack/backend/http"
+import { curlLogger } from "@workerstack/backend/http/curl-logger"
 
 const app = honey()
 app.use(curlLogger({ body: { maxBytes: 16_384 } }))
@@ -908,8 +908,8 @@ app.errorI18n({ errors: { en: errorsEn }, resolveLocale: (c) => c.search["locale
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { createErrorTranslator } from "@workerstack/backend/i18n"
+import { honey } from "@workerstack/backend/http"
+import { createErrorTranslator } from "@workerstack/backend/http/i18n"
 
 const app = honey()
 app.errorI18n(
@@ -922,7 +922,7 @@ app.errorI18n(
 
 ## `createCookieSigner({ name, secrets })` signs one cookie; `sign`, `verify` and `legacy` are gone
 
-`@workerstack/backend/cookie-sign` exports only `createCookieSigner`. The signer takes the cookie's name with its
+`@workerstack/backend/http/cookie-sign` exports only `createCookieSigner`. The signer takes the cookie's name with its
 secrets and binds that name into every signature, so its `sign(value)` and `verify(signed)` take nothing else. The
 one-shot `sign` and `verify`, their `SignOptions` and `VerifyOptions`, and the `legacy` option are gone: a v1
 signature, the HMAC of the value alone, never verifies, so a value signed for one cookie cannot pass as another. A
@@ -935,7 +935,7 @@ const user = await verify(token, [secret, oldSecret], { legacy: false, name: "si
 ```
 
 ```ts
-import { createCookieSigner } from "@workerstack/backend/cookie-sign"
+import { createCookieSigner } from "@workerstack/backend/http/cookie-sign"
 
 const sid = createCookieSigner({ name: "sid", secrets: ["current-secret", "previous-secret"] })
 const token = await sid.sign("user-42")
@@ -963,7 +963,7 @@ await startHoneyServer(app, { port: 3000 })
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 export default app
@@ -1031,7 +1031,7 @@ export default createGateway({ routeTree })
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 /* the merge entry: the gateway's own routes, without the generated tree it would otherwise load */
 export const app = honey()
@@ -1047,7 +1047,7 @@ app.realtime("/rt", handler)
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { realtime } from "@workerstack/backend/realtime"
 
 const app = honey()
@@ -1065,7 +1065,7 @@ app.use(trustProxy(1))
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 app.get("/whoami").handler((ctx) => {
@@ -1077,7 +1077,7 @@ app.get("/whoami").handler((ctx) => {
 
 ## `@workerstack/backend/openapi/spec` is removed
 
-v0's `spec()` handler is `serveOpenApi` from `@workerstack/backend/openapi`, which mounts the JSON and YAML documents (and
+v0's `spec()` handler is `serveOpenApi` from `@workerstack/backend/http/openapi`, which mounts the JSON and YAML documents (and
 a docs page with `docs`) rather than returning a handler.
 
 ```ts v0
@@ -1086,9 +1086,9 @@ app.get("/openapi.json").handler(spec(app))
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { serveOpenApi } from "@workerstack/backend/openapi"
-import { scalar } from "@workerstack/backend/openapi/scalar"
+import { honey } from "@workerstack/backend/http"
+import { serveOpenApi } from "@workerstack/backend/http/openapi"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
 const app = honey()
 serveOpenApi(app, { title: "Shop", version: "1.0.0", docs: { "/docs": scalar } })
@@ -1106,15 +1106,15 @@ serveOpenApi(app, { title: "Shop", version: "1.0.0", docs: "scalar" })
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { serveOpenApi } from "@workerstack/backend/openapi"
-import { scalar } from "@workerstack/backend/openapi/scalar"
+import { honey } from "@workerstack/backend/http"
+import { serveOpenApi } from "@workerstack/backend/http/openapi"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
 const app = honey()
 serveOpenApi(app, { title: "Shop", version: "1.0.0", docs: { "/docs": scalar } })
 ```
 
-Swagger UI is `import { swagger } from "@workerstack/backend/openapi/swagger"`, then `docs: { "/docs": swagger }`.
+Swagger UI is `import { swagger } from "@workerstack/backend/http/openapi/swagger"`, then `docs: { "/docs": swagger }`.
 
 ## Names that said `cloudflare` say `workers`
 
@@ -1122,7 +1122,7 @@ The runtime is named for the product. Nothing else changed.
 
 | 0.7                                           | 1.0                                        |
 | --------------------------------------------- | ------------------------------------------ |
-| `@workerstack/backend/ws/cloudflare`          | `@workerstack/backend/ws/workers`          |
+| `@workerstack/backend/ws/cloudflare`          | `@workerstack/backend/ws`                  |
 | `cfWebSocket()`                               | `workersWebSocket()`                       |
 | `createBuildPlugin({ target: "cloudflare" })` | `createBuildPlugin({ target: "workers" })` |
 | `detectRuntime()` answering `"cloudflare"`    | removed: import the runtime's `serve`      |
@@ -1140,7 +1140,7 @@ app.ws("/echo").handler({ onMessage: (_ctx, socket, data) => socket.send(data) }
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import { ws } from "@workerstack/backend/ws"
 
 const app = honey()
@@ -1149,7 +1149,7 @@ ws(app, "/echo").handler({ onMessage: (_ctx, socket, data) => socket.send(data) 
 
 ## `testClient` moved, and `transport: "node"` is gone
 
-`testClient` comes from `@workerstack/backend/testing`. It calls the app in process, and its `transport` option is gone:
+`testClient` comes from `@workerstack/backend/http/testing`. It calls the app in process, and its `transport` option is gone:
 there is no port to serve on.
 
 ```ts v0
@@ -1157,8 +1157,8 @@ const client = testClient(app, { transport: "node" })
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { testClient } from "@workerstack/backend/testing"
+import { honey } from "@workerstack/backend/http"
+import { testClient } from "@workerstack/backend/http/testing"
 
 const app = honey()
 const client = testClient(app, { env: {} })
@@ -1173,7 +1173,7 @@ app.serve({ port: 3000 })
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 export default app
@@ -1205,7 +1205,7 @@ const withAuth = defineMiddleware({ errors: [errors, "unauthorized"], fn: (ctx: 
 ```
 
 ```ts
-import { createMiddleware, defineErrors } from "@workerstack/backend"
+import { createMiddleware, defineErrors } from "@workerstack/backend/http"
 
 const errors = defineErrors({ unauthorized: "unauthorized" })
 const withAuth = createMiddleware((_ctx: { req: Request }, next) => next({ user: { id: "u1" } }), {
@@ -1225,7 +1225,7 @@ type Summary = OpenApiMeta["summary"]
 ```
 
 ```ts
-import { createMiddleware, type HoneyCtx, type HoneyMeta } from "@workerstack/backend"
+import { createMiddleware, type HoneyCtx, type HoneyMeta } from "@workerstack/backend/http"
 
 type RouteMeta = { worker?: "extract" | "saas" }
 type Summary = HoneyMeta["summary"]
@@ -1247,7 +1247,7 @@ const errors = defineErrors({
 ```
 
 ```ts
-import { defineErrors } from "@workerstack/backend"
+import { defineErrors } from "@workerstack/backend/http"
 
 const errors = defineErrors({ org_limit_reached: "forbidden" })
 ```
@@ -1265,7 +1265,7 @@ app.get("/tables/:id").meta({ extensions: { "x-befor": "table.delete" } })
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 type RouteMeta = { extensions?: { "x-before"?: string }; worker?: string }
 
@@ -1295,7 +1295,7 @@ app
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 app
@@ -1318,7 +1318,7 @@ app
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const tables = z.object({ id: z.string() }).array()
@@ -1343,7 +1343,7 @@ app.get("/old").handler((ctx) => ctx.res.redirect("/new", { status: 301 }))
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 
 const app = honey()
 app.get("/created").handler((ctx) => ctx.res.json("created", { id: "1" }))
@@ -1367,7 +1367,7 @@ app
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const book = z.object({ id: z.string() })
@@ -1419,7 +1419,7 @@ app
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
+import { honey } from "@workerstack/backend/http"
 import * as z from "zod"
 
 const app = honey()
@@ -1446,9 +1446,9 @@ app.all("/api/*rest").handler(proxy({ destination, rewriteUrl: (url) => url.slic
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { streamed } from "@workerstack/backend/input"
-import { proxy } from "@workerstack/backend/proxy"
+import { honey } from "@workerstack/backend/http"
+import { streamed } from "@workerstack/backend/http/input"
+import { proxy } from "@workerstack/backend/http/proxy"
 import * as z from "zod"
 
 const manifest = z.object({ chunks: z.number(), fileName: z.string() })
@@ -1482,9 +1482,9 @@ export function createApp(tree?: RouteTree) {
 ```
 
 ```ts
-import { honey } from "@workerstack/backend"
-import { proxy } from "@workerstack/backend/proxy"
-import type { RouteTree } from "@workerstack/backend/tree"
+import { honey } from "@workerstack/backend/http"
+import { proxy } from "@workerstack/backend/http/proxy"
+import type { RouteTree } from "@workerstack/backend/http/tree"
 
 declare const routeTree: RouteTree
 export const app = honey()
@@ -1494,9 +1494,9 @@ export const served = app.routeTree(routeTree)
 
 ## One import path per name
 
-`@workerstack/backend/errors` is gone: `defineErrors`, `ERROR_META` and `ErrorMetaEntry` come from the root. `./openapi`
-no longer re-exports the docs pages or the static document server: `scalar` comes from `./openapi/scalar`, `swagger`
-from `./openapi/swagger`, and `serveStaticOpenApi` and its types from `./openapi/static`. `./tree` exports the route
+`@workerstack/backend/errors` is gone: `defineErrors`, `ERROR_META` and `ErrorMetaEntry` come from `@workerstack/backend/http`. `./http/openapi`
+no longer re-exports the docs pages or the static document server: `scalar` comes from `./http/openapi/scalar`, `swagger`
+from `./http/openapi/swagger`, and `serveStaticOpenApi` and its types from `./http/openapi/static`. `./http/tree` exports the route
 tree's types only. When two paths reach one name, a codebase ends up importing both.
 
 ```ts v0
@@ -1505,8 +1505,8 @@ import { scalar, serveOpenApi } from "@lovrozagar/honey/openapi"
 ```
 
 ```ts
-import { defineErrors } from "@workerstack/backend"
-import { scalar } from "@workerstack/backend/openapi/scalar"
+import { defineErrors } from "@workerstack/backend/http"
+import { scalar } from "@workerstack/backend/http/openapi/scalar"
 
 export const errors = defineErrors({ not_found: "not_found" })
 export const docs = { "/docs": scalar }
@@ -1534,7 +1534,7 @@ export default { plugins: [honeyPlugin(config)] }
 
 The formatter for errors `defineErrors` gave a payload schema is `payloadErrorFormatter()`, and its type is
 `PayloadErrorFormatter`: the name says what it formats. `createErrorResponse` was the router's own answer builder
-and leaves the root; an error answers through `throw`, `ctx.jsonFromError(error)` or a test request to the app.
+and leaves `@workerstack/backend/http`; an error answers through `throw`, `ctx.jsonFromError(error)` or a test request to the app.
 
 ```ts v0
 import { createErrorResponse, type CustomErrorFormatter } from "@lovrozagar/honey"
@@ -1543,7 +1543,7 @@ app.customErrorFormatter((error, data) => ({ ...data, trace: "t" }))
 ```
 
 ```ts
-import { honey, type PayloadErrorFormatter } from "@workerstack/backend"
+import { honey, type PayloadErrorFormatter } from "@workerstack/backend/http"
 
 const withTrace: PayloadErrorFormatter = (_error, data) => ({ ...data, trace: "t" })
 export const app = honey().payloadErrorFormatter(withTrace)

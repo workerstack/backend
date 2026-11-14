@@ -1,4 +1,4 @@
-import { mergeTree } from "@workerstack/backend"
+import { mergeTree } from "@workerstack/backend/http"
 import { users } from "./users.ts"
 
 /**

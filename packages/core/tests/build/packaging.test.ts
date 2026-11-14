@@ -8,19 +8,22 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { CLIENTS, CORE, consumer, pack, REPO, run, scratch, write } from "./fixture/packed.ts"
+import { CLIENTS, CLIENTS_PIN, CORE, consumer, pack, REPO, run, scratch, write } from "./fixture/packed.ts"
 import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
 
 const TSC = join(REPO, "node_modules/typescript/bin/tsc")
+/* the app imports zod, so it declares it, at the version the repo resolves */
+const ZOD = (JSON.parse(readFileSync(join(REPO, "node_modules/zod/package.json"), "utf8")) as { version: string })
+	.version
 const files = scratch("packaging")
 let tarball = ""
 let app = ""
 
 const APP = [
-	'import { createMiddleware, defineErrors, honey } from "@workerstack/backend"',
-	'import { cors } from "@workerstack/backend/cors"',
-	'import { serveOpenApi } from "@workerstack/backend/openapi"',
-	'import { requestId } from "@workerstack/backend/request-id"',
+	'import { createMiddleware, defineErrors, honey } from "@workerstack/backend/http"',
+	'import { cors } from "@workerstack/backend/http/cors"',
+	'import { serveOpenApi } from "@workerstack/backend/http/openapi"',
+	'import { requestId } from "@workerstack/backend/http/request-id"',
 	'import * as z from "zod"',
 	"",
 	'const errors = defineErrors({ item_not_found: "not_found" })',
@@ -44,7 +47,7 @@ const APP = [
 
 /* the generated selectors narrow `RouteSelectorOf` through the root entry's re-export, or the expect-error is unused */
 const SELECTORS = [
-	'import type { RouteSelectorOf } from "@workerstack/backend"',
+	'import type { RouteSelectorOf } from "@workerstack/backend/http"',
 	"",
 	'export const health: RouteSelectorOf = "GET /health"',
 	"// @ts-expect-error a route the app does not have",
@@ -92,8 +95,8 @@ beforeAll(() => {
 	tarball = pack(files.out)
 	app = consumer(
 		join(files.out, "app"),
-		{ "@workerstack/backend": `file:${tarball}`, "@workerstack/clients": CLIENTS },
-		["zod", "@types/node", "vite"],
+		{ "@workerstack/backend": `file:${tarball}`, "@workerstack/clients": CLIENTS, zod: ZOD },
+		["@types/node", "vite"],
 	)
 	write(app, { "src/app.ts": APP, "src/selectors.ts": SELECTORS })
 }, 180_000)
@@ -115,7 +118,7 @@ describe.sequential("the tarball, installed (bit 19 i)", () => {
 				unresolved,
 				fields.devDependencies["@workerstack/clients"],
 				fields.devDependencies.typescript,
-			]).toEqual(["@workerstack/backend", [], CLIENTS, "7.0.2"])
+			]).toEqual(["@workerstack/backend", [], CLIENTS_PIN, "7.0.2"])
 		},
 	)
 
@@ -188,14 +191,14 @@ describe.sequential("the tarball, installed (bit 19 i)", () => {
 	])(
 		"type-checks against every core subpath, the generated types included, with %s resolution and every strict flag",
 		(resolution, module) => {
-			expect(strictCheck(app, resolution, module)).toEqual([51, 0, ""])
+			expect(strictCheck(app, resolution, module)).toEqual([48, 0, ""])
 		},
 		60_000,
 	)
 
 	it("type-checks against every core subpath with honey-clients, an optional peer, not installed", () => {
 		const dir = consumer(join(files.out, "core-only"), { "@workerstack/backend": `file:${tarball}` }, ["@types/node"])
-		expect(strictCheck(dir, "Bundler", "ESNext")).toEqual([51, 0, ""])
+		expect(strictCheck(dir, "Bundler", "ESNext")).toEqual([48, 0, ""])
 	}, 60_000)
 })
 

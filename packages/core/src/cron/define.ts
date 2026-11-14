@@ -1,5 +1,5 @@
 /**
- * One schedule definition for every runtime: `defineCron` checks it once, and `./cron/workers` or
+ * One schedule definition for every runtime: `defineCron` checks it once, and `./cron` (on Workers) or
  * `./cron/serve` runs it. An expression is five fields in UTC, in the subset every runtime reads the
  * same way; see `defineCron` for what is refused.
  */

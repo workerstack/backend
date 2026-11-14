@@ -61,12 +61,14 @@ function isNodeBuiltin(spec) {
 	return spec.startsWith("node:") || NODE_BUILTINS.has(spec.split("/")[0])
 }
 
-/* no portable file reaches an adapter, statically or through import(): a server imports its runtime's entry */
+/* no portable file reaches an adapter, statically or through import(): a server imports its runtime's entry.
+ * An entry file (`*-subpath.ts`, re-exports only) is how a subpath offers the adapter beside the portable surface. */
 function relativeProblem(where, spec) {
 	const target = resolveRel(where.rel, spec)
 	if (target === null) return "escape"
 	const to = bucketOf(target)
-	return !ADAPTER_BUCKETS.has(to) || to === where.bucket ? null : "adapter"
+	if (!ADAPTER_BUCKETS.has(to) || to === where.bucket) return null
+	return where.rel.endsWith("-subpath.ts") ? null : "adapter"
 }
 
 function packageProblem(where, spec, dynamic) {

@@ -29,7 +29,7 @@ function init(argv: string[] = []): string[] {
  */
 const served = (app: string) => `
 const { createJiti } = await import("jiti")
-const alias = { "@workerstack/backend/openapi/scalar": ${JSON.stringify(join(SRC, "openapi/scalar.ts"))}, "@workerstack/backend/openapi": ${JSON.stringify(join(SRC, "openapi/register.ts"))}, "@workerstack/backend": ${JSON.stringify(join(SRC, "routing/app.ts"))} }
+const alias = { "@workerstack/backend/http/openapi/scalar": ${JSON.stringify(join(SRC, "openapi/scalar.ts"))}, "@workerstack/backend/http/openapi": ${JSON.stringify(join(SRC, "openapi/register.ts"))}, "@workerstack/backend/http": ${JSON.stringify(join(SRC, "routing/app.ts"))} }
 const { app } = await createJiti(${JSON.stringify(import.meta.url)}, { alias, moduleCache: false }).import(${JSON.stringify(app)})
 const get = (path) => app.fetch(new Request("http://x" + path), {})
 const [health, spec, docs] = await Promise.all([get("/health"), get("/openapi.json"), get("/docs")])
@@ -85,10 +85,10 @@ describe("honey init", () => {
 		mkdirSync(join(dir, "src"))
 		writeFileSync(join(dir, "src/app.ts"), "export const app = null\n")
 		init(["--force"])
-		expect([read("src/app.ts").includes("null"), read("src/app.ts").includes('from "@workerstack/backend"')]).toEqual([
-			false,
-			true,
-		])
+		expect([
+			read("src/app.ts").includes("null"),
+			read("src/app.ts").includes('from "@workerstack/backend/http"'),
+		]).toEqual([false, true])
 	})
 
 	// v0: 2bf1aba4cd
