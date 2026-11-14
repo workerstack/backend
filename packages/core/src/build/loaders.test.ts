@@ -100,10 +100,21 @@ describe("a module loader for one generation (bit 19 h2)", () => {
 		expect([first, fresh, (globalThis as { __loads?: number }).__loads]).toEqual([[1, 1], 2, 2])
 	})
 
-	it("on Bun, imports each path once per loader; a fresh loader evicts what Bun holds outside node_modules", async () => {
+	it("shares a module two of its paths import, so an app and the core reading it are one instance", async () => {
+		const dir = project({
+			"a.ts": 'import { n } from "./shared.ts"\nexport const a = n\n',
+			"b.ts": 'import { n } from "./shared.ts"\nexport const b = n\n',
+			"shared.ts": "globalThis.__shared = (globalThis.__shared ?? 0) + 1\nexport const n = {}\n",
+		})
+		const load = await createModuleLoader({ fresh: true, from: dir })
+		const [{ a }, { b }] = [await load(join(dir, "a.ts")), await load(join(dir, "b.ts"))]
+		expect([a === b, (globalThis as { __shared?: number }).__shared]).toEqual([true, 1])
+	})
+
+	it("imports each path once per loader; a fresh loader evicts what the registry holds outside node_modules", async () => {
 		const dir = project({ "native.ts": "globalThis.__native = (globalThis.__native ?? 0) + 1\nexport const n = 3\n" })
 		const path = join(dir, "native.ts")
-		/* Bun's registry as the loader sees it: an installed module, and a module of the project's */
+		/* the registry as the loader sees it: an installed module, and a module of the project's */
 		const registry = () => ({ "/p/node_modules/dep/index.js": 1, "/p/src/app.ts": 1 })
 		const [kept, evicted] = [registry(), registry()]
 		const load = await createModuleLoader({ fresh: false, from: dir }, kept)
@@ -119,7 +130,7 @@ describe("a module loader for one generation (bit 19 h2)", () => {
 })
 
 describe("a module loader on Bun's global (bit 20 k-fix)", () => {
-	it("takes Bun's module registry, and imports a module as Bun's own import does", async () => {
+	it("imports a module as Bun's own import does", async () => {
 		const dir = project({ "plain.ts": "export const v = 9\n" })
 		vi.stubGlobal("Bun", {})
 		/* not fresh: a fresh loader would evict from the registry this test runner's process holds */
@@ -129,7 +140,7 @@ describe("a module loader on Bun's global (bit 20 k-fix)", () => {
 
 	it("refuses a reload that finds no project module to evict, rather than read a stale graph", async () => {
 		const dir = project({})
-		/* a registry keyed otherwise than the loader reads, as a Bun upgrade could leave it: nothing it would evict */
+		/* a registry keyed otherwise than the loader reads, as a runtime upgrade could leave it: nothing it would evict */
 		const installedOnly = { "/p/node_modules/dep/index.js": 1 }
 		const withApp = { "/p/node_modules/dep/index.js": 1, "/p/src/app.ts": 1 }
 		const reload = (registry: Record<string, unknown>) =>
@@ -138,7 +149,7 @@ describe("a module loader on Bun's global (bit 20 k-fix)", () => {
 				(error: Error) => error.message,
 			)
 		expect([await reload(installedOnly), await reload(withApp), Object.keys(withApp)]).toEqual([
-			"Bun's module registry held none of the project's modules to evict: a reload would read them stale",
+			"the module registry held none of the project's modules to evict: a reload would read them stale",
 			"loaded",
 			["/p/node_modules/dep/index.js"],
 		])

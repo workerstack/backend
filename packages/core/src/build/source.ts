@@ -4,8 +4,9 @@
  * (`codegen.mergeTree`, ruled at h2, v0's shape) writes gatewayTree(the merge entry's `app` export, else config.app,
  * merged): its services' routes plus its own. Its documents come from config.app, imported over the current tree
  * and given its services' schemas, so its settings and errors are its own; with no config.app, from an app booted on
- * that tree. A first run, whose config.app imports a tree not yet written, is given the merged tree first. Runs inside
- * the app's module graph, as artifacts.ts does.
+ * that tree. A first run, whose config.app imports a tree not yet written, is given the merged tree first. Every user
+ * module comes through the generation's loader: from a published dist, a native import() here reaches Node itself,
+ * which strips no types before 22.18.
  */
 import { existsSync } from "node:fs"
 import { resolve } from "node:path"
@@ -14,6 +15,7 @@ import { type Honey, honey } from "../routing/app.ts"
 import { gatewayTree, overlaySchemas } from "../routing/gateway-tree.ts"
 import type { RouteTree } from "../routing/tree.ts"
 import type { ResolvedHoneyConfig } from "./config.ts"
+import type { ModuleLoader } from "./loaders.ts"
 
 export type App = Honey<unknown>
 
@@ -46,18 +48,23 @@ async function unlessStale<T>(run: () => T | Promise<T>, config: ResolvedHoneyCo
 }
 
 /** The app `config.app` names. */
-async function appOf(config: ResolvedHoneyConfig, root: string): Promise<Documented> {
+async function appOf(config: ResolvedHoneyConfig, root: string, load: ModuleLoader): Promise<Documented> {
 	const entry = resolve(root, config.app as string)
-	const mod = (await unlessStale(() => import(entry), config)) as Record<string, unknown>
+	const mod = await unlessStale(() => load(entry), config)
 	const exportName = ["app", "default"].find((name) => isApp(mod[name]))
 	if (exportName === undefined) throw new Error(`Expected a honey app as the app or default export of ${entry}`)
 	return { app: mod[exportName] as App, entry, exportName }
 }
 
 /** A gateway's source, as the header says. */
-async function gatewayOf(config: ResolvedHoneyConfig, root: string, first: boolean): Promise<Source> {
+async function gatewayOf(
+	config: ResolvedHoneyConfig,
+	root: string,
+	load: ModuleLoader,
+	first: boolean,
+): Promise<Source> {
 	const entry = resolve(root, config.codegen.mergeTree as string)
-	const mod = (await import(entry)) as Record<string, unknown>
+	const mod = await load(entry)
 	const merged = [mod.tree, mod.routeTree, mod.default].find(isTree)
 	if (merged === undefined) throw new Error(`Expected a route tree as the tree or default export of ${entry}`)
 	const own = isApp(mod.app) ? { app: mod.app, entry, exportName: "app" } : undefined
@@ -71,16 +78,16 @@ async function gatewayOf(config: ResolvedHoneyConfig, root: string, first: boole
 	if (own === undefined) {
 		const path = config.codegen.tree === false ? undefined : resolve(root, config.codegen.tree)
 		const bootstrap = first && path !== undefined && !existsSync(path)
-		served = await appOf(config, root).catch((error: unknown) => {
+		served = await appOf(config, root, load).catch((error: unknown) => {
 			if (bootstrap) return undefined
 			throw error
 		})
-		if (served === undefined) return { documented: () => appOf(config, root), loadsTree: true, tree: merged }
+		if (served === undefined) return { documented: () => appOf(config, root, load), loadsTree: true, tree: merged }
 	}
 	const builder = (own ?? served) as Documented
 	const tree = await unlessStale(() => gatewayTree(builder.app, merged), config)
 	const documented = async () => {
-		const app = served ?? (await appOf(config, root))
+		const app = served ?? (await appOf(config, root, load))
 		overlaySchemas(app.app, merged)
 		return app
 	}
@@ -88,20 +95,28 @@ async function gatewayOf(config: ResolvedHoneyConfig, root: string, first: boole
 }
 
 /** The app `config` names: its snapshot is the tree written. */
-async function appSource(config: ResolvedHoneyConfig, root: string): Promise<Source> {
+async function appSource(config: ResolvedHoneyConfig, root: string, load: ModuleLoader): Promise<Source> {
 	if (config.app === undefined) throw new Error("No app configured: set app, or codegen.mergeTree for a gateway")
-	const documented = await appOf(config, root)
+	const documented = await appOf(config, root, load)
 	const tree = await unlessStale(() => documented.app.toRouteTree(), config)
 	return { documented: async () => documented, loadsTree: false, tree }
 }
 
 /**
- * The app `config` names, or a gateway's (`first` lets a gateway's first run bootstrap); each module imported once.
+ * The app `config` names, or a gateway's (`first` lets a gateway's first run bootstrap), each module read through
+ * `load` once.
  * Its tree holds no output key `.output()`'s types refuse: a generated tree is checked here, never where it is served.
  */
-export async function sourceOf(config: ResolvedHoneyConfig, root: string, first = false): Promise<Source> {
+export async function sourceOf(
+	config: ResolvedHoneyConfig,
+	root: string,
+	load: ModuleLoader,
+	first = false,
+): Promise<Source> {
 	const source =
-		config.codegen.mergeTree === undefined ? await appSource(config, root) : await gatewayOf(config, root, first)
+		config.codegen.mergeTree === undefined
+			? await appSource(config, root, load)
+			: await gatewayOf(config, root, load, first)
 	assertTreeOutputKeys(source.tree)
 	return source
 }

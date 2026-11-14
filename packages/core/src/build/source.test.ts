@@ -12,10 +12,16 @@ import { afterEach, describe, expect, it } from "vitest"
 import { type Project, project } from "./__fixtures__/project.ts"
 import { type HoneyVitePluginConfig, resolveHoneyConfig } from "./config.ts"
 import { generateAndWrite } from "./generate.ts"
+import type { ModuleLoader } from "./loaders.ts"
 import { sourceOf } from "./source.ts"
 import { honeyPlugin } from "./plugin.ts"
+import { honey } from "../routing/app.ts"
+import { mergeTree } from "../routing/tree-merge.ts"
 
 const SLOW = 60_000
+
+/** The loader a Bun or type-stripping Node test can use: the platform's own import. */
+const native: ModuleLoader = (path) => import(path) as Promise<Record<string, unknown>>
 const BIN = resolve(import.meta.dirname, "../../bin/honey.js")
 const projects: Project[] = []
 afterEach(() => {
@@ -355,12 +361,17 @@ describe("sourceOf natively: what fails and how it is named (bit 19 h2)", () => 
 		})
 		const broken = linked({ "src/app.ts": 'throw new Error("not stale")\n' })
 		expect([
-			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), plain.dir)),
-			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts", codegen: { tree: false } }), off.dir)),
+			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), plain.dir, native)),
+			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts", codegen: { tree: false } }), off.dir, native)),
 			await failure(
-				sourceOf(resolveHoneyConfig({ app: "src/app.ts", codegen: { mergeTree: "src/routes.ts" } }), gateway.dir, true),
+				sourceOf(
+					resolveHoneyConfig({ app: "src/app.ts", codegen: { mergeTree: "src/routes.ts" } }),
+					gateway.dir,
+					native,
+					true,
+				),
 			),
-			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), broken.dir)),
+			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), broken.dir, native)),
 		]).toEqual([
 			"src/app.ts loads the route tree generation writes (src/_gen/routes.gen.ts), and that tree is stale: generate from the module that builds the app, and serve `app.routeTree(routeTree)` from another, or set codegen.mergeTree for a gateway",
 			"src/app.ts loads the route tree generation writes (its routes.gen.ts), and that tree is stale: generate from the module that builds the app, and serve `app.routeTree(routeTree)` from another, or set codegen.mergeTree for a gateway",
@@ -372,9 +383,9 @@ describe("sourceOf natively: what fails and how it is named (bit 19 h2)", () => 
 	it("refuses a module with no honey app, a merge entry with no tree, and no app at all", async () => {
 		const made = linked({ "src/app.ts": "export const app = 1\n", "src/routes.ts": "export const tree = 1\n" })
 		expect([
-			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), made.dir)),
-			await failure(sourceOf(resolveHoneyConfig({ codegen: { mergeTree: "src/routes.ts" } }), made.dir)),
-			await failure(sourceOf(resolveHoneyConfig({}), made.dir)),
+			await failure(sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), made.dir, native)),
+			await failure(sourceOf(resolveHoneyConfig({ codegen: { mergeTree: "src/routes.ts" } }), made.dir, native)),
+			await failure(sourceOf(resolveHoneyConfig({}), made.dir, native)),
 		]).toEqual([
 			`Expected a honey app as the app or default export of ${join(made.dir, "src/app.ts")}`,
 			`Expected a route tree as the tree or default export of ${join(made.dir, "src/routes.ts")}`,
@@ -395,7 +406,7 @@ const GATEWAY = (tree: string) => ({
 describe("sourceOf natively: a gateway's app (bit 19 h2)", () => {
 	it("is the merge entry's app with no config.app, its routes in the tree and its documents from that tree", async () => {
 		const made = linked(GATEWAY(""))
-		const source = await sourceOf(resolveHoneyConfig({ codegen: { mergeTree: "src/seed.ts" } }), made.dir)
+		const source = await sourceOf(resolveHoneyConfig({ codegen: { mergeTree: "src/seed.ts" } }), made.dir, native)
 		const documented = await source.documented()
 		expect([source.loadsTree, Object.keys(source.tree.routes).sort(), documented.exportName]).toEqual([
 			false,
@@ -409,6 +420,7 @@ describe("sourceOf natively: a gateway's app (bit 19 h2)", () => {
 		const source = await sourceOf(
 			resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/seed.ts" } }),
 			made.dir,
+			native,
 			true,
 		)
 		expect([source.loadsTree, Object.keys(source.tree.routes).length]).toEqual([true, 4])
@@ -424,6 +436,7 @@ describe("sourceOf natively: a gateway's app (bit 19 h2)", () => {
 		const source = await sourceOf(
 			resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/routes.ts" } }),
 			made.dir,
+			native,
 		)
 		const documented = await source.documented()
 		expect([source.loadsTree, documented.entry, Object.keys(source.tree.routes).length]).toEqual([
@@ -436,12 +449,12 @@ describe("sourceOf natively: a gateway's app (bit 19 h2)", () => {
 	it("bootstraps a first pass whose config.app imports a tree not yet written, and only that", async () => {
 		const tree = 'import { routeTree } from "./_gen/routes.gen.ts"\n'
 		const config = resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/routes.ts" } })
-		const first = await sourceOf(config, linked(GATEWAY(tree)).dir, true)
+		const first = await sourceOf(config, linked(GATEWAY(tree)).dir, native, true)
 		expect([first.loadsTree, Object.keys(first.tree.routes)]).toEqual([true, ["GET /orders", "POST /items"]])
 		expect(await failure(first.documented())).toMatch(/routes\.gen/)
-		const later = await failure(sourceOf(config, linked(GATEWAY(tree)).dir, false))
+		const later = await failure(sourceOf(config, linked(GATEWAY(tree)).dir, native, false))
 		const off = resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/routes.ts", tree: false } })
-		const noTree = await failure(sourceOf(off, linked(GATEWAY(tree)).dir, true))
+		const noTree = await failure(sourceOf(off, linked(GATEWAY(tree)).dir, native, true))
 		expect([later, noTree].map((message) => /routes\.gen/.test(message))).toEqual([true, true])
 	})
 })
@@ -458,8 +471,29 @@ describe("sourceOf natively: the documents' app, imported on demand (bit 19 h2)"
 		const source = await sourceOf(
 			resolveHoneyConfig({ app: "src/served.ts", codegen: { mergeTree: "src/seed.ts" } }),
 			made.dir,
+			native,
 		)
 		const documented = await source.documented()
 		expect([documented.entry, documented.exportName]).toEqual([join(made.dir, "src/served.ts"), "app"])
+	})
+})
+
+describe("sourceOf through the generation's loader (plan 53, Node 22.12)", () => {
+	it("reads the app and the merge entry the loader serves, never a native import Node may refuse", async () => {
+		const down = honey()
+			.get("/orders")
+			.handler((c) => c.res.text("ok", "orders"))
+		const served = new Map<string, Record<string, unknown>>([
+			[resolve("/nowhere/src/app.ts"), { app: down }],
+			[resolve("/nowhere/src/routes.ts"), { tree: mergeTree([down.toRouteTree(), {}]) }],
+		])
+		const load = async (path: string) => served.get(path) ?? Promise.reject(new Error(`not served: ${path}`))
+		const plain = await sourceOf(resolveHoneyConfig({ app: "src/app.ts" }), "/nowhere", load)
+		const gateway = await sourceOf(resolveHoneyConfig({ codegen: { mergeTree: "src/routes.ts" } }), "/nowhere", load)
+		expect([Object.keys(plain.tree.routes), (await plain.documented()).app, Object.keys(gateway.tree.routes)]).toEqual([
+			["GET /orders"],
+			down,
+			["GET /orders"],
+		])
 	})
 })
