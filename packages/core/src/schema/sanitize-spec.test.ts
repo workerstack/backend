@@ -145,6 +145,7 @@ describe("sanitizeOpenApiSpec: extensions inside schemas", () => {
 /** Every x- key backend's generators read off a document. */
 const GENERATORS_READ = [
 	"x-deprecated",
+	"x-backend-declared-id",
 	"x-backend-error",
 	"x-backend-errors",
 	"x-backend-route",

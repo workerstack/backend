@@ -2,7 +2,8 @@
  * The document's paths: each collected route as an operation per method under its OpenAPI path.
  * `all()` documents the standard methods its path does not declare itself; an optional param's
  * variants are two paths; a WebSocket route is a GET upgrade. Every operation carries its route
- * id as `x-backend-route`, the key bit 11 joins extracted ctx types on.
+ * id as `x-backend-route`, the key bit 11 joins extracted ctx types on, and one whose operationId
+ * `assignOperationIds` renamed carries the declared id as `x-backend-declared-id`.
  */
 import type { InputEntry, InputSchemas } from "../input/input.ts"
 import type { ParamSchemas } from "../input/params.ts"
@@ -193,7 +194,8 @@ export function buildPaths(
 /**
  * Make operationIds unique. One registration the document expands into several operations
  * (`.on([...])`, `all()`, an optional param) keeps its id with a method or variant suffix; two
- * registrations declaring one id is an authoring error.
+ * registrations declaring one id is an authoring error. A renamed operation keeps the declared id as
+ * `x-backend-declared-id`, which a suffix alone cannot give back (`multi_get_` beside a declared `multi_get`).
  */
 export function assignOperationIds(operations: readonly EmittedOperation[], error: (message: string) => void): void {
 	const byId = new Map<string, EmittedOperation[]>()
@@ -220,6 +222,7 @@ export function assignOperationIds(operations: readonly EmittedOperation[], erro
 			while (used.has(next)) next += "_"
 			used.add(next)
 			entry.operation.operationId = next
+			entry.operation["x-backend-declared-id"] = id
 		}
 	}
 }

@@ -229,11 +229,28 @@ describe("operationIds", () => {
 			.meta({ operationId: "multi_get" })
 			.handler((c) => c.res.text("ok", "ok"))
 		const doc = generateOpenApi(app, { info: INFO })
-		expect(
-			[["/multi"], ["/multi", "post"], ["/opt"], ["/opt/{id}"], ["/feed"], ["/feed/{room}"], ["/taken"]].map(
-				([path, method]) => op(doc, path as string, method).operationId,
-			),
-		).toEqual(["multi_get_", "multi_post", "opt", "opt_with_id", "feed", "feed_with_room", "multi_get"])
+		const ops = [["/multi"], ["/multi", "post"], ["/opt"], ["/opt/{id}"], ["/feed"], ["/feed/{room}"], ["/taken"]].map(
+			([path, method]) => op(doc, path as string, method),
+		)
+		expect(ops.map((o) => o.operationId)).toEqual([
+			"multi_get_",
+			"multi_post",
+			"opt",
+			"opt_with_id",
+			"feed",
+			"feed_with_room",
+			"multi_get",
+		])
+		/* a renamed operation names the id its route declared; one that kept it carries no key */
+		expect(ops.map((o) => o["x-backend-declared-id"])).toEqual([
+			"multi",
+			"multi",
+			undefined,
+			"opt",
+			undefined,
+			"feed",
+			undefined,
+		])
 		const twice = httpApp<{}>()
 		twice
 			.get("/a")

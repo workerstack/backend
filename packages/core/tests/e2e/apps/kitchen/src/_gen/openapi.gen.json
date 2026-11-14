@@ -207,7 +207,8 @@
           "unauthorized": {
             "status": 401
           }
-        }
+        },
+        "x-backend-declared-id": "echo"
       },
       "post": {
         "operationId": "echo_post",
@@ -243,7 +244,8 @@
           "unauthorized": {
             "status": 401
           }
-        }
+        },
+        "x-backend-declared-id": "echo"
       },
       "put": {
         "operationId": "echo_put",
@@ -279,7 +281,8 @@
           "unauthorized": {
             "status": 401
           }
-        }
+        },
+        "x-backend-declared-id": "echo"
       },
       "patch": {
         "operationId": "echo_patch",
@@ -315,7 +318,8 @@
           "unauthorized": {
             "status": 401
           }
-        }
+        },
+        "x-backend-declared-id": "echo"
       },
       "delete": {
         "operationId": "echo_delete",
@@ -351,7 +355,8 @@
           "unauthorized": {
             "status": 401
           }
-        }
+        },
+        "x-backend-declared-id": "echo"
       }
     },
     "/api/echo-ws": {

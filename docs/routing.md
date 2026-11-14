@@ -7,7 +7,9 @@ strings until an input schema validates them. A trailing slash is normalized, so
 WebSocket routes take `ws(app, path)` from `@workerstack/backend/ws`, and `serveOpenApi` and `serveManifest` from
 `@workerstack/backend/http/openapi` mount the generated document and the route manifest. Every documented route
 declares a dotted `operationId` (`users.list`): it names the operation `invalidate` and `OperationCtx` refer to, groups
-the generated SDK's methods into resources and names the CLI's and MCP's commands.
+the generated SDK's methods into resources and names the CLI's and MCP's commands. A registration the document expands
+into several operations (`.on([...])`, `all()`, an optional param) writes each operationId with a method or
+`_with_<param>` suffix (`echo_get`, `opt_with_id`) and carries the declared id as `x-backend-declared-id`.
 
 ## Example
 
