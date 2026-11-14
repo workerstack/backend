@@ -20,7 +20,7 @@ const EXEMPT = [
 	/^CHANGELOG\.md$/,
 	/^blueprint\//,
 	/^\.(agents|claude|codex|cursor|grok|repo)\//,
-	/^(AGENTS|CLAUDE)\.md$/,
+	/^AGENTS\.md$/,
 ]
 
 function repoFiles(): string[] {

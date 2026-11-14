@@ -24,7 +24,6 @@
 		"**/references/INDEX.md",
 		".mcp.json",
 		"**/AGENTS.md",
-		"CLAUDE.md",
 		".oxfmtrc.jsonc",
 		"**/.wrangler/**",
 		"**/.backend/**",

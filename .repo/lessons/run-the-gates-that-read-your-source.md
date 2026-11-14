@@ -12,4 +12,4 @@ evidence: ["plan 33","plan 40 rc.22: init.test.ts spawned bun -e on core source 
 I ran only the suites of touched files and called it done. Lint derivations, structure tests, coverage floors, `blueprint/files.tsv`, max-lines and bundle locks read the same source and failed later, over many verify passes.
 
 ## Fix
-After changing `packages/*/src`, run `bun vitest run --root packages/core lint tests/structure` and `bun run lint`, then the CLAUDE.md gates. A new file needs its `blueprint/files.tsv` row. Split files past `max-lines` (300) or `max-lines-per-function` (60) by meaning.
+After changing `packages/*/src`, run `bun vitest run --root packages/core lint tests/structure` and `bun run lint`, then the AGENTS.md gates. A new file needs its `blueprint/files.tsv` row. Split files past `max-lines` (300) or `max-lines-per-function` (60) by meaning.
