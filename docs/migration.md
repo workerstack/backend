@@ -24,6 +24,7 @@ Apps run on Cloudflare Workers only: `export default app` is the Worker. A Node 
 | `serveQueue`, `memoryQueueStore` from `@workerstack/backend/queue/serve`    | `workersQueue` from `@workerstack/backend/queue/workers`, on a Workers Queue binding    |
 | `testClient(app, { transport: serve })`                                     | `testClient(app, { env })`, in process; the option is gone                              |
 | `createBuildPlugin({ target: "node" })` or `"bun"`, and its `port` option   | the one target is `workers`; any other target is refused with `expected workers`        |
+| `toFetchRequest(ctx.req)`                                                   | `ctx.req`: it is the Fetch `Request`                                                    |
 | the optional `ws` peer                                                      | none: delete it from your dependencies if only honey used it                            |
 | a `runtime` field on each request-log line                                  | none: there is one runtime                                                              |
 | `honey init --workers`; `honey init` writing `src/server.ts`                | `honey init` always writes `src/worker.ts` and `wrangler.jsonc`; `--workers` is refused |

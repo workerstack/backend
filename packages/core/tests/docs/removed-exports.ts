@@ -154,6 +154,7 @@ export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
 	},
 	sign: { kind: "guide" },
 	spec: { kind: "guide" },
+	toFetchRequest: { kind: "guide" },
 	verify: { kind: "guide" },
 }
 

@@ -193,10 +193,7 @@ export class HoneyContext<TEnv = Record<string, unknown>> {
 	 * slashes collapse, dot segments resolve, and percent escapes stay encoded.
 	 */
 	readonly path: string
-	/**
-	 * The incoming request. On Node it is a view shaped like one: `instanceof Request` is false there, and
-	 * `toFetchRequest()` gives the real `Request`.
-	 */
+	/** The incoming request. */
 	readonly req: Request
 	/** Builders for the response: `json`, `text`, `redirect` and the rest; `forward` needs the route's `.output()`. */
 	readonly res: Omit<HoneyRes, "forward">
