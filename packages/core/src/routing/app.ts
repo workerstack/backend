@@ -44,7 +44,6 @@ export class HttpApp<
 	TErrorFactory = never,
 	TDefaultErrors extends string = never,
 	TBasePath extends string = "/",
-	TTaps extends Record<string, unknown> = {},
 	TScopedMw extends readonly ScopedMwEntry[] = [],
 > extends RouteTreeChain<TEnv> {
 	/** The handle's base path; `/` until `basePath()` sets one. Type only. */
@@ -59,8 +58,8 @@ export class HttpApp<
 	declare readonly $meta: TMeta
 	/** The routes registered so far, by path and method, without `internal` ones. Type only; the generated client reads it. */
 	declare readonly $routes: TRoutes
-	/** The declared tap payloads. Type only. */
-	declare readonly $taps: TTaps
+	/** Always `{}`: a tap is no part of the app's type. Type only, read by the pinned clients extractor. */
+	declare readonly $taps: {}
 	readonly #graph: HttpGraph
 	/** this handle's view: read-only, reached through a symbol the package does not export */
 	readonly [VIEW]: HandleView
@@ -87,7 +86,7 @@ export class HttpApp<
 	 */
 	basePath<P extends string>(
 		prefix: P,
-	): HttpApp<TEnv, TCtx, TRoutes, TMeta, TErrorFactory, TDefaultErrors, MergePath<TBasePath, P>, TTaps, TScopedMw> {
+	): HttpApp<TEnv, TCtx, TRoutes, TMeta, TErrorFactory, TDefaultErrors, MergePath<TBasePath, P>, TScopedMw> {
 		return this.#derive({ basePath: joinPatterns(this[VIEW].basePath, prefix) })
 	}
 
@@ -97,7 +96,7 @@ export class HttpApp<
 	 */
 	context<TAdds extends Record<string, unknown>>(
 		values: TAdds,
-	): HttpApp<TEnv, TCtx & Readonly<TAdds>, TRoutes, TMeta, TErrorFactory, TDefaultErrors, TBasePath, TTaps, TScopedMw> {
+	): HttpApp<TEnv, TCtx & Readonly<TAdds>, TRoutes, TMeta, TErrorFactory, TDefaultErrors, TBasePath, TScopedMw> {
 		for (const key in values) if (isReservedCtxKey(key)) throw new Error(`context() cannot set reserved key "${key}"`)
 		return this.#derive({ contextValues: { ...this[VIEW].contextValues, ...values } })
 	}
@@ -120,17 +119,7 @@ export class HttpApp<
 		>,
 	>(
 		values: TValues,
-	): HttpApp<
-		TEnv,
-		TCtx,
-		TRoutes,
-		WithChainMeta<TMeta, TValues>,
-		TErrorFactory,
-		TDefaultErrors,
-		TBasePath,
-		TTaps,
-		TScopedMw
-	> {
+	): HttpApp<TEnv, TCtx, TRoutes, WithChainMeta<TMeta, TValues>, TErrorFactory, TDefaultErrors, TBasePath, TScopedMw> {
 		return this.#derive({ chainMeta: { ...this[VIEW].chainMeta, ...values } }) as never
 	}
 
@@ -148,7 +137,6 @@ export class HttpApp<
 		TErrorFactory,
 		TDefaultErrors | MiddlewareErrorKeys<TMwErrors>,
 		TBasePath,
-		TTaps,
 		TScopedMw
 	>
 	/**
@@ -167,7 +155,6 @@ export class HttpApp<
 		TErrorFactory,
 		TDefaultErrors,
 		TBasePath,
-		TTaps,
 		readonly [
 			...TScopedMw,
 			{
@@ -202,7 +189,6 @@ export class HttpApp<
 		TErrorFactory,
 		TDefaultErrors,
 		TBasePath,
-		TTaps,
 		TScopedMw
 	>
 	/**
@@ -231,7 +217,6 @@ export class HttpApp<
 		TErrorFactory,
 		TDefaultErrors,
 		TBasePath,
-		TTaps,
 		TScopedMw
 	>
 	route(prefixOrSub: unknown, maybeSub?: unknown): unknown {
@@ -351,12 +336,12 @@ export class HttpApp<
  * on every route, and the types they give. A setter on the app, or on the preset later, changes neither the other nor
  * another app started from it.
  */
-export function httpApp<TEnv, TCtx, TMeta, TFactory, TDefaults extends string, TTaps extends Record<string, unknown>>(
-	preset: HttpPreset<TEnv, TCtx, TMeta, TFactory, TDefaults, TTaps>,
-): HttpApp<TEnv, TCtx, {}, TMeta, TFactory, TDefaults, "/", TTaps>
+export function httpApp<TEnv, TCtx, TMeta, TFactory, TDefaults extends string>(
+	preset: HttpPreset<TEnv, TCtx, TMeta, TFactory, TDefaults>,
+): HttpApp<TEnv, TCtx, {}, TMeta, TFactory, TDefaults, "/">
 /* last, so `ReturnType<typeof httpApp>` is the plain app */
 /** A new app typed to the runtime env `TEnv`. */
 export function httpApp<TEnv>(): HttpApp<TEnv>
-export function httpApp<TEnv>(preset?: HttpPreset<TEnv, unknown, unknown, unknown, string, {}>): HttpApp<TEnv> {
+export function httpApp<TEnv>(preset?: HttpPreset<TEnv, unknown, unknown, unknown, string>): HttpApp<TEnv> {
 	return preset?.[SEED]() ?? new HttpApp<TEnv>()
 }

@@ -12,6 +12,45 @@ generated from a small example API (`Kitchen`); yours is named after your docume
 The SDK sections cover the four SDKs 0.7.3 shipped: TypeScript, Python, Go and Rust. The C# and Java SDKs are new
 in 1.0, so they migrate nothing; their client is documented in [the generated clients page](https://github.com/workerstack/clients/blob/main/docs/client.md).
 
+## From 1.0.0-rc.27 to 1.0.0-rc.28
+
+A tap is a value now: `defineTap(name, schema, handler)` names it, holds the schema its payload is checked by, and
+holds its handler. The app registers the value and a route fires the value, so a misspelled name is a type error and a
+payload the schema refuses never reaches the handler.
+
+| Before                                                         | Now                                                                                    |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `.taps<{ audit: { action: string } }>()` declares the payloads | `defineTap("audit", z.object({ action: z.string() }), handler)`: the schema types them |
+| `app.tap("audit", (ctx, payload) => ...)`                      | `app.tap(audit)`                                                                       |
+| `ctx.tap("audit", { action: "items.create" })`                 | `ctx.tap(audit, { action: "items.create" })`, checked by the schema at the call        |
+| `.meta({ audit: {...} })` with the key typed by `.taps<T>()`   | the same `.meta()`, with the key typed by `metaType<TapMeta<typeof audit>>()`          |
+| a `TapHandler<TEnv, T>` annotation on a handler                | `TapContext<TEnv>` on the handler's first parameter; the payload comes from the schema |
+| a payload no one checked                                       | a refused payload fails the request with a 500; a refused meta value throws at compile |
+| an app's `$taps` type carrying the payloads                    | `$taps` is always `{}`                                                                 |
+
+```ts
+import { defineTap, httpApp, type TapContext, type TapMeta } from "@workerstack/backend/http"
+import * as z from "zod"
+
+type Env = { AUDIT_URL: string }
+
+const audit = defineTap("audit", z.object({ action: z.string() }), (ctx: TapContext<Env>, payload) => {
+	ctx.background(fetch(ctx.env.AUDIT_URL, { body: JSON.stringify(payload), method: "POST" }))
+})
+
+const app = httpApp<Env>().metaType<TapMeta<typeof audit>>().tap(audit)
+
+app.post("/items").handler((ctx) => {
+	ctx.tap(audit, { action: "items.create" })
+	return ctx.res.json("created", { ok: true })
+})
+
+app
+	.delete("/items/:id")
+	.meta({ audit: { action: "items.delete" } })
+	.handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
+```
+
 ## From 1.0.0-rc.25 to 1.0.0-rc.26
 
 Apps run on Cloudflare Workers only: `export default app` is the Worker. A Node or Bun entry has nothing to import now.

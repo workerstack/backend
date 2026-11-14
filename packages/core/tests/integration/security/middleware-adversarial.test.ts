@@ -6,6 +6,8 @@
  */
 import { resolve as resolvePath } from "node:path"
 import { describe, expect, it, vi } from "vitest"
+import * as z from "zod"
+import { defineTap } from "../../../src/routing/define-tap.ts"
 import { guardNamed } from "../../structure/mutation-harness.ts"
 
 const REPO = resolvePath(import.meta.dirname, "../../../../..")
@@ -460,22 +462,23 @@ describe("v1 adversarial: a tap never delays, changes or fails the answer", () =
 		const fired: string[] = []
 		const app = httpApp<{}>()
 		app.onError(onError)
-		app.tap("throws", () => {
+		const throws = defineTap("throws", z.object({}), () => {
 			fired.push("throws")
 			throw new Error("tap broke")
 		})
-		app.tap("hangs", () => {
+		const hangs = defineTap("hangs", z.object({}), () => {
 			fired.push("hangs")
 			return new Promise(() => {})
 		})
-		for (const key of ["throws", "hangs"]) {
-			app.get(`/${key}`).handler((ctx) => {
-				ctx.tap(key, {})
+		app.tap(throws).tap(hangs)
+		for (const tap of [throws, hangs]) {
+			app.get(`/${tap.name}`).handler((ctx) => {
+				ctx.tap(tap, {})
 				return ctx.res.text("ok", "ok")
 			})
 		}
 		app.get("/fails").handler((ctx) => {
-			ctx.tap("throws", {})
+			ctx.tap(throws, {})
 			throw new Error("handler broke")
 		})
 		const answers = []

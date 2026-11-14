@@ -16,8 +16,6 @@ export type Retype = {
 	readonly factory?: unknown
 	/** The route meta type. */
 	readonly meta?: unknown
-	/** The declared tap payloads. */
-	readonly taps?: Record<string, unknown>
 }
 
 /** The retype `errorFactory()` makes: the factory just set. */
@@ -45,7 +43,6 @@ export type Retyped<H, C extends Retype> =
 		infer TFactory,
 		infer TDefaults extends string,
 		infer TBase extends string,
-		infer TTaps extends Record<string, unknown>,
 		infer TScoped extends readonly ScopedMwEntry[]
 	>
 		? HttpApp<
@@ -56,24 +53,15 @@ export type Retyped<H, C extends Retype> =
 				Slot<C, "factory", TFactory>,
 				TDefaults | (Slot<C, "defaults", never> & string),
 				TBase,
-				Extract<Slot<C, "taps", TTaps>, Record<string, unknown>>,
 				TScoped
 			>
-		: H extends HttpPreset<
-					infer TEnv,
-					infer TCtx,
-					infer TMeta,
-					infer TFactory,
-					infer TDefaults extends string,
-					infer TTaps extends Record<string, unknown>
-			  >
+		: H extends HttpPreset<infer TEnv, infer TCtx, infer TMeta, infer TFactory, infer TDefaults extends string>
 			? HttpPreset<
 					TEnv,
 					Slot<C, "ctx", TCtx>,
 					Slot<C, "meta", TMeta>,
 					Slot<C, "factory", TFactory>,
-					TDefaults | (Slot<C, "defaults", never> & string),
-					Extract<Slot<C, "taps", TTaps>, Record<string, unknown>>
+					TDefaults | (Slot<C, "defaults", never> & string)
 				>
 			: never
 
@@ -84,29 +72,11 @@ export type FactoryKeys<H> = H extends { readonly $errorFactory: infer F }
 		: keyof F & string
 	: never
 
-/** `H` with route meta type `TMeta` declared; route meta may still carry its declared taps. */
-export type WithMetaType<H, TMeta> = H extends { readonly $taps: infer TTaps }
-	? Retyped<
-			H,
-			{
-				/** The declared meta type, which may still carry the declared taps. */
-				meta: [keyof TTaps] extends [never] ? TMeta : TMeta & Partial<TTaps>
-			}
-		>
-	: never
-
-/** `H` with tap payloads `TNewTaps` declared: they join its taps, and route meta may carry any of them. */
-export type WithTaps<H, TNewTaps extends Record<string, unknown>> = H extends {
-	readonly $meta: infer TMeta
-	readonly $taps: infer TTaps
-}
-	? Retyped<
-			H,
-			{
-				/** The meta type, which may now carry any declared tap. */
-				meta: [TMeta] extends [never] ? Partial<TNewTaps> : TMeta & Partial<TNewTaps>
-				/** The taps declared before and now. */
-				taps: TTaps & TNewTaps
-			}
-		>
-	: never
+/** `H` with route meta type `TMeta` declared. */
+export type WithMetaType<H, TMeta> = Retyped<
+	H,
+	{
+		/** The declared meta type. */
+		meta: TMeta
+	}
+>

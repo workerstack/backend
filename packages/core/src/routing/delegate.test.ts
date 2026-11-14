@@ -1,8 +1,10 @@
 import { describe, expect, expectTypeOf, it } from "vitest"
+import * as z from "zod"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { proxy } from "../proxy/proxy.ts"
 import type { StandardSchemaLike } from "../validation/standard-schema.ts"
 import { httpApp } from "./app.ts"
+import { defineTap } from "./define-tap.ts"
 import { createNode, insertRoute, insertWsRoute, type RouteEntry, type RouteTree } from "./tree.ts"
 
 function treeOf(routes: readonly (readonly [string, string, RouteEntry?])[]): RouteTree {
@@ -87,7 +89,7 @@ describe("delegation: middleware, scopes, taps and the catch-all itself", () => 
 			["GET", "/public", { mt: { audit: "public" } }],
 		])
 		const app = httpApp<{}>().routeTree(tree)
-		app.tap("audit", (_ctx, value) => void seen.push(value))
+		app.tap(defineTap("audit", z.string(), (_ctx, value) => void seen.push(value)))
 		app.use("/admin", deny)
 		app
 			.use(createMiddleware(async (_ctx, next) => next({ token: "abc" })))

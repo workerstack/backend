@@ -13,8 +13,10 @@ import {
 	type Sampler,
 } from "@opentelemetry/sdk-trace-base"
 import { afterEach, describe, expect, it } from "vitest"
+import * as z from "zod"
 import { createMiddleware, namedMiddleware } from "../middleware/middleware.ts"
 import { httpApp } from "../routing/app.ts"
+import { defineTap } from "../routing/define-tap.ts"
 import { otelAdapter } from "./otel.ts"
 
 /** A context manager over a plain stack: enough for the synchronous `with` the adapter's run() makes. */
@@ -176,10 +178,10 @@ describe("otelAdapter: errors, sampling and taps", () => {
 	it("taps fire beside the spans, and get none of their own", async () => {
 		const exporter = exporting()
 		const received: unknown[] = []
-		const app = httpApp<{}>().telemetry(otelAdapter(api))
-		app.tap("audit", (_ctx, payload) => void received.push(payload))
+		const audit = defineTap("audit", z.object({ action: z.string() }), (_ctx, payload) => void received.push(payload))
+		const app = httpApp<{}>().telemetry(otelAdapter(api)).tap(audit)
 		app.get("/t").handler((ctx) => {
-			ctx.tap("audit", { action: "read" })
+			ctx.tap(audit, { action: "read" })
 			return ctx.res.text("ok", "t")
 		})
 		await (await app.fetch(get("/t"), {})).text()

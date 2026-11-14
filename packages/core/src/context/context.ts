@@ -4,10 +4,12 @@
  * the abort signal are read from the request only when first asked for.
  */
 import type { HttpError } from "../errors/error.ts"
+import type { TapDefinition } from "../routing/define-tap.ts"
 import { HttpRes } from "../response/response.ts"
 import { searchOfUrl } from "../routing/request-path.ts"
 import { dict } from "../routing/tree.ts"
 import { requestBindings } from "../telemetry/fields.ts"
+import type { InferInput } from "../validation/standard-schema.ts"
 import type { BackendLogger } from "../telemetry/logger.ts"
 import type { RequestTrace } from "../telemetry/request-trace.ts"
 import { parseCookieHeader } from "./cookie.ts"
@@ -35,6 +37,10 @@ export type RequestState<TEnv> = {
 	ip?: string | null
 	/** set when the route's handler answered, on a route with taps only: they fire on nothing else */
 	answered?: true
+	/** the taps registered for the route, set by routing/tap.ts on a route with taps only */
+	taps?: ReadonlyMap<string, TapDefinition>
+	/** set on a WebSocket upgrade, to the serving app's adapter or `null`: an upgrade fires no taps */
+	ws?: unknown
 	/** the id `requestId()` gave the request and the header it travels in, for `proxy()` and the request log */
 	requestId?: {
 		/** The header `requestId()` reads and answers the id in. */
@@ -87,6 +93,23 @@ export const TRACE: unique symbol = /* @__PURE__ */ Symbol("backend.trace")
 /** The taps `ctx.tap()` queued, and whether the route's handler answered: read by routing/tap.ts only. */
 export const TAPS: unique symbol = /* @__PURE__ */ Symbol("backend.taps")
 
+/** A defined tap's payload check: the schema's output, or the first issue as `<path>: <message>`. */
+export type TapCheck = (value: unknown) =>
+	| {
+			/** The first issue, as `<path>: <message>`; the path is `(root)` for the value as a whole. */
+			readonly issue: string
+	  }
+	| {
+			/** The schema's output: what the tap's handler gets. */
+			readonly value: unknown
+	  }
+
+/**
+ * The key of a defined tap's check, set by `defineTap` and called by `ctx.tap()` and the route compile: the key lives
+ * here and the check there, so an app that defines no tap bundles none of it. Not exported from the package.
+ */
+export const TAP_CHECK: unique symbol = /* @__PURE__ */ Symbol("backend.tapCheck")
+
 /**
  * The instance the constructor built, on that instance: a context derived with `Object.create(ctx)`
  * reaches it through its prototype, so its getters read and write the base's private state rather
@@ -94,11 +117,11 @@ export const TAPS: unique symbol = /* @__PURE__ */ Symbol("backend.taps")
  */
 const SELF: unique symbol = /* @__PURE__ */ Symbol("backend.self")
 
-/** One `ctx.tap(key, payload)` call, waiting for the handler's answer. */
+/** One `ctx.tap(tap, payload)` call, waiting for the handler's answer. */
 export type TapCall = {
-	/** The key given to `ctx.tap()`: it picks the handler `app.tap()` registered. */
-	readonly key: string
-	/** The value given to `ctx.tap()`, handed to that handler. */
+	/** The registered tap `ctx.tap()` was given. */
+	readonly tap: TapDefinition
+	/** The payload, already parsed by the tap's schema: what its handler gets. */
 	readonly payload: unknown
 }
 
@@ -320,14 +343,20 @@ export class HttpContext<TEnv = Record<string, unknown>> {
 	}
 
 	/**
-	 * Fire the app's tap for `key` with `payload` once the chain settled on this request's handler's answer. Nothing fires
-	 * when a throw or a middleware answered instead, but an error status the handler returned still fires, as does an answer
-	 * a middleware replaced afterwards. The tap cannot change the response, but it can start before the response is written,
-	 * so its synchronous work can delay it. A key no tap is registered for is ignored.
+	 * Fire `tap` with `payload` once the chain settled on this request's handler's answer. Nothing fires when a throw or a
+	 * middleware answered instead, but an error status the handler returned still fires, as does an answer a middleware
+	 * replaced afterwards. The tap cannot change the response, but it can start before the response is written, so its
+	 * synchronous work can delay it. Throws when the route's app (or an app serving it) did not register this tap, on a
+	 * WebSocket upgrade, and when the payload fails the tap's schema.
 	 */
-	tap(key: string, payload: unknown): void {
+	tap<T extends TapDefinition>(tap: T, payload: InferInput<T["schema"]>): void {
 		const self = this[SELF]
-		;(self.#taps ??= []).push({ key, payload })
+		const state = self[REQUEST]
+		if (state.ws !== undefined) throw new Error(`tap ${tap.name}: a WebSocket upgrade fires no taps`)
+		if (state.taps?.get(tap.name) !== tap) throw new Error(`tap ${tap.name}: not registered on this app`)
+		const checked = tap[TAP_CHECK](payload)
+		if ("issue" in checked) throw new Error(`tap ${tap.name}: the payload fails its schema: ${checked.issue}`)
+		;(self.#taps ??= []).push({ payload: checked.value, tap })
 	}
 
 	/**

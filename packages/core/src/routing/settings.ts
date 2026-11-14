@@ -14,7 +14,7 @@ import { createLogger, type BackendLogger, SILENT } from "../telemetry/logger.ts
 import type { OtelTelemetry } from "../telemetry/request-trace.ts"
 import type { StandardSchemaLike } from "../validation/standard-schema.ts"
 import type { WSAdapter } from "../ws/contract.ts"
-import type { TapFn } from "./tap.ts"
+import type { TapDefinition } from "./define-tap.ts"
 
 /** An app's error factory (`defineErrors`), as its settings hold it. */
 export type ErrorFactories = Readonly<Record<string, (...args: never[]) => unknown>>
@@ -116,8 +116,8 @@ export type AppSettings<TEnv = unknown> = {
 	telemetry: OtelTelemetry | null
 	/** URL path prefix removed before routing; `null` for none. */
 	stripPrefix: string | null
-	/** `app.tap()` handlers by key; `null` until one is registered */
-	taps: Map<string, TapFn<TEnv>> | null
+	/** `app.tap()` taps by name; `null` until one is registered */
+	taps: Map<string, TapDefinition> | null
 	/**
 	 * How a trailing slash is treated: 308 redirect to the form without it (`"strip"`) or with it (`"enforce"`), or serve both (`"ignore"`, the default).
 	 */

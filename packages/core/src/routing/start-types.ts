@@ -17,7 +17,6 @@ export type StartOf<H, TPath extends string, TMethod extends string> =
 		infer TFactory,
 		infer TDefaults extends string,
 		infer TBase extends string,
-		infer TTaps extends Record<string, unknown>,
 		infer TScoped extends readonly ScopedMwEntry[]
 	>
 		? BuilderChain<{
@@ -55,8 +54,6 @@ export type StartOf<H, TPath extends string, TMethod extends string> =
 				routes: TRoutes
 				/** The app's path-scoped middleware. */
 				scopedMw: TScoped
-				/** The app's declared tap payloads. */
-				taps: TTaps
 				/** No one-shot method called yet. */
 				used: never
 			}>

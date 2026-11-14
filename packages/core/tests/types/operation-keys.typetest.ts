@@ -19,11 +19,13 @@ import type {
 	OperationId,
 	OperationIdOf,
 } from "../../src/routing/codegen-types.ts"
+import { defineTap } from "../../src/routing/define-tap.ts"
 import type { WSRouteCtx } from "../../src/routing/ws-builder.ts"
 
 type ShardDb = { query: (sql: string) => unknown[] }
 const errors = defineErrors({ email_taken: "conflict", org_limit: "forbidden" })
 const withShard = createMiddleware((_ctx, next) => next({ shardDb: null as ShardDb | null }))
+const audit = defineTap("audit", z.object({ at: z.number() }), () => {})
 const withSession = createMiddleware((_ctx, next) => next({ session: { userId: "u-1" } }))
 
 /* two .route() groups with different middleware, errors and outputs */
@@ -81,7 +83,9 @@ describe("a filled slot", () => {
 			void c.errors.org_limit
 			// @ts-expect-error only a.list's group runs withSession
 			void c.session
-			c.tap("audit", { at: 1 })
+			c.tap(audit, { at: 1 })
+			// @ts-expect-error the payload is typed by the tap
+			c.tap(audit, { at: "1" })
 			expectTypeOf(c.shardDb).toEqualTypeOf<ShardDb | null>()
 			// @ts-expect-error the handler writes the answer
 			void c.res

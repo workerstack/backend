@@ -1,19 +1,15 @@
 import { describe, expect, it, vi } from "vitest"
+import * as z from "zod"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
 import { createLogger } from "../telemetry/logger.ts"
 import { httpApp } from "./app.ts"
+import { defineTap, type TapContext } from "./define-tap.ts"
 
 const get = (path: string, init: RequestInit = {}) => new Request(`http://app.test${path}`, init)
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10))
 
-/** An app recording every tap it receives, as [key, payload]. */
-function recording() {
-	const received: [string, unknown][] = []
-	const app = httpApp<{ REGION: string }>()
-	const tap = (key: string) => app.tap(key, (_ctx, payload) => void received.push([key, payload]))
-	return { app, received, tap }
-}
+const anything = z.unknown()
 
 describe("a failing tap never touches the answer", () => {
 	// v0: 69bcc49cbd
@@ -33,17 +29,18 @@ describe("a failing tap never touches the answer", () => {
 			}),
 		)
 		app.onError(onError)
-		app.tap("throws", () => {
+		const throws = defineTap("throws", anything, () => {
 			throw new Error("sync tap bug")
 		})
-		app.tap("rejects", async () => {
+		const rejects = defineTap("rejects", anything, async () => {
 			throw new Error("async tap bug")
 		})
-		app.tap("fine", () => void received.push("fine"))
+		const fine = defineTap("fine", anything, () => void received.push("fine"))
+		app.tap(throws).tap(rejects).tap(fine)
 		app.get("/t").handler((ctx) => {
-			ctx.tap("throws", {})
-			ctx.tap("rejects", {})
-			ctx.tap("fine", {})
+			ctx.tap(throws, {})
+			ctx.tap(rejects, {})
+			ctx.tap(fine, {})
 			return ctx.res.json("ok", {})
 		})
 		const res = await app.fetch(get("/t"), {})
@@ -74,7 +71,7 @@ describe("what a tap sees", () => {
 	it("the request's params, headers, meta, env, path, pattern, and what middleware added", async () => {
 		let seen: Record<string, unknown> = {}
 		const app = httpApp<{ REGION: string }>().metaType<{ audit?: boolean }>()
-		app.tap("audit", (ctx) => {
+		const audit = defineTap("audit", z.boolean(), (ctx: TapContext<{ REGION: string }>) => {
 			seen = {
 				added: (ctx as unknown as { user: string }).user,
 				env: ctx.env.REGION,
@@ -86,6 +83,7 @@ describe("what a tap sees", () => {
 				search: ctx.search.q,
 			}
 		})
+		app.tap(audit)
 		app
 			.use(createMiddleware(async (_ctx, next) => next({ user: "ada" })))
 			.get("/items/:id")
@@ -108,13 +106,14 @@ describe("what a tap sees", () => {
 	it("each payload as given: one tap changing its own leaves another's untouched", async () => {
 		const seen: unknown[] = []
 		const app = httpApp<{}>()
-		app.tap("first", (_ctx, payload) => {
+		const first = defineTap("first", z.object({ id: z.number() }).loose(), (_ctx, payload) => {
 			;(payload as Record<string, unknown>).mutated = true
 		})
-		app.tap("second", (_ctx, payload) => void seen.push(payload))
+		const second = defineTap("second", z.object({ id: z.number() }), (_ctx, payload) => void seen.push(payload))
+		app.tap(first).tap(second)
 		app.get("/t").handler((ctx) => {
-			ctx.tap("first", { id: 1 })
-			ctx.tap("second", { id: 2 })
+			ctx.tap(first, { id: 1 })
+			ctx.tap(second, { id: 2 })
 			return ctx.res.json("ok", {})
 		})
 		await app.fetch(get("/t"), {})
@@ -129,12 +128,13 @@ describe("when taps run", () => {
 		let release = () => {}
 		let tapped = false
 		const app = httpApp<{}>()
-		app.tap("slow", async () => {
+		const slow = defineTap("slow", anything, async () => {
 			await new Promise<void>((resolve) => (release = resolve))
 			tapped = true
 		})
+		app.tap(slow)
 		app.get("/t").handler((ctx) => {
-			ctx.tap("slow", {})
+			ctx.tap(slow, {})
 			return ctx.res.json("ok", {})
 		})
 		const res = await app.fetch(get("/t"), {})
@@ -148,12 +148,13 @@ describe("when taps run", () => {
 	it("through waitUntil, called as a method of the execution context", async () => {
 		const received: unknown[] = []
 		const app = httpApp<{}>()
-		app.tap("audit", async (_ctx, payload) => {
+		const audit = defineTap("audit", anything, async (_ctx, payload) => {
 			await settle()
 			received.push(payload)
 		})
+		app.tap(audit)
 		app.get("/t").handler((ctx) => {
-			ctx.tap("audit", { tracked: true })
+			ctx.tap(audit, { tracked: true })
 			return ctx.res.json("ok", {})
 		})
 		const executionCtx = {
@@ -175,7 +176,8 @@ describe("when taps run: after the whole chain", () => {
 	it("after the whole chain, an async handler's awaited work included", async () => {
 		const order: string[] = []
 		const app = httpApp<{}>()
-		app.tap("audit", () => void order.push("tap"))
+		const audit = defineTap("audit", anything, () => void order.push("tap"))
+		app.tap(audit)
 		app
 			.use(
 				createMiddleware(async (_ctx, next) => {
@@ -190,7 +192,7 @@ describe("when taps run: after the whole chain", () => {
 				await settle()
 				order.push("handler")
 				await settle()
-				ctx.tap("audit", {})
+				ctx.tap(audit, {})
 				return ctx.res.json("ok", {})
 			})
 		await app.fetch(get("/t"), {})
@@ -201,14 +203,15 @@ describe("when taps run: after the whole chain", () => {
 describe("methods and mounted apps", () => {
 	// v0: 09552c968b
 	it("each method on one path fires its own taps", async () => {
-		const { app, received, tap } = recording()
-		tap("audit")
+		const received: [string, unknown][] = []
+		const audit = defineTap("audit", z.string(), (_ctx, payload) => void received.push(["audit", payload]))
+		const app = httpApp<{ REGION: string }>().tap(audit)
 		app.get("/items").handler((ctx) => {
-			ctx.tap("audit", "read")
+			ctx.tap(audit, "read")
 			return ctx.res.json("ok", {})
 		})
 		app.post("/items").handler((ctx) => {
-			ctx.tap("audit", "write")
+			ctx.tap(audit, "write")
 			return ctx.res.json("ok", {})
 		})
 		await app.fetch(get("/items"), { REGION: "eu" })
@@ -224,10 +227,10 @@ describe("mounted apps", () => {
 	// v0: 9b1bc502c2
 	it("a mounted app's own taps fire for its routes, even when the app serving it has none", async () => {
 		const received: unknown[] = []
-		const sub = httpApp<{}>()
-		sub.tap("audit", (_ctx, payload) => void received.push(payload))
+		const audit = defineTap("audit", anything, (_ctx, payload) => void received.push(payload))
+		const sub = httpApp<{}>().tap(audit)
 		sub.get("/tapped").handler((ctx) => {
-			ctx.tap("audit", { from: "sub" })
+			ctx.tap(audit, { from: "sub" })
 			return ctx.res.text("ok", "ok")
 		})
 		await httpApp<{}>().route(sub).fetch(get("/tapped"), {})
@@ -235,23 +238,20 @@ describe("mounted apps", () => {
 	})
 
 	// v0: efd8986f2d
-	it("a mounted app's routes fire the serving app's taps and their own; the serving app's win a shared key", async () => {
+	it("a mounted app's routes fire the serving app's taps and their own", async () => {
 		const seen: string[] = []
-		const child = httpApp<{}>()
-		child.tap("own", (_ctx, payload) => void seen.push(`child own ${String(payload)}`))
-		child.tap("shared", () => void seen.push("child shared"))
+		const parentTap = defineTap("parent", z.string(), (_ctx, payload) => void seen.push(`parent ${payload}`))
+		const own = defineTap("own", z.string(), (_ctx, payload) => void seen.push(`child own ${payload}`))
+		const child = httpApp<{}>().tap(own)
 		child.get("/child").handler((ctx) => {
-			ctx.tap("parent", "p")
-			ctx.tap("own", "o")
-			ctx.tap("shared", "s")
+			ctx.tap(parentTap, "p")
+			ctx.tap(own, "o")
 			return ctx.res.json("ok", {})
 		})
-		const parent = httpApp<{}>()
-		parent.tap("parent", (_ctx, payload) => void seen.push(`parent ${String(payload)}`))
-		parent.tap("shared", () => void seen.push("parent shared"))
+		const parent = httpApp<{}>().tap(parentTap)
 		parent.route(child)
 		await parent.fetch(get("/child"), {})
-		expect(seen).toEqual(["parent p", "child own o", "parent shared"])
+		expect(seen).toEqual(["parent p", "child own o"])
 	})
 })
 
@@ -261,18 +261,19 @@ describe("taps beside errorI18n", () => {
 		const { createErrorTranslator } = await import("../i18n/error-i18n.ts")
 		const received: unknown[] = []
 		const errors = defineErrors({ gone: "not_found" })
+		const audit = defineTap("audit", anything, (_ctx, payload) => void received.push(payload))
 		const app = httpApp<{}>()
 			.errorFactory(errors)
 			.metaType<{ audit?: { action: string } }>()
 			.errorI18n(createErrorTranslator({ errors: { en: { gone: "missing {id}" } }, resolveLocale: () => "en" }))
-			.tap("audit", (_ctx, payload) => void received.push(payload))
+			.tap(audit)
 		app
 			.get("/item/:id")
 			.meta({ audit: { action: "get" } })
 			.errors("gone")
 			.handler((ctx) => {
 				if (ctx.params.id === "0") throw ctx.errors.gone({ vars: { id: "0" } })
-				ctx.tap("audit", { action: "ok", id: ctx.params.id })
+				ctx.tap(audit, { action: "ok", id: ctx.params.id })
 				return ctx.res.json("ok", { id: ctx.params.id })
 			})
 		const missing = await app.fetch(get("/item/0"), {})
