@@ -92,7 +92,7 @@ describe("a WS route's own keys", () => {
 		const every = {
 			deprecated: true,
 			description: "d",
-			invalidate: ["GET /users"],
+			invalidate: ["users.list"],
 			mcp: true,
 			operationId: "live",
 			security: "jwt",

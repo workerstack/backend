@@ -5,8 +5,9 @@
  * so the handle's basePath and middleware apply, marked SERVED so it stays with this app. A call
  * mounts all its routes or, when any path is taken, none. Each artifact is built once per route
  * change, a failed build kept for its routes too, and answered with a strong ETag, `no-cache` and a
- * 304 for a matching `If-None-Match`. A served document never runs the invalidate check and
- * documents a schema it cannot convert unconstrained, with a warning. `docs` maps each path to the page
+ * 304 for a matching `If-None-Match`. A served document skips only the report of mutations without
+ * `invalidate`: an `invalidate` target that names no HTTP operation still fails its build, so its routes answer 500.
+ * It documents a schema it cannot convert unconstrained, with a warning. `docs` maps each path to the page
  * itself, so an app that shows none carries neither page, and one that shows one carries only that one.
  * `auth` puts a Basic guard in front of every route the call mounts.
  */

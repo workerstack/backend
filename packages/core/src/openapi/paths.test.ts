@@ -459,7 +459,7 @@ describe("what an operation leaves out", () => {
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/users")
-			.meta({ operationId: "users.create", invalidate: ["GET /users"], summary: "Create user" })
+			.meta({ operationId: "users.create", invalidate: ["users.list"], summary: "Create user" })
 			.handler((c) => c.res.text("ok", "ok"))
 		app
 			.post("/sessions")

@@ -153,24 +153,55 @@ export function missingInvalidateReport(
 	)
 }
 
+/** What the target checks read of a registered HTTP route: its selector, its meta, and so its declared id. */
+export type InvalidateRoute = {
+	/** the route's selector, `"<METHOD> <pattern>"`, such as `"GET /users/:id"` */
+	readonly id: string
+	readonly meta: Readonly<Record<string, unknown>>
+}
+
+/** Each declared HTTP operationId and the distinct selectors its route serves, in registration order. */
+export function invalidateTargets(routes: readonly InvalidateRoute[]): ReadonlyMap<string, readonly string[]> {
+	const targets = new Map<string, string[]>()
+	for (const { id, meta } of routes) {
+		if (typeof meta.operationId !== "string") continue
+		const selectors = targets.get(meta.operationId) ?? []
+		if (!selectors.includes(id)) selectors.push(id)
+		targets.set(meta.operationId, selectors)
+	}
+	return targets
+}
+
 /**
- * `invalidate` selectors that name no route. A selector is `"<METHOD> <pattern>"`, exactly as the
- * generated `RouteSelector` union spells it; anything else invalidates nothing at runtime.
+ * `meta` with its `invalidate` ids replaced by the selectors they name, in the order declared. An unknown target is
+ * dropped here and reported by `findUnknownTargets`; a meta with no `invalidate` list comes back as it is.
  */
-export function findInvalidSelectors(
-	operations: readonly InvalidateCheckOperation[],
-	inventory: ReadonlySet<string>,
-): Array<{ method: string; path: string; selector: unknown }> {
-	const out: Array<{ method: string; path: string; selector: unknown }> = []
+export function resolveInvalidate(
+	meta: Readonly<Record<string, unknown>>,
+	targets: ReadonlyMap<string, readonly string[]>,
+): Readonly<Record<string, unknown>> {
+	const declared = meta.invalidate
+	if (!Array.isArray(declared)) return meta
+	const selectors = declared.flatMap((target: unknown) =>
+		typeof target === "string" ? (targets.get(target) ?? []) : [],
+	)
+	return { ...meta, invalidate: [...new Set(selectors)] }
+}
+
+/** Each `invalidate` target that names no declared HTTP operation, once per route selector and target. */
+export function findUnknownTargets(
+	routes: readonly InvalidateRoute[],
+	targets: ReadonlyMap<string, readonly string[]>,
+): Array<{ route: string; target: unknown }> {
+	const out: Array<{ route: string; target: unknown }> = []
 	const seen = new Set<string>()
-	for (const entry of operations) {
-		const declared = entry.meta?.invalidate
-		if (!Array.isArray(declared)) continue
-		for (const selector of declared) {
-			const key = `${entry.method} ${entry.path} ${String(selector)}`
-			if ((typeof selector === "string" && inventory.has(selector)) || seen.has(key)) continue
+	for (const { id, meta } of routes) {
+		if (!Array.isArray(meta.invalidate)) continue
+		for (const target of meta.invalidate as unknown[]) {
+			const key = `${id} ${String(target)}`
+			if ((typeof target === "string" && targets.has(target)) || seen.has(key)) continue
 			seen.add(key)
-			out.push({ method: entry.method.toUpperCase(), path: entry.path, selector })
+			out.push({ route: id, target })
 		}
 	}
 	return out

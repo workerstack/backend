@@ -48,7 +48,7 @@ describe("generateOpenApi: synchronous, and the metaSpec it is built with", () =
 			.meta({
 				deprecated: true,
 				description: "d",
-				invalidate: ["GET /users"],
+				invalidate: ["users.list"],
 				mcp: true,
 				operationId: "users.create",
 				security: "jwt",
@@ -307,7 +307,7 @@ describe("generateOpenApi: the invalidate check over the emitted operations", ()
 	// v0: b8477643fe
 	// v0: 0bcbc6086f
 	// v0: 5ebbe7eb78
-	it("warns through the logger by default, fails under error, says nothing under off, and refuses a selector naming no route", () => {
+	it("warns through the logger by default, fails under error, says nothing under off, and refuses at every level a target naming no operation", () => {
 		const { logger, warnings } = recording()
 		generateOpenApi(tables(), { info: INFO, logger })
 		generateOpenApi(tables(), { info: INFO, invalidate: "off", logger })
@@ -318,11 +318,10 @@ describe("generateOpenApi: the invalidate check over the emitted operations", ()
 		const typo = httpApp<{}>()
 		typo
 			.post("/users")
-
-			.meta({ operationId: "users.create", invalidate: ["GET /userz"] } as never)
+			.meta({ operationId: "users.create", invalidate: ["users.lst"] })
 			.handler((c) => c.res.text("ok", "ok"))
-		expect(() => generateOpenApi(typo, { info: INFO })).toThrow(/INVALID_SELECTOR.*GET \/userz/s)
-		expect(() => generateOpenApi(typo, { info: INFO, invalidate: "off" })).not.toThrow()
+		expect(() => generateOpenApi(typo, { info: INFO })).toThrow(/UNKNOWN_INVALIDATE_TARGET.*"users\.lst"/s)
+		expect(() => generateOpenApi(typo, { info: INFO, invalidate: "off" })).toThrow(/UNKNOWN_INVALIDATE_TARGET/)
 	})
 
 	// v0: 6339079314

@@ -31,15 +31,15 @@ describe("RouteBuilder runtime", () => {
 		app
 			.meta({ summary: "chain", tags: "a" })
 			.get("/m")
-			.meta({ invalidate: ["GET /a", "GET /a", "GET /b"], summary: "route" })
+			.meta({ invalidate: ["a.list", "a.list", "b.list"], summary: "route" })
 			.handler((ctx) => ctx.res.json("ok", ctx.meta))
-		expect((await fetchJson(app, "/m")).body).toEqual({ invalidate: ["GET /a", "GET /b"], summary: "route", tags: "a" })
+		expect((await fetchJson(app, "/m")).body).toEqual({ invalidate: ["a.list", "b.list"], summary: "route", tags: "a" })
 		app
 			.get("/one")
-			.meta({ invalidate: ["GET /a"] })
+			.meta({ invalidate: ["a.list"] })
 			.handler((ctx) => ctx.res.json("ok", ctx.meta))
 		/* the root handle carries no chain meta: meta() returned a derived handle */
-		expect((await fetchJson(app, "/one")).body).toEqual({ invalidate: ["GET /a"] })
+		expect((await fetchJson(app, "/one")).body).toEqual({ invalidate: ["a.list"] })
 	})
 
 	it(".on() registers one record per method, sharing the handler", async () => {

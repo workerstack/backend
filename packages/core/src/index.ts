@@ -52,7 +52,7 @@ export type {
 	InferRoutes,
 	RouteRecord,
 } from "./routing/app-types.ts"
-export type { HttpCodegen, RouteSelectorOf, WithOutput } from "./routing/codegen-types.ts"
+export type { HttpCodegen, HttpOperationId, OperationCtx, OperationId, WithOutput } from "./routing/codegen-types.ts"
 export type { OutputOptions, HttpProjection, HttpSelection } from "./routing/output-types.ts"
 export type { TapContext, TapHandler } from "./routing/tap.ts"
 export { mergeTree } from "./routing/tree-merge.ts"

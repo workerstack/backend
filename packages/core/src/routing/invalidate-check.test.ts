@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest"
 import {
-	findInvalidSelectors,
 	findMissingInvalidate,
 	type InvalidateCheckOperation,
 	invalidateLevel,
@@ -21,7 +20,7 @@ const mutation = (meta: Record<string, unknown> | null, operation: Record<string
 describe("invalidate check", () => {
 	// v0: 718e625a18
 	it("a profile without x-invalidate does not make a declared mutation look undeclared", () => {
-		expect(findMissingInvalidate([read, mutation({ invalidate: ["GET /users"] })], undefined)).toEqual([])
+		expect(findMissingInvalidate([read, mutation({ invalidate: ["users.list"] })], undefined)).toEqual([])
 	})
 
 	// v0: f8a19b7d07
@@ -110,24 +109,11 @@ describe("missingInvalidateReport", () => {
 	})
 })
 
-describe("invalidateLevel and findInvalidSelectors", () => {
+describe("invalidateLevel", () => {
 	it("defaults to warn and reads a level or a config object", () => {
 		expect(invalidateLevel(undefined)).toBe("warn")
 		expect(invalidateLevel("error")).toBe("error")
 		expect(invalidateLevel({ entityKey: "x-entity" })).toBe("warn")
 		expect(invalidateLevel({ level: "off" })).toBe("off")
-	})
-
-	it("lists each selector that names no route, once", () => {
-		const routes = new Set(["GET /users"])
-		const ops = [
-			op("post", "/users", { invalidate: ["GET /users", "GET /userz", "GET /userz", 42] }),
-			op("put", "/users", { invalidate: "GET /users" }),
-			op("delete", "/users"),
-		]
-		expect(findInvalidSelectors(ops, routes)).toEqual([
-			{ method: "POST", path: "/users", selector: "GET /userz" },
-			{ method: "POST", path: "/users", selector: 42 },
-		])
 	})
 })

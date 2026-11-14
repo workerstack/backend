@@ -795,8 +795,8 @@ const fresh: Record<string, string> = { "GET /items/{id}": "x-fresh" }
 const header = (method: string, path: string) => fresh[`${method} ${path}`]
 ```
 
-A route's own `meta.invalidate` is still written by hand, so it may name its targets either way; normalize
-both to the template before you look one up.
+A route's own `meta.invalidate` names operationIds, and the document emits each as `"<METHOD> <pattern>"` with the
+colon form; normalize an emitted selector to the template before you look one up.
 
 ## The generated `RouteCtx` is the route's ctx; its meta is what the app declares
 

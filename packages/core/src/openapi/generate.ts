@@ -13,11 +13,13 @@ import { MetaSpecDiagnostics, schemaMetaLookup, type SchemaMetaLookup } from "..
 import { type StatusKey, statusKeyToCode } from "../response/status.ts"
 import { GRAPH } from "../routing/app.ts"
 import {
-	findInvalidSelectors,
+	findUnknownTargets,
 	type InvalidateCheckConfig,
 	type InvalidateCheckOperation,
 	invalidateLevel,
+	invalidateTargets,
 	missingInvalidateReport,
+	resolveInvalidate,
 } from "../routing/invalidate-check.ts"
 import type { StatusSchemas } from "../routing/output-types.ts"
 import type { HttpGraph } from "../routing/register.ts"
@@ -137,6 +139,8 @@ type Run = {
 	readonly options: GenerateOpenApiOptions
 	readonly profile: { readonly filter: (key: string) => boolean; readonly name: string }
 	readonly spec: ReturnType<typeof compileMetaSpec>
+	/** each declared HTTP operationId's selectors, read from every collected route, internal and filtered ones included */
+	readonly targets: ReadonlyMap<string, readonly string[]>
 }
 
 /** The converter for one route: `jsonSchemaOf`, its local references lifted, its issues reported against `where`. */
@@ -152,10 +156,9 @@ function converterOf(run: Run): (where: string) => Convert {
 }
 
 /** The routes the document describes: none internal, none `filterRoutes` rejects. */
-function routesOf(app: App, options: GenerateOpenApiOptions): CollectedRoutes {
+function routesOf(collected: CollectedRoutes, options: GenerateOpenApiOptions): CollectedRoutes {
 	const keep = (route: CollectedRoute | CollectedWsRoute, method: string) =>
 		route.meta.internal !== true && (options.filterRoutes?.({ meta: route.meta, method, path: route.pattern }) ?? true)
-	const collected = collectRoutes(app)
 	return {
 		http: collected.http.filter((route) => keep(route, route.method)),
 		ws: collected.ws.filter((route) => keep(route, "WS")),
@@ -168,7 +171,8 @@ function policyOf(run: Run): PathsContext["policy"] {
 	return (route, method, kind) => {
 		const operation: Operation = {}
 		const schemaMeta = spec.needsSchemas ? rootsOf(route, { converters: run.options.converters }) : undefined
-		const meta = route.meta
+		/* the invalidate builtin passes its value through, so it emits the selectors the declared ids name */
+		const meta = resolveInvalidate(route.meta, run.targets)
 		const { filter, name } = profile
 		applyMetaSpec({
 			diagnostics,
@@ -208,11 +212,11 @@ function checkDeclaredIds(operations: readonly EmittedOperation[], error: (messa
 	}
 }
 
-/** The checks over the whole document: ids, security, invalidate selectors, then every diagnostic out. */
+/** The checks over the whole document: ids, security, invalidate targets, then every diagnostic out. */
 function check(
 	run: Run,
 	operations: readonly EmittedOperation[],
-	routes: CollectedRoutes,
+	collected: CollectedRoutes,
 	logger: { readonly warn: (message: string) => void },
 ): void {
 	const { diagnostics, options } = run
@@ -224,19 +228,14 @@ function check(
 	const emitted: InvalidateCheckOperation[] = operations
 		.filter(({ route }) => "registration" in route)
 		.map(({ method, operation, path, route }) => ({ meta: route.meta, method, operation, path }))
+	/* every collected route, so a bad target fails the build whichever routes the document keeps, at every level */
+	for (const { route, target } of findUnknownTargets(collected.http, run.targets))
+		diagnostics.add(
+			"UNKNOWN_INVALIDATE_TARGET",
+			"error",
+			`${route}: invalidate target ${JSON.stringify(target)} names no HTTP operation — name a declared operationId, e.g. "users.retrieve"`,
+		)
 	const level = invalidateLevel(options.invalidate)
-	if (level !== "off") {
-		const inventory = new Set(routes.http.map((route) => route.id))
-		for (const bad of findInvalidSelectors(emitted, inventory)) {
-			const selector = JSON.stringify(bad.selector)
-			const hint = 'write "<METHOD> <pattern>" for a registered route, e.g. "GET /users/:id"'
-			diagnostics.add(
-				"INVALID_SELECTOR",
-				"error",
-				`${bad.method} ${bad.path}: invalidate selector ${selector} names no route — ${hint}`,
-			)
-		}
-	}
 	for (const { code, message } of diagnostics.throwIfErrors()) logger.warn(`[backend:openapi] ${code}: ${message}`)
 	const missing = missingInvalidateReport(emitted, options.invalidate)
 	if (missing !== null && level === "error") throw new Error(missing)
@@ -248,12 +247,14 @@ export function generateOpenApi(app: App, options: GenerateOpenApiOptions): Open
 	const settings = app[GRAPH].settings
 	const diagnostics = new MetaSpecDiagnostics()
 	const spec = compileMetaSpec(metaSpecOf(app), diagnostics)
+	const collected = collectRoutes(app)
 	const run: Run = {
 		components: createComponents(),
 		diagnostics,
 		options,
 		profile: resolveProfile(spec, options.profile, diagnostics),
 		spec,
+		targets: invalidateTargets(collected.http),
 	}
 	const convertFor = converterOf(run)
 	const settingsSchema = (schema: unknown, hint: string) =>
@@ -263,7 +264,7 @@ export function generateOpenApi(app: App, options: GenerateOpenApiOptions): Open
 		errorFormat: settings.errorFormat,
 		errorSchema: settingsSchema(settings.errorSchema, "Error"),
 	}
-	const routes = routesOf(app, options)
+	const routes = routesOf(collected, options)
 	const { operations, paths } = buildPaths(routes, {
 		convert: convertFor,
 		policy: policyOf(run),
@@ -276,7 +277,7 @@ export function generateOpenApi(app: App, options: GenerateOpenApiOptions): Open
 	const servers = serversOf(options.servers, settings.stripPrefix, report("INVALID_SERVER"))
 	const webhooks = webhooksOf(options.webhooks, convertFor("webhooks"), report("INVALID_WEBHOOK"))
 	const tags = tagsOf(operations, options.tags, (code, level, message) => diagnostics.add(code, level, message))
-	check(run, operations, routes, options.logger ?? settings.logger)
+	check(run, operations, collected, options.logger ?? settings.logger)
 	const document = assembleDocument({
 		externalDocs: options.externalDocs,
 		info: options.info,
