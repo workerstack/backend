@@ -163,6 +163,8 @@ function wsOperation(route: CollectedWsRoute, path: string, ctx: PathsContext): 
 	const operation: Operation = {
 		"x-websocket": messagesOf(route.messages, convert, hint),
 		...ctx.policy(route, "WS", "ws"),
+		/* after the meta extensions, so no extension unmarks a realtime route */
+		...(route.realtime ? { "x-realtime": true } : {}),
 		"x-backend-route": route.id,
 	}
 	if (parameters.length > 0) operation.parameters = parameters

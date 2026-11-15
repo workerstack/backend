@@ -3,7 +3,8 @@ import { WSContextImpl } from "../ws/contract.ts"
 import { createBus, type RealtimeBus } from "./bus.ts"
 import type { ConnContext, RealtimeOptions } from "./route.ts"
 import { resolveRealtimeConfig } from "./route.ts"
-import { createRealtimePublisher, createRealtimeSession, topicKey } from "./server.ts"
+import { createRealtimePublisher, topicKey } from "./publisher.ts"
+import { createRealtimeSession } from "./server.ts"
 
 type Raw = {
 	bufferedAmount: number
@@ -225,7 +226,7 @@ describe("createRealtimeSession: a failing connect or close handler (H1)", () =>
 		const before = bus.presence(topicKey("/rt", "room")).length
 		c.session.close("bye")
 		await flush()
-		createRealtimePublisher(bus, "/rt").publish("room", { hi: 1 })
+		createRealtimePublisher(bus, "/rt", null).publish("room", { hi: 1 })
 		expect([
 			before,
 			bus.presence(topicKey("/rt", "room")),

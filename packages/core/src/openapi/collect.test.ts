@@ -7,6 +7,7 @@ import { httpApp } from "../routing/app.ts"
 import { createNode, insertRoute } from "../routing/tree.ts"
 import { collectRoutes } from "./collect.ts"
 import { ws } from "../ws/route.ts"
+import { realtime } from "../realtime/realtime.ts"
 
 describe("collectRoutes: one record per path a route serves", () => {
 	it("names each route by method and pattern, with its OpenAPI path and params, in registration order", () => {
@@ -285,31 +286,31 @@ describe("collectRoutes: a middleware's keys, from the factory it brings", () =>
 	})
 })
 
+/** Each collected ws route as its pattern, its messages, and whether realtime() made it. */
+const wsDocs = (routes: ReturnType<typeof collectRoutes>) => routes.ws.map((r) => [r.pattern, r.messages, r.realtime])
+
 describe("collectRoutes: a WebSocket route's declared messages", () => {
-	it("reads them from the record, and from a tree an app loaded; an untyped socket's tree entry carries none", () => {
+	it("reads them and the realtime mark from the record, and from a tree an app loaded; an untyped socket's entry carries none", () => {
 		const messages = { receive: z.object({ n: z.number() }), send: z.object({ m: z.number() }) }
 		const worker = httpApp<{}>()
 		ws(worker, "/talk")
 			.messages(messages)
 			.handler({ onMessage() {} })
 		ws(worker, "/plain").handler({ onMessage() {} })
+		realtime(worker, "/rt", { handler: () => {}, messages })
+		realtime(worker, "/rt-plain", { handler: () => {} })
 		const tree = worker.toRouteTree()
 		const loaded = httpApp<{}>().routeTree(tree)
-		const of = (routes: ReturnType<typeof collectRoutes>) => routes.ws.map((r) => [r.pattern, r.messages])
+		const expected = [
+			["/talk", messages, false],
+			["/plain", null, false],
+			["/rt", messages, true],
+			["/rt-plain", null, true],
+		]
 		expect([
-			of(collectRoutes(worker)),
-			of(collectRoutes(loaded)),
-			Object.hasOwn(tree.routes["WS /plain"] ?? {}, "wm"),
-		]).toEqual([
-			[
-				["/talk", messages],
-				["/plain", null],
-			],
-			[
-				["/talk", messages],
-				["/plain", null],
-			],
-			false,
-		])
+			wsDocs(collectRoutes(worker)),
+			wsDocs(collectRoutes(loaded)),
+			Object.hasOwn(tree.routes["WS /plain"] ?? {}, "wd"),
+		]).toEqual([expected, expected, false])
 	})
 })

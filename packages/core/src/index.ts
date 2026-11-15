@@ -26,7 +26,7 @@ export { createMiddleware, type MiddlewareFn, type MiddlewareOptions } from "./m
 export type { ProxyConfig } from "./proxy/proxy.ts"
 export type { RealtimeBus } from "./realtime/bus.ts"
 export type { ConnContext, RealtimeLimits } from "./realtime/route.ts"
-export type { RealtimePublisher } from "./realtime/server.ts"
+export type { RealtimePublisher } from "./realtime/publisher.ts"
 export { HttpRes, type ResponseOptions, type TypedResponse } from "./response/response.ts"
 export type { SSEEvent, SSEOptions, SSEStream } from "./response/sse.ts"
 export type { StatusKey } from "./response/status.ts"

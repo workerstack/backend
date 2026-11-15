@@ -1,6 +1,6 @@
 # dx — realtime (ws / sse / resume)
 
-SSE and WebSocket already ship in all SDKs (H8). v1 fixes typing + reconnect parity and ships a reference resume server. honey does not emit `x-realtime`; the consumer opts in via `.meta({})`.
+SSE and WebSocket already ship in all SDKs (H8). v1 fixes typing + reconnect parity and ships a reference resume server. `realtime()` writes `x-realtime: true` on its route (roadmap 1 slice 7, D11), and its `messages` type, check and document its frames as `ws().messages()` does.
 
 | value | required | default | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- |
@@ -8,7 +8,7 @@ SSE and WebSocket already ship in all SDKs (H8). v1 fixes typing + reconnect par
 | WS `.input()` / `.messages()` / `.meta()` / `.errors()` / `.origins()` / `.use()` | no | — | upgrade input (search, headers, cookies) and errors, documented as parameters and pre-101 answers; typed receive and send messages, each frame checked (1007 on a miss); meta, origin policy, middleware | an open `origins` policy accepts any origin — set it | `routing/ws-builder.test.ts`, `ws/session.messages.test.ts`, `openapi/paths.ws.test.ts` |
 | WS origin policy | no | — | allow/deny upgrade by `Origin` (`ws-origin.ts`) | a missing policy is a cross-site WS risk [F1] | `ws/origin.test.ts` |
 | `ctx.res.sse(...)` | — | — | `text/event-stream`; `ok` maps each event name to its data schema (a bare schema is `message`), `send` is typed and checked by it, and the document writes `itemSchema` [H8] | an undeclared event, or data its schema refuses, is not sent and ends the stream while the output check is on | `response/sse.test.ts`, `integration/streaming.test.ts`, `openapi/sse-events.test.ts` |
-| `.meta({ extensions: { "x-realtime": true } })` | no | off | opts the operation into the resume protocol | consumer-driven; honey never sets it itself | `integration/realtime.test.ts` |
+| `x-realtime: true` | no | set by `realtime()` | marks the operation a realtime connection, which a generated client calls as one | written after the meta extensions, so one cannot unset it; a `ws()` route never has it | `src/openapi/paths.ws.test.ts` |
 | `Last-Event-ID` resume | — | — | resume a dropped SSE/WS stream from the last id | reconnect parity is uniform across all SDKs in v1 | `realtime/server.test.ts`, `integration/realtime.test.ts` |
 | reference resume server | — | ships | the conformance target the SDK reconnect tests run against | kept in `tests/` so reconnect is actually exercised | `integration/realtime.test.ts` |
 | realtime bus / publisher (`RealtimeBus`, `RealtimePublisher`) | no | — | server-side pub/sub backing the resume stream | at-least-once vs at-most-once is the app's choice | `realtime/bus.test.ts` |

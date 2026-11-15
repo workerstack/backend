@@ -9,6 +9,7 @@ import type { HttpRes } from "../response/response.ts"
 import { httpApp } from "../routing/app.ts"
 import type { WSContext } from "../ws/contract.ts"
 import { ws } from "../ws/route.ts"
+import { realtime } from "../realtime/realtime.ts"
 import type * as real from "./output-check.ts"
 import { outputCheck, sseCheck, wsSendCheck } from "./output-check-off.ts"
 
@@ -109,5 +110,29 @@ describe("output-check-off: a ws route that declares what it sends", () => {
 			{},
 		)
 		await vi.waitFor(() => expect(sent).toEqual([{ m: "x" }]))
+	})
+
+	it("sends a realtime message its send schema refuses, as its handler sent it", async () => {
+		const sent: unknown[] = []
+		const socket: WSContext = { close: () => {}, raw: null, readyState: 1, send: (data) => void sent.push(data) }
+		const app = httpApp<{}>()
+			.logger(false)
+			.wsAdapter({
+				upgrade: (_req, _env, handler) => {
+					handler.onOpen?.(undefined, socket)
+					return { response: new Response(null), socket }
+				},
+			})
+		realtime(app, "/rt", {
+			handler: (_ctx, conn) => conn.send({ m: "x" } as never),
+			messages: { send: z.object({ m: z.number() }) },
+		})
+		await app.fetch(
+			new Request("http://localhost/rt", {
+				headers: { connection: "Upgrade", "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==", upgrade: "websocket" },
+			}),
+			{},
+		)
+		await vi.waitFor(() => expect(sent).toEqual(['{"m":"x"}']))
 	})
 })

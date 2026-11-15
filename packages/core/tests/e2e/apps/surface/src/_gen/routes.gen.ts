@@ -46,6 +46,7 @@ const P29 = "WS /ws/room"
 const P30 = "WS /ws/reconnect"
 const P31 = "WS /ws/chat/:channelId"
 const P32 = "WS /ws/talk"
+const P33 = "WS /rt/room"
 const A0 = [T1,T0]
 const J0 = {"unauthorized":T1,"validation_error":T2}
 const A1 = ["input"]
@@ -86,8 +87,9 @@ const M29 = {"operationId":"ws.joinRoom","tags":A4} as unknown as MetaShape
 const M30 = {"operationId":"ws.reconnect","tags":A4} as unknown as MetaShape
 const M31 = {"operationId":"ws.chat","tags":A4} as unknown as MetaShape
 const M32 = {"operationId":"ws.talk","tags":A4} as unknown as MetaShape
+const M33 = {"operationId":"rt.room","tags":["realtime"]} as unknown as MetaShape
 
-export const tree: TreeNode = N(S({ "in": N(S({ "json": N(undefined, S({ POST: P0 })), "form": N(undefined, S({ POST: P1 })), "search": N(undefined, S({ GET: P2 })), "headers": N(undefined, S({ GET: P3 })), "cookies": N(undefined, S({ GET: P4 })), "params": N(undefined, null, { n: "orgId", c: N(S({ "members": N(undefined, null, { n: "memberId", c: N(undefined, S({ GET: P5 })) }) })) }), "none": N(undefined, S({ GET: P6 })), "file": N(undefined, S({ POST: P7 })), "all": N(undefined, null, { n: "resourceId", c: N(undefined, S({ PUT: P8 })) }) })), "out": N(S({ "text": N(undefined, S({ GET: P9 })), "html": N(undefined, S({ GET: P10 })), "csv": N(undefined, S({ GET: P11 })), "xml": N(undefined, S({ GET: P12 })), "binary": N(undefined, S({ GET: P13 })), "sse": N(undefined, S({ GET: P14 })), "multi-status": N(undefined, S({ POST: P15 })), "no-content": N(undefined, null, { n: "id", c: N(undefined, S({ DELETE: P16 })) }) })), "methods": N(S({ "resource": N(undefined, S({ GET: P17, POST: P18 }), { n: "id", c: N(undefined, S({ PUT: P19, PATCH: P20, DELETE: P21 })) }) })), "status": N(S({ "ok": N(undefined, S({ GET: P22 })), "created": N(undefined, S({ POST: P23 })), "accepted": N(undefined, S({ POST: P24 })), "no-content": N(undefined, S({ DELETE: P25 })) })), "stream": N(S({ "filtered": N(undefined, S({ GET: P26 })) })), "rs": N(S({ "upload": N(undefined, S({ POST: P27 })) })), "ws": N(S({ "echo": N(undefined, null, null, null, P28), "room": N(undefined, null, null, null, P29), "reconnect": N(undefined, null, null, null, P30), "chat": N(undefined, null, { n: "channelId", c: N(undefined, null, null, null, P31) }), "talk": N(undefined, null, null, null, P32) })) }))
+export const tree: TreeNode = N(S({ "in": N(S({ "json": N(undefined, S({ POST: P0 })), "form": N(undefined, S({ POST: P1 })), "search": N(undefined, S({ GET: P2 })), "headers": N(undefined, S({ GET: P3 })), "cookies": N(undefined, S({ GET: P4 })), "params": N(undefined, null, { n: "orgId", c: N(S({ "members": N(undefined, null, { n: "memberId", c: N(undefined, S({ GET: P5 })) }) })) }), "none": N(undefined, S({ GET: P6 })), "file": N(undefined, S({ POST: P7 })), "all": N(undefined, null, { n: "resourceId", c: N(undefined, S({ PUT: P8 })) }) })), "out": N(S({ "text": N(undefined, S({ GET: P9 })), "html": N(undefined, S({ GET: P10 })), "csv": N(undefined, S({ GET: P11 })), "xml": N(undefined, S({ GET: P12 })), "binary": N(undefined, S({ GET: P13 })), "sse": N(undefined, S({ GET: P14 })), "multi-status": N(undefined, S({ POST: P15 })), "no-content": N(undefined, null, { n: "id", c: N(undefined, S({ DELETE: P16 })) }) })), "methods": N(S({ "resource": N(undefined, S({ GET: P17, POST: P18 }), { n: "id", c: N(undefined, S({ PUT: P19, PATCH: P20, DELETE: P21 })) }) })), "status": N(S({ "ok": N(undefined, S({ GET: P22 })), "created": N(undefined, S({ POST: P23 })), "accepted": N(undefined, S({ POST: P24 })), "no-content": N(undefined, S({ DELETE: P25 })) })), "stream": N(S({ "filtered": N(undefined, S({ GET: P26 })) })), "rs": N(S({ "upload": N(undefined, S({ POST: P27 })) })), "ws": N(S({ "echo": N(undefined, null, null, null, P28), "room": N(undefined, null, null, null, P29), "reconnect": N(undefined, null, null, null, P30), "chat": N(undefined, null, { n: "channelId", c: N(undefined, null, null, null, P31) }), "talk": N(undefined, null, null, null, P32) })), "rt": N(S({ "room": N(undefined, null, null, null, P33) })) }))
 
 export const routes: RouteTree["routes"] = S<RouteTree["routes"][string]>({
 	[P0]: { bd: "json", bek: T0, ek: A0, es: J0, mt: M0 },
@@ -122,13 +124,14 @@ export const routes: RouteTree["routes"] = S<RouteTree["routes"][string]>({
 	[P29]: { bek: T0, ek: A2, es: J1, mt: M29 },
 	[P30]: { bek: T0, ek: A0, es: J0, mt: M30 },
 	[P31]: { bek: T0, ek: A0, es: J0, mt: M31 },
-	[P32]: { bek: T0, ek: A0, es: J0, mt: M32 }
+	[P32]: { bek: T0, ek: A0, es: J0, mt: M32 },
+	[P33]: { bek: T0, ek: A0, es: J0, mt: M33 }
 })
 
 export type MetaShape = {
 	auth?: "required"
-	operationId: "input.createJson" | "input.createForm" | "input.search" | "in.headers.list" | "in.cookies.list" | "in.params.members.retrieve" | "input.none" | "in.file.create" | "in.all.replace" | "out.text.list" | "out.html.list" | "out.csv.list" | "out.xml.list" | "out.binary.list" | "out.sse.list" | "out.multiStatus.create" | "out.noContent.delete" | "resources.list" | "resources.create" | "resources.update" | "resources.patch" | "resources.delete" | "status.ok.list" | "status.created.create" | "status.accepted.create" | "status.noContent.delete" | "stream.filtered.list" | "rs.upload.create" | "ws.echo" | "ws.joinRoom" | "ws.reconnect" | "ws.chat" | "ws.talk"
-	tags?: ["input"] | ["methods"] | ["websocket"]
+	operationId: "input.createJson" | "input.createForm" | "input.search" | "in.headers.list" | "in.cookies.list" | "in.params.members.retrieve" | "input.none" | "in.file.create" | "in.all.replace" | "out.text.list" | "out.html.list" | "out.csv.list" | "out.xml.list" | "out.binary.list" | "out.sse.list" | "out.multiStatus.create" | "out.noContent.delete" | "resources.list" | "resources.create" | "resources.update" | "resources.patch" | "resources.delete" | "status.ok.list" | "status.created.create" | "status.accepted.create" | "status.noContent.delete" | "stream.filtered.list" | "rs.upload.create" | "ws.echo" | "ws.joinRoom" | "ws.reconnect" | "ws.chat" | "ws.talk" | "rt.room"
+	tags?: ["input"] | ["methods"] | ["websocket"] | ["realtime"]
 } & Record<string, unknown>
 
 export const meta: Record<string, MetaShape> = S({
@@ -164,7 +167,8 @@ export const meta: Record<string, MetaShape> = S({
 	[P29]: M29,
 	[P30]: M30,
 	[P31]: M31,
-	[P32]: M32
+	[P32]: M32,
+	[P33]: M33
 })
 
 export const routeTree: RouteTree = { v: 2, root: tree, routes, meta }

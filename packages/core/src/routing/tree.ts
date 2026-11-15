@@ -8,7 +8,7 @@ import type { DeclaredBody } from "../validation/content-type.ts"
 import type { OutputSchemas } from "./output-types.ts"
 import type { RouteRecord } from "./record.ts"
 import type { HttpMethod } from "./types.ts"
-import type { WsMessages } from "../ws/messages.ts"
+import type { WsDoc } from "../ws/messages.ts"
 
 /** One path position in the router tree: the routes served exactly here and the children that continue the path. */
 export type TreeNode = {
@@ -46,8 +46,8 @@ export type RouteEntry = {
 	i?: 1 | true
 	/** what `.input()` declares: live only, so a generated tree carries `bd` instead */
 	iv?: InputSchemas | null
-	/** what a WebSocket route's `.messages()` declares: live only, as `iv` */
-	wm?: WsMessages | null
+	/** what a WebSocket route documents beside its upgrade: live only, as `iv` */
+	wd?: WsDoc | null
 	/** route meta */
 	mt?: Readonly<Record<string, unknown>> | null
 	/** what `.output()` declares */

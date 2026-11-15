@@ -10,7 +10,7 @@ import { HttpError } from "../errors/error.ts"
 import type { MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts"
 import type { WSAdapter, WSHandler } from "../ws/contract.ts"
 import { originAllowed, validateOriginPolicy, type WSOriginPolicy } from "../ws/origin.ts"
-import { type ReceiveOf, receiveCheck, type SendOf, type WsMessages } from "../ws/messages.ts"
+import { type ReceiveOf, receiveCheck, type SendOf, type WsDoc, type WsMessages } from "../ws/messages.ts"
 import { createWsSession } from "../ws/session.ts"
 import { wsSendCheck } from "#output-check"
 import {
@@ -52,6 +52,9 @@ type WithInput<TCtx, TSchemas, TPath extends string> = (TSchemas extends { reado
 	/** Validated search, headers and cookies of the upgrade request. */ readonly input: InferInputMap<TSchemas>
 }
 
+/** The builder method `realtime()` documents its route with: a module symbol, so no app code reaches it. */
+export const AS_REALTIME: unique symbol = /* @__PURE__ */ Symbol("backend.asRealtime")
+
 /** What a WebSocket route builder carries at runtime. */
 type WSBuilderState = {
 	/** Error keys the route declares itself. */
@@ -65,8 +68,10 @@ type WSBuilderState = {
 		/** The schemas as written, kept for documentation. */ readonly schemas: NonBodyInput
 		/** The compiled validation step run on the upgrade request. */ readonly step: InputStep
 	} | null
-	/** `.messages()`: what the route receives and sends; `null` for an untyped socket. */
+	/** `.messages()`: what the route's session checks it receives and sends; `null` for an untyped socket. */
 	readonly messages: WsMessages | null
+	/** What the document reads beside the upgrade: `.messages()`, or what `realtime()` declares and checks itself. */
+	readonly doc: WsDoc | null
 	/** Explicit meta: chain `.meta()` overlaid by route `.meta()`. */
 	readonly meta: Readonly<Record<string, unknown>> | null
 	/** Route-level middleware, run after the chain and the scopes. */
@@ -180,7 +185,15 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent, TMessages = {}>
 	 * The socket's `send` takes `send`'s input, checked while the output check is on.
 	 */
 	messages<const M extends WsMessages>(messages: M): WSRouteBuilder<TCtx, TPath, TParent, M> {
-		return new WSRouteBuilder<TCtx, TPath, TParent, M>({ ...this.#s, messages })
+		return new WSRouteBuilder<TCtx, TPath, TParent, M>({ ...this.#s, doc: { messages, realtime: false }, messages })
+	}
+
+	/**
+	 * Document the route as `realtime()`'s, with the messages it declares: marked `x-realtime`, its messages as
+	 * `.messages()` documents them. The ws session checks none of them; realtime's own session does.
+	 */
+	[AS_REALTIME](messages: WsMessages | null): WSRouteBuilder<TCtx, TPath, TParent, TMessages> {
+		return this.#next({ doc: { messages, realtime: true } })
 	}
 
 	/** Set the route's meta, merged over the chain's. `deprecated`, `invalidate`, `mcp` and `security` are type errors. */
@@ -221,7 +234,7 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent, TMessages = {}>
 			own: s.graph.settings,
 			rb: null,
 			rm: s.middlewares,
-			wm: s.messages,
+			wd: s.doc,
 			xm: s.meta,
 		})
 		return s.parent as TParent
@@ -242,6 +255,7 @@ export function startWsRoute<TCtx, TPath extends string, TParent>(
 		errorKeys: new Set(),
 		errorSource: null,
 		graph,
+		doc: null,
 		input: null,
 		messages: null,
 		meta: view.chainMeta,

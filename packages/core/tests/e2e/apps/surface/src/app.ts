@@ -4,6 +4,7 @@ import { createMiddleware, defineErrors, HttpError, httpApp } from "@workerstack
 import { streamed } from "@workerstack/backend/http/input"
 import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
+import { realtime } from "@workerstack/backend/realtime"
 import { ws } from "@workerstack/backend/ws"
 import { SearchService } from "./service.ts"
 import * as z from "zod"
@@ -16,6 +17,16 @@ const TalkIn = z.discriminatedUnion("type", [
 const TalkOut = z.discriminatedUnion("type", [
 	z.object({ text: z.string(), type: z.literal("said") }),
 	z.object({ type: z.literal("pong") }),
+])
+
+/** What `/rt/room` receives and publishes: a tagged union each way. */
+const RoomIn = z.discriminatedUnion("type", [
+	z.object({ text: z.string(), type: z.literal("say") }),
+	z.object({ type: z.literal("leave") }),
+])
+const RoomOut = z.discriminatedUnion("type", [
+	z.object({ text: z.string(), type: z.literal("said") }),
+	z.object({ type: z.literal("left") }),
 ])
 
 type Env = { API_KEY: string; DATABASE_URL: string }
@@ -303,6 +314,17 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 				socket.send(msg.type === "say" ? { text: msg.text, type: "said" } : { type: "pong" })
 			},
 		})
+
+	realtime(routed, "/rt/room", {
+		handler: (_ctx, conn) => {
+			conn.join("lobby")
+			conn.on("message", (msg) =>
+				conn.publish("lobby", msg.type === "say" ? { text: msg.text, type: "said" } : { type: "left" }),
+			)
+		},
+		messages: { receive: RoomIn, send: RoomOut },
+		meta: { operationId: "rt.room", tags: ["realtime"] },
+	})
 
 	return serveManifest(serveOpenApi(routed, { docs: { "/docs": scalar }, title: "Backend Surface", version: "1.0.0" }))
 }

@@ -1,46 +1,25 @@
 /**
- * The server side of one realtime connection, and the publisher `realtime()` returns. The session
- * binds the socket to the route's bus and runs the route's callbacks on its own ordered lane:
- * `handler`, then each inbound frame, then `close`, each awaited and contained. The ws route's
- * lane only hands it events, so a slow handler holds this lane, never the socket's.
+ * The server side of one realtime connection. The session binds the socket to the route's bus and
+ * runs the route's callbacks on its own ordered lane: `handler`, then each inbound frame, checked
+ * at its turn when the route declares `receive`, then `close`, each awaited and contained. The ws
+ * route's lane only hands it events, so a slow handler holds this lane, never the socket's.
  */
 import type { WSContext } from "../ws/contract.ts"
+import { invalidMessage, type UntypedFrame } from "../ws/messages.ts"
 import {
 	CLOSE_INTERNAL,
+	CLOSE_INVALID_DATA,
 	CLOSE_NORMAL,
 	CLOSE_POLICY,
 	CLOSE_TOO_BIG,
 	CLOSE_TRY_AGAIN,
 	exceedsPayload,
 } from "../ws/shared.ts"
-import { encodeRealtimeFrame, type RealtimeBus } from "./bus.ts"
+import { encodeRealtimeFrame } from "./bus.ts"
 import { createEventQueue, type InvokeLogger, type InvokeOptions, invokeUser, reportUserError } from "./invoke-user.ts"
+import { connectionLane } from "./messages.ts"
+import { topicKey } from "./publisher.ts"
 import type { ConnContext, RealtimeConfig } from "./route.ts"
-
-/** What `realtime()` returns: publish into its route's namespace, or another namespace on its bus. */
-export type RealtimePublisher = {
-	/** Send `data` as one JSON frame to every connection on `topic`. Throws when `data` is not JSON. */
-	publish(topic: string, data: unknown): void
-	/** The publisher for another namespace on the same bus. */
-	namespace(name: string): {
-		/** Send `data` as one JSON frame to every connection on `topic` in this namespace. Throws when `data` is not JSON. */
-		publish(topic: string, data: unknown): void
-	}
-}
-
-const SEP = "\u0000"
-
-/** The bus key of `topic` in namespace `ns`. Namespaces never see each other's topics. */
-export function topicKey(ns: string, topic: string): string {
-	return ns + SEP + topic
-}
-
-export function createRealtimePublisher(bus: RealtimeBus, namespace: string): RealtimePublisher {
-	const forNs = (ns: string) => ({
-		publish: (topic: string, data: unknown) => bus.publish(topicKey(ns, String(topic)), data),
-	})
-	return { namespace: (name) => forNs(String(name)), publish: forNs(namespace).publish }
-}
 
 /** One connection's events, as the realtime route's ws callbacks hand them over. */
 export type RealtimeSession = {
@@ -77,12 +56,15 @@ class Session implements RealtimeSession {
 	readonly #fields: Record<string, unknown>
 	readonly #lane = createEventQueue()
 	readonly #conn: ConnContext
-	/* inbound frames in arrival order, including those that beat the open or the message handler */
+	/* inbound frames in arrival order, including those that beat the open or the message handler: raw when the
+	   route declares receive, whose check runs at each frame's turn, else parsed */
 	readonly #inbox: unknown[] = []
 	#onMessage: MessageFn | null = null
 	#onClose: CloseFn | null = null
 	#socket: WSContext | null = null
 	#closed = false
+	/* a frame the receive check refused: no later frame runs */
+	#refused = false
 	#closeQueued = false
 	#drainScheduled = false
 	readonly #options: Record<"close" | "handler" | "message", InvokeOptions>
@@ -138,21 +120,23 @@ class Session implements RealtimeSession {
 
 	message(data: ArrayBuffer | string): void {
 		const self = this[SELF]
-		/* the wire format is JSON text; binary frames are not part of it */
-		if (self.#closed || typeof data !== "string") return
-		const { limits } = self.#config
+		const { checks, limits } = self.#config
+		/* the wire format is JSON text: untyped, a binary frame is no part of it; typed, the check refuses it */
+		if (self.#closed || self.#refused || (checks.receive === null && typeof data !== "string")) return
 		/* before the open there is no socket to close yet: a frame over a limit is dropped */
 		const ws = self.#socket
 		if (exceedsPayload(data, limits.maxFrameBytes)) {
 			if (ws !== null) self.#closeSocket(ws, CLOSE_TOO_BIG, "frame too large")
 			return
 		}
-		let payload: unknown
-		try {
-			payload = JSON.parse(data)
-		} catch {
-			/* not JSON: not a frame of this protocol */
-			return
+		let payload: unknown = data
+		if (checks.receive === null) {
+			try {
+				payload = JSON.parse(data as string)
+			} catch {
+				/* not JSON: not a frame of this protocol */
+				return
+			}
 		}
 		if (self.#inbox.length >= limits.maxPendingFrames) {
 			if (ws !== null) self.#closeSocket(ws, CLOSE_POLICY, "too many pending frames")
@@ -213,16 +197,35 @@ class Session implements RealtimeSession {
 
 	/* frames wait until a message handler exists */
 	readonly #drain = async (): Promise<void> => {
+		const { receive } = this.#config.checks
 		try {
-			while (this.#inbox.length > 0) {
+			while (this.#inbox.length > 0 && !this.#refused) {
 				const fn = this.#onMessage
 				if (fn === null) return
-				const payload = this.#inbox.shift()
-				await this.#invoke("message", () => fn(payload))
+				const frame = this.#inbox.shift()
+				const verdict = receive === null ? { value: frame } : await receive(frame as UntypedFrame)
+				if ("issue" in verdict) return await this.#refuseFrame(verdict.issue)
+				await this.#invoke("message", () => fn(verdict.value))
 			}
 		} finally {
 			this.#drainScheduled = false
 		}
+	}
+
+	/** A frame the receive check refused: onError hears invalid_message, then the socket closes 1007. */
+	async #refuseFrame(issue: string): Promise<void> {
+		this.#refused = true
+		this.#inbox.length = 0
+		const { onError } = this.#config
+		if (onError !== null) {
+			await invokeUser(() => onError(invalidMessage(issue), this.#conn), {
+				fields: this.#fields,
+				log: this.#log,
+				phase: "realtime message",
+			})
+		}
+		/* a frame arrives only on an attached socket; onError may have closed it */
+		if (!this.#closed) this.#closeSocket(this.#socket as WSContext, CLOSE_INVALID_DATA, `invalid message: ${issue}`)
 	}
 
 	#on(event: string, fn: unknown): void {
@@ -252,7 +255,18 @@ class Session implements RealtimeSession {
 	}
 
 	#connContext(userId: string | null): ConnContext {
-		const { bus } = this.#config
+		const { bus, checks } = this.#config
+		/* send and publish share one lane, so a checked message keeps its place behind an earlier pending one */
+		const out = connectionLane({
+			check: checks.send,
+			close: () => {
+				if (!this.#closed) this.#closeSocket(this.#socket as WSContext, CLOSE_INTERNAL, "invalid outgoing message")
+			},
+			deliver: ({ payload, topic }) =>
+				topic === null ? this.#sendFrame(encodeRealtimeFrame(payload)) : bus.publish(this.#topic(topic), payload),
+			fields: this.#fields,
+			log: this.#log,
+		})
 		const conn = {
 			close: (reason?: string) => {
 				/* a conn exists only once its handler ran, after the socket attached */
@@ -267,8 +281,8 @@ class Session implements RealtimeSession {
 			},
 			on: ((event: string, fn: unknown) => this.#on(event, fn)) as ConnContext["on"],
 			/* publishing after close is allowed: a close handler announcing a departure is the common case */
-			publish: (topic: string, payload: unknown) => bus.publish(this.#topic(topic), payload),
-			send: (payload: unknown) => this.#sendFrame(encodeRealtimeFrame(payload)),
+			publish: (topic: string, payload: unknown) => out({ payload, topic: String(topic) }),
+			send: (payload: unknown) => out({ payload, topic: null }),
 			state: {},
 			transport: "ws" as const,
 			userId,

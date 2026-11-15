@@ -83,7 +83,7 @@ export function snapshotRouteTree(g: HttpGraph): RouteTree {
 			iv: r.iv,
 			mt: route.meta,
 			out: r.out,
-			...(r.wm === null ? {} : { wm: r.wm }),
+			...(r.wd === null ? {} : { wd: r.wd }),
 		}
 	}
 	return { meta: {}, root: cloneTree(g.root, (id) => !served.has(id)), routes, v: ROUTE_TREE_VERSION }

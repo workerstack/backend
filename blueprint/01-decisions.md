@@ -42,7 +42,7 @@ Fuzz corpora + an in-process `app.fetch` adversarial regression suite run as a C
 
 ## H8 — Realtime: keep and fix, do not build or cut
 
-`x-realtime` is a reachable opt-in via `.meta({ extensions: { "x-realtime": true } })` (verified) — the resume client stays. Verified: the generated clients already do SSE and WebSocket in all four current SDKs (TS `client/ws.ts`+`sse.ts`; Go `client-go/ws.go`+`sse.go`+`realtime.go`; Rust `client-rust/ws.rs`+`sse.rs`; Python `_ws.py`+`_sse.py`). So realtime is fix-not-build.
+`x-realtime` is written by `realtime()` on every route it makes, after the meta extensions, so no extension unsets it and a `ws()` route never has it (roadmap 1 slice 7, D11; it was an opt-in through `.meta({ extensions })` before) — the resume client stays. Verified: the generated clients already do SSE and WebSocket in all four current SDKs (TS `client/ws.ts`+`sse.ts`; Go `client-go/ws.go`+`sse.go`+`realtime.go`; Rust `client-rust/ws.rs`+`sse.rs`; Python `_ws.py`+`_sse.py`). So realtime is fix-not-build.
 
 Gaps closed in v1 (bit 06): (1) the declared SSE event schema does not fully reach the SDK types — fixed by the same "declared schema reaches the generators" principle as the response model (H10); (2) `Last-Event-ID` reconnect/resume is not uniform across SDKs — made parity across all; (3) no reference resume server exists to test against — ship one as a conformance target. New C#/Java SDKs reach the same SSE + WS + reconnect parity.
 

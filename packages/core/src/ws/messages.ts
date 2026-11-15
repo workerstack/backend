@@ -22,6 +22,14 @@ export type WsMessages = {
 	readonly send?: StandardSchemaLike
 }
 
+/** What a WebSocket route documents beside its upgrade: its declared messages, and whether `realtime()` made it. */
+export type WsDoc = {
+	/** what it receives and sends; `null` for an untyped socket */
+	readonly messages: WsMessages | null
+	/** `true` for a `realtime()` route, which the document marks `x-realtime` */
+	readonly realtime: boolean
+}
+
 /** What an untyped route's `onMessage` gets: text as a string, binary as an `ArrayBuffer`. */
 export type UntypedFrame = ArrayBuffer | string
 
@@ -73,34 +81,69 @@ export function invalidMessage(issue: string): HttpError {
 	return new HttpError({ errorKey: EK.invalid_message, status: "bad_request", vars: { issue } })
 }
 
+const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+const noop = (): void => {}
+
+/**
+ * `check` each message, then `deliver` it or `refuse` it, in the order given: a message waits behind an earlier pending
+ * check. One answered at once with nothing pending is settled at once, and a throw from `deliver` or `refuse` reaches
+ * the caller; otherwise the returned promise settles with it. A check that rejects refuses its message. The lane never
+ * stops: what follows a refusal is the caller's choice.
+ */
+export function inOrder<T>(
+	check: (message: T) => string | null | Promise<string | null>,
+	deliver: (message: T) => void,
+	refuse: (issue: string) => void,
+): (message: T) => void | Promise<void> {
+	/* settles once the last message whose check was pending is settled; null when none is pending */
+	let turn: Promise<void> | null = null
+	const settle = (message: T, issue: string | null): void => (issue === null ? deliver(message) : refuse(issue))
+	return (message) => {
+		const verdict = check(message)
+		if (turn === null && !(verdict instanceof Promise)) return settle(message, verdict)
+		/* a check that rejects refuses its message: nothing reads what an unchecked send would have been */
+		const mine = Promise.all([turn, verdict]).then(
+			([, issue]) => settle(message, issue),
+			(error: unknown) => refuse(`send check failed: ${reasonOf(error)}`),
+		)
+		const settled = mine.then(noop, noop)
+		turn = settled
+		void settled.then(() => {
+			if (turn === settled) turn = null
+		})
+		return mine
+	}
+}
+
+/**
+ * Each message checked in order (`inOrder`), until the first refusal: `refuse` hears why, once, and no later message
+ * goes out. A message that passed its check but fails to go out after its turn waited is refused too, since its
+ * sender has moved on.
+ */
+export function untilRefused<T>(
+	check: (message: T) => string | null | Promise<string | null>,
+	deliver: (message: T) => void,
+	refuse: (issue: string) => void,
+): (message: T) => void {
+	let refused = false
+	const reportRefusal = (issue: string): void => {
+		if (refused) return
+		refused = true
+		refuse(issue)
+	}
+	const lane = inOrder(check, (message: T) => (refused ? undefined : deliver(message)), reportRefusal)
+	return (message) => {
+		if (refused) return
+		void lane(message)?.catch((error: unknown) => reportRefusal(`send failed: ${reasonOf(error)}`))
+	}
+}
+
 /**
  * `ws` with each send checked first, in the order sent: a send waits behind an earlier pending check. A refused
  * message is not sent; `refuse` hears why, once, and no later send goes out.
  */
 export function checkedSocket(ws: WSContext, check: SendCheck, refuse: (issue: string) => void): WSContext {
-	let refused = false
-	/* settles once the last send whose check was pending is sent or refused; null when none is pending */
-	let turn: Promise<void> | null = null
-	const settle = (data: unknown, issue: string | null): void => {
-		if (refused) return
-		if (issue === null) return ws.send(data as UntypedSend)
-		refused = true
-		refuse(issue)
-	}
 	const socket: WSContext = Object.create(ws)
-	socket.send = (data) => {
-		if (refused) return
-		const verdict = check(data)
-		if (turn === null && !(verdict instanceof Promise)) return settle(data, verdict)
-		/* a check that rejects refuses its message: nothing reads what an unchecked send would have been */
-		const mine = Promise.all([turn, verdict]).then(
-			([, issue]) => settle(data, issue),
-			(error: unknown) => settle(data, `send check failed: ${error instanceof Error ? error.message : String(error)}`),
-		)
-		turn = mine
-		void mine.then(() => {
-			if (turn === mine) turn = null
-		})
-	}
+	socket.send = untilRefused(check, (data) => ws.send(data as UntypedSend), refuse)
 	return socket
 }

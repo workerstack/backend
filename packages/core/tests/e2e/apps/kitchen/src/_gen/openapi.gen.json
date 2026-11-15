@@ -719,6 +719,7 @@
       "get": {
         "x-websocket": true,
         "operationId": "realtime.chat.connect",
+        "x-realtime": true,
         "x-backend-route": "WS /api/realtime/chat/:roomId",
         "parameters": [
           {
@@ -771,6 +772,7 @@
       "get": {
         "x-websocket": true,
         "operationId": "realtime.echo.connect",
+        "x-realtime": true,
         "x-backend-route": "WS /api/realtime/echo",
         "responses": {
           "101": {

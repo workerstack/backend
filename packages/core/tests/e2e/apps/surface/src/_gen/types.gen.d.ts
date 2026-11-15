@@ -28,6 +28,7 @@ declare module "@workerstack/backend/http" {
 			"resources.patch": { kind: "http"; ctx: Routes["/methods/resource/:id"]["patch"]["ctx"] }
 			"resources.update": { kind: "http"; ctx: Routes["/methods/resource/:id"]["put"]["ctx"] }
 			"rs.upload.create": { kind: "http"; ctx: Routes["/rs/upload"]["post"]["ctx"] }
+			"rt.room": { kind: "ws"; ctx: BaseCtx }
 			"status.accepted.create": { kind: "http"; ctx: Routes["/status/accepted"]["post"]["ctx"] }
 			"status.created.create": { kind: "http"; ctx: Routes["/status/created"]["post"]["ctx"] }
 			"status.noContent.delete": { kind: "http"; ctx: Routes["/status/no-content"]["delete"]["ctx"] }
@@ -101,6 +102,10 @@ type ReplaceInAllRequest = { data: Record<string, unknown> }
 type ReplaceInAllResponse200 = { etag: string; version: number }
 
 type ReplaceMethodsResourceResponse200 = { id: string; name: string }
+
+type RtRoomReceive = { text: string; type: "say" } | { type: "leave" }
+
+type RtRoomSend = { text: string; type: "said" } | { type: "left" }
 
 type UpdateMethodsResourceRequest = { name?: string }
 

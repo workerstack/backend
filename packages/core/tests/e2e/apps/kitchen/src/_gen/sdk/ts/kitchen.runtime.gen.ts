@@ -1285,6 +1285,579 @@ export async function* parseSSEStream(
 	}
 }
 
+/**
+ * The realtime resume protocol's client side (H8): the frames a server sends, the errors a
+ * connection ends with, the transport adapters a consumer plugs in, the keepalive loop and the
+ * fallback chain that picks the first transport to answer `ready`.
+ */
+
+export type ServerFrame =
+	| { data: unknown; id?: string | undefined; reconnectToken?: string | undefined; t: "msg" }
+	| { t: "pong" }
+	| { reason: string; t: "bye" }
+	| { reconnectToken: string; t: "ready" }
+
+export class RealtimeError extends Error {
+	readonly reason: string
+
+	constructor(message: string, reason: string) {
+		super(message)
+		this.reason = reason
+		this.name = "RealtimeError"
+	}
+}
+
+export class RealtimeConnectError extends RealtimeError {
+	override name = "RealtimeConnectError"
+}
+
+export class RealtimeKickedError extends RealtimeError {
+	override name = "RealtimeKickedError"
+}
+
+export class RealtimeAbortError extends RealtimeError {
+	override name = "RealtimeAbortError"
+}
+
+export type Transport = "longpoll" | "sse" | "ws"
+
+export type ConnectionState = "closed" | "connected" | "connecting" | "draining" | "idle" | "reconnecting"
+
+export type TransportOpts = {
+	headers?: Record<string, string> | undefined
+	lastEventId?: string | undefined
+	reconnectToken?: string | undefined
+	signal?: AbortSignal | undefined
+}
+
+/** One live transport: the adapter calls `onFrame`, `onClose` and `onError`; the client replaces them. */
+export type TransportConnection = {
+	close(): void
+	onClose: (reason: string) => void
+	onError: (err: unknown) => void
+	onFrame: (frame: ServerFrame) => void
+	send(data: string): Promise<void> | void
+}
+
+/** A swallowed callback: a consumer's hook must never break the reconnect loop. */
+export function safely(fn: (() => void) | undefined): void {
+	try {
+		fn?.()
+	} catch {
+		/* the consumer's callback threw; the connection carries on */
+	}
+}
+
+export type TransportAdapter = {
+	connect(url: string, opts: TransportOpts): TransportConnection
+}
+
+/** The transport the adapter at `index` of a chain stands for: WebSocket, then SSE, then long polling. */
+export function transportAt(index: number): Transport {
+	if (index === 0) return "ws"
+	return index === 1 ? "sse" : "longpoll"
+}
+
+export type KeepaliveOptions = {
+	interval?: number
+	onDead: () => void
+	sendPing: () => void
+	timeout?: number
+	transport: Transport
+}
+
+export type KeepaliveLoop = { onFrame(): void; onPong(): void; start(): void; stop(): void }
+
+/**
+ * A connection's liveness: over WebSocket a ping every `interval` and dead after `timeout` without
+ * a pong; over SSE dead after `timeout` without a frame; long polling needs none.
+ */
+class Keepalive implements KeepaliveLoop {
+	readonly #opts: KeepaliveOptions
+	#ping: ReturnType<typeof setInterval> | null = null
+	#dead: ReturnType<typeof setTimeout> | null = null
+
+	constructor(opts: KeepaliveOptions) {
+		this.#opts = opts
+	}
+
+	#armDead(): void {
+		if (this.#dead !== null) clearTimeout(this.#dead)
+		this.#dead = setTimeout(() => this.#opts.onDead(), this.#opts.timeout ?? 60_000)
+	}
+
+	start(): void {
+		this.stop()
+		const { transport } = this.#opts
+		if (transport === "longpoll") return
+		if (transport === "ws") this.#ping = setInterval(() => this.#opts.sendPing(), this.#opts.interval ?? 25_000)
+		this.#armDead()
+	}
+
+	stop(): void {
+		if (this.#ping !== null) clearInterval(this.#ping)
+		if (this.#dead !== null) clearTimeout(this.#dead)
+		this.#ping = null
+		this.#dead = null
+	}
+
+	onPong(): void {
+		if (this.#dead !== null) this.#armDead()
+	}
+
+	onFrame(): void {
+		if (this.#opts.transport === "sse" && this.#dead !== null) this.#armDead()
+	}
+}
+
+export function createKeepaliveLoop(opts: KeepaliveOptions): KeepaliveLoop {
+	return new Keepalive(opts)
+}
+
+/** The keepalive `set` gives `transport` (WebSocket 20 s unless set, SSE none; 0 none), dead an interval after a ping. */
+export function keepaliveOf(
+	set: number | undefined,
+	transport: Transport,
+	conn: { send(data: string): void },
+	onDead: () => void,
+): KeepaliveLoop | null {
+	const interval = set ?? (transport === "ws" ? 20_000 : 0)
+	if (interval <= 0) return null
+	const sendPing = () => conn.send(JSON.stringify({ t: "ping" }))
+	return createKeepaliveLoop({ interval, onDead, sendPing, timeout: 2 * interval, transport })
+}
+
+/** Dial `adapter` and resolve once it sends `ready`; reject on an error, a close or `timeout`. */
+export function dialReady(
+	adapter: TransportAdapter,
+	target: { opts: TransportOpts; url: string },
+	timeout: number,
+): Promise<TransportConnection> {
+	return new Promise((resolve, reject) => {
+		const conn = adapter.connect(target.url, target.opts)
+		const timer = setTimeout(() => {
+			conn.close()
+			reject(new Error("timeout"))
+		}, timeout)
+		const onFrame = conn.onFrame
+		conn.onFrame = (frame) => {
+			if (frame.t !== "ready") return onFrame(frame)
+			clearTimeout(timer)
+			conn.onFrame = onFrame
+			resolve(conn)
+		}
+		conn.onError = (err) => {
+			clearTimeout(timer)
+			conn.close()
+			reject(err)
+		}
+		conn.onClose = (reason) => {
+			clearTimeout(timer)
+			reject(new Error(reason))
+		}
+	})
+}
+
+/** The dial statuses no retry changes, most specific highest; a WebSocket refused without a status ranks lowest. */
+const RANK: Record<number, number> = { 400: 3, 401: 6, 403: 5, 404: 1, 405: 1, 410: 2, 422: 4 }
+const rank = (err: unknown) =>
+	RANK[(err as { status?: number } | null)?.status ?? 0] ?? Number((err as RealtimeError)?.reason === "upgrade_refused")
+export const refused = (err: unknown): boolean => rank(err) > 0
+/** Dial 0, 1, … until one opens; else the last transient failure, or the most specific refusal. A 401 refreshes once. */
+export async function walkChain<T>(
+	count: number,
+	dial: (index: number) => Promise<T>,
+	opened: (index: number) => unknown,
+	refresh?: () => Promise<boolean>,
+): Promise<T> {
+	let transient: unknown
+	let refusal: unknown
+	for (let i = 0; i < count; i++) {
+		try {
+			const conn = await dial(i)
+			opened(i)
+			return conn
+		} catch (err) {
+			if (rank(err) === 6 && refresh) {
+				const fresh = await refresh()
+				refresh = undefined
+				if (fresh) {
+					;[i, transient, refusal] = [-1, undefined, undefined]
+					continue
+				}
+			}
+			if (!refused(err)) transient = err
+			else if (rank(err) > rank(refusal)) refusal = err
+		}
+	}
+	throw transient ?? refusal
+}
+
+export type FallbackChain = {
+	connect(url: string, transportOpts: TransportOpts): Promise<{ conn: TransportConnection; transport: Transport }>
+	readonly provenTransport: Transport | null
+}
+
+/** Try each transport in order until one is ready; remember the one that worked and try it first next time. */
+class Chain implements FallbackChain {
+	readonly #transports: TransportAdapter[]
+	readonly #timeout: number
+	#proven: number | null = null
+
+	constructor(opts: { timeout?: number; transports: TransportAdapter[] }) {
+		this.#transports = opts.transports
+		this.#timeout = opts.timeout ?? 3000
+	}
+
+	get provenTransport(): Transport | null {
+		return this.#proven === null ? null : transportAt(this.#proven)
+	}
+
+	async #dial(url: string, opts: TransportOpts) {
+		const proven = this.#proven
+		if (proven !== null && proven < this.#transports.length) {
+			try {
+				const conn = await dialReady(this.#transports[proven] as TransportAdapter, { opts, url }, this.#timeout)
+				return { conn, transport: transportAt(proven) }
+			} catch {
+				/* the proven transport failed: fall through to the whole chain */
+			}
+		}
+		for (let i = 0; i < this.#transports.length; i++) {
+			try {
+				const conn = await dialReady(this.#transports[i] as TransportAdapter, { opts, url }, this.#timeout)
+				this.#proven = i
+				return { conn, transport: transportAt(i) }
+			} catch {
+				/* try the next one */
+			}
+		}
+		throw new RealtimeConnectError("All transports failed", "all_failed")
+	}
+
+	connect(url: string, opts: TransportOpts): Promise<{ conn: TransportConnection; transport: Transport }> {
+		const attempt =
+			this.#transports.length === 0
+				? Promise.reject(new RealtimeConnectError("No transports configured", "no_transports"))
+				: this.#dial(url, opts)
+		/* a caller that never awaits the attempt must not see an unhandled rejection */
+		attempt.catch(() => {})
+		return attempt
+	}
+}
+
+export function createFallbackChain(opts: { timeout?: number; transports: TransportAdapter[] }): FallbackChain {
+	return new Chain(opts)
+}
+
+export type ResumableConnectionOpts = {
+	fallbackTimeout?: number | undefined
+	/** Each dial's headers; a function is read on every dial, so a rotated token reaches the reconnect. */
+	headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>) | undefined
+	/** Ping every this many ms (WebSocket 20 s, SSE none, unless set; 0: none); one unanswered as long reconnects. */
+	keepaliveInterval?: number | undefined
+	lastEventId?: string | undefined
+	/** Reconnects after a drop before the stream ends; 0 retries forever. Default 5. */
+	maxReconnectAttempts?: number | undefined
+	onReconnected?: (() => void) | undefined
+	onReconnecting?: ((attempt: number, transport: Transport) => void) | undefined
+	reconnectDelayMs?: number | undefined
+	reconnectToken?: string | undefined
+	signal?: AbortSignal | undefined
+	transports: TransportAdapter[]
+	url: string
+}
+
+export type ResumableConnection<T = unknown> = {
+	close(reason?: string): void
+	readonly provenTransport: Transport | null
+	/** Resolves once sent; over SSE and long-poll a POST, rejecting with its error. */
+	send(data: unknown): Promise<void>
+	/** `send`'s raw form: `text` as it is, a text frame or a POSTed text/plain body. */
+	sendText(text: string): Promise<void>
+	readonly state: ConnectionState
+	[Symbol.asyncIterator](): AsyncIterableIterator<T>
+}
+
+type QueueEntry = { type: "done" } | { error: unknown; type: "error" } | { type: "value"; value: unknown }
+
+/**
+ * One logical stream over reconnecting transports: messages arrive in order through the async
+ * iterator, a drop reconnects (proven transport first, then the chain) and resumes from the last
+ * message id with the server's reconnect token.
+ */
+export class Resumable implements ResumableConnection {
+	readonly #opts: ResumableConnectionOpts
+	readonly #refresh: (() => Promise<boolean>) | undefined
+	readonly #queue: QueueEntry[] = []
+	#pending: { reject: (err: unknown) => void; resolve: (result: IteratorResult<unknown>) => void } | null = null
+	#state: ConnectionState = "idle"
+	#conn: TransportConnection | null = null
+	#keepalive: KeepaliveLoop | null = null
+	#attempts = 0
+	#proven: number | null = null
+	#lastEventId: string | undefined
+	#reconnectToken: string | undefined
+	#started = false
+	#closed = false
+	/** the dial and reconnect timers still pending: `close()` clears them, so nothing outlives the connection */
+	readonly #timers = new Set<ReturnType<typeof setTimeout>>()
+	/** the transport being dialed, closed with the connection */
+	#dialing: TransportConnection | null = null
+
+	constructor(opts: ResumableConnectionOpts, refresh?: () => Promise<boolean>) {
+		this.#opts = opts
+		this.#refresh = refresh
+		this.#lastEventId = opts.lastEventId
+		this.#reconnectToken = opts.reconnectToken
+		if (opts.signal?.aborted) this.#end()
+		else opts.signal?.addEventListener("abort", () => this.#abort(), { once: true })
+	}
+
+	get state(): ConnectionState {
+		return this.#state
+	}
+
+	get provenTransport(): Transport | null {
+		return this.#proven === null ? null : transportAt(this.#proven)
+	}
+
+	#end(): void {
+		this.#state = "closed"
+		this.#closed = true
+		for (const timer of this.#timers) clearTimeout(timer)
+		this.#timers.clear()
+		const dialing = this.#dialing
+		this.#dialing = null
+		dialing?.close()
+	}
+
+	/** Run `fn` after `ms`, unless the connection closes first; the timer never holds the process open. */
+	#later(fn: () => void, ms: number): () => void {
+		const timer = setTimeout(() => {
+			this.#timers.delete(timer)
+			fn()
+		}, ms)
+		;(timer as unknown as { unref?: () => void }).unref?.()
+		this.#timers.add(timer)
+		return () => {
+			clearTimeout(timer)
+			this.#timers.delete(timer)
+		}
+	}
+
+	#enqueue(entry: QueueEntry): void {
+		const pending = this.#pending
+		if (!pending) {
+			this.#queue.push(entry)
+			return
+		}
+		this.#pending = null
+		if (entry.type === "value") pending.resolve({ done: false, value: entry.value })
+		else if (entry.type === "done") pending.resolve({ done: true, value: undefined })
+		else pending.reject(entry.error)
+	}
+
+	#detach(): void {
+		this.#keepalive?.stop()
+		this.#keepalive = null
+		const conn = this.#conn
+		if (!conn) return
+		this.#conn = null
+		conn.onFrame = () => {}
+		conn.onError = () => {}
+		conn.onClose = () => {}
+		try {
+			conn.close()
+		} catch {
+			/* an adapter's close is best-effort */
+		}
+	}
+
+	#abort(): void {
+		if (this.#state === "closed") return
+		this.#end()
+		this.#detach()
+		this.#enqueue({ error: new RealtimeAbortError("Connection aborted", "aborted"), type: "error" })
+	}
+
+	/** A frame on a ready connection: a message, a new reconnect token, a pong or the server's goodbye. */
+	#onFrame(frame: ServerFrame): void {
+		this.#keepalive?.onFrame()
+		if (frame.t === "msg") {
+			this.#lastEventId = frame.id ?? this.#lastEventId
+			this.#reconnectToken = frame.reconnectToken || this.#reconnectToken
+			this.#enqueue({ type: "value", value: frame.data })
+		} else if (frame.t === "ready") this.#reconnectToken = frame.reconnectToken || this.#reconnectToken
+		else if (frame.t === "pong") this.#keepalive?.onPong()
+		else {
+			this.#detach()
+			this.#reconnect()
+		}
+	}
+
+	/** Dial adapter `index` with this dial's headers (a function's read now); resolve when ready, frames wired first. */
+	#dial(index: number): Promise<TransportConnection> {
+		const given = this.#opts.headers
+		if (typeof given === "function") return Promise.resolve(given()).then((headers) => this.#dialWith(index, headers))
+		return this.#dialWith(index, given)
+	}
+
+	#dialWith(index: number, headers: Record<string, string> | undefined): Promise<TransportConnection> {
+		return new Promise((resolve, reject) => {
+			if (this.#closed) return reject(new RealtimeConnectError("the connection is closed", "closed"))
+			const adapter = this.#opts.transports[index] as TransportAdapter
+			const opts = { headers, lastEventId: this.#lastEventId, reconnectToken: this.#reconnectToken }
+			const conn = adapter.connect(this.#opts.url, { ...opts, signal: this.#opts.signal })
+			this.#dialing = conn
+			let ready = false
+			const cancel = this.#later(() => {
+				this.#dialing = null
+				conn.close()
+				reject(new RealtimeConnectError("transport open timeout", "timeout"))
+			}, this.#opts.fallbackTimeout ?? 3000)
+			const fail = (error: unknown) => {
+				cancel()
+				if (this.#dialing === conn) this.#dialing = null
+				if (!ready) return reject(error)
+				this.#detach()
+				if (refused(error)) this.#refuse(error)
+				else this.#reconnect()
+			}
+			conn.onFrame = (frame) => {
+				/* a message before ready is kept; a goodbye before ready is the server refusing the open */
+				if (ready || frame.t === "msg" || frame.t === "pong") return this.#onFrame(frame)
+				if (frame.t === "bye") {
+					conn.close()
+					return fail(new RealtimeConnectError(`transport refused: ${frame.reason}`, "bye"))
+				}
+				ready = true
+				cancel()
+				this.#dialing = null
+				/* the connection from its ready frame on, so a drop before the caller resumes is seen */
+				this.#conn = conn
+				this.#reconnectToken = frame.reconnectToken || this.#reconnectToken
+				resolve(conn)
+			}
+			conn.onError = (err) => {
+				if (!ready) conn.close()
+				fail(err)
+			}
+			conn.onClose = (reason) =>
+				fail(new RealtimeConnectError(`transport closed before ready: ${reason}`, "closed_early"))
+		})
+	}
+
+	/** The proven transport first, then walkChain. */
+	#open(): Promise<TransportConnection> {
+		const { transports } = this.#opts
+		if (transports.length === 0)
+			return Promise.reject(new RealtimeConnectError("No transports configured", "no_transports"))
+		const walk = () =>
+			walkChain(
+				transports.length,
+				(i) => this.#dial(i),
+				(i) => (this.#proven = i),
+				this.#refresh,
+			)
+		return this.#proven === null ? walk() : this.#dial(this.#proven).catch(walk)
+	}
+
+	#watch(conn: TransportConnection): void {
+		if (this.#proven === null) return
+		this.#keepalive = keepaliveOf(this.#opts.keepaliveInterval, transportAt(this.#proven), conn, () => {
+			this.#detach()
+			this.#reconnect()
+		})
+		this.#keepalive?.start()
+	}
+
+	async #connect(): Promise<void> {
+		if (this.#closed) return
+		if (this.#state === "idle") this.#state = "connecting"
+		try {
+			const conn = await this.#open()
+			/* closed, or dropped between its ready frame and here (a reconnect is already scheduled) */
+			if (this.#closed || this.#conn !== conn) return
+			this.#state = "connected"
+			this.#attempts = 0
+			this.#watch(conn)
+			safely(this.#opts.onReconnected)
+		} catch (err) {
+			if (refused(err)) this.#refuse(err)
+			else this.#reconnect()
+		}
+	}
+
+	/** End the connection with a refusal no retry changes. */
+	#refuse(err: unknown): void {
+		this.#end()
+		this.#enqueue({ error: err, type: "error" })
+	}
+
+	/** After a drop or a failed open: wait, then dial again; past the attempt cap the stream ends. */
+	#reconnect(): void {
+		if (this.#closed) return
+		this.#attempts += 1
+		const max = this.#opts.maxReconnectAttempts ?? 5
+		if (max > 0 && this.#attempts > max) {
+			this.#end()
+			this.#enqueue({ type: "done" })
+			return
+		}
+		this.#state = "reconnecting"
+		/* a drop means that transport is not healthy: the next attempt walks the whole chain */
+		this.#proven = null
+		const attempt = this.#attempts
+		safely(() => this.#opts.onReconnecting?.(attempt, transportAt(0)))
+		this.#later(() => void this.#connect(), this.#opts.reconnectDelayMs ?? 1000)
+	}
+
+	send(data: unknown): Promise<void> {
+		return this.sendText(JSON.stringify(data))
+	}
+
+	async sendText(text: string): Promise<void> {
+		if (!this.#closed) await this.#conn?.send(text)
+	}
+
+	close(_reason?: string): void {
+		if (this.#state === "closed") return
+		this.#end()
+		this.#detach()
+		this.#enqueue({ type: "done" })
+	}
+
+	#next(): Promise<IteratorResult<unknown>> {
+		if (!this.#started && !this.#closed) {
+			this.#started = true
+			this.#state = "connecting"
+			void this.#connect()
+		}
+		const entry = this.#queue.shift()
+		if (entry?.type === "value") return Promise.resolve({ done: false, value: entry.value })
+		if (entry?.type === "error") return Promise.reject(entry.error)
+		if (entry || this.#closed) return Promise.resolve({ done: true, value: undefined })
+		const next = new Promise<IteratorResult<unknown>>((resolve, reject) => {
+			this.#pending = { reject, resolve }
+		})
+		next.catch(() => {})
+		return next
+	}
+
+	[Symbol.asyncIterator](): AsyncIterableIterator<unknown> {
+		const iterator: AsyncIterableIterator<unknown> = {
+			next: () => this.#next(),
+			[Symbol.asyncIterator]: () => iterator,
+		}
+		return iterator
+	}
+}
+
+export function createResumableConnection(opts: ResumableConnectionOpts): ResumableConnection {
+	return new Resumable(opts)
+}
+
 /** One request, ready to send: where, with what, and the hooks' view of it. */
 type Prepared = { body: BodyInit | undefined; headers: Headers; url: URL }
 
@@ -1731,6 +2304,142 @@ export function createTypedWebSocket(
 	return typed
 }
 
+type Target = { http: HTTPClient; opts: RequestOptions; path: string }
+
+export type RealtimeOptions = Omit<ResumableConnectionOpts, "headers" | "signal" | "transports" | "url">
+
+/** A payload's JSON when it parses, else its text. */
+function payloadOf(text: string): unknown {
+	try {
+		return JSON.parse(text)
+	} catch {
+		return text
+	}
+}
+
+/** A payload's frame: `last_event_id` or `id` the cursor (a transport's id first), `reconnect_token` the token. */
+function frameOf(data: unknown, id?: string): Extract<ServerFrame, { t: "msg" }> {
+	const fields = (typeof data === "object" && data !== null ? data : {}) as Record<string, unknown>
+	const cursor = [fields["last_event_id"], fields["id"]].find((v) => typeof v === "string" || typeof v === "number")
+	const reconnectToken = typeof fields["reconnect_token"] === "string" ? fields["reconnect_token"] : undefined
+	return { data, id: id ?? (cursor === undefined ? undefined : String(cursor)), reconnectToken, t: "msg" }
+}
+
+const ready = (opts: TransportOpts): ServerFrame => ({ reconnectToken: opts.reconnectToken ?? "", t: "ready" })
+
+/** The cursor in the query: the reconnect token, and the last event id when `withId`. */
+function cursorOpts(at: Target, opts: TransportOpts, withId: boolean): RequestOptions {
+	const search = { ...at.opts.search }
+	if (opts.reconnectToken) search["reconnect_token"] = opts.reconnectToken
+	if (withId && opts.lastEventId) search["last_event_id"] = opts.lastEventId
+	return { ...at.opts, search }
+}
+
+function connection(close: () => void, send: (data: string) => Promise<void> | void): TransportConnection {
+	return { close, onClose: () => {}, onError: () => {}, onFrame: () => {}, send }
+}
+
+/** An HTTP transport: `run` until closed; a send POSTs through the client. */
+function httpConnection(at: Target, run: (conn: TransportConnection, signal: AbortSignal) => Promise<void>) {
+	const abort = new AbortController()
+	const post = (data: string) => {
+		const value = payloadOf(data)
+		const text = { body: new TextEncoder().encode(data), headers: { ...at.opts.headers, "content-type": "text/plain" } }
+		return at.http.request("POST", at.path, { ...at.opts, ...(value === data ? text : { json: value }) }).then(() => {})
+	}
+	const conn = connection(() => abort.abort(), post)
+	run(conn, abort.signal).catch((err: unknown) => abort.signal.aborted || conn.onError(err))
+	return conn
+}
+
+/** The platform WebSocket: no credential; a failure before open is a refused upgrade. */
+function wsAdapter(at: Target): TransportAdapter {
+	return {
+		connect(_url, opts) {
+			const refused = () => new RealtimeConnectError("the WebSocket upgrade failed", "upgrade_refused")
+			if (typeof WebSocket === "undefined") {
+				const absent = connection(
+					() => {},
+					() => {},
+				)
+				queueMicrotask(() => absent.onError(refused()))
+				return absent
+			}
+			const socket = createTypedWebSocket(wsUrl(at.http, at.path, cursorOpts(at, opts, true)))
+			const conn = connection(
+				() => socket.close(),
+				(data) => socket.send(data),
+			)
+			let open = false
+			socket.on("open", () => {
+				open = true
+				conn.onFrame(ready(opts))
+			})
+			socket.on("message", (text) => conn.onFrame(frameOf(payloadOf(text))))
+			socket.on("error", (err) => conn.onError(open ? err : refused()))
+			socket.on("close", (code, reason) => (open ? conn.onClose(reason || `${code}`) : conn.onError(refused())))
+			return conn
+		},
+	}
+}
+
+/** An event stream through the client, Last-Event-ID the cursor; any other answer fails it. */
+function sseAdapter(at: Target): TransportAdapter {
+	return {
+		connect: (_url, opts) =>
+			httpConnection(at, async (conn, signal) => {
+				let stream = false
+				const events = streamOperation(at.http, {
+					method: "GET",
+					onOpen: (response) => {
+						stream = isEventStream(response)
+						if (stream) conn.onFrame(ready(opts))
+					},
+					opts: { ...cursorOpts(at, opts, false), lastEventId: opts.lastEventId, signal },
+					path: at.path,
+					refreshes: false,
+				})
+				for await (const event of events)
+					if (stream) conn.onFrame(frameOf(payloadOf(event.data), event.id || undefined))
+				if (stream) conn.onClose("end")
+				else conn.onError(new RealtimeConnectError("the answer is no event stream", "not_event_stream"))
+			}),
+	}
+}
+
+/** GETs through the client, the cursor in the query; a 204 polls again. */
+function pollAdapter(at: Target): TransportAdapter {
+	return {
+		connect: (_url, opts) =>
+			httpConnection(at, async (conn, signal) => {
+				const cursor = { ...opts }
+				for (let polls = 0; !signal.aborted; polls++) {
+					const poll = { ...cursorOpts(at, cursor, true), signal }
+					const { data } = await at.http.requestOperation({
+						method: "GET",
+						opts: poll,
+						path: at.path,
+						refreshes: false,
+					})
+					if (polls === 0) conn.onFrame(ready(opts))
+					if (data === null || data === undefined || data === "") continue
+					const frame = frameOf(data)
+					cursor.lastEventId = frame.id ?? cursor.lastEventId
+					cursor.reconnectToken = frame.reconnectToken || cursor.reconnectToken
+					conn.onFrame(frame)
+				}
+			}),
+	}
+}
+
+/** An x-realtime op's chain, as Go's: WebSocket, SSE, long-poll; no JSON keepalive unless set. */
+export function realtimeConnection(http: HTTPClient, path: string, input: RequestOptions & RealtimeOptions): Resumable {
+	const { baseURL, cookies, headers, params, search, signal, ...opts } = input
+	const at = { http, opts: { baseURL, cookies, headers, params, search }, path }
+	const transports = [wsAdapter(at), sseAdapter(at), pollAdapter(at)]
+	return new Resumable({ keepaliveInterval: 0, ...opts, signal, transports, url: path }, () => http[REFRESH_AUTH]())
+}
+
 /**
  * Resolve invalidation targets by substituting the mutation's params. Params that are absent stay
  * placeholders, so a partially resolved target is a narrower pattern, never dropped: `PUT
@@ -2165,3 +2874,9 @@ export const wsOp: OperationCall =
 		}
 		return socket
 	}
+
+/** An x-realtime op: one resumable connection per call, dialed through the client. */
+export const realtimeOp: OperationCall =
+	(core, entry) =>
+	(input: RequestOptions & RealtimeOptions = {}): ResumableConnection =>
+		realtimeConnection(core.http, templateOf(entry), input)

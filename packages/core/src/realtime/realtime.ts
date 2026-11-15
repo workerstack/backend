@@ -1,7 +1,8 @@
 /**
- * `realtime(app, path, opts)`: a realtime route, built on `ws(app, path)` through the public API
- * alone. A plain function the app module imports (`@workerstack/backend/realtime`); nothing registers
- * itself (H23), and an app that never calls it bundles none of it.
+ * `realtime(app, path, opts)`: a realtime route, built on `ws(app, path)`. A plain function the app
+ * module imports (`@workerstack/backend/realtime`); nothing registers itself (H23), and an app that
+ * never calls it bundles none of it. The ws route only documents it (`AS_REALTIME`: `x-realtime`, and
+ * the declared `messages`); realtime's own session checks what it receives and sends.
  *
  * It returns the publisher for the route's namespace: REST handlers publish through it. The bus is
  * the isolation boundary: each call gets a fresh bus unless `opts.bus` is given, and routes share
@@ -11,15 +12,12 @@
  */
 import { type HttpContext, REQUEST } from "../context/context.ts"
 import type { MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts"
-import type { WSRouteBuilder, WSRouteCtx } from "../routing/ws-builder.ts"
+import { AS_REALTIME, type WSRouteBuilder, type WSRouteCtx } from "../routing/ws-builder.ts"
+import type { WsMessages } from "../ws/messages.ts"
 import { type AnyHttpApp, ws, type WsRouteOf } from "../ws/route.ts"
+import { createRealtimePublisher, type RealtimePublisher } from "./publisher.ts"
 import { type RealtimeOptions, resolveRealtimeConfig } from "./route.ts"
-import {
-	createRealtimePublisher,
-	createRealtimeSession,
-	type RealtimePublisher,
-	type RealtimeSession,
-} from "./server.ts"
+import { createRealtimeSession, type RealtimeSession } from "./server.ts"
 
 /** The ctx `ws(app, path)` hands its callbacks, which `identify` and `handler` receive. */
 export type RealtimeCtx<TApp, TPath extends string> =
@@ -39,11 +37,11 @@ export type RealtimeMeta<TApp, TPath extends string> =
  * Add a realtime route at `path` on `app`. Returns the publisher for the route's namespace, which REST handlers use
  * to push frames to connected clients. Throws a `TypeError` for an invalid option.
  */
-export function realtime<TApp extends AnyHttpApp, const TPath extends string>(
+export function realtime<TApp extends AnyHttpApp, const TPath extends string, const M extends WsMessages = {}>(
 	app: TApp,
 	path: TPath,
-	options: RealtimeOptions<RealtimeCtx<TApp, TPath>, RealtimeMeta<TApp, TPath>>,
-): RealtimePublisher {
+	options: RealtimeOptions<RealtimeCtx<TApp, TPath>, RealtimeMeta<TApp, TPath>, M>,
+): RealtimePublisher<M> {
 	const config = resolveRealtimeConfig(path, options)
 	const { identify } = config
 	/* one session per upgrade request, keyed by its ctx: every ws callback receives that ctx */
@@ -57,7 +55,7 @@ export function realtime<TApp extends AnyHttpApp, const TPath extends string>(
 		)
 		return next()
 	}
-	let route = ws(app, path) as WSRouteBuilder<unknown, string, unknown>
+	let route = (ws(app, path) as WSRouteBuilder<unknown, string, unknown>)[AS_REALTIME](config.messages)
 	for (const mw of [...config.use, connect]) route = route.use(mw as MiddlewareFn<unknown, unknown>)
 	if (config.allowedOrigins !== null) route = route.origins(config.allowedOrigins)
 	if (config.meta !== null) route = route.meta(config.meta as never)
@@ -68,5 +66,5 @@ export function realtime<TApp extends AnyHttpApp, const TPath extends string>(
 		onMessage: (ctx, _ws, data) => session(ctx).message(data),
 		onOpen: (ctx, socket) => session(ctx).attach(socket),
 	})
-	return createRealtimePublisher(config.bus, config.namespace)
+	return createRealtimePublisher(config.bus, config.namespace, config.checks.send) as RealtimePublisher<M>
 }

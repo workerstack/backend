@@ -1441,6 +1441,59 @@
         }
       }
     },
+    "/rt/room": {
+      "get": {
+        "x-websocket": {
+          "receive": {
+            "$ref": "#/components/schemas/RtRoomReceive"
+          },
+          "send": {
+            "$ref": "#/components/schemas/RtRoomSend"
+          }
+        },
+        "tags": [
+          "realtime"
+        ],
+        "operationId": "rt.room",
+        "x-realtime": true,
+        "x-backend-route": "WS /rt/room",
+        "responses": {
+          "101": {
+            "description": "WebSocket upgrade"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err400ValidationError"
+                }
+              }
+            },
+            "description": "validation_error",
+            "x-backend-error": true
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "unauthorized": {
+            "status": 401
+          },
+          "validation_error": {
+            "status": 400
+          }
+        }
+      }
+    },
     "/status/accepted": {
       "post": {
         "operationId": "status.accepted.create",
@@ -2016,6 +2069,9 @@
     },
     {
       "name": "websocket"
+    },
+    {
+      "name": "realtime"
     }
   ],
   "components": {
@@ -2589,6 +2645,78 @@
           "uploadId"
         ],
         "additionalProperties": false
+      },
+      "RtRoomReceive": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "say"
+              }
+            },
+            "required": [
+              "text",
+              "type"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "leave"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "RtRoomSend": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "said"
+              }
+            },
+            "required": [
+              "text",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "left"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "CreateStatuRequest": {
         "type": "object",

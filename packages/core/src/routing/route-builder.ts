@@ -342,7 +342,7 @@ export class RouteBuilder<B extends BuilderTypes> {
 			own: s.graph.settings,
 			rb: s.boundaryKey,
 			rm: s.middlewares,
-			wm: null,
+			wd: null,
 			xm: s.meta,
 		}
 		const segments = parsePattern(s.path)

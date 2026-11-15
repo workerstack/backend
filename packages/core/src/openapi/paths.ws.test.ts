@@ -6,6 +6,10 @@ import { httpApp } from "../routing/app.ts"
 import { SILENT, type BackendLogger } from "../telemetry/logger.ts"
 import { generateOpenApi } from "./generate.ts"
 import { ws } from "../ws/route.ts"
+import { realtime } from "../realtime/realtime.ts"
+
+/** A reference to a named component schema. */
+const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
 
 const INFO = { title: "T", version: "1" }
 type Doc = ReturnType<typeof generateOpenApi>
@@ -197,8 +201,6 @@ describe("WebSocket operations: declared messages", () => {
 		z.object({ text: z.string(), type: z.literal("said") }),
 		z.object({ type: z.literal("pong") }),
 	])
-	const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
-
 	it("writes x-websocket's receive and send as refs named from the operationId, a tagged union with its discriminator", () => {
 		const app = httpApp<{}>()
 		ws(app, "/ws/talk")
@@ -229,8 +231,6 @@ describe("WebSocket operations: declared messages", () => {
 })
 
 describe("WebSocket operations: declared messages, one direction", () => {
-	const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
-
 	it("writes only the direction a route declares; no discriminator without one const property every member requires", () => {
 		const app = httpApp<{}>()
 		ws(app, "/in")
@@ -255,5 +255,39 @@ describe("WebSocket operations: declared messages, one direction", () => {
 			Object.hasOwn(schemas.SameTagSend ?? {}, "discriminator"),
 			schemas.InOnlyReceive?.type,
 		]).toEqual([{ receive: ref("InOnlyReceive") }, { send: ref("OutOnlySend") }, false, false, false, "object"])
+	})
+})
+
+describe("realtime operations", () => {
+	it("mark every realtime route x-realtime, a typed one with its refs; a ws route stays unmarked, and meta cannot unmark one", () => {
+		const app = httpApp<{}>()
+		realtime(app, "/rt/room", {
+			handler: () => {},
+			messages: { receive: z.object({ text: z.string() }), send: z.object({ said: z.string() }) },
+			meta: { operationId: "rt.room" },
+		})
+		realtime(app, "/rt/plain", { handler: () => {}, meta: { operationId: "rt.plain" } })
+		realtime(app, "/rt/hidden", {
+			handler: () => {},
+			meta: { extensions: { "x-realtime": false }, operationId: "rt.hidden" },
+		})
+		ws(app, "/ws/plain")
+			.meta({ operationId: "ws.plain" })
+			.handler({ onMessage() {} })
+		const doc = generateOpenApi(app, { info: INFO })
+		const marks = (path: string) => [op(doc, path)["x-websocket"], op(doc, path)["x-realtime"]]
+		expect([
+			marks("/rt/room"),
+			marks("/rt/plain"),
+			marks("/rt/hidden"),
+			marks("/ws/plain"),
+			Object.hasOwn(op(doc, "/ws/plain"), "x-realtime"),
+		]).toEqual([
+			[{ receive: ref("RtRoomReceive"), send: ref("RtRoomSend") }, true],
+			[true, true],
+			[true, true],
+			[true, undefined],
+			false,
+		])
 	})
 })

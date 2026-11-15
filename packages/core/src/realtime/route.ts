@@ -4,14 +4,16 @@
  */
 import type { MiddlewareFn } from "../middleware/middleware.ts"
 import type { WsMeta } from "../routing/ws-builder.ts"
+import type { WsMessages } from "../ws/messages.ts"
 import { validateOriginPolicy, type WSOriginPolicy } from "../ws/origin.ts"
 import { createBus, type RealtimeBus } from "./bus.ts"
+import { type RealtimeChecks, realtimeChecks, type RealtimeReceiveOf, type RealtimeSendOf } from "./messages.ts"
 
 /**
  * One realtime connection as the route handler sees it. Only the WebSocket transport ships.
- * Every frame, in both directions, is one JSON text.
+ * Every frame, in both directions, is one JSON text; `M` is the route's `messages`, which types them.
  */
-export type ConnContext = {
+export type ConnContext<M = {}> = {
 	/** Random UUID of this connection. */
 	readonly id: string
 	/** What the route's `identify(ctx)` returned, else `null`. */
@@ -27,16 +29,17 @@ export type ConnContext = {
 	/** Unsubscribe from `topic` in this route's namespace. */
 	leave(topic: string): void
 	/** Send one JSON frame to this connection. Throws when `payload` is not JSON-serializable. */
-	send(payload: unknown): void
+	send(payload: RealtimeSendOf<M>): void
 	/** Send one JSON frame to every connection on `topic` in this route's namespace (this one included). */
-	publish(topic: string, payload: unknown): void
+	publish(topic: string, payload: RealtimeSendOf<M>): void
 	/** Close with code 1000. A reason longer than 123 UTF-8 bytes is truncated. */
 	close(reason?: string): void
 	/**
-	 * Run `handler` for each inbound frame, parsed from JSON; binary frames and text that is not JSON are ignored. Frames
-	 * that arrive before it is set wait, up to `limits.maxPendingFrames`. Setting it again replaces the handler.
+	 * Run `handler` for each inbound frame, parsed from JSON, as `messages.receive` takes it. Untyped, binary frames and
+	 * text that is not JSON are ignored; typed, they close the connection with 1007, as a frame the schema refuses does.
+	 * Frames that arrive before it is set wait, up to `limits.maxPendingFrames`. Setting it again replaces the handler.
 	 */
-	on(event: "message", handler: (payload: unknown) => Promise<void> | void): void
+	on(event: "message", handler: (payload: RealtimeReceiveOf<M>) => Promise<void> | void): void
 	/** Run `handler` once when the connection closes, with the close reason (`"normal"` when empty). Setting it again replaces the handler. */
 	on(event: "close", handler: (reason: string) => Promise<void> | void): void
 }
@@ -64,8 +67,11 @@ export type RealtimeLimits = {
 	slowConsumer?: "close" | "drop"
 }
 
-/** `C` is the request context the route's middleware leaves for `identify` and `handler`. */
-export type RealtimeOptions<C = unknown, TMeta = never> = {
+/**
+ * `C` is the request context the route's middleware leaves for `identify` and `handler`; `M` is the route's
+ * `messages`.
+ */
+export type RealtimeOptions<C = unknown, TMeta = never, M extends WsMessages = {}> = {
 	/**
 	 * The topic bus. Default: a fresh bus for this route. Routes share topics only when they are
 	 * given the same bus and name the same namespace.
@@ -83,8 +89,13 @@ export type RealtimeOptions<C = unknown, TMeta = never> = {
 	namespace?: string
 	/** Runs after the route's middleware, before the upgrade. Its result becomes `conn.userId`; a throw rejects the upgrade. */
 	identify?: (ctx: C) => Promise<string | null | undefined> | string | null | undefined
-	/** Receives every error thrown by `handler` and the `message`/`close` handlers. */
-	onError?: (error: unknown, conn: ConnContext) => Promise<void> | void
+	/**
+	 * What the route receives and sends, one Standard Schema per direction, as `ws(app, path).messages()` takes them. A
+	 * frame `receive` refuses reaches `onError` as `invalid_message` and closes the connection with 1007.
+	 */
+	messages?: M
+	/** Receives every error thrown by `handler` and the `message`/`close` handlers, and each refused frame. */
+	onError?: (error: unknown, conn: ConnContext<M>) => Promise<void> | void
 	/** Per-connection limits; unset ones use their defaults. */
 	limits?: RealtimeLimits
 	/**
@@ -97,7 +108,7 @@ export type RealtimeOptions<C = unknown, TMeta = never> = {
 	 * Runs for each connection after it opens. Subscribe with `conn.join` and attach `conn.on` listeners here. Inbound
 	 * frames wait until it settles. A throw or rejection closes the connection with 1011.
 	 */
-	handler: (ctx: C, conn: ConnContext) => Promise<void> | void
+	handler: (ctx: C, conn: ConnContext<M>) => Promise<void> | void
 }
 
 /** A realtime route after validation, with every default applied. */
@@ -106,7 +117,10 @@ export type RealtimeConfig = {
 	readonly bus: RealtimeBus
 	readonly handler: (ctx: unknown, conn: ConnContext) => Promise<void> | void
 	readonly identify: ((ctx: unknown) => Promise<string | null | undefined> | string | null | undefined) | null
+	readonly checks: RealtimeChecks
 	readonly limits: Readonly<Required<RealtimeLimits>>
+	/** The declared messages, for the document; `null` for an untyped route. */
+	readonly messages: WsMessages | null
 	readonly meta: Readonly<Record<string, unknown>> | null
 	readonly namespace: string
 	readonly onError: ((error: unknown, conn: ConnContext) => Promise<void> | void) | null
@@ -164,15 +178,20 @@ function checkRealtimeOptions(
 }
 
 /** Validate `realtime()` options and apply every default. */
-export function resolveRealtimeConfig<C, TMeta>(path: string, options: RealtimeOptions<C, TMeta>): RealtimeConfig {
+export function resolveRealtimeConfig<C, TMeta, M extends WsMessages>(
+	path: string,
+	options: RealtimeOptions<C, TMeta, M>,
+): RealtimeConfig {
 	const opts = options as unknown as RealtimeOptions & { reconnectBuffer?: unknown; transports?: unknown }
 	checkRealtimeOptions(path, opts)
 	return {
 		allowedOrigins: opts.allowedOrigins === undefined ? null : validateOriginPolicy(opts.allowedOrigins),
 		bus: opts.bus ?? createBus(),
+		checks: realtimeChecks(path, opts.messages),
 		handler: opts.handler,
 		identify: opts.identify ?? null,
 		limits: Object.freeze(resolveLimits(opts.limits ?? {})),
+		messages: opts.messages ?? null,
 		meta: (opts.meta as Readonly<Record<string, unknown>> | undefined) ?? null,
 		namespace: opts.namespace ?? path,
 		onError: opts.onError ?? null,

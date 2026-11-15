@@ -53,6 +53,7 @@ const SPREADS: Readonly<Record<string, string>> = {
 	"errors/on-error.ts": "the request bindings (method, path, routeId, requestId; fields.ts)",
 	"observability/curl-logger.ts": "the request as a masked command: the sanctioned request-detail logger",
 	"realtime/invoke-user.ts": "a socket's own fields (connId, namespace, route)",
+	"realtime/messages.ts": "a socket's own fields (connId, namespace, route)",
 }
 
 /** A logger call that hands over a spread record: what it carries is invisible to the field scan. */

@@ -24,7 +24,7 @@ import {
 import type { RouteRecord } from "./record.ts"
 import { type AppSettings, createSettings, type ErrorFactories } from "./settings.ts"
 import { cloneTree, createNode, insertLeaf, type RouteEntry, type TreeNode } from "./tree.ts"
-import type { WsMessages } from "../ws/messages.ts"
+import type { WsDoc } from "../ws/messages.ts"
 
 /** An app's graph slot: not exported from the package; finalize readers (tests, codegen) reach the graph through it. */
 export const GRAPH: unique symbol = /* @__PURE__ */ Symbol("backend.graph")
@@ -64,8 +64,8 @@ export type RouteHandler = RouteRecord & {
 	readonly out: OutputSchemas | null
 	/** `.output()`'s projection: the selection a request's answer is cut to; `null` without it */
 	readonly op: ((ctx: object) => HttpProjection | null) | null
-	/** what a WebSocket route's `.messages()` declares: read by documentation; `null` on every other route */
-	readonly wm: WsMessages | null
+	/** what a WebSocket route documents beside its upgrade: read by documentation; `null` on every other route */
+	readonly wd: WsDoc | null
 	/** the settings of the app the route was registered on */
 	readonly own: AppSettings<unknown>
 	/** route-level boundary key (`.boundary()`) */

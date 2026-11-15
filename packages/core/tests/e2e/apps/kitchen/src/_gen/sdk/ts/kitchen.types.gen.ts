@@ -1,4 +1,11 @@
-import type { Result, SDKConfig, SSEEvent, TypedWebSocket } from "./kitchen.runtime.gen.js"
+import type {
+	RealtimeOptions,
+	Result,
+	ResumableConnection,
+	SDKConfig,
+	SSEEvent,
+	TypedWebSocket,
+} from "./kitchen.runtime.gen.js"
 
 export type CreateApiHelloRequest = { name: string }
 export type CreateApiHelloResponse200 = { by: string; created: string; greeting: string }
@@ -90,6 +97,7 @@ export type HttpOptions = {
 }
 export type SseOptions = Omit<HttpOptions, "idempotencyKey"> & { lastEventId?: string }
 export type WsOptions = { protocols?: string | string[]; reconnectToken?: string }
+export type RealtimeCallOptions = Omit<HttpOptions, "idempotencyKey" | "timeout"> & RealtimeOptions
 
 type ErrorField = { error_key: string; message: string; path: string }
 
@@ -124,7 +132,7 @@ type HttpStream<I, V, E = never> = {
 
 /** `client.safe`: every REST and stream call answering a Result, never throwing an API answer; a connection as is. */
 export type HttpSafe<T> = {
-	[K in keyof T]: T[K] extends (...input: never[]) => TypedWebSocket
+	[K in keyof T]: T[K] extends (...input: never[]) => ResumableConnection<infer _> | TypedWebSocket
 		? T[K]
 		: T[K] extends HttpCall<infer I, infer D, infer E, infer H>
 			? {
@@ -214,10 +222,10 @@ export interface KitchenOperations {
 			>
 		}
 		chat: {
-			connect(input: { params: { roomId: string } } & WsOptions): TypedWebSocket
+			connect(input: { params: { roomId: string } } & RealtimeCallOptions): ResumableConnection<unknown>
 		}
 		echo: {
-			connect(input?: WsOptions): TypedWebSocket
+			connect(input?: RealtimeCallOptions): ResumableConnection<unknown>
 		}
 	}
 	reconnectWs: {

@@ -1,4 +1,4 @@
-import { sseOp, wsOp, type ServiceMap } from "./kitchen.runtime.gen.js"
+import { realtimeOp, sseOp, wsOp, type ServiceMap } from "./kitchen.runtime.gen.js"
 
 export const serviceMap: ServiceMap = {
 	boundary: {
@@ -119,18 +119,20 @@ export const serviceMap: ServiceMap = {
 		},
 		chat: {
 			connect: {
-				call: wsOp,
+				call: realtimeOp,
 				method: "GET",
 				params: ["roomId"],
 				path: "/api/realtime/chat/{roomId}",
+				realtime: true,
 				ws: true,
 			},
 		},
 		echo: {
 			connect: {
-				call: wsOp,
+				call: realtimeOp,
 				method: "GET",
 				path: "/api/realtime/echo",
+				realtime: true,
 				ws: true,
 			},
 		},

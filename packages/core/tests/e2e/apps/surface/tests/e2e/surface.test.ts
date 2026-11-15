@@ -338,6 +338,49 @@ test.describe("websocket messages: typed and checked both ways", () => {
 	})
 })
 
+test.describe("realtime messages: typed and checked both ways", () => {
+	test("/rt/room publishes say as said to the lobby, the sender included", async () => {
+		/* one socket: a Worker cannot write to a socket another request opened, so fan-out across sockets is the
+		   bus's unit tests' */
+		const ws = connectWs("/rt/room")
+		await ws.opened()
+		ws.send(JSON.stringify({ text: "hi", type: "say" }))
+		ws.send(JSON.stringify({ type: "leave" }))
+		const heard = await ws.waitForMessages(2)
+		expect(heard.map((frame) => JSON.parse(frame))).toEqual([{ text: "hi", type: "said" }, { type: "left" }])
+		ws.close(1000)
+		await ws.waitForClose()
+	})
+
+	test("a frame /rt/room does not receive closes the connection with 1007 and the issue", async () => {
+		const ws = connectWs("/rt/room")
+		const closed = ws.waitForClose()
+		await ws.opened()
+		ws.send(JSON.stringify({ type: "say" }))
+		/* a Workers build's zod message stops at "Invalid input", as /ws/talk's does */
+		expect(await closed).toEqual({ code: 1007, reason: expect.stringMatching(/^invalid message: text: Invalid input/) })
+	})
+
+	test("the document marks /rt/room x-realtime, its messages as refs, each a tagged union", async ({ request }) => {
+		const spec = await (await request.get("/openapi.json")).json()
+		const operation = spec.paths["/rt/room"].get
+		const schemas = spec.components.schemas
+		expect([
+			operation["x-websocket"],
+			operation["x-realtime"],
+			spec.paths["/ws/talk"].get["x-realtime"],
+			schemas.RtRoomReceive.discriminator,
+			schemas.RtRoomSend.discriminator,
+		]).toEqual([
+			{ receive: { $ref: "#/components/schemas/RtRoomReceive" }, send: { $ref: "#/components/schemas/RtRoomSend" } },
+			true,
+			undefined,
+			{ propertyName: "type" },
+			{ propertyName: "type" },
+		])
+	})
+})
+
 /** The status and body an upgrade GET to `path` is answered with: 101 with no body, or the answer before it. */
 function upgradeAnswer(base: string, path: string): Promise<{ body: string; status: number }> {
 	const url = new URL(path, base)

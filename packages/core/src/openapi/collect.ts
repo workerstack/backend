@@ -46,8 +46,10 @@ type CollectedBase = {
 
 /** One path a WebSocket route serves. */
 export type CollectedWsRoute = CollectedBase & {
-	/** what `.messages()` declares; `null` for an untyped socket */
+	/** what `.messages()`, or `realtime()`'s `messages`, declares; `null` for an untyped socket */
 	readonly messages: WsMessages | null
+	/** `true` for a `realtime()` route */
+	readonly realtime: boolean
 }
 
 /** An error key as the document describes it: its status and, for a schema error, its schema. */
@@ -140,9 +142,10 @@ function declarations(g: HttpGraph, id: string) {
 	}
 }
 
-/** What a WebSocket route's `.messages()` declares: its record's, else its loaded tree entry's. */
-function messagesOf(g: HttpGraph, id: string): WsMessages | null {
-	return g.records.get(id)?.wm ?? g.loaded?.[id]?.wm ?? null
+/** What a WebSocket route documents beside its upgrade: its record's, else its loaded tree entry's. */
+function wsDocOf(g: HttpGraph, id: string): { messages: WsMessages | null; realtime: boolean } {
+	const doc = g.records.get(id)?.wd ?? g.loaded?.[id]?.wd ?? null
+	return { messages: doc?.messages ?? null, realtime: doc?.realtime ?? false }
 }
 
 /** Every route `app` serves: in registration order, or a loaded tree's order. */
@@ -167,7 +170,7 @@ export function collectRoutes(app: { readonly [GRAPH]: HttpGraph }): CollectedRo
 		for (const variant of expandOptional(segments)) {
 			const params = patternParams(variant).map((name) => (name === UNNAMED_WILDCARD ? "wildcard" : name))
 			const base = { errorKeys, errorMeta, id, input, meta, params, path: toOpenApiTemplate(variant), pattern }
-			if (method === "WS") ws.push({ ...base, messages: messagesOf(g, id) })
+			if (method === "WS") ws.push({ ...base, ...wsDocOf(g, id) })
 			else {
 				/* every route is a record or a loaded leaf */
 				const registration = (record?.fn ?? g.loaded?.[id]) as object
