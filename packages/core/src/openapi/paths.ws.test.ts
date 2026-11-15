@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
+import { defineErrors } from "../errors/errors.ts"
+import { createMiddleware } from "../middleware/middleware.ts"
 import { httpApp } from "../routing/app.ts"
 import { SILENT, type BackendLogger } from "../telemetry/logger.ts"
 import { generateOpenApi } from "./generate.ts"
@@ -111,6 +113,77 @@ describe("a WS route's own keys", () => {
 			"operationId",
 			"x-backend-route",
 			"responses",
+		])
+	})
+})
+
+/** Each documented response of the operation at `path`, as its status and description. */
+function status(doc: Doc, path: string) {
+	const responses = op(doc, path).responses as Record<string, { description: string }>
+	return Object.entries(responses).map(([code, { description }]) => [code, description])
+}
+
+/** Each key in the operation's `x-backend-errors`, with its status. */
+const declared = (doc: Doc, path: string) =>
+	Object.entries((op(doc, path)["x-backend-errors"] ?? {}) as Record<string, { status: number }>).map(
+		([key, entry]) => [key, entry.status],
+	)
+
+describe("a WS route documents its upgrade as an HTTP operation documents its request", () => {
+	it("its search, header and cookie inputs as parameters, and each declared error as an answer before the 101", () => {
+		const app = httpApp<{}>()
+		ws(app, "/room")
+			.meta({ operationId: "room.connect" })
+			.input({
+				cookies: z.object({ session: z.string().optional() }),
+				headers: z.object({ "x-room-token": z.string().optional() }),
+				search: z.object({ roomId: z.string() }),
+			})
+			.errors("not_found")
+			.handler({ onMessage() {} })
+		const doc = generateOpenApi(app, { info: INFO })
+		expect([params(doc, "/room").map((p) => [p.name, p.in]), status(doc, "/room"), declared(doc, "/room")]).toEqual([
+			[
+				["session", "cookie"],
+				["x-room-token", "header"],
+				["roomId", "query"],
+			],
+			[
+				["101", "WebSocket upgrade"],
+				["404", "not_found"],
+			],
+			[["not_found", 404]],
+		])
+	})
+})
+
+describe("a WS route documents the errors its chain declares", () => {
+	it("an error its middleware declares, and only the 101 with no x-backend-errors when nothing is declared", () => {
+		const own = defineErrors({ auth_required: "unauthorized" })
+		const auth = createMiddleware((_ctx, next) => next(), { errors: [own, "auth_required"] })
+		const app = httpApp<{}>().errorFactory(own)
+		ws(app.use(auth), "/guarded")
+			.meta({ operationId: "guarded.connect" })
+			.handler({ onMessage() {} })
+		const plain = httpApp<{}>()
+		ws(plain, "/open")
+			.meta({ operationId: "open.connect" })
+			.handler({ onMessage() {} })
+		const guarded = generateOpenApi(app, { info: INFO })
+		const open = generateOpenApi(plain, { info: INFO })
+		expect([
+			status(guarded, "/guarded"),
+			declared(guarded, "/guarded"),
+			status(open, "/open"),
+			"x-backend-errors" in op(open, "/open"),
+		]).toEqual([
+			[
+				["101", "WebSocket upgrade"],
+				["401", "auth_required"],
+			],
+			[["auth_required", 401]],
+			[["101", "WebSocket upgrade"]],
+			false,
 		])
 	})
 })

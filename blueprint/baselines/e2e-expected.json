@@ -149,7 +149,9 @@
 				"surface.test.ts > streams and uploads > POST /rs/upload streamed json",
 				"surface.test.ts > websocket > GET without Upgrade to /ws/echo → 426",
 				"surface.test.ts > websocket > echo: greeting then echo",
-				"surface.test.ts > websocket > room search input"
+				"surface.test.ts > websocket > room search input",
+				"surface.test.ts > websocket upgrade: inputs and the errors answered before the 101 > an upgrade to the room `missing` gets that 404 in surface's error format, and no 101",
+				"surface.test.ts > websocket upgrade: inputs and the errors answered before the 101 > the document lists /ws/room's header and cookie inputs and its 404 beside the 101"
 			],
 			"skipped": []
 		},
@@ -303,7 +305,9 @@
 				"surface.test.ts > streams and uploads > POST /rs/upload streamed json",
 				"surface.test.ts > websocket > GET without Upgrade to /ws/echo → 426",
 				"surface.test.ts > websocket > echo: greeting then echo",
-				"surface.test.ts > websocket > room search input"
+				"surface.test.ts > websocket > room search input",
+				"surface.test.ts > websocket upgrade: inputs and the errors answered before the 101 > an upgrade to the room `missing` gets that 404 in surface's error format, and no 101",
+				"surface.test.ts > websocket upgrade: inputs and the errors answered before the 101 > the document lists /ws/room's header and cookie inputs and its 404 beside the 101"
 			],
 			"skipped": []
 		}

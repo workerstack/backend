@@ -190,11 +190,17 @@ function policyOf(run: Run): PathsContext["policy"] {
 	}
 }
 
+/** Adds a route's declared errors to its responses, in the app's error format, and returns every declared key. */
+function errorsOf(errors: ErrorSettings): PathsContext["errors"] {
+	return (route, responses, convert) =>
+		addErrorResponses(responses, route.errorMeta, errors, (schema, h) => convert(schema, "output", h))
+}
+
 /** A route's responses (what it declares, its errors, else a bare 200) and its declared errors. */
-function responsesOf(errors: ErrorSettings): PathsContext["responses"] {
+function responsesOf(declare: PathsContext["errors"]): PathsContext["responses"] {
 	return (route, convert, hint) => {
 		const out = successResponses(route.output, convert, hint)
-		const declared = addErrorResponses(out, route.errorMeta, errors, (schema, h) => convert(schema, "output", h))
+		const declared = declare(route, out, convert)
 		const responses = Object.keys(out).length === 0 ? { "200": { description: "Success" } } : ordered(out)
 		return { errors: declared, responses }
 	}
@@ -265,10 +271,12 @@ export function generateOpenApi(app: App, options: GenerateOpenApiOptions): Open
 		errorSchema: settingsSchema(settings.errorSchema, "Error"),
 	}
 	const routes = routesOf(collected, options)
+	const declare = errorsOf(errors)
 	const { operations, paths } = buildPaths(routes, {
 		convert: convertFor,
 		policy: policyOf(run),
-		responses: responsesOf(errors),
+		errors: declare,
+		responses: responsesOf(declare),
 		trailingSlash: settings.trailingSlash,
 		warn: (code, message) => diagnostics.add(code, "warn", message),
 	})

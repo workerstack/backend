@@ -1174,7 +1174,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeleteOutNoContentResponse404"
+                  "$ref": "#/components/schemas/Err404NotFound"
                 }
               }
             },
@@ -1745,6 +1745,36 @@
         "responses": {
           "101": {
             "description": "WebSocket upgrade"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err400ValidationError"
+                }
+              }
+            },
+            "description": "validation_error",
+            "x-backend-error": true
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "unauthorized": {
+            "status": 401
+          },
+          "validation_error": {
+            "status": 400
           }
         }
       }
@@ -1760,6 +1790,36 @@
         "responses": {
           "101": {
             "description": "WebSocket upgrade"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err400ValidationError"
+                }
+              }
+            },
+            "description": "validation_error",
+            "x-backend-error": true
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "unauthorized": {
+            "status": 401
+          },
+          "validation_error": {
+            "status": 400
           }
         }
       }
@@ -1775,6 +1835,36 @@
         "responses": {
           "101": {
             "description": "WebSocket upgrade"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err400ValidationError"
+                }
+              }
+            },
+            "description": "validation_error",
+            "x-backend-error": true
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "unauthorized": {
+            "status": 401
+          },
+          "validation_error": {
+            "status": 400
           }
         }
       }
@@ -1789,6 +1879,22 @@
         "x-backend-route": "WS /ws/room",
         "parameters": [
           {
+            "in": "cookie",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-room-token",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "in": "query",
             "name": "roomId",
             "required": true,
@@ -1800,6 +1906,50 @@
         "responses": {
           "101": {
             "description": "WebSocket upgrade"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err400ValidationError"
+                }
+              }
+            },
+            "description": "validation_error",
+            "x-backend-error": true
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err404NotFound"
+                }
+              }
+            },
+            "description": "not_found",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "not_found": {
+            "status": 404
+          },
+          "unauthorized": {
+            "status": 401
+          },
+          "validation_error": {
+            "status": 400
           }
         }
       }
@@ -2293,7 +2443,7 @@
         ],
         "type": "object"
       },
-      "DeleteOutNoContentResponse404": {
+      "Err404NotFound": {
         "properties": {
           "error_key": {
             "enum": [

@@ -1,6 +1,6 @@
 import type { WSAdapter } from "@workerstack/backend/http"
 import type { RouteTree } from "@workerstack/backend/http/tree"
-import { createMiddleware, defineErrors, httpApp } from "@workerstack/backend/http"
+import { createMiddleware, defineErrors, HttpError, httpApp } from "@workerstack/backend/http"
 import { streamed } from "@workerstack/backend/http/input"
 import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
 import { scalar } from "@workerstack/backend/http/openapi/scalar"
@@ -25,6 +25,13 @@ const errors = defineErrors({
 })
 
 const withLogger = createMiddleware(async (_ctx, next) => next({ logger: { info: (_msg: string) => {} } }))
+
+/** Refuses the room `missing` before the upgrade, so the document's 404 is an answer a client can get. */
+const roomGate = createMiddleware(async (ctx: { req: Request }, next) => {
+	if (new URL(ctx.req.url).searchParams.get("roomId") === "missing")
+		throw new HttpError({ errorKey: "not_found", status: "not_found" })
+	return next()
+})
 
 const withAuth = createMiddleware(async (_ctx, next) =>
 	next({ user: { id: "u-1", role: "admin" as "admin" | "member" } }),
@@ -243,7 +250,13 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 
 	ws(routed, "/ws/room")
 		.meta({ operationId: "ws.joinRoom", tags: ["websocket"] })
-		.input({ search: z.object({ roomId: z.string() }) })
+		.use(roomGate)
+		.input({
+			cookies: z.object({ session: z.string().optional() }),
+			headers: z.object({ "x-room-token": z.string().optional() }),
+			search: z.object({ roomId: z.string() }),
+		})
+		.errors("not_found")
 		.handler({
 			onMessage(_ctx, socket, data) {
 				socket.send(`room: ${data}`)

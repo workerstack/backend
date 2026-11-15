@@ -289,6 +289,55 @@ test.describe("websocket", () => {
 	})
 })
 
+/** The status and body an upgrade GET to `path` is answered with: 101 with no body, or the answer before it. */
+function upgradeAnswer(base: string, path: string): Promise<{ body: string; status: number }> {
+	const url = new URL(path, base)
+	const send = url.protocol === "https:" ? httpsRequest : httpRequest
+	const headers = {
+		connection: "Upgrade",
+		"sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==",
+		"sec-websocket-version": "13",
+		upgrade: "websocket",
+	}
+	return new Promise((resolve, reject) => {
+		const req = send(url, { headers }, (res) => {
+			let body = ""
+			res.setEncoding("utf8")
+			res.on("data", (chunk: string) => (body += chunk))
+			res.on("end", () => resolve({ body, status: res.statusCode ?? 0 }))
+		})
+		req.on("upgrade", (res, socket) => {
+			socket.destroy()
+			resolve({ body: "", status: res.statusCode ?? 0 })
+		})
+		req.on("error", reject)
+		req.end()
+	})
+}
+
+test.describe("websocket upgrade: inputs and the errors answered before the 101", () => {
+	test("the document lists /ws/room's header and cookie inputs and its 404 beside the 101", async ({ request }) => {
+		const spec = await (await request.get("/openapi.json")).json()
+		const room = spec.paths["/ws/room"].get
+		expect([
+			room.parameters.map((p: { in: string; name: string }) => [p.name, p.in]),
+			Object.keys(room.responses).filter((code) => code === "101" || code === "404"),
+		]).toEqual([
+			[
+				["session", "cookie"],
+				["x-room-token", "header"],
+				["roomId", "query"],
+			],
+			["101", "404"],
+		])
+	})
+
+	test("an upgrade to the room `missing` gets that 404 in surface's error format, and no 101", async ({ baseURL }) => {
+		const answer = await upgradeAnswer(baseURL ?? "", "/ws/room?roomId=missing")
+		expect([answer.status, JSON.parse(answer.body).error_key]).toEqual([404, "not_found"])
+	})
+})
+
 test.describe("openapi", () => {
 	test("GET /openapi.json includes surface paths", async ({ request }) => {
 		const res = await request.get("/openapi.json")

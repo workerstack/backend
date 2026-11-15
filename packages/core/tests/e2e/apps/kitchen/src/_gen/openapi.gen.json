@@ -367,6 +367,36 @@
         "responses": {
           "101": {
             "description": "WebSocket upgrade"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err500ApiError"
+                }
+              }
+            },
+            "description": "api_error",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "api_error": {
+            "status": 500
+          },
+          "unauthorized": {
+            "status": 401
           }
         }
       }
@@ -703,6 +733,36 @@
         "responses": {
           "101": {
             "description": "WebSocket upgrade"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err500ApiError"
+                }
+              }
+            },
+            "description": "api_error",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "api_error": {
+            "status": 500
+          },
+          "unauthorized": {
+            "status": 401
           }
         }
       }
@@ -715,6 +775,36 @@
         "responses": {
           "101": {
             "description": "WebSocket upgrade"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err500ApiError"
+                }
+              }
+            },
+            "description": "api_error",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "api_error": {
+            "status": 500
+          },
+          "unauthorized": {
+            "status": 401
           }
         }
       }
@@ -727,6 +817,36 @@
         "responses": {
           "101": {
             "description": "WebSocket upgrade"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err500ApiError"
+                }
+              }
+            },
+            "description": "api_error",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "api_error": {
+            "status": 500
+          },
+          "unauthorized": {
+            "status": 401
           }
         }
       }
@@ -952,6 +1072,36 @@
         "responses": {
           "101": {
             "description": "WebSocket upgrade"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err500ApiError"
+                }
+              }
+            },
+            "description": "api_error",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "api_error": {
+            "status": 500
+          },
+          "unauthorized": {
+            "status": 401
           }
         }
       }

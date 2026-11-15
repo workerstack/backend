@@ -96,6 +96,7 @@ Every deliberate change has its before and after in [the migration guide](https:
 
 ### Fixed
 
+- **A WebSocket operation documents its whole upgrade (1.0.0-rc.29).** The document lists its header and cookie inputs as parameters beside its path and search ones, and each error its chain, `.use()` or `.errors()` declares as an answer before the `101`, with `x-backend-errors`, as an HTTP operation does.
 - **The published manifest names only versions npm can install (1.0.0-rc.28).** It lists no devDependencies, which an install never reads, so a pin to a tarball vendored in this repository no longer reaches npm. A `file:`, `link:` or git spec in `dependencies`, `optionalDependencies` or `peerDependencies` now fails the pack: `pack: @workerstack/backend dependencies.x is "file:vendor/x.tgz"; a published manifest names only registry versions`.
 - **A document build error names the build, not metaSpec (1.0.0-rc.28).** `generateOpenApi` throws its errors as `[backend:openapi] 2 document error(s):` instead of `[backend:metaSpec] 2 policy error(s):`, since most of them (`MISSING_OPERATION_ID`, `DUPLICATE_OPERATION_ID`, `UNKNOWN_INVALIDATE_TARGET`) come from the document's own checks, in apps that never call `metaSpec`.
 - **A generated route tree keeps a leaf's body check.** A leaf delegated to a catch-all refused a body its route does not declare only from a live `toRouteTree()` snapshot; through a generated `routes.gen.ts` it forwarded anything. Generated entries now carry the declared body kind as data, so run `honey generate`.

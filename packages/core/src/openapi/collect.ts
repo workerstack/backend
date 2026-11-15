@@ -26,6 +26,10 @@ import { assertOutputKeys } from "./output-keys.ts"
 
 /** One path a WebSocket route serves. */
 export type CollectedWsRoute = {
+	/** the keys the route may answer with, sorted; none for a route that declares none */
+	readonly errorKeys: readonly string[]
+	/** each of `errorKeys` with its status: from ERROR_META, never by calling a factory */
+	readonly errorMeta: Readonly<Record<string, CollectedError>>
 	/** `WS /pattern` */
 	readonly id: string
 	/** the upgrade's non-body sources, as declared */
@@ -50,10 +54,6 @@ export type CollectedError = {
 
 /** One path an HTTP route serves. */
 export type CollectedRoute = CollectedWsRoute & {
-	/** the keys the route may answer with, sorted; none for a route that declares none */
-	readonly errorKeys: readonly string[]
-	/** each of `errorKeys` with its status: from ERROR_META, never by calling a factory */
-	readonly errorMeta: Readonly<Record<string, CollectedError>>
 	/** the error factories the route's keys come from: what `ctx.errors` holds */
 	readonly errors: Readonly<Record<string, (...args: never[]) => unknown>> | null
 	/** `meta.internal`: generated artifacts leave the route out */
@@ -154,15 +154,13 @@ export function collectRoutes(app: { readonly [GRAPH]: HttpGraph }): CollectedRo
 		const { method, pattern } = splitRouteId(id)
 		for (const variant of expandOptional(segments)) {
 			const params = patternParams(variant).map((name) => (name === UNNAMED_WILDCARD ? "wildcard" : name))
-			const base = { id, input, meta, params, path: toOpenApiTemplate(variant), pattern }
+			const base = { errorKeys, errorMeta, id, input, meta, params, path: toOpenApiTemplate(variant), pattern }
 			if (method === "WS") ws.push(base)
 			else {
 				/* every route is a record or a loaded leaf */
 				const registration = (record?.fn ?? g.loaded?.[id]) as object
 				http.push({
 					...base,
-					errorKeys,
-					errorMeta,
 					errors,
 					internal: meta.internal === true,
 					method,

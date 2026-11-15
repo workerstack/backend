@@ -11,7 +11,7 @@ import { parsePattern, UNNAMED_WILDCARD } from "../routing/pattern.ts"
 import { deriveSchemaName } from "../schema/naming.ts"
 import type { JsonSchema } from "../schema/to-json-schema.ts"
 import type { CollectedRoute, CollectedRoutes, CollectedWsRoute } from "./collect.ts"
-import type { Convert, DeclaredError, ResponseObject } from "./responses.ts"
+import { type Convert, type DeclaredError, ordered, type ResponseObject } from "./responses.ts"
 
 /** One OpenAPI Operation Object. */
 export type Operation = Record<string, unknown>
@@ -31,6 +31,12 @@ export type PathsContext = {
 	readonly convert: (where: string) => Convert
 	/** the route's policy fields for one method, written first */
 	readonly policy: (route: CollectedRoute | CollectedWsRoute, method: string, kind: "http" | "ws") => Operation
+	/** adds the route's declared errors to `responses`, one per status, and returns every key (`x-backend-errors`) */
+	readonly errors: (
+		route: CollectedRoute | CollectedWsRoute,
+		responses: Record<string, ResponseObject>,
+		convert: Convert,
+	) => Record<string, DeclaredError>
 	/** the route's responses, the errors it declares among them, and every declared error key (`x-backend-errors`) */
 	readonly responses: (
 		route: CollectedRoute,
@@ -178,12 +184,15 @@ export function buildPaths(
 			continue
 		}
 		const hint = deriveSchemaName({ method: "get", path, role: "request" })
-		const search = route.input?.search
-		const input = search === undefined ? null : ({ search } as InputSchemas)
-		const { parameters } = inputsOf(input, ctx.convert(`WS ${route.pattern}`), hint, pathParameters(route))
+		const convert = ctx.convert(`WS ${route.pattern}`)
+		const { parameters } = inputsOf(route.input, convert, hint, pathParameters(route))
 		const operation: Operation = { "x-websocket": true, ...ctx.policy(route, "WS", "ws"), "x-backend-route": route.id }
 		if (parameters.length > 0) operation.parameters = parameters
-		operation.responses = { "101": { description: "WebSocket upgrade" } }
+		/* the chain, `.use()` and `.input()` answer before the upgrader: each declared error is an answer before the 101 */
+		const responses: Record<string, ResponseObject> = { "101": { description: "WebSocket upgrade" } }
+		const errors = ctx.errors(route, responses, convert)
+		operation.responses = ordered(responses)
+		if (Object.keys(errors).length > 0) operation["x-backend-errors"] = errors
 		paths[path] ??= {}
 		;(paths[path] as PathItem).get = operation
 		operations.push({ method: "get", operation, path, route })
