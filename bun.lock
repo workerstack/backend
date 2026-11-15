@@ -57,7 +57,7 @@
         "@total-typescript/ts-reset": "catalog:",
         "@types/node": "catalog:",
         "@vitest/coverage-v8": "4.1.10",
-        "@workerstack/clients": "file:vendor/workerstack-clients-0ac97e7.tgz",
+        "@workerstack/clients": "1.0.0-rc.28",
         "ajv": "8.20.0",
         "ajv-formats": "3.0.1",
         "arktype": "catalog:",
@@ -74,7 +74,7 @@
         "zod": "catalog:",
       },
       "peerDependencies": {
-        "@workerstack/clients": ">=1.0.0-rc.27",
+        "@workerstack/clients": ">=1.0.0-rc.28",
       },
       "optionalPeers": [
         "@workerstack/clients",
@@ -125,7 +125,7 @@
       },
       "devDependencies": {
         "@playwright/test": "catalog:",
-        "@workerstack/clients": "file:../../../../vendor/workerstack-clients-0ac97e7.tgz",
+        "@workerstack/clients": "1.0.0-rc.28",
         "typescript": "catalog:",
       },
     },
@@ -857,7 +857,7 @@
 
     "@workerstack/backend": ["@workerstack/backend@workspace:packages/core"],
 
-    "@workerstack/clients": ["@workerstack/clients@../../../../vendor/workerstack-clients-0ac97e7.tgz", { "dependencies": { "jiti": "2.7.0", "oxc-transform": "0.155.0", "zod": "4.3.6" }, "peerDependencies": { "oxfmt": ">=0.63.0", "ts-morph": ">=28.0.0" }, "optionalPeers": ["oxfmt", "ts-morph"], "hasInstallScript": true, "bin": { "clients": "bin/clients.js", "installgen": "bin/installgen.js" } }, "sha512-02T+wAJ2du/QutypX6ssmEI7uI1T3ow8uLVH7PSC789IHgQT5gpV/AKhzr2NhUJXQN3IOnrtDJL19lKYNzzvow=="],
+    "@workerstack/clients": ["@workerstack/clients@1.0.0-rc.28", "", { "dependencies": { "jiti": "2.7.0", "oxc-transform": "0.155.0", "zod": "4.3.6" }, "peerDependencies": { "oxfmt": ">=0.63.0", "ts-morph": ">=28.0.0" }, "optionalPeers": ["oxfmt", "ts-morph"], "bin": { "clients": "bin/clients.js", "installgen": "bin/installgen.js" } }, "sha512-Glwd3ab6dmTdovfsuxt02oo7up9mmo/wr9dKHOCl57oV+yYolAK2sJqmr/HHqcq8NUieuTG0moeW4LyquT6Vfw=="],
 
     "@workerstack/references": ["@workerstack/references@0.1.1", "", {}, "sha512-JNB1a1QMHbTxckZ2HgT7wIAEIKw5Z6GKOu2w1rnf6BneQyVoOpm0KWuYE0ek4pWq8fVSgLdJFkhqdyePwIvcCw=="],
 
@@ -1458,8 +1458,6 @@
     "@tailwindcss/node/magic-string": ["magic-string@1.4.5", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.6.0" } }, "sha512-oLLC2+YvQUfAa+vxoufE/yc1icb87M9iXIRqAoR/2EhE/8cb3SF/+Gi0c2By1B+5Vz2e2vQtUvHiu1+63Znh+w=="],
 
     "@typescript-eslint/visitor-keys/eslint-visitor-keys": ["eslint-visitor-keys@5.0.1", "", {}, "sha512-tD40eHxA35h0PEIZNeIjkHoDR4YjjJp34biM0mDvplBe//mB+IHCqHDGV7pxF+7MklTvighcCPPZC7ynWyjdTA=="],
-
-    "@workerstack/backend/@workerstack/clients": ["@workerstack/clients@vendor/workerstack-clients-0ac97e7.tgz", { "dependencies": { "jiti": "2.7.0", "oxc-transform": "0.155.0", "zod": "4.3.6" }, "peerDependencies": { "oxfmt": ">=0.63.0", "ts-morph": ">=28.0.0" }, "optionalPeers": ["oxfmt", "ts-morph"], "hasInstallScript": true, "bin": { "clients": "bin/clients.js", "installgen": "bin/installgen.js" } }, "sha512-02T+wAJ2du/QutypX6ssmEI7uI1T3ow8uLVH7PSC789IHgQT5gpV/AKhzr2NhUJXQN3IOnrtDJL19lKYNzzvow=="],
 
     "@workerstack/repo/@typescript-eslint/utils": ["@typescript-eslint/utils@8.72.2", "", { "dependencies": { "@eslint-community/eslint-utils": "^4.9.1", "@typescript-eslint/scope-manager": "8.72.2", "@typescript-eslint/types": "8.72.2", "@typescript-eslint/typescript-estree": "8.72.2" }, "peerDependencies": { "eslint": "^8.57.0 || ^9.0.0 || ^10.0.0", "typescript": ">=4.8.4 <6.1.0" } }, "sha512-hv3eRYbpPbbpezuax1EfGrzpa3C4ySgNZkPUkLOWOAjU8HsOKowEDAr8C7nsNl1C+SBSKDpvno6VKHnlhvp9iA=="],
 
