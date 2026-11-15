@@ -2,7 +2,7 @@
 
 # Lessons
 
-- `run-the-gates-that-read-your-source` (hits 8): Changed source reds the gates that read it, not only its own tests
+- `run-the-gates-that-read-your-source` (hits 9): Changed source reds the gates that read it, not only its own tests
 - `ci-env-differs-from-local` (hits 4): `verify` runs CI's scripts, not CI's environment
 - `slow-leg-default-timeout` (hits 2): A heavy leg without an explicit timeout reds only under load
 - `bun-child-auto-installs-npm` (hits 1): A spawned Bun child loads the published package, not the source
