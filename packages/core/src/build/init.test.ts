@@ -121,7 +121,7 @@ describe("the scaffolded app", () => {
 					cwd: SRC,
 				},
 			)
-			expect(JSON.parse(stdout)).toEqual([200, "ok", "3.1.0", "Backend", 200, true])
+			expect(JSON.parse(stdout)).toEqual([200, "ok", "3.2.1", "Backend", 200, true])
 		},
 		SPAWN,
 	)

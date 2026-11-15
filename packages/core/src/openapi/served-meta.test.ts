@@ -26,9 +26,9 @@ describe("served routes: the handle's own declared meta", () => {
 		const app = gateway()
 		serveStaticOpenApi(app, {
 			docs: { "/docs": scalar },
-			json: { inline: { openapi: "3.1.0" } },
+			json: { inline: { openapi: "3.2.1" } },
 			meta: { cacheControl: "public, s-maxage=3600" },
-			yaml: { inline: "openapi: 3.1.0\n" },
+			yaml: { inline: "openapi: 3.2.1\n" },
 		})
 		const seen = await Promise.all(
 			["/openapi.json", "/openapi.yaml", "/openapi.yml", "/docs"].map((p) => header(app, p)),

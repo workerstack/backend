@@ -12,7 +12,7 @@ type Env = { readonly PASSWORD: string }
 type App = { fetch(request: Request, env: object): Promise<Response> | Response }
 
 const ENV: Env = { PASSWORD: "s3cret:with-colon" }
-const DOC = { info: { title: "Prebuilt", version: "2.0.0" }, openapi: "3.1.0", paths: {} }
+const DOC = { info: { title: "Prebuilt", version: "2.0.0" }, openapi: "3.2.1", paths: {} }
 const DOCS = { "/docs/scalar": scalar, "/docs/swagger": swagger }
 const PATHS = ["/openapi.json", "/openapi.yaml", "/openapi.yml", "/docs/scalar", "/docs/swagger"]
 const CHALLENGE = 'Basic realm="Internal API", charset="UTF-8"'
@@ -35,7 +35,7 @@ const SERVING: Record<string, (app: App, auth?: ServedAuth) => App> = {
 			auth,
 			docs: DOCS,
 			json: { inline: DOC },
-			yaml: { inline: 'openapi: "3.1.0"\n' },
+			yaml: { inline: 'openapi: "3.2.1"\n' },
 		}),
 }
 

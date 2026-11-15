@@ -37,7 +37,7 @@ const OK = object({ ok: { type: "boolean" } })
 function fixture(): SchemaSpec {
 	return {
 		info: { title: "t", version: "1" },
-		openapi: "3.1.0",
+		openapi: "3.2.1",
 		paths: {
 			"/v1/auth/login": {
 				post: { requestBody: json(object(["password", "user"])), responses: { 200: answer(object(["token"])) } },

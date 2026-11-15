@@ -16,8 +16,8 @@ type App = { fetch(request: Request, env: object): Promise<Response> | Response 
 const MAP_FIX =
 	'import { scalar } from "@workerstack/backend/http/openapi/scalar" (or swagger from "@workerstack/backend/http/openapi/swagger") and pass docs: { "/docs": scalar }'
 
-const DOC = { info: { title: "Prebuilt", version: "2.0.0" }, openapi: "3.1.0", paths: {} }
-const YAML = 'openapi: "3.1.0"\ninfo:\n  title: Prebuilt\n'
+const DOC = { info: { title: "Prebuilt", version: "2.0.0" }, openapi: "3.2.1", paths: {} }
+const YAML = 'openapi: "3.2.1"\ninfo:\n  title: Prebuilt\n'
 
 const get = (app: App, path: string, env: object = {}, init?: RequestInit) =>
 	app.fetch(new Request(`http://x${path}`, init), env)
@@ -395,7 +395,7 @@ describe("serveStaticOpenApi: what it answers with", () => {
 			serveStaticOpenApi(host(), {
 				json: { inline: DOC },
 				// @ts-expect-error a YAML document is text: nothing converts an object at runtime
-				yaml: { inline: { openapi: "3.1.0" } },
+				yaml: { inline: { openapi: "3.2.1" } },
 			}),
 		).not.toThrow()
 	})

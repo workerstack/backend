@@ -109,12 +109,12 @@ describe("generateAndWrite (bit 19 h2)", () => {
 			expect(manifest.routes.map((route) => route.path)).toEqual(["/health", "/items"])
 			const document = JSON.parse(read(dir, "src/_gen/openapi.gen.json")) as Record<string, Record<string, unknown>>
 			expect([document.openapi, document.info, Object.keys(document.paths)]).toEqual([
-				"3.1.0",
+				"3.2.1",
 				{ title: "Gen", version: "1.0.0" },
 				["/health", "/items"],
 			])
 			expect((document.paths["/items"] as { post: { requestBody?: object } }).post.requestBody).toBeDefined()
-			expect(read(dir, "src/_gen/openapi.gen.yaml")).toMatch(/^openapi: "3\.1\.0"$[\s\S]*^ {2}title: Gen$/m)
+			expect(read(dir, "src/_gen/openapi.gen.yaml")).toMatch(/^openapi: "3\.2\.1"$[\s\S]*^ {2}title: Gen$/m)
 		},
 		SLOW,
 	)
@@ -200,8 +200,8 @@ describe("generateAndWrite (bit 19 h2), continued (3)", () => {
 			const { written } = await generate({ app: "src/app.ts", codegen: { openApi, tree: false } }, dir)
 			expect(written).toEqual(["openapi.yml", "docs/openapi.yaml"])
 			expect([read(dir, "openapi.yml"), read(dir, "docs/openapi.yaml")].map((text) => text.slice(0, 16))).toEqual([
-				'openapi: "3.1.0"',
-				'openapi: "3.1.0"',
+				'openapi: "3.2.1"',
+				'openapi: "3.2.1"',
 			])
 			expect(
 				["openapi.yaml", "openapi.json", "docs/openapi.json"].filter((path) => existsSync(join(dir, path))),

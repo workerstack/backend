@@ -56,7 +56,7 @@ describe("serveOpenApi: the document, as JSON and YAML", () => {
 	// v0: 135e45ccd9
 	// v0: cf8fc0bd81
 	// v0: b96245156b
-	it("serves the app's 3.1 document as JSON at the stem, and the same document as YAML at .yaml and .yml", async () => {
+	it("serves the app's 3.2 document as JSON at the stem, and the same document as YAML at .yaml and .yml", async () => {
 		const app = serveOpenApi(users(), { description: "Users API", title: "Demo", version: "1.0.0" })
 		const res = await get(app, "/openapi.json")
 		const doc = (await res.json()) as Doc & { openapi: string }
@@ -69,10 +69,10 @@ describe("serveOpenApi: the document, as JSON and YAML", () => {
 			Object.keys(doc.paths),
 			[yml.headers.get("content-type"), yaml.headers.get("content-type")],
 			ymlText === (await yaml.text()),
-			/openapi: "3\.1\.0"\n/.test(ymlText) && ymlText.includes("/users/{id}:"),
+			/openapi: "3\.2\.1"\n/.test(ymlText) && ymlText.includes("/users/{id}:"),
 		]).toEqual([
 			"application/json; charset=utf-8",
-			"3.1.0",
+			"3.2.1",
 			{ description: "Users API", title: "Demo", version: "1.0.0" },
 			["/health", "/users", "/users/{id}"],
 			["application/yaml; charset=utf-8", "application/yaml; charset=utf-8"],
@@ -196,7 +196,7 @@ describe("serveOpenApi: built once per route change", () => {
 		const bodies = new Set<string>()
 		for (let i = 0; i < 5; i++) bodies.add(await text(app, "/openapi.json"))
 		for (let i = 0; i < 3; i++) await text(app, "/openapi.yaml")
-		const documents = stringify.mock.calls.filter(([v]) => (v as { openapi?: string } | null)?.openapi === "3.1.0")
+		const documents = stringify.mock.calls.filter(([v]) => (v as { openapi?: string } | null)?.openapi === "3.2.1")
 		stringify.mockRestore()
 		const before = [generations, documents.length, bodies.size]
 		app

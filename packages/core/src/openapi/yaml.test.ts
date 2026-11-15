@@ -46,7 +46,7 @@ describe("toYaml: the same document as JSON, in YAML", () => {
 	it("writes a nested OpenAPI-shaped object by indentation, in its own key order", () => {
 		const spec = {
 			info: { title: "Demo", version: "1.0.0" },
-			openapi: "3.1.0",
+			openapi: "3.2.1",
 			paths: {
 				"/api/health": {
 					get: {
@@ -62,7 +62,7 @@ describe("toYaml: the same document as JSON, in YAML", () => {
 		expect(toYaml(spec)).toBe(`info:
   title: Demo
   version: "1.0.0"
-openapi: "3.1.0"
+openapi: "3.2.1"
 paths:
   /api/health:
     get:

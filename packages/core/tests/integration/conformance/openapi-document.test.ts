@@ -1,11 +1,13 @@
 /**
- * Every OpenAPI document backend writes is a valid OpenAPI 3.1 document, reads back the same through
+ * Every OpenAPI document backend writes is a valid OpenAPI 3.2 document, reads back the same through
  * a YAML reader, refers only to components it holds, and describes only requests the router
- * serves. ajv, ajv-formats and js-yaml are test-only: the emitter itself stays vendor-free.
+ * serves. ajv, ajv-formats, js-yaml and @scalar/openapi-parser are test-only: the emitter itself stays
+ * vendor-free.
  */
 import { readdirSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { join } from "node:path"
+import { validate as parse } from "@scalar/openapi-parser"
 import { describe, expect, it } from "vitest"
 import * as v from "valibot"
 import * as z from "zod"
@@ -16,7 +18,7 @@ import { SILENT } from "../../../src/telemetry/logger.ts"
 import { ws } from "../../../src/ws/route.ts"
 
 const require = createRequire(import.meta.url)
-const OAS31 = join(import.meta.dirname, "oas31")
+const OAS32 = join(import.meta.dirname, "oas32")
 const E2E_APPS = join(import.meta.dirname, "../../e2e/apps")
 
 type Ajv = {
@@ -35,13 +37,13 @@ type App = { fetch(request: Request, env: object): Promise<Response> | Response 
 const jsYaml = require("js-yaml") as { load(text: string): unknown }
 
 /**
- * The 3.1 schema checks Schema Objects through `$dynamicRef: "#meta"`, which ajv resolves
+ * The 3.2 schema checks Schema Objects through `$dynamicRef: "#meta"`, which ajv resolves
  * unreliably across documents; pointing it at the OAS base dialect checks the same thing: every
  * Schema Object is a valid JSON Schema 2020-12 schema.
  */
 function compileValidator(): (doc: unknown) => { errors: unknown; ok: boolean } {
 	const read = (name: string) =>
-		JSON.parse(readFileSync(join(OAS31, `${name}.json`), "utf8")) as Record<string, unknown>
+		JSON.parse(readFileSync(join(OAS32, `${name}.json`), "utf8")) as Record<string, unknown>
 	const Ajv2020 = (require("ajv/dist/2020.js") as { default: new (options: object) => Ajv }).default
 	const ajv = new Ajv2020({ allErrors: true, strict: false })
 	;(require("ajv-formats") as { default: (ajv: Ajv) => void }).default(ajv)
@@ -49,12 +51,12 @@ function compileValidator(): (doc: unknown) => { errors: unknown; ok: boolean } 
 	const oas = JSON.parse(
 		JSON.stringify(read("schema")).replaceAll(
 			'"$dynamicRef":"#meta"',
-			'"$ref":"https://spec.openapis.org/oas/3.1/dialect/base"',
+			'"$ref":"https://spec.openapis.org/oas/3.2/dialect/2025-09-17"',
 		),
 	) as { $defs: { schema: Record<string, unknown> } }
 	delete oas.$defs.schema.$dynamicAnchor
-	ajv.addSchema(read("meta-base"))
-	ajv.addSchema(read("dialect-base"))
+	ajv.addSchema(read("meta"))
+	ajv.addSchema(read("dialect"))
 	const check = ajv.compile(oas)
 	return (doc) => {
 		const ok = check(doc)
@@ -235,12 +237,12 @@ function danglingRefs(doc: Doc): string[] {
 	return [...missing].sort()
 }
 
-describe("OpenAPI 3.1 conformance: valid documents", () => {
+describe("OpenAPI 3.2 conformance: valid documents", () => {
 	// v0: 666408fb48
 	it("refuses an invalid document: the check itself works", () => {
 		const bad = {
 			info: { title: "x", version: "1" },
-			openapi: "3.1.0",
+			openapi: "3.2.1",
 			paths: { "/a/{id}": { get: { parameters: [{ in: "path", name: "id", required: false }], responses: {} } } },
 		}
 		expect(validate(bad).ok).toBe(false)
@@ -249,7 +251,7 @@ describe("OpenAPI 3.1 conformance: valid documents", () => {
 	// v0: 8c176a0d0e
 	// v0: 5a784bd838
 	// v0: 200ed8a5ae
-	it("finds every committed document valid 3.1, and read back whole through YAML", () => {
+	it("finds every committed document valid 3.2, and read back whole through YAML", () => {
 		const committed = committedDocuments()
 		expect(committed.length).toBeGreaterThan(0)
 		for (const [name, doc] of committed) {
@@ -258,8 +260,19 @@ describe("OpenAPI 3.1 conformance: valid documents", () => {
 		}
 	})
 
+	it("finds every committed document a valid 3.2 document to a second reader, @scalar/openapi-parser", async () => {
+		for (const [name, doc] of committedDocuments()) {
+			const read = await parse(doc)
+			expect({ errors: read.errors, valid: read.valid, version: read.version }, name).toEqual({
+				errors: [],
+				valid: true,
+				version: "3.2",
+			})
+		}
+	})
+
 	// v0: 66e3fbca3b
-	it("finds every generated document valid 3.1, and read back whole through YAML", () => {
+	it("finds every generated document valid 3.2, and read back whole through YAML", () => {
 		for (const [name, doc] of generated()) {
 			expect(validate(doc).errors, name).toBeNull()
 			expect(jsYaml.load(toYaml(doc)), name).toEqual(JSON.parse(JSON.stringify(doc)))
@@ -272,7 +285,7 @@ describe("OpenAPI 3.1 conformance: valid documents", () => {
 	})
 })
 
-describe("OpenAPI 3.1 conformance: the router serves what the document says", () => {
+describe("OpenAPI 3.2 conformance: the router serves what the document says", () => {
 	// v0: bb8c5188fc
 	it("reaches a handler for every operation, its declared path parameters filled in", async () => {
 		for (const [name, doc, app] of generated()) {

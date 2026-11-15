@@ -84,11 +84,11 @@ describe("openapi-sources.gen.ts (plan 39 7.5)", () => {
 		}
 		const asked: string[] = []
 		const env = {
-			DOCS: { fetch: async (url: URL) => (asked.push(url.pathname), new Response('{"openapi":"3.1.0"}')) },
+			DOCS: { fetch: async (url: URL) => (asked.push(url.pathname), new Response('{"openapi":"3.2.1"}')) },
 		}
 		const app = serveStaticOpenApi(httpApp(), { ...openApiSources.public, path: "/v1/spec" })
 		const res = await app.fetch(new Request("https://shop.example.com/v1/spec.json"), env)
-		expect([res.status, await res.text(), asked]).toEqual([200, '{"openapi":"3.1.0"}', ["/openapi.public.json"]])
+		expect([res.status, await res.text(), asked]).toEqual([200, '{"openapi":"3.2.1"}', ["/openapi.public.json"]])
 	})
 
 	it("takes codegen.assetsDir over wrangler, the default binding left implied, and writes nothing with no named document", async () => {

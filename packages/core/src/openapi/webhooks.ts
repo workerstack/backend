@@ -1,5 +1,5 @@
 /**
- * The document's webhooks (OpenAPI 3.1): each event of the app's webhook contract, by type, as the
+ * The document's webhooks (OpenAPI 3.2): each event of the app's webhook contract, by type, as the
  * POST a subscriber serves. Every delivery is a Standard Webhooks one, so each states the three
  * signature headers, the `{ type, timestamp, data }` envelope and `x-backend-webhook`, which tells a
  * generator to emit a verifier. `data` converts on the output side, as the sender writes it.
@@ -15,7 +15,7 @@ const CONTROL = /\p{Cc}/u
 /* the headers every delivery carries, in the order the scheme names them */
 const HEADERS = ["webhook-id", "webhook-timestamp", "webhook-signature"]
 
-/** The 3.1 `webhooks` of `contract`, by event type in code-unit order; each refusal reported through `error`. */
+/** The 3.2 `webhooks` of `contract`, by event type in code-unit order; each refusal reported through `error`. */
 export function webhooksOf(
 	contract: WebhookContract<WebhookEvents> | undefined,
 	convert: Convert,

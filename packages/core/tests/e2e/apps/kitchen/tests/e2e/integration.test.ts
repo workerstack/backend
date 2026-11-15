@@ -270,11 +270,11 @@ test.describe("input validation", () => {
 })
 
 test.describe("OpenAPI", () => {
-	test("GET /api/openapi.json → valid OpenAPI 3.1 spec", async ({ request }) => {
+	test("GET /api/openapi.json → valid OpenAPI 3.2 spec", async ({ request }) => {
 		const res = await request.get("/api/openapi.json")
 		expect(res.status()).toBe(200)
 		const spec = await res.json()
-		expect(spec.openapi).toBe("3.1.0")
+		expect(spec.openapi).toBe("3.2.1")
 		expect(spec.info.title).toBe("Backend E2E")
 		expect(spec.info.version).toBe("1.0.0")
 		expect(spec.paths).toBeDefined()
@@ -290,7 +290,7 @@ test.describe("OpenAPI", () => {
 		const ymlText = await yml.text()
 		const yamlText = await yaml.text()
 		expect(ymlText).toBe(yamlText)
-		expect(ymlText).toMatch(/openapi:\s*"?3\.1\.0"?/)
+		expect(ymlText).toMatch(/openapi:\s*"?3\.2\.1"?/)
 		expect(ymlText).toContain("Backend E2E")
 		expect(ymlText).toContain("/api/v1/organizations")
 	})

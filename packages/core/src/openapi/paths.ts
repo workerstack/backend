@@ -106,7 +106,7 @@ function inputsOf(input: InputSchemas | null, convert: Convert, hint: string, pa
 	for (const [source, entry] of Object.entries(input ?? {}) as [string, InputEntry | string | readonly string[]][]) {
 		if (source === "binary") {
 			const types = typeof entry === "string" ? [entry] : (entry as readonly string[])
-			/* OpenAPI 3.1 says "any bytes" by leaving the schema out */
+			/* OpenAPI 3.2 says "any bytes" by leaving the schema out */
 			body = Object.fromEntries(types.map((t) => [t, {}]))
 			continue
 		}

@@ -16,7 +16,7 @@ import {
 
 const document: Record<string, unknown> = {
 	info: { title: "Strict", version: "1.0.0" },
-	openapi: "3.1.0",
+	openapi: "3.2.1",
 	paths: { "/ping": { get: { responses: { "200": { description: "ok" } } } } },
 }
 

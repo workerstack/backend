@@ -12,6 +12,24 @@ generated from a small example API (`Kitchen`); yours is named after your docume
 The SDK sections cover the four SDKs 0.7.3 shipped: TypeScript, Python, Go and Rust. The C# and Java SDKs are new
 in 1.0, so they migrate nothing; their client is documented in [the generated clients page](https://github.com/workerstack/clients/blob/main/docs/client.md).
 
+## From 1.0.0-rc.28 to 1.0.0-rc.29
+
+The generated document is OpenAPI 3.2.1, and `OpenApiDocument["openapi"]` is typed `"3.2.1"`. Code that types the
+field, or checks the value against `"3.1.0"`, now reads `"3.2.1"`. The docs page pins Scalar 1.76.4 and Swagger UI
+5.34.1, which read 3.2 documents. A tool that reads the document must accept OpenAPI 3.2.
+
+| Before                                          | Now                                             |
+| ----------------------------------------------- | ----------------------------------------------- |
+| `"openapi": "3.1.0"` in every document          | `"openapi": "3.2.1"`                            |
+| `const v: OpenApiDocument["openapi"] = "3.1.0"` | `const v: OpenApiDocument["openapi"] = "3.2.1"` |
+| `doc.openapi === "3.1.0"`                       | `doc.openapi === "3.2.1"`                       |
+
+```ts
+import type { OpenApiDocument } from "@workerstack/backend/http/openapi"
+
+export const version: OpenApiDocument["openapi"] = "3.2.1"
+```
+
 ## From 1.0.0-rc.27 to 1.0.0-rc.28
 
 A tap is a value now: `defineTap(name, schema, handler)` names it, holds the schema its payload is checked by, and
@@ -240,7 +258,7 @@ import { generated, type GenerateRun, type RouteTree, writeTarget } from "@worke
 
 export type Tree = RouteTree
 const run: GenerateRun = { options: { ts: { name: "ShopSDK", stem: "shop" } }, targets: ["ts"] }
-const document = { info: { title: "Shop", version: "1.0.0" }, openapi: "3.1.0", paths: {} }
+const document = { info: { title: "Shop", version: "1.0.0" }, openapi: "3.2.1", paths: {} }
 const out = await generated(run, document, { env: {}, report: () => undefined })
 if (out.ts !== undefined) writeTarget("sdk/ts", out.ts.files, out.ts.packages)
 ```
@@ -1035,7 +1053,7 @@ import { generateSDK } from "@lovrozagar/honey/codegen"
 import { generated, type GenerateRun } from "@workerstack/clients"
 
 const run: GenerateRun = { options: { ts: { name: "ShopSDK", stem: "shop" } }, targets: ["ts"] }
-const document = { info: { title: "Shop", version: "1.0.0" }, openapi: "3.1.0", paths: {} }
+const document = { info: { title: "Shop", version: "1.0.0" }, openapi: "3.2.1", paths: {} }
 const files = await generated(run, document, { env: {}, report: () => undefined })
 export const names = Object.keys(files.ts?.files ?? {})
 ```

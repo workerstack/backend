@@ -90,7 +90,7 @@ const spec = (await (await fetch(`${BASE}/api/openapi.json`)).json()) as {
 	openapi: string
 	paths: Record<string, unknown>
 }
-if (spec.openapi !== "3.1.0" || !spec.paths["/api/health"]) fail("GET /api/openapi.json")
+if (spec.openapi !== "3.2.1" || !spec.paths["/api/health"]) fail("GET /api/openapi.json")
 
 for (const alias of ["/api/openapi.yaml", "/api/openapi.yml", "/api/manifest.json"]) {
 	const r = await fetch(`${BASE}${alias}`)

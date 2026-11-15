@@ -42,11 +42,11 @@ test.describe("origin defaults", () => {
 })
 
 test.describe("openapi at root", () => {
-	test("GET /openapi.json → 3.1 spec", async ({ request }) => {
+	test("GET /openapi.json → 3.2 spec", async ({ request }) => {
 		const res = await request.get("/openapi.json")
 		expect(res.status()).toBe(200)
 		const spec = await res.json()
-		expect(spec.openapi).toBe("3.1.0")
+		expect(spec.openapi).toBe("3.2.1")
 		expect(spec.info.title).toBe("Backend Defaults")
 		expect(spec.paths["/health"]).toBeDefined()
 		expect(spec.paths["/users/{id}"]).toBeDefined()

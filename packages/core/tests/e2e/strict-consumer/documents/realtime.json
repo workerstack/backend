@@ -1,5 +1,5 @@
 {
-	"openapi": "3.1.0",
+	"openapi": "3.2.1",
 	"info": { "title": "Strict Realtime", "version": "1.0.0" },
 	"paths": {
 		"/events/stream": {

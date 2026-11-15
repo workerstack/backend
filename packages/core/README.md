@@ -3,7 +3,7 @@
 A typed web framework for the Fetch API whose routes are the source of its clients. You write a route once, with its
 input and output schemas; backend runs it on Cloudflare Workers, and
 [`@workerstack/clients`](https://www.npmjs.com/package/@workerstack/clients) turns the same routes into an
-OpenAPI 3.1 document, typed SDKs for six languages, a command-line client and an MCP server.
+OpenAPI 3.2 document, typed SDKs for six languages, a command-line client and an MCP server.
 
 Nothing is inferred at runtime: the schemas you declare are what the handler receives, what the document says, and
 what every generated client's types promise.
@@ -901,7 +901,7 @@ import { serveStaticOpenApi } from "@workerstack/backend/http/openapi/static"
 
 /* a document you already have as a value: serialized once, on the first request */
 const inline = serveStaticOpenApi(httpApp(), {
-	json: { inline: { info: { title: "Shop", version: "1.2.0" }, openapi: "3.1.0", paths: {} } },
+	json: { inline: { info: { title: "Shop", version: "1.2.0" }, openapi: "3.2.1", paths: {} } },
 })
 
 /* a Workers assets binding: env.ASSETS.fetch on the request's own origin */

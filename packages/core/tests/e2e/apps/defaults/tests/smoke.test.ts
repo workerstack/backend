@@ -16,7 +16,7 @@ describe("e2e defaults consumes backend", () => {
 		expect(await res.text()).toBe("ok")
 	})
 
-	test("GET /openapi.json is a 3.1 spec at the origin root", async () => {
+	test("GET /openapi.json is a 3.2 spec at the origin root", async () => {
 		const res = await fetchApp("/openapi.json")
 		expect(res.status).toBe(200)
 		const spec = (await res.json()) as {
@@ -24,7 +24,7 @@ describe("e2e defaults consumes backend", () => {
 			openapi: string
 			paths: Record<string, unknown>
 		}
-		expect(spec.openapi).toBe("3.1.0")
+		expect(spec.openapi).toBe("3.2.1")
 		expect(spec.info.title).toBe("Backend Defaults")
 		expect(spec.paths["/health"]).toBeDefined()
 		expect(spec.paths["/openapi.json"]).toBeUndefined()

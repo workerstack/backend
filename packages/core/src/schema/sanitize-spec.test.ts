@@ -14,7 +14,7 @@ function spec(operation: Record<string, unknown>, extra: Record<string, unknown>
 	return {
 		components: { schemas: { A: { type: "string" } }, securitySchemes: { ...SCHEMES } },
 		info: { title: "t", version: "1" },
-		openapi: "3.1.0",
+		openapi: "3.2.1",
 		paths: { "/a": { get: { responses: {}, ...operation }, parameters: [] } },
 		...extra,
 	}

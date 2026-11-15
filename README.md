@@ -2,7 +2,7 @@
 
 A typed web framework for the Fetch API whose routes are the source of its clients. You write a route once, with its
 input and output schemas; backend runs it on Cloudflare Workers, and `clients` turns the same
-routes into an OpenAPI 3.1 document, typed SDKs for six languages, a command-line client and an MCP server.
+routes into an OpenAPI 3.2 document, typed SDKs for six languages, a command-line client and an MCP server.
 
 Nothing is inferred at runtime: the schemas you declare are what the handler receives, what the document says, and
 what every generated client's types promise.

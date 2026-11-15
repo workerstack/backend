@@ -29,7 +29,7 @@ Core owns description; codegen owns generation. The boundary is the IR.
 
 1. **Collect** — `openapi/collect.ts` walks the finalized routes and their meta (`meta-spec.ts`, `meta-spec-merge.ts`) into operation records. `.meta({ extensions: { "x-*": … } })` is the escape hatch that reaches operation extensions (`x-realtime`, `x-websocket`, `x-mcp`).
 2. **IR** — `codegen-ir.ts` (moving to `packages/gen`) builds the intermediate representation: resource tree from dotted operationIds, request/response slots with their declared schemas and content-types, realtime/SSE/WS markers. Every emitter reads only the IR.
-3. **Document** — `openapi/document.ts` + `spec-factory.ts` emit the OpenAPI 3.1 document (servers, tags, webhooks in v1 — B1–B3); `openapi/{scalar,swagger,docs-page,serve}.ts` serve human docs.
+3. **Document** — `openapi/document.ts` + `spec-factory.ts` emit the OpenAPI 3.2 document (servers, tags, webhooks in v1 — B1–B3); `openapi/{scalar,swagger,docs-page,serve}.ts` serve human docs.
 4. **Emit** — `packages/gen` consumes the IR and emits: TS/Go/Rust/Python/C#/Java SDKs (vendored runtime glue, H9), the Go CLI (H E1), and the MCP server (H D1). Type extraction (`type-extractor.ts`) uses the TS compiler API (H12); code emission uses structured strings + the `codegen-lang` sanitizer + the formatter post-pass.
 
 ## Ownership summary

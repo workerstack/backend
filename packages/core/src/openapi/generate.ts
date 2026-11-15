@@ -1,5 +1,5 @@
 /**
- * `generateOpenApi(app, options)`: the app's OpenAPI 3.1 document, built synchronously from the
+ * `generateOpenApi(app, options)`: the app's OpenAPI 3.2 document, built synchronously from the
  * routes it serves. Every diagnostic goes through one collector: errors throw one aggregate,
  * warnings go to the logger, nothing to the console. Schemas convert through `jsonSchemaOf` with the
  * caller's converters; a schema that cannot be converted at all fails the document under
@@ -242,7 +242,7 @@ function check(
 	if (missing !== null) logger.warn(missing)
 }
 
-/** The app's OpenAPI 3.1 document. */
+/** The app's OpenAPI 3.2 document. */
 export function generateOpenApi(app: App, options: GenerateOpenApiOptions): OpenApiDocument {
 	const settings = app[GRAPH].settings
 	const diagnostics = new MetaSpecDiagnostics()

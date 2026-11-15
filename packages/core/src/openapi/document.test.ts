@@ -32,14 +32,14 @@ const register = (target: ReturnType<typeof httpApp<{}>>, [path, name]: [string,
 		.output({ "application/json": { ok: z.object({ [name]: z.string() }) } })
 		.handler((c) => c.res.json("ok", { [name]: "x" } as never))
 
-describe("the document: OpenAPI 3.1, assembled", () => {
+describe("the document: OpenAPI 3.2, assembled", () => {
 	// v0: 9eecdff3f3
 	// v0: f14c9e8f32
 
-	it("is 3.1.0 with the info it was given and a path item per route, its methods inside", () => {
+	it("is 3.2.1 with the info it was given and a path item per route, its methods inside", () => {
 		const doc = generateOpenApi(app(), { info: INFO })
 		expect([doc.openapi, doc.info, Object.keys(doc.paths), Object.keys(doc.paths["/users"] ?? {})]).toEqual([
-			"3.1.0",
+			"3.2.1",
 			INFO,
 			["/health", "/users", "/users/{id}"],
 			["get", "post"],
@@ -83,7 +83,7 @@ describe("the document: OpenAPI 3.1, assembled", () => {
 	})
 })
 
-describe("the document: OpenAPI 3.1, assembled", () => {
+describe("the document: OpenAPI 3.2, assembled", () => {
 	it("is the same bytes on every run and whatever order the routes were registered in", () => {
 		const forward = httpApp<{}>()
 		const backward = httpApp<{}>()

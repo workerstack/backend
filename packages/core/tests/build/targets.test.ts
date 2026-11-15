@@ -154,7 +154,7 @@ async function served(base: string) {
 	return [health.status, await health.text(), spec.openapi, spec.info.title, "/health" in spec.paths]
 }
 
-const SERVED = [200, "ok", "3.1.0", "Build Fixture", true]
+const SERVED = [200, "ok", "3.2.1", "Build Fixture", true]
 
 describe.sequential("the build plugin's bundles, served (bit 19 h2)", () => {
 	// v0: e6b3d639a5

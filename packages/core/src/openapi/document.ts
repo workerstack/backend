@@ -1,5 +1,5 @@
 /**
- * The OpenAPI 3.1 document, assembled: the info a caller gives (its own fields only), the servers,
+ * The OpenAPI 3.2 document, assembled: the info a caller gives (its own fields only), the servers,
  * the paths, the webhooks, the components the document lifted or the caller declared, the tags and
  * the external docs. Keys go in the specification's field order, so the same app always writes the
  * same bytes.
@@ -19,7 +19,7 @@ export type OpenApiInfo = {
 	readonly version: string
 }
 
-/** The generated OpenAPI 3.1 document. An optional field is left out when it would be empty, except `components.securitySchemes`. */
+/** The generated OpenAPI 3.2 document. An optional field is left out when it would be empty, except `components.securitySchemes`. */
 export type OpenApiDocument = {
 	/** the schemas operations share by reference, and the security schemes the caller passed */
 	components?: {
@@ -33,7 +33,7 @@ export type OpenApiDocument = {
 	/** the API's name, version and description */
 	info: OpenApiInfo
 	/** the OpenAPI version the document follows */
-	openapi: "3.1.0"
+	openapi: "3.2.1"
 	/** each route's operations, by OpenAPI path such as `/users/{id}` */
 	paths: Record<string, PathItem>
 	/** the servers the API is reachable at */
@@ -65,7 +65,7 @@ function cleanInfo(info: OpenApiInfo): OpenApiInfo {
 /** The document of `parts`: each optional field only when there is something to put in it. */
 export function assembleDocument(parts: DocumentParts): OpenApiDocument {
 	const doc: OpenApiDocument = {
-		openapi: "3.1.0",
+		openapi: "3.2.1",
 		info: cleanInfo(parts.info),
 		...(parts.servers.length > 0 ? { servers: [...parts.servers] } : {}),
 		paths: { ...parts.paths },

@@ -9,19 +9,19 @@ import type { TypedResponse } from "../response/response.ts"
 
 export const SWAGGER_UI = {
 	css: {
-		integrity: "sha384-Ov4/wv3j2bmct8cDc5X4ngJZohVPzEmc6uDPH8WeljUxO5vtoykvMEfbu9Vh6RaW",
-		url: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.1/swagger-ui.css",
+		integrity: "sha384-4c3vsE5f+trhFyHrFrLM1fFGUn531NIaC7dcqEWIJdoRQJ5CkJbSuSCwXLpaS1KF",
+		url: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui.css",
 	},
 	js: {
-		integrity: "sha384-ZPehFMQommnnuaZ4rpxgkgTT2DKFVp4hZC/7pLit+9Lek9T1YGSo23eHFbvNkXkw",
-		url: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.1/swagger-ui-bundle.js",
+		integrity: "sha384-XFYN47VzPiDY6qPtxYKg0nqUeW/upo20xf1j2SUE7gT/i35FJB4cuS/71Iegzk8Z",
+		url: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui-bundle.js",
 	},
 } as const
 
 export const SCALAR = {
 	js: {
-		integrity: "sha384-kYDGzV91Jnn3TbHINV3nt54riK2uMJDfN5Al8dAkz4FssELTBWbD8rgw32sTKfOi",
-		url: "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.73.1/dist/browser/standalone.js",
+		integrity: "sha384-hwB9WroDTpZaI38gr+u9CXA6ksz5gUYgD2GxXazKl/agT1L2GWUiRFWGJYNiFu4Q",
+		url: "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.4/dist/browser/standalone.js",
 	},
 } as const
 

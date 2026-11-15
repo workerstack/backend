@@ -1,6 +1,6 @@
 # dx — OpenAPI document
 
-How the author configures the emitted OpenAPI 3.1 document (B1/B2/B3). The document is produced by core (`openapi/*`); these are the author-facing knobs. Human docs (Scalar/Swagger) and the `./openapi` serving entry are covered under routing/app surface.
+How the author configures the emitted OpenAPI 3.2 document (B1/B2/B3). The document is produced by core (`openapi/*`); these are the author-facing knobs. Human docs (Scalar/Swagger) and the `./openapi` serving entry are covered under routing/app surface.
 
 | value | required | default | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- |
