@@ -117,9 +117,9 @@ describe("the versions this repository ships", () => {
 		 * `>=1.0.0` would exclude `1.0.0-rc.1`: under semver a prerelease satisfies a range only when the range
 		 * itself carries a prerelease at the same version. `>=1.0.0-0` accepts every 1.0.0 candidate and everything
 		 * after, so it needs no edit when rc.2 is cut (checked against the semver package before it was written).
-		 * The floor is rc.29, the first clients that reads the typed streams this backend documents: an older
-		 * candidate reads `x-websocket` only as `true` and types no event or message.
+		 * The floor is rc.28, the first clients that fills the operationId slot and drops `RouteCtx`: an older
+		 * candidate generates types keyed by route that this backend no longer exports.
 		 */
-		expect(core.peerDependencies?.["@workerstack/clients"]).toBe(">=1.0.0-rc.29")
+		expect(core.peerDependencies?.["@workerstack/clients"]).toBe(">=1.0.0-rc.28")
 	})
 })

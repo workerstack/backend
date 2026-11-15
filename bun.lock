@@ -75,7 +75,7 @@
         "zod": "catalog:",
       },
       "peerDependencies": {
-        "@workerstack/clients": ">=1.0.0-rc.29",
+        "@workerstack/clients": ">=1.0.0-rc.28",
       },
       "optionalPeers": [
         "@workerstack/clients",
