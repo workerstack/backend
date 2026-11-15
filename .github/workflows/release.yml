@@ -47,7 +47,12 @@ jobs:
       # the tag's notes: a version nobody wrote an entry for never reaches npm
       - name: Check the CHANGELOG entry for the tag
         run: bun "$GITHUB_WORKSPACE/scripts/changelog.ts" "${GITHUB_REF_NAME#v}"
-      - uses: ./.github/actions/install
+      # package.json links @workerstack/repo from a sibling checkout; --ignore-scripts runs none of its code here, and
+      # the pack needs no install script (the skipped ones are repo sync, esbuild's and workerd's)
+      - name: Install
+        run: |
+          git clone --depth 1 https://github.com/workerstack/repo.git "$GITHUB_WORKSPACE/../workerstack/repo"
+          bun install --frozen-lockfile --ignore-scripts
       # scripts/pack.ts, as the packaging tests pack: catalog: and workspace: resolved to versions, then npm pack
       - name: Pack @workerstack/backend
         working-directory: packages/core
