@@ -1118,6 +1118,14 @@ export type SSEEvent<T = string> = {
 	retry?: number
 }
 
+/**
+ * One event of a stream that names its events (an OpenAPI 3.2 `itemSchema`), `M` mapping each name to its `data`:
+ * narrowing on `event` types `data`. An unnamed event is `message`, as `EventSource` names it.
+ */
+export type SSEEventOf<M> = {
+	[K in keyof M & string]: { data: M[K]; event: K; id?: string; retry?: number }
+}[keyof M & string]
+
 /* the siblings' caps, in UTF-8 bytes */
 const MAX_LINE = 1 << 20
 const MAX_EVENT = 8 << 20
@@ -1728,11 +1736,18 @@ export type ServiceEntry = {
 	/** the OpenAPI path template, `{param}` kept */
 	path: string
 	realtime?: boolean
-	/** an event stream; `"json"` when its events carry JSON `data` the client parses */
-	sse?: boolean | "json"
+	/** an event stream; `"json"` when its events carry JSON `data` the client parses, or the names of the events that
+	    do when the operation names its events (an unnamed one is `message`) */
+	sse?: boolean | "json" | readonly string[]
 	/** the param that spans segments (`x-backend-wildcard`) */
 	wildcard?: string
 	ws?: boolean
+	/** a socket whose server declares what it sends: each text frame is parsed as JSON */
+	decode?: boolean
+	/** the field a socket's parsed message is handed to `on(value)` by (D9) */
+	dispatch?: string
+	/** a socket whose server declares what it receives: every send is JSON */
+	encode?: boolean
 	/** how a stream, WebSocket or realtime operation is called; a REST one has none */
 	call?: OperationCall
 }
@@ -1948,21 +1963,38 @@ export class SDKClient {
 	}
 }
 
-/** Each event with its `data` parsed as JSON; an event that does not parse fails the stream, naming it. */
-function jsonEvents(events: AsyncIterable<SSEEvent>): AsyncIterable<SSEEvent<unknown>> {
+/** `event` with its `data` parsed as JSON; data that does not parse fails the stream, naming the event. */
+function parsed(event: SSEEvent): SSEEvent<unknown> {
+	try {
+		return { ...event, data: JSON.parse(event.data) }
+	} catch (e) {
+		const name = event.id === undefined ? "an event" : `event ${JSON.stringify(event.id)}`
+		const message = `SSE ${name} is not valid JSON: ${e instanceof Error ? e.message : String(e)}`
+		throw new ClientError({ body: event.data, message, response: Response.error(), status: 0 })
+	}
+}
+
+/**
+ * The events of `events` as `entry` reads them: each parsed (`"json"`); or, for a stream that names its events, each
+ * named `message` when it has no name and parsed when `sse` holds its name; else as they came.
+ */
+function eventsOf(events: AsyncIterable<SSEEvent>, sse: ServiceEntry["sse"]): AsyncIterable<SSEEvent<unknown>> {
+	if (sse === "json") return mapEvents(events, parsed)
+	if (typeof sse !== "object") return events
+	return mapEvents(events, (raw) => {
+		const event = { ...raw, event: raw.event ?? "message" }
+		return sse.includes(event.event) ? parsed(event) : event
+	})
+}
+
+/** `events`, each through `map`. */
+function mapEvents(
+	events: AsyncIterable<SSEEvent>,
+	map: (event: SSEEvent) => SSEEvent<unknown>,
+): AsyncIterable<SSEEvent<unknown>> {
 	return {
 		async *[Symbol.asyncIterator]() {
-			for await (const event of events) {
-				let data: unknown
-				try {
-					data = JSON.parse(event.data)
-				} catch (e) {
-					const name = event.id === undefined ? "an event" : `event ${JSON.stringify(event.id)}`
-					const message = `SSE ${name} is not valid JSON: ${e instanceof Error ? e.message : String(e)}`
-					throw new ClientError({ body: event.data, message, response: Response.error(), status: 0 })
-				}
-				yield { ...event, data }
-			}
+			for await (const event of events) yield map(event)
 		},
 	}
 }
@@ -1984,7 +2016,7 @@ async function open(core: SdkCore, entry: ServiceEntry, input: RequestOptions): 
 		if (selector !== undefined) core.mark(entry, input.params, selector)
 	}
 	const { data, response } = await openStream(core.http, { meta, method: entry.method, onOpen, opts, path: template })
-	return { data: entry.sse === "json" ? jsonEvents(data) : data, response }
+	return { data: eventsOf(data, entry.sse), response }
 }
 
 /** An event stream: sent when iterated, or opened into a Result by the safe twin. */

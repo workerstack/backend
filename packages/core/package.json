@@ -304,7 +304,7 @@
 		"@total-typescript/ts-reset": "catalog:",
 		"@types/node": "catalog:",
 		"@vitest/coverage-v8": "4.1.10",
-		"@workerstack/clients": "file:vendor/workerstack-clients-1.0.0-rc.28-af51e4d.tgz",
+		"@workerstack/clients": "file:vendor/workerstack-clients-1.0.0-rc.28-bd0ece4.tgz",
 		"ajv": "8.20.0",
 		"ajv-formats": "3.0.1",
 		"arktype": "catalog:",

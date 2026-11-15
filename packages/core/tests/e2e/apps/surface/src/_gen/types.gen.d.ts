@@ -36,7 +36,7 @@ declare module "@workerstack/backend/http" {
 			"stream.filtered.list": { kind: "http"; ctx: Routes["/stream/filtered"]["get"]["ctx"] }
 			"ws.chat": { kind: "ws"; ctx: BaseCtx & { readonly params: { channelId: string } } }
 			"ws.echo": { kind: "ws"; ctx: BaseCtx }
-			"ws.joinRoom": { kind: "ws"; ctx: BaseCtx & { readonly input: { search: { roomId: string } } } }
+			"ws.joinRoom": { kind: "ws"; ctx: BaseCtx & { readonly input: { search: { roomId: string }; headers: { "x-room-token"?: string }; cookies: { session?: string } } } }
 			"ws.reconnect": { kind: "ws"; ctx: BaseCtx }
 			"ws.talk": { kind: "ws"; ctx: BaseCtx }
 		}

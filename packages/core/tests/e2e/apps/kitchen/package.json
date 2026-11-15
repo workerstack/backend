@@ -17,7 +17,7 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "catalog:",
-		"@workerstack/clients": "file:../../../../vendor/workerstack-clients-1.0.0-rc.28-af51e4d.tgz",
+		"@workerstack/clients": "file:../../../../vendor/workerstack-clients-1.0.0-rc.28-bd0ece4.tgz",
 		"typescript": "catalog:"
 	}
 }

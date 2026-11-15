@@ -3,7 +3,7 @@ import type {
 	Result,
 	ResumableConnection,
 	SDKConfig,
-	SSEEvent,
+	SSEEventOf,
 	TypedWebSocket,
 } from "./kitchen.runtime.gen.js"
 
@@ -173,10 +173,18 @@ export interface KitchenOperations {
 	echo_post: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	echo_put: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	events: {
-		list: HttpStream<{}, SSEEvent, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+		list: HttpStream<
+			{},
+			SSEEventOf<{ message: string }>,
+			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
+		>
 	}
 	eventsLive: {
-		list: HttpStream<{}, SSEEvent, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+		list: HttpStream<
+			{},
+			SSEEventOf<{ resume: string; tick: string }>,
+			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
+		>
 	}
 	health: {
 		check: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>

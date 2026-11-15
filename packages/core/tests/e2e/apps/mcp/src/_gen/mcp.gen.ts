@@ -324,6 +324,11 @@ const toolSpecs: readonly ToolSpec[] = [
 							},
 							event: {
 								type: "string",
+								examples: [
+									"batch",
+									"complete",
+									"progress",
+								],
 							},
 							id: {
 								type: "string",
@@ -331,6 +336,7 @@ const toolSpecs: readonly ToolSpec[] = [
 						},
 						required: [
 							"data",
+							"event",
 						],
 					},
 				},
@@ -762,6 +768,11 @@ const toolSpecs: readonly ToolSpec[] = [
 							},
 							event: {
 								type: "string",
+								examples: [
+									"batch",
+									"complete",
+									"progress",
+								],
 							},
 							id: {
 								type: "string",
@@ -769,6 +780,7 @@ const toolSpecs: readonly ToolSpec[] = [
 						},
 						required: [
 							"data",
+							"event",
 						],
 					},
 				},
