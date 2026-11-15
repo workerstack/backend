@@ -9,7 +9,7 @@ import { HttpRes } from "../response/response.ts"
 import { httpApp } from "../routing/app.ts"
 import { createNode, insertRoute } from "../routing/tree.ts"
 import type { StandardSchemaIssue, StandardSchemaLike } from "./standard-schema.ts"
-import { compileOutput, outputCheck, sseCheck } from "./output-check.ts"
+import { compileOutput, outputCheck, sseCheck, wsSendCheck } from "./output-check.ts"
 
 /** A schema that answers `issues` (none: the value), synchronously. */
 function schemaOf(issues: { message: string }[] = []): StandardSchemaLike {
@@ -190,5 +190,18 @@ describe("sseCheck: the refusal each declared event's data is checked to", () =>
 			sseCheck({ "text/event-stream": { ok: true } }),
 			sseCheck({ "application/json": { ok: z.string() } }),
 		]).toEqual([null, null])
+	})
+})
+
+describe("wsSendCheck: the issue an outgoing WebSocket message is checked to", () => {
+	it("is null for a message the schema takes and the first issue otherwise; an async schema answers with a promise", async () => {
+		const Said = z.object({ text: z.string() })
+		const check = wsSendCheck(Said)
+		const late = wsSendCheck(Said.refine(async (said) => said.text !== "no", "said no"))
+		expect([check?.({ text: "hi" }), check?.({ text: 1 })]).toEqual([
+			null,
+			"text: Invalid input: expected string, received number",
+		])
+		await expect(Promise.all([late?.({ text: "hi" }), late?.({ text: "no" })])).resolves.toEqual([null, "said no"])
 	})
 })

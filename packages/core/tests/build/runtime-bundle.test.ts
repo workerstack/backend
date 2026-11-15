@@ -148,7 +148,10 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * Locked at 26,000. Plan 4 of roadmap 1 added 403 (25,891 to 26,294 on CI's Node 26.13.1, against its base
 			 * on the same Node) so a declared event stream's events are checked: sseCheck behind #output-check, the
 			 * route's check carried to ctx.res, and sse()'s checked send, which logs a refusal, ends the stream and
-			 * keeps un-awaited sends in order behind a pending async check. Locked at 26,300.
+			 * keeps un-awaited sends in order behind a pending async check. Locked at 26,300. Plan 6 of roadmap 1 added 30
+			 * (26,294 to 26,324 on CI's Node 26.13.1) so a WebSocket route's declared messages reach the document: the
+			 * route record's messages field, set in the builder and copied onto the tree. The send check itself is
+			 * wsSendCheck behind #output-check, reached only from ws(app, path). Locked at 26,400.
 			 */
 			const gzipped = gzipSync(js, { level: 9 }).length
 			const builtBy = run(BUN as string, ["--version"], full).out.trim()
@@ -157,7 +160,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					leaked,
 					features,
 					routeModules("minimal", entry, [...WS_ROUTE, ...MCP_ROUTE, ...GENERATION_ONLY]),
-					gzipped < 26_300,
+					gzipped < 26_400,
 					builtBy,
 				],
 				`${gzipped} bytes gzipped`,

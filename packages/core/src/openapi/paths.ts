@@ -10,7 +10,9 @@ import type { ParamSchemas } from "../input/params.ts"
 import { parsePattern, UNNAMED_WILDCARD } from "../routing/pattern.ts"
 import { deriveSchemaName } from "../schema/naming.ts"
 import type { JsonSchema } from "../schema/to-json-schema.ts"
+import type { WsMessages } from "../ws/messages.ts"
 import type { CollectedRoute, CollectedRoutes, CollectedWsRoute } from "./collect.ts"
+import { withDiscriminator } from "./discriminator.ts"
 import { type Convert, type DeclaredError, ordered, type ResponseObject } from "./responses.ts"
 
 /** One OpenAPI Operation Object. */
@@ -141,6 +143,37 @@ function methodsOf(route: CollectedRoute, declared: ReadonlySet<string>): string
 	return ALL_METHODS.filter((m) => !declared.has(`${m} ${route.path}`))
 }
 
+/**
+ * A WebSocket operation's `x-websocket`: each declared direction's schema (what it receives read as input, what it
+ * sends as output), a tagged union with its discriminator; `true` for an untyped socket.
+ */
+function messagesOf(messages: WsMessages | null, convert: Convert, hint: string): Record<string, JsonSchema> | true {
+	if (messages === null) return true
+	const out: Record<string, JsonSchema> = {}
+	if (messages.receive !== undefined) out.receive = withDiscriminator(convert(messages.receive, "input", hint))
+	if (messages.send !== undefined) out.send = withDiscriminator(convert(messages.send, "output", hint))
+	return out
+}
+
+/** A WebSocket route's operation: a GET upgrade, its inputs as parameters, each declared error an answer before the 101. */
+function wsOperation(route: CollectedWsRoute, path: string, ctx: PathsContext): Operation {
+	const hint = deriveSchemaName({ method: "get", path, role: "request" })
+	const convert = ctx.convert(`WS ${route.pattern}`)
+	const { parameters } = inputsOf(route.input, convert, hint, pathParameters(route))
+	const operation: Operation = {
+		"x-websocket": messagesOf(route.messages, convert, hint),
+		...ctx.policy(route, "WS", "ws"),
+		"x-backend-route": route.id,
+	}
+	if (parameters.length > 0) operation.parameters = parameters
+	/* the chain, `.use()` and `.input()` answer before the upgrader: each declared error is an answer before the 101 */
+	const responses: Record<string, ResponseObject> = { "101": { description: "WebSocket upgrade" } }
+	const errors = ctx.errors(route, responses, convert)
+	operation.responses = ordered(responses)
+	if (Object.keys(errors).length > 0) operation["x-backend-errors"] = errors
+	return operation
+}
+
 /** Every operation of `collected`, by public path and method, and the list the document checks run over. */
 export function buildPaths(
 	collected: CollectedRoutes,
@@ -183,16 +216,7 @@ export function buildPaths(
 			)
 			continue
 		}
-		const hint = deriveSchemaName({ method: "get", path, role: "request" })
-		const convert = ctx.convert(`WS ${route.pattern}`)
-		const { parameters } = inputsOf(route.input, convert, hint, pathParameters(route))
-		const operation: Operation = { "x-websocket": true, ...ctx.policy(route, "WS", "ws"), "x-backend-route": route.id }
-		if (parameters.length > 0) operation.parameters = parameters
-		/* the chain, `.use()` and `.input()` answer before the upgrader: each declared error is an answer before the 101 */
-		const responses: Record<string, ResponseObject> = { "101": { description: "WebSocket upgrade" } }
-		const errors = ctx.errors(route, responses, convert)
-		operation.responses = ordered(responses)
-		if (Object.keys(errors).length > 0) operation["x-backend-errors"] = errors
+		const operation = wsOperation(route, path, ctx)
 		paths[path] ??= {}
 		;(paths[path] as PathItem).get = operation
 		operations.push({ method: "get", operation, path, route })

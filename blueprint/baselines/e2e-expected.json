@@ -150,6 +150,9 @@
 				"surface.test.ts > websocket > GET without Upgrade to /ws/echo → 426",
 				"surface.test.ts > websocket > echo: greeting then echo",
 				"surface.test.ts > websocket > room search input",
+				"surface.test.ts > websocket messages: typed and checked both ways > /ws/talk answers say with said and ping with pong",
+				"surface.test.ts > websocket messages: typed and checked both ways > a frame /ws/talk does not receive closes the socket with 1007 and the issue",
+				"surface.test.ts > websocket messages: typed and checked both ways > the document names /ws/talk's messages as refs, each a tagged union",
 				"surface.test.ts > websocket upgrade: inputs and the errors answered before the 101 > an upgrade to the room `missing` gets that 404 in surface's error format, and no 101",
 				"surface.test.ts > websocket upgrade: inputs and the errors answered before the 101 > the document lists /ws/room's header and cookie inputs and its 404 beside the 101"
 			],
@@ -306,6 +309,9 @@
 				"surface.test.ts > websocket > GET without Upgrade to /ws/echo → 426",
 				"surface.test.ts > websocket > echo: greeting then echo",
 				"surface.test.ts > websocket > room search input",
+				"surface.test.ts > websocket messages: typed and checked both ways > /ws/talk answers say with said and ping with pong",
+				"surface.test.ts > websocket messages: typed and checked both ways > a frame /ws/talk does not receive closes the socket with 1007 and the issue",
+				"surface.test.ts > websocket messages: typed and checked both ways > the document names /ws/talk's messages as refs, each a tagged union",
 				"surface.test.ts > websocket upgrade: inputs and the errors answered before the 101 > an upgrade to the room `missing` gets that 404 in surface's error format, and no 101",
 				"surface.test.ts > websocket upgrade: inputs and the errors answered before the 101 > the document lists /ws/room's header and cookie inputs and its 404 beside the 101"
 			],

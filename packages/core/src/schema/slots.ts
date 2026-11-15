@@ -1,5 +1,5 @@
 /**
- * Schema slots → components. Every inline request and response schema of a spec becomes one
+ * Schema slots → components. Every inline request, response and WebSocket message schema of a spec becomes one
  * component per distinct shape, named for the operation that uses it first (shared error
  * envelopes for their status and keys), and each slot becomes a `$ref` to it. An object nested
  * in two or more components is hoisted to its own component as well.
@@ -24,11 +24,17 @@ export type SchemaSpec = {
 
 type Media = Readonly<Record<string, { readonly schema?: JsonSchema; readonly [key: string]: unknown }>>
 type Body = { readonly content?: Media; readonly [key: string]: unknown }
+/** A WebSocket operation's declared messages; `true` for an untyped socket. */
+type Messages = { readonly receive?: JsonSchema; readonly send?: JsonSchema }
 type Operation = {
+	readonly operationId?: string
 	readonly requestBody?: Body
 	readonly responses?: Readonly<Record<string, Body>>
+	readonly "x-websocket"?: Messages | true
 	readonly [key: string]: unknown
 }
+
+const DIRECTIONS = ["receive", "send"] as const
 
 /** An inline schema where an operation takes or answers a body. */
 type Slot = { readonly canonical: string; readonly context: SchemaNameContext; readonly schema: JsonSchema }
@@ -65,6 +71,15 @@ function slotsOf(spec: SchemaSpec): Slot[] {
 		}
 	}
 	for (const [path, method, operation] of operations(spec)) {
+		const messages = operation["x-websocket"]
+		for (const direction of DIRECTIONS) {
+			const schema = messages === true ? undefined : messages?.[direction]
+			const operationId = operation.operationId ?? null
+			if (inline(schema)) {
+				const context = { direction, method, operationId, path, role: "message" } as const
+				slots.push({ canonical: canonicalizeSchema(schema), context, schema })
+			}
+		}
 		add(operation.requestBody?.content, { method, path, role: "request" })
 		for (const [status, response] of Object.entries(operation.responses ?? {})) {
 			add(response.content, { method, path, role: "response", status: statusNumber(status) })
@@ -178,9 +193,22 @@ function referenced(content: Media, named: ReadonlyMap<string, Component>): Medi
 	)
 }
 
+/** `messages` with each inline schema replaced by a `$ref` to its component. */
+function referencedMessages(messages: Messages, named: ReadonlyMap<string, Component>): Messages {
+	return Object.fromEntries(
+		Object.entries(messages).map(([direction, schema]) => {
+			if (!inline(schema)) return [direction, schema]
+			const { name } = named.get(canonicalizeSchema(schema)) as Component
+			return [direction, { $ref: REF + name }]
+		}),
+	)
+}
+
 function rewritten(operation: Operation, named: ReadonlyMap<string, Component>): Operation {
 	const { requestBody, responses } = operation
+	const messages = operation["x-websocket"]
 	const next: Record<string, unknown> = { ...operation }
+	if (messages !== undefined && messages !== true) next["x-websocket"] = referencedMessages(messages, named)
 	if (requestBody?.content !== undefined)
 		next.requestBody = { ...requestBody, content: referenced(requestBody.content, named) }
 	if (responses !== undefined) {

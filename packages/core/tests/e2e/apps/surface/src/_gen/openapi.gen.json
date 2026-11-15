@@ -1953,6 +1953,58 @@
           }
         }
       }
+    },
+    "/ws/talk": {
+      "get": {
+        "x-websocket": {
+          "receive": {
+            "$ref": "#/components/schemas/WsTalkReceive"
+          },
+          "send": {
+            "$ref": "#/components/schemas/WsTalkSend"
+          }
+        },
+        "tags": [
+          "websocket"
+        ],
+        "operationId": "ws.talk",
+        "x-backend-route": "WS /ws/talk",
+        "responses": {
+          "101": {
+            "description": "WebSocket upgrade"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err400ValidationError"
+                }
+              }
+            },
+            "description": "validation_error",
+            "x-backend-error": true
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Err401Unauthorized"
+                }
+              }
+            },
+            "description": "unauthorized",
+            "x-backend-error": true
+          }
+        },
+        "x-backend-errors": {
+          "unauthorized": {
+            "status": 401
+          },
+          "validation_error": {
+            "status": 400
+          }
+        }
+      }
     }
   },
   "tags": [
@@ -2583,6 +2635,78 @@
           "v"
         ],
         "additionalProperties": false
+      },
+      "WsTalkReceive": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "say"
+              }
+            },
+            "required": [
+              "text",
+              "type"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "ping"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "WsTalkSend": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "said"
+              }
+            },
+            "required": [
+              "text",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "pong"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
       }
     }
   }

@@ -33,6 +33,8 @@ export type FrameworkErrors = {
 	readonly gateway_timeout: "gateway_timeout"
 	/** an unknown throw: 500 */
 	readonly internal_server_error: "internal_server_error"
+	/** a WebSocket frame its route's `receive` schema refuses: the socket closes 1007, no HTTP answer */
+	readonly invalid_message: "bad_request"
 	/** a request body the declared parser cannot read (bad JSON, broken multipart): 400 */
 	readonly malformed_body: "bad_request"
 	/** a path served under other methods: 405 */
@@ -61,6 +63,7 @@ export const EK: { readonly [K in keyof FrameworkErrors]: K } = /* @__PURE__ */ 
 	forbidden: "forbidden",
 	gateway_timeout: "gateway_timeout",
 	internal_server_error: "internal_server_error",
+	invalid_message: "invalid_message",
 	malformed_body: "malformed_body",
 	method_not_allowed: "method_not_allowed",
 	not_found: "not_found",
@@ -80,6 +83,7 @@ export const FRAMEWORK_ERRORS: FrameworkErrors = /* @__PURE__ */ Object.freeze({
 	forbidden: "forbidden",
 	gateway_timeout: "gateway_timeout",
 	internal_server_error: "internal_server_error",
+	invalid_message: "bad_request",
 	malformed_body: "bad_request",
 	method_not_allowed: "method_not_allowed",
 	not_found: "not_found",

@@ -4,6 +4,7 @@
  * importing it registers nothing (H23).
  */
 import { invokeUser, type InvokeLogger } from "../realtime/invoke-user.ts"
+import type { UntypedFrame, UntypedSend } from "./messages.ts"
 import { bufferedAmountOf, CLOSE_TRY_AGAIN, MAX_CLOSE_REASON, type ResolvedWSOptions, truncateUtf8 } from "./shared.ts"
 
 /** CONNECTING, OPEN, CLOSING, CLOSED. */
@@ -12,8 +13,11 @@ export type WSReadyState = 0 | 1 | 2 | 3
 /** Messages kept while a socket is still opening; past this the oldest goes. */
 export const WS_SEND_BUFFER_MAX = 32
 
-/** The socket a WebSocket handler talks to, `T` is the runtime's own socket type. */
-export type WSContext<T = unknown> = {
+/**
+ * The socket a WebSocket handler talks to: `T` is the runtime's own socket type, `TSend` what `send` takes (the route's
+ * declared `send` schema, else any message).
+ */
+export type WSContext<T = unknown, TSend = UntypedSend> = {
 	/** Outbound bytes the runtime holds unsent, when it reports them (0 otherwise). */
 	readonly bufferedAmount?: number
 	/** Close the connection; a reason over 123 UTF-8 bytes is cut to fit. */
@@ -27,27 +31,31 @@ export type WSContext<T = unknown> = {
 	 * for it; after it closed they are dropped. Over the adapter's backpressure limit its policy
 	 * applies (close with 1013, or drop).
 	 */
-	send(data: ArrayBuffer | Uint8Array | object | string): void
+	send(data: TSend): void
 }
 
 /**
  * The callbacks of a WebSocket route. Each receives the route's request context and the socket. They run one at a
  * time, in order: open, then messages, then close. A throw or rejection is passed to `onError`, else logged.
+ * `TReceive` is what `onMessage` gets and `TSend` what the socket sends: the route's declared messages, else untyped.
  */
-export type WSHandler<TCtx = unknown> = {
+export type WSHandler<TCtx = unknown, TReceive = UntypedFrame, TSend = UntypedSend> = {
 	/** Runs once when the connection closes, with the close code and reason. */
-	onClose?(ctx: TCtx, ws: WSContext, code: number, reason: string): Promise<void> | void
-	/** Runs when the connection reports an error, or when another callback throws or rejects. Its own failure is logged. */
-	onError?(ctx: TCtx, ws: WSContext, error: unknown): Promise<void> | void
+	onClose?(ctx: TCtx, ws: WSContext<unknown, TSend>, code: number, reason: string): Promise<void> | void
 	/**
-	 * Runs for each inbound message: text as a string, binary as an `ArrayBuffer`. A message that finds 1024 waiting for
-	 * this callback closes the connection with 1008.
+	 * Runs when the connection reports an error, when another callback throws or rejects, or with `invalid_message` for
+	 * a frame the route's `receive` schema refuses. Its own failure is logged.
 	 */
-	onMessage?(ctx: TCtx, ws: WSContext, data: ArrayBuffer | string): Promise<void> | void
+	onError?(ctx: TCtx, ws: WSContext<unknown, TSend>, error: unknown): Promise<void> | void
+	/**
+	 * Runs for each inbound message: the `receive` schema's value when the route declares one, else text as a string
+	 * and binary as an `ArrayBuffer`. A message that finds 1024 waiting for this callback closes the connection with 1008.
+	 */
+	onMessage?(ctx: TCtx, ws: WSContext<unknown, TSend>, data: TReceive): Promise<void> | void
 	/** Runs once when the connection opens, unless `onReconnect` runs in its place. */
-	onOpen?(ctx: TCtx, ws: WSContext): Promise<void> | void
+	onOpen?(ctx: TCtx, ws: WSContext<unknown, TSend>): Promise<void> | void
 	/** In place of `onOpen` when the client reconnects with a `reconnect_token`; the token is client data. */
-	onReconnect?(ctx: TCtx, ws: WSContext, token: string): Promise<void> | void
+	onReconnect?(ctx: TCtx, ws: WSContext<unknown, TSend>, token: string): Promise<void> | void
 }
 
 /**
@@ -133,7 +141,7 @@ export class WSContextImpl<T extends RawSocket = RawSocket> implements WSContext
 		self.raw.close(code, reason === undefined ? undefined : truncateUtf8(reason, MAX_CLOSE_REASON))
 	}
 
-	send(data: ArrayBuffer | Uint8Array | object | string): void {
+	send(data: UntypedSend): void {
 		const self = this[SELF]
 		const payload =
 			typeof data === "string" || data instanceof ArrayBuffer || data instanceof Uint8Array

@@ -187,3 +187,73 @@ describe("a WS route documents the errors its chain declares", () => {
 		])
 	})
 })
+
+describe("WebSocket operations: declared messages", () => {
+	const TalkIn = z.discriminatedUnion("type", [
+		z.object({ text: z.string(), type: z.literal("say") }),
+		z.object({ type: z.literal("ping") }),
+	])
+	const TalkOut = z.union([
+		z.object({ text: z.string(), type: z.literal("said") }),
+		z.object({ type: z.literal("pong") }),
+	])
+	const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
+
+	it("writes x-websocket's receive and send as refs named from the operationId, a tagged union with its discriminator", () => {
+		const app = httpApp<{}>()
+		ws(app, "/ws/talk")
+			.meta({ operationId: "ws.talk" })
+			.messages({ receive: TalkIn, send: TalkOut })
+			.handler({ onMessage() {} })
+		ws(app, "/ws/echo")
+			.meta({ operationId: "ws.echo" })
+			.handler({ onMessage() {} })
+		const doc = generateOpenApi(app, { info: INFO })
+		const schemas = doc.components?.schemas as Record<string, Record<string, unknown>>
+		expect([
+			op(doc, "/ws/talk")["x-websocket"],
+			op(doc, "/ws/echo")["x-websocket"],
+			schemas.WsTalkReceive?.discriminator,
+			(schemas.WsTalkReceive?.oneOf as unknown[] | undefined)?.length,
+			schemas.WsTalkSend?.discriminator,
+			(schemas.WsTalkSend?.anyOf as unknown[] | undefined)?.length,
+		]).toEqual([
+			{ receive: ref("WsTalkReceive"), send: ref("WsTalkSend") },
+			true,
+			{ propertyName: "type" },
+			2,
+			{ propertyName: "type" },
+			2,
+		])
+	})
+})
+
+describe("WebSocket operations: declared messages, one direction", () => {
+	const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
+
+	it("writes only the direction a route declares; no discriminator without one const property every member requires", () => {
+		const app = httpApp<{}>()
+		ws(app, "/in")
+			.meta({ operationId: "in.only" })
+			.messages({ receive: z.object({ n: z.number() }) })
+			.handler({ onMessage() {} })
+		ws(app, "/out")
+			.meta({ operationId: "out.only" })
+			.messages({ send: z.union([z.object({ a: z.literal("x") }), z.object({ b: z.literal("y") })]) })
+			.handler({ onMessage() {} })
+		ws(app, "/same")
+			.meta({ operationId: "same.tag" })
+			.messages({ send: z.union([z.object({ t: z.literal("x") }), z.object({ t: z.literal("x"), u: z.number() })]) })
+			.handler({ onMessage() {} })
+		const doc = generateOpenApi(app, { info: INFO })
+		const schemas = doc.components?.schemas as Record<string, Record<string, unknown>>
+		expect([
+			op(doc, "/in")["x-websocket"],
+			op(doc, "/out")["x-websocket"],
+			Object.hasOwn(schemas.InOnlyReceive ?? {}, "discriminator"),
+			Object.hasOwn(schemas.OutOnlySend ?? {}, "discriminator"),
+			Object.hasOwn(schemas.SameTagSend ?? {}, "discriminator"),
+			schemas.InOnlyReceive?.type,
+		]).toEqual([{ receive: ref("InOnlyReceive") }, { send: ref("OutOnlySend") }, false, false, false, "object"])
+	})
+})

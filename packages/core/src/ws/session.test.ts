@@ -14,8 +14,10 @@ function session(callbacks: WSHandler<typeof ctx>, reconnectToken: string | null
 		callbacks: callbacks as WSHandler<unknown>,
 		ctx,
 		log,
+		receive: null,
 		reconnectToken,
 		route: "/chat",
+		send: null,
 	})
 	return { handler, log }
 }

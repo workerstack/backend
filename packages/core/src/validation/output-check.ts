@@ -17,8 +17,9 @@ import { parseMediaType } from "../response/media-type.ts"
 import { compileResponseHeaders, type HeadersCheck } from "../response/response-headers.ts"
 import { declaredEvents, type SseCheck } from "../response/sse.ts"
 import { codeToStatusKey, type StatusKey } from "../response/status.ts"
-import type { StandardSchemaIssue, StandardSchemaLike, StandardSchemaResult } from "./standard-schema.ts"
+import { describeIssue, type StandardSchemaLike, type StandardSchemaResult } from "./standard-schema.ts"
 import type { OutputSchemas, HttpProjection } from "../routing/output-types.ts"
+import type { SendCheck } from "../ws/messages.ts"
 import { projected } from "./projection.ts"
 import { type AcceptIssue, type OutputCheck, validateOutput } from "./validate-output.ts"
 
@@ -48,15 +49,22 @@ export function sseCheck(schemas: OutputSchemas): SseCheck | null {
 	}
 }
 
-/** The first issue as the log reads it: its path, then its message. */
-function describeIssue(issue: StandardSchemaIssue): string {
-	const path = (issue.path ?? []).map((segment) => String(typeof segment === "object" ? segment.key : segment))
-	return path.length === 0 ? issue.message : `${path.join(".")}: ${issue.message}`
+/** The check of each message a ws route sends against its `send` schema: `null` when it takes it, else the issue. */
+export function wsSendCheck(schema: StandardSchemaLike): SendCheck | null {
+	return (data) => {
+		const result = schema["~standard"].validate(data)
+		return result instanceof Promise ? result.then(issueOf) : issueOf(result)
+	}
+}
+
+function issueOf(result: StandardSchemaResult): string | null {
+	const issue = result.issues?.[0]
+	return issue === undefined ? null : describeIssue(issue)
 }
 
 function refusalOf(event: string, result: StandardSchemaResult): string | null {
-	const issue = result.issues?.[0]
-	return issue === undefined ? null : `sse ${event}: invalid data: ${describeIssue(issue)}`
+	const issue = issueOf(result)
+	return issue === null ? null : `sse ${event}: invalid data: ${issue}`
 }
 
 /** The issues `projection`'s selection for `ctx` explains on `data`, if it names one. */

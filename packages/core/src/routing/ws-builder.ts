@@ -10,7 +10,9 @@ import { HttpError } from "../errors/error.ts"
 import type { MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts"
 import type { WSAdapter, WSHandler } from "../ws/contract.ts"
 import { originAllowed, validateOriginPolicy, type WSOriginPolicy } from "../ws/origin.ts"
+import { type ReceiveOf, receiveCheck, type SendOf, type WsMessages } from "../ws/messages.ts"
 import { createWsSession } from "../ws/session.ts"
+import { wsSendCheck } from "#output-check"
 import {
 	compileInput,
 	type InferInputMap,
@@ -63,6 +65,8 @@ type WSBuilderState = {
 		/** The schemas as written, kept for documentation. */ readonly schemas: NonBodyInput
 		/** The compiled validation step run on the upgrade request. */ readonly step: InputStep
 	} | null
+	/** `.messages()`: what the route receives and sends; `null` for an untyped socket. */
+	readonly messages: WsMessages | null
 	/** Explicit meta: chain `.meta()` overlaid by route `.meta()`. */
 	readonly meta: Readonly<Record<string, unknown>> | null
 	/** Route-level middleware, run after the chain and the scopes. */
@@ -83,7 +87,14 @@ const NO_ADAPTER =
 	"backend: a WebSocket route was requested but no adapter is set: call app.wsAdapter(adapter), or serve(app) on Node or Bun"
 
 /** The route's terminal: check the origin, then hand the request to the serving app's adapter. */
-function upgrader(callbacks: WSHandler<unknown>, policy: WSOriginPolicy | null, route: string) {
+function upgrader(
+	callbacks: WSHandler<unknown>,
+	policy: WSOriginPolicy | null,
+	route: string,
+	messages: WsMessages | null,
+) {
+	const receive = messages?.receive === undefined ? null : receiveCheck(messages.receive)
+	const send = messages?.send === undefined ? null : wsSendCheck(messages.send)
 	return async (ctx: object): Promise<Response> => {
 		const context = ctx as HttpContext<unknown>
 		const req = context.req
@@ -97,7 +108,15 @@ function upgrader(callbacks: WSHandler<unknown>, policy: WSOriginPolicy | null, 
 		const adapter = (context[REQUEST] as { ws?: WSAdapter | null }).ws
 		if (adapter == null) throw new Error(NO_ADAPTER)
 		const reconnectToken = url.searchParams.get("reconnect_token")
-		const handler = createWsSession({ callbacks, ctx, log: context[REQUEST].logger, reconnectToken, route })
+		const handler = createWsSession({
+			callbacks,
+			ctx,
+			log: context[REQUEST].logger,
+			receive,
+			reconnectToken,
+			route,
+			send,
+		})
 		return (await adapter.upgrade(req, context.env, handler)).response
 	}
 }
@@ -113,7 +132,7 @@ export type WsMeta<TMeta = never> = Omit<HttpMeta<[TMeta] extends [never] ? {} :
 /**
  * Builds a WebSocket route: declare errors, input, meta, origins and middleware, then register it with `.handler()`.
  */
-export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
+export class WSRouteBuilder<TCtx, TPath extends string, TParent, TMessages = {}> {
 	readonly #s: WSBuilderState
 
 	/** Takes the builder state; `ws(app, path)` creates builders for you. */
@@ -121,8 +140,8 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
 		this.#s = state
 	}
 
-	#next<C = TCtx>(changes: Partial<WSBuilderState>): WSRouteBuilder<C, TPath, TParent> {
-		return new WSRouteBuilder<C, TPath, TParent>({ ...this.#s, ...changes })
+	#next<C = TCtx>(changes: Partial<WSBuilderState>): WSRouteBuilder<C, TPath, TParent, TMessages> {
+		return new WSRouteBuilder<C, TPath, TParent, TMessages>({ ...this.#s, ...changes })
 	}
 
 	/**
@@ -133,14 +152,14 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
 	errors(
 		factory: Record<string, (...args: never[]) => unknown>,
 		...keys: string[]
-	): WSRouteBuilder<TCtx, TPath, TParent>
+	): WSRouteBuilder<TCtx, TPath, TParent, TMessages>
 	/**
 	 * Declare keys of the app's error factory that this route may throw.
 	 * With any key declared, `ctx.errors` holds only declared keys, and a thrown `HttpError` with another key
 	 * (backend's own keys excepted) answers as the boundary error, or a 500.
 	 */
-	errors(...keys: string[]): WSRouteBuilder<TCtx, TPath, TParent>
-	errors(...args: unknown[]): WSRouteBuilder<TCtx, TPath, TParent> {
+	errors(...keys: string[]): WSRouteBuilder<TCtx, TPath, TParent, TMessages>
+	errors(...args: unknown[]): WSRouteBuilder<TCtx, TPath, TParent, TMessages> {
 		const named = typeof args[0] === "object" && args[0] !== null ? (args[0] as ErrorFactories) : null
 		const keys = (named === null ? args : args.slice(1)) as string[]
 		return this.#next({ errorKeys: new Set([...this.#s.errorKeys, ...keys]), errorSource: named })
@@ -149,16 +168,25 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
 	/** Validate the upgrade request's search, headers and cookies onto ctx.input, and the params it names onto ctx.params. */
 	input<const TSchemas extends NonBodyInput>(
 		schemas: TSchemas & KnownParams<TSchemas, TPath>,
-	): WSRouteBuilder<WithInput<TCtx, TSchemas, TPath>, TPath, TParent> {
+	): WSRouteBuilder<WithInput<TCtx, TSchemas, TPath>, TPath, TParent, TMessages> {
 		return this.#next<WithInput<TCtx, TSchemas, TPath>>({
 			input: { schemas, step: compileInput(schemas, ["GET"], this.#s.path) },
 		})
 	}
 
+	/**
+	 * Declare what the route receives and sends, one schema per direction. `onMessage` gets each JSON text frame as
+	 * `receive` produced it, and a frame it refuses closes the socket with 1007 after `onError` hears `invalid_message`.
+	 * The socket's `send` takes `send`'s input, checked while the output check is on.
+	 */
+	messages<const M extends WsMessages>(messages: M): WSRouteBuilder<TCtx, TPath, TParent, M> {
+		return new WSRouteBuilder<TCtx, TPath, TParent, M>({ ...this.#s, messages })
+	}
+
 	/** Set the route's meta, merged over the chain's. `deprecated`, `invalidate`, `mcp` and `security` are type errors. */
 	meta<TRouteMeta extends WsMeta<TParent extends { readonly $meta: infer TMeta } ? TMeta : never>>(
 		meta: TRouteMeta,
-	): WSRouteBuilder<TCtx, TPath, TParent> {
+	): WSRouteBuilder<TCtx, TPath, TParent, TMessages> {
 		return this.#next({ meta: { ...this.#s.meta, ...meta } })
 	}
 
@@ -167,17 +195,17 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
 	 * Same-origin (scheme, host and port) always passes. Without it, a cross-origin upgrade that
 	 * carries `Cookie` or `Authorization` gets 403.
 	 */
-	origins(policy: WSOriginPolicy): WSRouteBuilder<TCtx, TPath, TParent> {
+	origins(policy: WSOriginPolicy): WSRouteBuilder<TCtx, TPath, TParent, TMessages> {
 		return this.#next({ origins: validateOriginPolicy(policy) })
 	}
 
 	/** Route-level middleware, after the chain and the scopes, before the upgrade. */
-	use<TAdds>(mw: MiddlewareFn<TCtx, TAdds>): WSRouteBuilder<TCtx & TAdds, TPath, TParent> {
+	use<TAdds>(mw: MiddlewareFn<TCtx, TAdds>): WSRouteBuilder<TCtx & TAdds, TPath, TParent, TMessages> {
 		return this.#next<TCtx & TAdds>({ middlewares: [...this.#s.middlewares, mw as unknown as RuntimeMiddleware] })
 	}
 
 	/** Register the route with its connection callbacks and return the app. */
-	handler(callbacks: WSHandler<WSRouteCtx<TCtx, TPath>>): TParent {
+	handler(callbacks: WSHandler<WSRouteCtx<TCtx, TPath>, ReceiveOf<TMessages>, SendOf<TMessages>>): TParent {
 		const s = this.#s
 		settle(s.graph, s.pending, s.view.node)
 		addRoute(s.graph, "WS", parsePattern(s.path), {
@@ -185,7 +213,7 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
 			cv: s.view.contextValues,
 			dk: s.errorKeys,
 			ef: s.errorSource,
-			fn: upgrader(callbacks as WSHandler<unknown>, s.origins, s.path),
+			fn: upgrader(callbacks as WSHandler<unknown>, s.origins, s.path, s.messages),
 			in: s.input?.step ?? null,
 			iv: s.input?.schemas ?? null,
 			op: null,
@@ -193,6 +221,7 @@ export class WSRouteBuilder<TCtx, TPath extends string, TParent> {
 			own: s.graph.settings,
 			rb: null,
 			rm: s.middlewares,
+			wm: s.messages,
 			xm: s.meta,
 		})
 		return s.parent as TParent
@@ -214,6 +243,7 @@ export function startWsRoute<TCtx, TPath extends string, TParent>(
 		errorSource: null,
 		graph,
 		input: null,
+		messages: null,
 		meta: view.chainMeta,
 		middlewares: [],
 		origins: null,

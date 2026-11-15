@@ -322,3 +322,25 @@ describe("deduplicateSchemas: status keys and nested objects", () => {
 		])
 	})
 })
+
+describe("deduplicateSchemas: a WebSocket operation's messages", () => {
+	it("moves each inline message to a component named from the operationId and keeps one already a $ref", () => {
+		const held = { $ref: "#/components/schemas/Held" }
+		const spec: SchemaSpec = {
+			components: { schemas: { Held: { type: "string" } } },
+			paths: {
+				"/plain": { get: { operationId: "plain", "x-websocket": true } },
+				"/talk": { get: { operationId: "ws.talk", "x-websocket": { receive: { type: "object" }, send: held } } },
+			},
+		}
+		const out = deduplicateSchemas(spec)
+		expect([out.paths["/talk"]?.get, out.paths["/plain"]?.get, out.components?.schemas]).toEqual([
+			{
+				operationId: "ws.talk",
+				"x-websocket": { receive: { $ref: "#/components/schemas/WsTalkReceive" }, send: held },
+			},
+			{ operationId: "plain", "x-websocket": true },
+			{ Held: { type: "string" }, WsTalkReceive: { type: "object" } },
+		])
+	})
+})

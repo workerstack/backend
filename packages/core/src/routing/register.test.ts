@@ -33,6 +33,7 @@ function source(): RouteSource {
 		own: createGraph().settings,
 		rb: null,
 		rm: [],
+		wm: null,
 		xm: null,
 	}
 }

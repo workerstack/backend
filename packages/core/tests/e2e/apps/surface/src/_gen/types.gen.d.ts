@@ -37,6 +37,7 @@ declare module "@workerstack/backend/http" {
 			"ws.echo": { kind: "ws"; ctx: BaseCtx }
 			"ws.joinRoom": { kind: "ws"; ctx: BaseCtx & { readonly input: { search: { roomId: string } } } }
 			"ws.reconnect": { kind: "ws"; ctx: BaseCtx }
+			"ws.talk": { kind: "ws"; ctx: BaseCtx }
 		}
 	}
 }
@@ -102,6 +103,10 @@ type ReplaceInAllResponse200 = { etag: string; version: number }
 type ReplaceMethodsResourceResponse200 = { id: string; name: string }
 
 type UpdateMethodsResourceRequest = { name?: string }
+
+type WsTalkReceive = { text: string; type: "say" } | { type: "ping" }
+
+type WsTalkSend = { text: string; type: "said" } | { type: "pong" }
 
 export type Routes = {
 	"/in/all/:resourceId": {

@@ -46,6 +46,8 @@ export const DEFAULT_IDLE_TIMEOUT = 120_000
 
 export const CLOSE_NORMAL = 1000
 export const CLOSE_GOING_AWAY = 1001
+/** A message the route's declared schema refuses (RFC 6455 7.4.1, inconsistent data). */
+export const CLOSE_INVALID_DATA = 1007
 export const CLOSE_POLICY = 1008
 export const CLOSE_TOO_BIG = 1009
 export const CLOSE_INTERNAL = 1011

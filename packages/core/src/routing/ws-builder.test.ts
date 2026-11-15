@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
+import * as z from "zod"
 import { HttpError } from "../errors/error.ts"
 import { defineErrors } from "../errors/errors.ts"
 import { createMiddleware } from "../middleware/middleware.ts"
@@ -300,5 +301,38 @@ describe("ws(app, path): with no adapter", () => {
 		ws(authed, "/live").handler({})
 		expect(app.wsAdapter(adapter)).toBe(app)
 		expect([(await authed.fetch(handshake("/live"), {})).status, upgrades.length]).toEqual([101, 1])
+	})
+})
+
+describe("ws(app, path).messages(): the route checks what it receives and sends", () => {
+	it("onMessage gets the parsed message, a message the route may not send closes 1011, and a refused frame 1007", async () => {
+		const events: unknown[] = []
+		const socket: WSContext = {
+			close: (code, reason) => void events.push(["close", code, reason]),
+			raw: null,
+			readyState: 1,
+			send: (data) => void events.push(["send", data]),
+		}
+		const drive = (frames: string[]): WSAdapter => ({
+			upgrade(_req, _env, handler: WSHandler<unknown>) {
+				for (const frame of frames) handler.onMessage?.(undefined, socket, frame)
+				return { response: upgraded(), socket }
+			},
+		})
+		const route = (adapter: WSAdapter) => {
+			const app = httpApp<{}>().logger(false).wsAdapter(adapter)
+			ws(app, "/talk")
+				.messages({ receive: z.object({ n: z.number() }), send: z.object({ m: z.number() }) })
+				.handler({ onMessage: (_ctx, out, msg) => out.send(msg.n > 0 ? { m: msg.n } : ({ m: "no" } as never)) })
+			return app
+		}
+		await route(drive(['{"n":1}', '{"n":0}'])).fetch(handshake("/talk"), {})
+		await route(drive(['{"n":"x"}'])).fetch(handshake("/talk"), {})
+		await settle()
+		expect(events).toEqual([
+			["send", { m: 1 }],
+			["close", 1011, "invalid outgoing message"],
+			["close", 1007, "invalid message: n: Invalid input: expected number, received string"],
+		])
 	})
 })

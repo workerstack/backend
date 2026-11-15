@@ -203,3 +203,14 @@ describe("deriveErrorEnvelopeName: Err, the status, then every key", () => {
 		]).toEqual(["Err500", "Err503", "Err422", "ErrDenied"])
 	})
 })
+
+describe("deriveSchemaName: a WebSocket message", () => {
+	it("reads the operationId, else the path, then the direction", () => {
+		const at = { method: "get", path: "/ws/talk/{room}", role: "message" } as const
+		expect([
+			deriveSchemaName({ ...at, direction: "receive", operationId: "ws.talk" }),
+			deriveSchemaName({ ...at, direction: "send", operationId: "chat-room.v2" }),
+			deriveSchemaName({ ...at, direction: "send", operationId: null }),
+		]).toEqual(["WsTalkReceive", "ChatRoomV2Send", "WsTalkRoomSend"])
+	})
+})

@@ -8,6 +8,8 @@ const WS_BASE = e2eWsBase()
 function connectWs(path: string): {
 	close(code?: number, reason?: string): void
 	messages: string[]
+	/** Settles once the socket is open, so a send right after it reaches the route. */
+	opened(): Promise<void>
 	send(data: string): void
 	waitForClose(): Promise<{ code: number; reason: string }>
 	waitForMessages(count: number, timeout?: number): Promise<string[]>
@@ -26,6 +28,10 @@ function connectWs(path: string): {
 			ws.close(code, reason)
 		},
 		messages,
+		opened() {
+			if (ws.readyState === WebSocket.OPEN) return Promise.resolve()
+			return new Promise((resolve) => ws.addEventListener("open", () => resolve(), { once: true }))
+		},
 		send(data: string) {
 			ws.send(data)
 		},
@@ -286,6 +292,49 @@ test.describe("websocket", () => {
 		expect(first[0]).toBe("joined")
 		ws.close(1000)
 		await ws.waitForClose()
+	})
+})
+
+test.describe("websocket messages: typed and checked both ways", () => {
+	test("/ws/talk answers say with said and ping with pong", async () => {
+		const ws = connectWs("/ws/talk")
+		await ws.opened()
+		ws.send(JSON.stringify({ text: "hi", type: "say" }))
+		await ws.waitForMessages(1)
+		ws.send(JSON.stringify({ type: "ping" }))
+		const answers = await ws.waitForMessages(2)
+		expect(answers.map((answer) => JSON.parse(answer))).toEqual([{ text: "hi", type: "said" }, { type: "pong" }])
+		ws.close(1000)
+		await ws.waitForClose()
+	})
+
+	test("a frame /ws/talk does not receive closes the socket with 1007 and the issue", async () => {
+		const ws = connectWs("/ws/talk")
+		const closed = ws.waitForClose()
+		await ws.opened()
+		ws.send(JSON.stringify({ type: "say" }))
+		expect([await closed, ws.messages]).toEqual([
+			/* the issue's path, then zod's message: a Workers build drops zod's English detail (its package declares no
+			 * side effects, so `config(en())` is shaken out), and the message stops at "Invalid input" */
+			{ code: 1007, reason: expect.stringMatching(/^invalid message: text: Invalid input/) },
+			[],
+		])
+	})
+
+	test("the document names /ws/talk's messages as refs, each a tagged union", async ({ request }) => {
+		const spec = await (await request.get("/openapi.json")).json()
+		const schemas = spec.components.schemas
+		expect([
+			spec.paths["/ws/talk"].get["x-websocket"],
+			spec.paths["/ws/echo"].get["x-websocket"],
+			schemas.WsTalkReceive.discriminator,
+			schemas.WsTalkSend.discriminator,
+		]).toEqual([
+			{ receive: { $ref: "#/components/schemas/WsTalkReceive" }, send: { $ref: "#/components/schemas/WsTalkSend" } },
+			true,
+			{ propertyName: "type" },
+			{ propertyName: "type" },
+		])
 	})
 })
 

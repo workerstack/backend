@@ -22,10 +22,11 @@ import {
 	UNNAMED_WILDCARD,
 } from "../routing/pattern.ts"
 import type { RouteEntry } from "../routing/tree.ts"
+import type { WsMessages } from "../ws/messages.ts"
 import { assertOutputKeys } from "./output-keys.ts"
 
-/** One path a WebSocket route serves. */
-export type CollectedWsRoute = {
+/** What every collected route has, HTTP or WebSocket. */
+type CollectedBase = {
 	/** the keys the route may answer with, sorted; none for a route that declares none */
 	readonly errorKeys: readonly string[]
 	/** each of `errorKeys` with its status: from ERROR_META, never by calling a factory */
@@ -43,6 +44,12 @@ export type CollectedWsRoute = {
 	readonly pattern: string
 }
 
+/** One path a WebSocket route serves. */
+export type CollectedWsRoute = CollectedBase & {
+	/** what `.messages()` declares; `null` for an untyped socket */
+	readonly messages: WsMessages | null
+}
+
 /** An error key as the document describes it: its status and, for a schema error, its schema. */
 export type CollectedError = {
 	readonly schema: ErrorMetaEntry["schema"]
@@ -53,7 +60,7 @@ export type CollectedError = {
 }
 
 /** One path an HTTP route serves. */
-export type CollectedRoute = CollectedWsRoute & {
+export type CollectedRoute = CollectedBase & {
 	/** the error factories the route's keys come from: what `ctx.errors` holds */
 	readonly errors: Readonly<Record<string, (...args: never[]) => unknown>> | null
 	/** `meta.internal`: generated artifacts leave the route out */
@@ -133,6 +140,11 @@ function declarations(g: HttpGraph, id: string) {
 	}
 }
 
+/** What a WebSocket route's `.messages()` declares: its record's, else its loaded tree entry's. */
+function messagesOf(g: HttpGraph, id: string): WsMessages | null {
+	return g.records.get(id)?.wm ?? g.loaded?.[id]?.wm ?? null
+}
+
 /** Every route `app` serves: in registration order, or a loaded tree's order. */
 export function collectRoutes(app: { readonly [GRAPH]: HttpGraph }): CollectedRoutes {
 	const g = app[GRAPH]
@@ -155,7 +167,7 @@ export function collectRoutes(app: { readonly [GRAPH]: HttpGraph }): CollectedRo
 		for (const variant of expandOptional(segments)) {
 			const params = patternParams(variant).map((name) => (name === UNNAMED_WILDCARD ? "wildcard" : name))
 			const base = { errorKeys, errorMeta, id, input, meta, params, path: toOpenApiTemplate(variant), pattern }
-			if (method === "WS") ws.push(base)
+			if (method === "WS") ws.push({ ...base, messages: messagesOf(g, id) })
 			else {
 				/* every route is a record or a loaded leaf */
 				const registration = (record?.fn ?? g.loaded?.[id]) as object

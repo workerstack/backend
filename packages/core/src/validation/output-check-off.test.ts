@@ -7,8 +7,10 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest"
 import * as z from "zod"
 import type { HttpRes } from "../response/response.ts"
 import { httpApp } from "../routing/app.ts"
+import type { WSContext } from "../ws/contract.ts"
+import { ws } from "../ws/route.ts"
 import type * as real from "./output-check.ts"
-import { outputCheck, sseCheck } from "./output-check-off.ts"
+import { outputCheck, sseCheck, wsSendCheck } from "./output-check-off.ts"
 
 vi.mock("#output-check", () => import("./output-check-off.ts"))
 
@@ -18,7 +20,8 @@ describe("output-check-off: what a build that drops the check runs", () => {
 	it("checks nothing for any declaration, and stands where the real check does", () => {
 		expectTypeOf(outputCheck).toExtend<typeof real.outputCheck>()
 		expectTypeOf(sseCheck).toExtend<typeof real.sseCheck>()
-		expect([outputCheck(), outputCheck(), sseCheck()]).toEqual([null, null, null])
+		expectTypeOf(wsSendCheck).toExtend<typeof real.wsSendCheck>()
+		expect([outputCheck(), outputCheck(), sseCheck(), wsSendCheck()]).toEqual([null, null, null, null])
 	})
 
 	// v0: 4c624708cb
@@ -80,5 +83,31 @@ describe("output-check-off: a declared event stream", () => {
 			)
 		const body = await (await app.fetch(get("/events"), {})).text()
 		expect(body).toBe('event: data\ndata: {"n":"x"}\n\nevent: nope\ndata: x\n\n')
+	})
+})
+
+describe("output-check-off: a ws route that declares what it sends", () => {
+	it("sends a message its send schema refuses, as its handler sent it", async () => {
+		const sent: unknown[] = []
+		const socket: WSContext = { close: () => {}, raw: null, readyState: 1, send: (data) => void sent.push(data) }
+		const response = new Response(null)
+		const app = httpApp<{}>()
+			.logger(false)
+			.wsAdapter({
+				upgrade: (_req, _env, handler) => {
+					handler.onOpen?.(undefined, socket)
+					return { response, socket }
+				},
+			})
+		ws(app, "/talk")
+			.messages({ send: z.object({ m: z.number() }) })
+			.handler({ onOpen: (_ctx, out) => out.send({ m: "x" } as never) })
+		await app.fetch(
+			new Request("http://localhost/talk", {
+				headers: { connection: "Upgrade", "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==", upgrade: "websocket" },
+			}),
+			{},
+		)
+		await vi.waitFor(() => expect(sent).toEqual([{ m: "x" }]))
 	})
 })

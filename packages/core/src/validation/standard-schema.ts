@@ -62,3 +62,9 @@ export type InferInput<T> = T extends { readonly "~standard": { readonly types?:
 		? I
 		: unknown
 	: unknown
+
+/** An issue as a log line or a close reason reads it: its path, then its message. */
+export function describeIssue(issue: StandardSchemaIssue): string {
+	const path = (issue.path ?? []).map((segment) => String(typeof segment === "object" ? segment.key : segment))
+	return path.length === 0 ? issue.message : `${path.join(".")}: ${issue.message}`
+}

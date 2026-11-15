@@ -8,6 +8,16 @@ import { ws } from "@workerstack/backend/ws"
 import { SearchService } from "./service.ts"
 import * as z from "zod"
 
+/** What `/ws/talk` receives and sends: a tagged union each way. */
+const TalkIn = z.discriminatedUnion("type", [
+	z.object({ text: z.string(), type: z.literal("say") }),
+	z.object({ type: z.literal("ping") }),
+])
+const TalkOut = z.discriminatedUnion("type", [
+	z.object({ text: z.string(), type: z.literal("said") }),
+	z.object({ type: z.literal("pong") }),
+])
+
 type Env = { API_KEY: string; DATABASE_URL: string }
 
 type Meta = {
@@ -282,6 +292,15 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.handler({
 			onMessage(_ctx, socket, data) {
 				socket.send(data)
+			},
+		})
+
+	ws(routed, "/ws/talk")
+		.meta({ operationId: "ws.talk", tags: ["websocket"] })
+		.messages({ receive: TalkIn, send: TalkOut })
+		.handler({
+			onMessage(_ctx, socket, msg) {
+				socket.send(msg.type === "say" ? { text: msg.text, type: "said" } : { type: "pong" })
 			},
 		})
 

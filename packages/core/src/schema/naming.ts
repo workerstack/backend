@@ -7,6 +7,14 @@ import { compareCodeUnits } from "./canonicalize.ts"
 import type { JsonSchema } from "./to-json-schema.ts"
 
 export type SchemaNameContext =
+	| {
+			/** what a WebSocket route receives or sends, named from its operationId, else its path */
+			readonly direction: "receive" | "send"
+			readonly method: string
+			readonly operationId: string | null
+			readonly path: string
+			readonly role: "message"
+	  }
 	| { readonly fieldPath?: readonly string[]; readonly method: string; readonly path: string; readonly role: "request" }
 	| {
 			readonly fieldPath?: readonly string[]
@@ -84,12 +92,22 @@ function resourceOf(segments: readonly string[], verb: string): string {
 
 /** The component name of the schema at `context`: verb, resource, then the field path or the role. */
 export function deriveSchemaName(context: SchemaNameContext): string {
+	if (context.role === "message") return messageSchemaName(context)
 	const segments = segmentsOf(context.path)
 	const verb = verbOf(context.method, segments.at(-1))
 	const base = `${verb}${resourceOf(segments, verb)}`
 	const { fieldPath } = context
 	if (fieldPath !== undefined && fieldPath.length > 0) return nestedSchemaName(base, fieldPath)
 	return sanitizeComponentName(base + (context.role === "request" ? "Request" : `Response${context.status}`))
+}
+
+/**
+ * A WebSocket message's name: its operationId (`ws.talk` gives `WsTalkReceive`, `WsTalkSend`), since two socket
+ * paths name alike by verb and resource. A route with no id, which the document already reports, reads its path.
+ */
+function messageSchemaName(context: Extract<SchemaNameContext, { readonly role: "message" }>): string {
+	const base = pascal(context.operationId ?? context.path)
+	return sanitizeComponentName(base + (context.direction === "receive" ? "Receive" : "Send"))
 }
 
 /** The name of an object nested in the component `owner` at `fieldPath`. */

@@ -284,3 +284,32 @@ describe("collectRoutes: a middleware's keys, from the factory it brings", () =>
 		})
 	})
 })
+
+describe("collectRoutes: a WebSocket route's declared messages", () => {
+	it("reads them from the record, and from a tree an app loaded; an untyped socket's tree entry carries none", () => {
+		const messages = { receive: z.object({ n: z.number() }), send: z.object({ m: z.number() }) }
+		const worker = httpApp<{}>()
+		ws(worker, "/talk")
+			.messages(messages)
+			.handler({ onMessage() {} })
+		ws(worker, "/plain").handler({ onMessage() {} })
+		const tree = worker.toRouteTree()
+		const loaded = httpApp<{}>().routeTree(tree)
+		const of = (routes: ReturnType<typeof collectRoutes>) => routes.ws.map((r) => [r.pattern, r.messages])
+		expect([
+			of(collectRoutes(worker)),
+			of(collectRoutes(loaded)),
+			Object.hasOwn(tree.routes["WS /plain"] ?? {}, "wm"),
+		]).toEqual([
+			[
+				["/talk", messages],
+				["/plain", null],
+			],
+			[
+				["/talk", messages],
+				["/plain", null],
+			],
+			false,
+		])
+	})
+})
