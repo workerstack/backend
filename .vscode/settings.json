@@ -36,6 +36,16 @@
     ".repo/.gitkeep": true,
     ".repo/lessons/INDEX.md": true,
     ".vscode/tasks.json": true,
-    "bunfig.toml": true
+    "bench/bunfig.toml": true,
+    "bunfig.toml": true,
+    "packages/core/bunfig.toml": true,
+    "packages/core/tests/e2e/apps/compose/bunfig.toml": true,
+    "packages/core/tests/e2e/apps/defaults/bunfig.toml": true,
+    "packages/core/tests/e2e/apps/gateway/bunfig.toml": true,
+    "packages/core/tests/e2e/apps/kitchen/bunfig.toml": true,
+    "packages/core/tests/e2e/apps/mcp/bunfig.toml": true,
+    "packages/core/tests/e2e/apps/surface/bunfig.toml": true,
+    "packages/core/tests/e2e/cf-workers/bunfig.toml": true,
+    "packages/core/tests/e2e/strict-consumer/bunfig.toml": true
   }
 }
