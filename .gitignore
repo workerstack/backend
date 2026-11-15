@@ -38,10 +38,12 @@ node_modules
 # cargo target for rust SDK / harness (do not use /tmp — it is a small tmpfs)
 .cache/
 
-# repo:ignore a280cfb1
+# repo:ignore a2521b1c
 .tmp/
 .worktrees/
 coverage/
+.vitest/
+repo.config.local.ts
 **/.repo/plans/
 **/.repo/plans-fast/
 **/.repo/roadmaps/
