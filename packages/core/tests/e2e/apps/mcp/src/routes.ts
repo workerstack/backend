@@ -67,7 +67,7 @@ export function createRoutes(options?: AppOptions) {
 		.post("/v1/projects/:project_id/extract-stream")
 		.meta({ ...SECURED, operationId: "extract.stream" })
 		.input({ form: extractForm })
-		.output({ "text/event-stream": { ok: z.string() } })
+		.output({ "text/event-stream": { ok: STREAM_EVENTS } })
 		.handler(async (ctx) => {
 			const answer = await readOf(ctx.input.form)
 			return ctx.res.sse((stream) => streamed(stream, answer))
@@ -85,7 +85,7 @@ export function createRoutes(options?: AppOptions) {
 		.post("/v1/projects/:project_id/tables/:table_id/extract-stream")
 		.meta({ ...SECURED, operationId: "extract.table.stream" })
 		.input({ form: tableForm })
-		.output({ "text/event-stream": { ok: z.string() } })
+		.output({ "text/event-stream": { ok: STREAM_EVENTS } })
 		.handler(async (ctx) => {
 			const answer = await readOf(ctx.input.form)
 			return ctx.res.sse((stream) => streamed(stream, answer))
@@ -93,8 +93,14 @@ export function createRoutes(options?: AppOptions) {
 	return app
 }
 
+/** The events an extract stream sends, each its data as JSON text. */
+const STREAM_EVENTS = { batch: z.string(), complete: z.string(), progress: z.string() }
+
 /** An event stream as the route writes it. */
-type Events = { send(event: { data: string; event: string }): Promise<void>; close(): void }
+type Events = {
+	send(event: { data: string; event: "batch" | "complete" | "progress" }): Promise<void>
+	close(): void
+}
 
 /** Acme's stream: the batch, a progress event per file read, the completion. */
 async function streamed(stream: Events, answer: Awaited<ReturnType<typeof readOf>>) {

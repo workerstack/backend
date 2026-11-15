@@ -8,6 +8,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { rangeResponse } from "../../src/response/range.ts"
 import type { SSEStream } from "../../src/response/sse.ts"
 import { httpApp } from "../../src/routing/app.ts"
+import { createLogger } from "../../src/telemetry/logger.ts"
+import { z } from "zod"
 
 afterEach(() => {
 	vi.useRealTimers()
@@ -311,5 +313,123 @@ describe("streams at scale", () => {
 			100_000,
 			1024 * 1024,
 		])
+	})
+})
+
+/** An app whose /events route declares `data` and `heartbeat`, sending `events` in turn; its log lines and sends. */
+function declaredApp(events: readonly { data: unknown; event?: string }[]) {
+	const lines: Record<string, unknown>[] = []
+	const outcomes: string[] = []
+	const done = Promise.withResolvers<void>()
+	const logger = createLogger({
+		format: "json",
+		level: "trace",
+		write: (line) => void lines.push(JSON.parse(line) as Record<string, unknown>),
+	})
+	const app = httpApp<{}>().logger(logger)
+	app
+		.get("/events")
+		.output({ "text/event-stream": { ok: { data: z.object({ n: z.number() }), heartbeat: z.string() } } })
+		.handler((ctx) =>
+			ctx.res.sse(async (stream) => {
+				for (const event of events) {
+					await stream.send(event as never).then(
+						() => outcomes.push("sent"),
+						(error: Error) => outcomes.push(`rejected: ${error.message}`),
+					)
+				}
+				done.resolve()
+			}),
+		)
+	/* the body ends when the stream closes, before the callback has seen its last send settle */
+	const read = async () => {
+		const body = await (await send(app, "/events")).text()
+		await done.promise
+		return body
+	}
+	return { lines, outcomes, read }
+}
+
+describe("a declared event stream sends only the events it declares", () => {
+	it("sends each declared event with data its schema accepts", async () => {
+		const { lines, outcomes, read } = declaredApp([
+			{ data: "tick", event: "heartbeat" },
+			{ data: { n: 42 }, event: "data" },
+		])
+		const body = await read()
+		expect([body, outcomes, lines]).toEqual([
+			'event: heartbeat\ndata: tick\n\nevent: data\ndata: {"n":42}\n\n',
+			["sent", "sent"],
+			[],
+		])
+	})
+
+	it("an event that fails its schema is not sent: the log names it and the stream ends", async () => {
+		const { lines, outcomes, read } = declaredApp([
+			{ data: "tick", event: "heartbeat" },
+			{ data: { n: "x" }, event: "data" },
+			{ data: "late", event: "heartbeat" },
+		])
+		const body = await read()
+		expect([body, outcomes, lines.map((line) => [line.level, line.msg])]).toEqual([
+			"event: heartbeat\ndata: tick\n\n",
+			["sent", "rejected: stream closed", "rejected: stream closed"],
+			[[50, "sse data: invalid data: n: Invalid input: expected number, received string"]],
+		])
+	})
+
+	it("an event the declaration does not name is not sent, and ends the stream", async () => {
+		const { lines, outcomes, read } = declaredApp([{ data: "x", event: "nope" }, { data: "x" }])
+		const body = await read()
+		expect([body, outcomes, lines.map((line) => line.msg)]).toEqual([
+			"",
+			["rejected: stream closed", "rejected: stream closed"],
+			["sse nope: undeclared event"],
+		])
+	})
+})
+
+describe("a declared event stream: the message event and the order events go out in", () => {
+	it("a bare schema declares the message event: a name left out is message, any other is undeclared", async () => {
+		const lines: string[] = []
+		const logger = createLogger({
+			format: "json",
+			level: "trace",
+			write: (line) => void lines.push((JSON.parse(line) as { msg: string }).msg),
+		})
+		const app = httpApp<{}>().logger(logger)
+		app
+			.get("/events")
+			.output({ "text/event-stream": { ok: z.string() } })
+			.handler((ctx) =>
+				ctx.res.sse(async (stream) => {
+					await stream.send({ data: "hi" })
+					await stream.send({ data: "again", event: "message" })
+					await stream.send({ data: "x", event: "tick" } as never).catch(() => {})
+				}),
+			)
+		const body = await (await send(app, "/events")).text()
+		expect([body, lines]).toEqual([
+			"event: message\ndata: hi\n\nevent: message\ndata: again\n\n",
+			["sse tick: undeclared event"],
+		])
+	})
+
+	it("sends that are not awaited go out in order, even when one event's schema checks asynchronously", async () => {
+		const app = httpApp<{}>()
+		app
+			.get("/events")
+			.output({ "text/event-stream": { ok: { slow: z.string().refine(async () => true), fast: z.string() } } })
+			.handler((ctx) =>
+				ctx.res.sse(async (stream) => {
+					await Promise.all([
+						stream.send({ data: "1", event: "slow" }),
+						stream.send({ data: "2", event: "fast" }),
+						stream.send({ data: "3", event: "slow" }),
+					])
+				}),
+			)
+		const body = await (await send(app, "/events")).text()
+		expect(body).toBe("event: slow\ndata: 1\n\nevent: fast\ndata: 2\n\nevent: slow\ndata: 3\n\n")
 	})
 })

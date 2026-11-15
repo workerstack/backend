@@ -12,7 +12,9 @@
  */
 import type { BinaryBody } from "../response/binary.ts"
 import type { HttpRes, ResponseOptions, StreamBody, TypedResponse } from "../response/response.ts"
+import type { SseEventSchemas } from "../response/sse.ts"
 import type { RedirectKey, StatusKey } from "../response/status.ts"
+import type { TypedSse } from "./sse-types.ts"
 import type { InferInput, StandardSchemaLike } from "../validation/standard-schema.ts"
 
 /** The 2xx status keys: the answers a media type's body slot takes. */
@@ -65,6 +67,9 @@ type MediaTypeKey = KnownMediaType | (`${string}/${string}` & {})
 /** A media type's declared bodies by 2xx status key: a schema, or `true` for a body with none. */
 export type StatusSchemas = { readonly [K in SuccessKey]?: StandardSchemaLike | true }
 
+/** An event stream's declared bodies by 2xx status key: a schema (the `message` event), a map of named events, or `true`. */
+export type EventStreamSchemas = { readonly [K in SuccessKey]?: StandardSchemaLike | SseEventSchemas | true }
+
 /** The headers each 2xx or 3xx status carries, by status key: a schema over the headers by lowercased name. */
 export type HeaderSchemas = { readonly [K in HeaderKey]?: StandardSchemaLike }
 
@@ -77,8 +82,8 @@ export type RedirectStatuses = { readonly [K in BodilessKey]?: true }
  * declared with `.errors()`.
  */
 export type OutputSchemas = {
-	/** The 2xx status keys this media type answers with, each with a body schema or `true`. */
-	readonly [M in MediaTypeKey]?: StatusSchemas
+	/** The 2xx status keys this media type answers with, each with a body schema or `true`; an event stream's may name events. */
+	readonly [M in MediaTypeKey]?: M extends "text/event-stream" ? EventStreamSchemas : StatusSchemas
 } & {
 	/** The schema of the headers each 2xx or 3xx status carries, by status key; that status's helper then requires them. */ readonly headers?: HeaderSchemas
 	/** 3xx statuses: the redirects `ctx.res.redirect` takes, each documented with a `Location`, and a 304 a forwarded answer may be. */ readonly redirect?: RedirectStatuses
@@ -327,6 +332,9 @@ type BinaryCall<TOutput> = (<CT extends BinaryTypes<TOutput>, K extends BodyKeyO
 			) => TypedResponse<"application/octet-stream", K>
 		: unknown)
 
+/** What a media type declares at `ok`, or `never`. */
+type OkOf<T> = T extends { readonly ok?: infer S } ? Exclude<S, undefined> : never
+
 /** ctx.res for a route declaring `TOutput`. */
 type OutputRes<TOutput> = UniversalRes & {
 	/**
@@ -339,7 +347,13 @@ type OutputRes<TOutput> = UniversalRes & {
 	Narrowed<TOutput, "text/html", true> &
 	Narrowed<TOutput, "application/xml", true> &
 	Narrowed<TOutput, "text/csv", true> &
-	("text/event-stream" extends keyof TOutput ? Pick<HttpRes, "sse"> : {}) &
+	("text/event-stream" extends keyof TOutput
+		? {
+				/** An event stream; `send` takes the events the route declares. */ sse: TypedSse<
+					OkOf<TOutput["text/event-stream"]>
+				>
+			}
+		: {}) &
 	([NoContentOf<TOutput>] extends [never] ? {} : Pick<HttpRes, "noContent">) &
 	([RedirectsOf<TOutput>] extends [never]
 		? {}

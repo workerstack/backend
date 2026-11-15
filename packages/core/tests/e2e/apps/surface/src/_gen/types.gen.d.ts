@@ -309,13 +309,13 @@ export type Routes = {
 	}
 	"/out/sse": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/out/sse" }, { "text/event-stream": { ok: ListOutCsvResponse200 } }>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly errors: { unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/out/sse" }, { "text/event-stream": { ok: unknown } }>
 			errors: "unauthorized" | "validation_error"
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: {}
 			meta: { operationId: "out.sse.list" }
-			output: { "text/event-stream": { ok: ListOutCsvResponse200 } }
+			output: { "text/event-stream": { ok: unknown } }
 		}
 	}
 	"/out/text": {
@@ -397,13 +397,13 @@ export type Routes = {
 	}
 	"/stream/filtered": {
 		get: {
-			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { search: { channel: string; since?: string } }; readonly errors: { unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/stream/filtered" }, { "text/event-stream": { ok: ListOutCsvResponse200 } }>
+			ctx: WithOutput<Omit<BaseCtx, "errors"> & { readonly input: { search: { channel: string; since?: string } }; readonly errors: { unauthorized: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError; validation_error: (opts?: { cause?: unknown; fields?: Record<string, { error_key: string; message: string; path: string }[]>; headers?: Record<string, string>; vars?: Record<string, number | string> }) => HttpError }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>> & { auth?: "public" | "required"; rateLimit?: "default" | "strict" }>; readonly routePattern: "/stream/filtered" }, { "text/event-stream": { ok: unknown } }>
 			errors: "unauthorized" | "validation_error"
 			errorShapes: { unauthorized: null; validation_error: null }
 			errorsByStatus: { 400: null; 401: null }
 			input: { search: { channel: string; since?: string } }
 			meta: { operationId: "stream.filtered.list" }
-			output: { "text/event-stream": { ok: ListOutCsvResponse200 } }
+			output: { "text/event-stream": { ok: unknown } }
 		}
 	}
 }

@@ -15,8 +15,9 @@ import { bodyKind } from "../input/body-kind.ts"
 import { isForwarded, isProducedStream, rawBodyOf } from "../response/builder.ts"
 import { parseMediaType } from "../response/media-type.ts"
 import { compileResponseHeaders, type HeadersCheck } from "../response/response-headers.ts"
+import { declaredEvents, type SseCheck } from "../response/sse.ts"
 import { codeToStatusKey, type StatusKey } from "../response/status.ts"
-import type { StandardSchemaLike } from "./standard-schema.ts"
+import type { StandardSchemaIssue, StandardSchemaLike, StandardSchemaResult } from "./standard-schema.ts"
 import type { OutputSchemas, HttpProjection } from "../routing/output-types.ts"
 import { projected } from "./projection.ts"
 import { type AcceptIssue, type OutputCheck, validateOutput } from "./validate-output.ts"
@@ -30,6 +31,32 @@ export function outputCheck(
 	projection: ((ctx: object) => HttpProjection | null) | null = null,
 ): OutputCheck | null {
 	return compileOutput(schemas, compileResponseHeaders(schemas.headers), projection)
+}
+
+/**
+ * The check of each event a route's declared event stream sends: an undeclared name, or data its schema refuses,
+ * is refused with the text the log reads. `null` when the route declares no events (`ok: true`, or no stream).
+ */
+export function sseCheck(schemas: OutputSchemas): SseCheck | null {
+	const events = declaredEvents(schemas["text/event-stream"]?.ok)
+	if (events === null) return null
+	return (event, data) => {
+		const schema = Object.hasOwn(events, event) ? events[event] : undefined
+		if (schema === undefined) return `sse ${event}: undeclared event`
+		const result = schema["~standard"].validate(data)
+		return result instanceof Promise ? result.then((r) => refusalOf(event, r)) : refusalOf(event, result)
+	}
+}
+
+/** The first issue as the log reads it: its path, then its message. */
+function describeIssue(issue: StandardSchemaIssue): string {
+	const path = (issue.path ?? []).map((segment) => String(typeof segment === "object" ? segment.key : segment))
+	return path.length === 0 ? issue.message : `${path.join(".")}: ${issue.message}`
+}
+
+function refusalOf(event: string, result: StandardSchemaResult): string | null {
+	const issue = result.issues?.[0]
+	return issue === undefined ? null : `sse ${event}: invalid data: ${describeIssue(issue)}`
 }
 
 /** The issues `projection`'s selection for `ctx` explains on `data`, if it names one. */

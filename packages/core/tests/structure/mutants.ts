@@ -247,7 +247,7 @@ export function withoutBackpressure(real: typeof producerStream): typeof produce
 
 /** An event framed with no newline check. */
 export function rawFrame(event: SSEEvent): string {
-	return `event: ${event.event}\ndata: ${String(event.data)}\n${event.id === undefined ? "" : `id: ${event.id}\n`}\n`
+	return `event: ${event.event ?? "message"}\ndata: ${String(event.data)}\n${event.id === undefined ? "" : `id: ${event.id}\n`}\n`
 }
 
 /** sseBody that writes the id and event name as given, newlines and all. */

@@ -7,7 +7,7 @@ import { generatorStream, type ProducerOptions, producerStream } from "../stream
 import type { BackendLogger } from "../telemetry/logger.ts"
 import { isProducedStream, rawBodyOf, type RawBody, withForwarded, withProducedBody, withRawBody } from "./builder.ts"
 import { BINARY_HEADERS, type BinaryBody, binaryBytes, binaryHeaders, type BinaryOptions } from "./binary.ts"
-import { SSE_HEADERS, type SSEOptions, type SSEStream, sseBody } from "./sse.ts"
+import { SSE_HEADERS, type SseCheck, type SseEvents, type SSEOptions, type SSEStream, sseBody } from "./sse.ts"
 import { type RedirectKey, type StatusKey, statusKeyToCode } from "./status.ts"
 
 /** Options the `ctx.res` helpers accept; only `raw()` takes none. */
@@ -131,10 +131,23 @@ function writableOver(write: (bytes: Uint8Array) => Promise<void>, end: { close(
  */
 export class HttpRes {
 	readonly #link: ResLink | undefined
+	readonly #events: SseCheck | null
 
-	/** `link` is the request a per-request res streams for; a bare res has none (no signal, no Last-Event-ID). */
-	constructor(link?: ResLink) {
+	/**
+	 * `link` is the request a per-request res streams for; a bare res has none (no signal, no Last-Event-ID). `events`
+	 * checks each event `sse()` sends, its refusals told to the link's logger.
+	 */
+	constructor(link?: ResLink, events: SseCheck | null = null) {
 		this.#link = link
+		this.#events = events
+	}
+
+	/** The route's event check, refusals going to the request's logger; `null` with no check or no request. */
+	#sseEvents(): SseEvents | null {
+		const link = this.#link
+		const check = this.#events
+		if (check === null || link === undefined) return null
+		return { check, refuse: (message) => link.log.error(message) }
 	}
 
 	/** Producers end with the request; a failure breaks the body and goes to the request's logger. */
@@ -274,7 +287,7 @@ export class HttpRes {
 	): TypedResponse<"text/event-stream", "ok"> {
 		if (callback instanceof ReadableStream) return typed(this.#streamed(callback, SSE_HEADERS, opts))
 		const lastEventId = opts?.lastEventId ?? this.#link?.req.headers.get("last-event-id") ?? undefined
-		const body = sseBody(callback, { ...opts, lastEventId }, this.#producer())
+		const body = sseBody(callback, { ...opts, lastEventId }, this.#producer(), this.#sseEvents())
 		return typed(this.#streamed(body, SSE_HEADERS, opts))
 	}
 

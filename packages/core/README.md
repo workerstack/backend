@@ -399,6 +399,10 @@ console.log(await cleanedUp)
 // prints: cleaned up
 ```
 
+Under `.output()`, `text/event-stream` declares its events at `ok`: a map from event name to data schema, or one
+bare schema for the `message` event. `stream.send` then takes only those names with their data, each event is
+checked, and the document writes them under `itemSchema`.
+
 Full reference: [streaming](https://github.com/workerstack/backend/blob/main/docs/streaming.md),
 [media types](https://github.com/workerstack/backend/blob/main/docs/capabilities/media-types.md),
 [range requests](https://github.com/workerstack/backend/blob/main/docs/capabilities/range.md) and

@@ -23,6 +23,7 @@ describe("encodeEvent: framing", () => {
 	// v0: 65d8d0439f
 	it.each([
 		["one line", { data: "hi", event: "msg" }, "event: msg\ndata: hi\n\n"],
+		["no name: the message event", { data: "hi" }, "event: message\ndata: hi\n\n"],
 		[
 			"lines split on LF, CRLF and CR",
 			{ data: "a\nb\r\nc\rd", event: "m" },

@@ -7,7 +7,7 @@
 import { type HttpContext, REQUEST, type RouteInfo, TAP_CHECK } from "../context/context.ts"
 import { withInput } from "../input/input.ts"
 import { forwardCheck, withOutput } from "../validation/validate-output.ts"
-import { outputCheck } from "#output-check"
+import { outputCheck, sseCheck } from "#output-check"
 import type { OutputSchemas } from "./output-types.ts"
 import { ERROR_META } from "../errors/errors.ts"
 import type { ErrorFactoryRecord, ErrorPolicy } from "../errors/projector.ts"
@@ -240,7 +240,13 @@ function planRoute(
 		pf: null,
 		pfChain: run,
 		policy,
-		route: { errors, id: r.id, meta: meta ?? EMPTY_META, pattern: r.rp },
+		route: {
+			errors,
+			id: r.id,
+			meta: meta ?? EMPTY_META,
+			pattern: r.rp,
+			sse: r.out === null ? null : sseCheck(r.out as OutputSchemas),
+		},
 		run: taps === null ? compiled : firing(compiled, taps.registered, taps.meta),
 	}
 }
@@ -264,7 +270,7 @@ function planMiss(g: HttpGraph, hooks: FinalizeHooks): Plan {
 		pf: null,
 		pfChain: run,
 		policy,
-		route: { errors, id: "", meta: meta ?? EMPTY_META, pattern: "" },
+		route: { errors, id: "", meta: meta ?? EMPTY_META, pattern: "", sse: null },
 		run: compileChain(run, hooks.miss, hooks.convert),
 	}
 }

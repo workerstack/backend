@@ -241,7 +241,24 @@
       "output": {
         "text/event-stream": {
           "ok": {
-            "type": "string"
+            "resume": {
+              "def": {
+                "type": "string"
+              },
+              "type": "string",
+              "format": null,
+              "minLength": null,
+              "maxLength": null
+            },
+            "tick": {
+              "def": {
+                "type": "string"
+              },
+              "type": "string",
+              "format": null,
+              "minLength": null,
+              "maxLength": null
+            }
           }
         }
       },

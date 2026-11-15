@@ -30,6 +30,37 @@ import type { OpenApiDocument } from "@workerstack/backend/http/openapi"
 export const version: OpenApiDocument["openapi"] = "3.2.1"
 ```
 
+### An event stream declares its events at `ok`
+
+A `text/event-stream` output declares its events at `ok`. A bare schema is the one `message` event, so a route
+that declared `ok: z.string()` and sent other names now has each of them refused while the output check is on: the
+log reads `sse tick: undeclared event` and the stream ends. Move such a route to a map from each event name to its
+data schema, and send object data as the object, not as a JSON string. `ok: true` keeps the untyped stream. The
+document writes the events under `itemSchema` in place of `schema`.
+
+| Before                                                    | Now                                                                                    |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ok: z.string()` sending `event: "tick"`                  | `ok: { tick: z.string() }`                                                             |
+| `send({ data: JSON.stringify({ n: 1 }), event: "data" })` | `ok: { data: z.object({ n: z.number() }) }`, `send({ data: { n: 1 }, event: "data" })` |
+| `send({ data: "hi", event: "message" })`                  | `send({ data: "hi" })` under a bare schema                                             |
+| `"text/event-stream": { "schema": { ... } }`              | `"text/event-stream": { "itemSchema": { ... } }`                                       |
+
+```ts
+import { httpApp } from "@workerstack/backend/http"
+import * as z from "zod"
+
+httpApp()
+	.get("/ticks")
+	.meta({ operationId: "ticks.list" })
+	.output({ "text/event-stream": { ok: { data: z.object({ n: z.number() }), tick: z.string() } } })
+	.handler((ctx) =>
+		ctx.res.sse(async (stream) => {
+			await stream.send({ data: "1", event: "tick" })
+			await stream.send({ data: { n: 1 }, event: "data" })
+		}),
+	)
+```
+
 ## From 1.0.0-rc.27 to 1.0.0-rc.28
 
 A tap is a value now: `defineTap(name, schema, handler)` names it, holds the schema its payload is checked by, and

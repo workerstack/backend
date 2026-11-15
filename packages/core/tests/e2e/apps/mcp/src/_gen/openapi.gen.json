@@ -103,8 +103,54 @@
             "description": "ok",
             "content": {
               "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateProjectsExtractStreamResponse200"
+                "itemSchema": {
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "batch"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "complete"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "progress"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    }
+                  ]
                 }
               }
             }
@@ -272,8 +318,54 @@
             "description": "ok",
             "content": {
               "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateProjectsExtractStreamResponse200"
+                "itemSchema": {
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "batch"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "complete"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "progress"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    }
+                  ]
                 }
               }
             }
@@ -369,9 +461,6 @@
           "texts"
         ],
         "additionalProperties": false
-      },
-      "CreateProjectsExtractStreamResponse200": {
-        "type": "string"
       },
       "CreateProjectsSuggestSchemaRequest": {
         "type": "object",

@@ -380,8 +380,20 @@
             "description": "ok",
             "content": {
               "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListApiEventsResponse200"
+                "itemSchema": {
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "const": "message"
+                    }
+                  },
+                  "required": [
+                    "event",
+                    "data"
+                  ],
+                  "type": "object"
                 }
               }
             }
@@ -428,8 +440,39 @@
             "description": "ok",
             "content": {
               "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListApiEventsResponse200"
+                "itemSchema": {
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "resume"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "tick"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    }
+                  ]
                 }
               }
             }
@@ -1204,9 +1247,6 @@
           "success"
         ],
         "type": "object"
-      },
-      "ListApiEventsResponse200": {
-        "type": "string"
       },
       "ListApiHelloResponse200": {
         "type": "object",

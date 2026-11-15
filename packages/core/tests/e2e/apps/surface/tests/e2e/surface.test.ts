@@ -169,7 +169,7 @@ test.describe("output types", () => {
 		expect(res.headers()["content-type"]).toMatch(/text\/event-stream/)
 		const text = await res.text()
 		expect(text).toContain("event: heartbeat")
-		expect(text).toContain("event: data")
+		expect(text).toContain('event: data\ndata: {"n":42}\n')
 	})
 
 	test("POST /out/multi-status created", async ({ request }) => {

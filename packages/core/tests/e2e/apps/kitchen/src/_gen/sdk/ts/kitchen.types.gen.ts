@@ -56,7 +56,6 @@ export type Err500ApiError = {
 	success: false
 	vars?: Record<string, number | string>
 }
-export type ListApiEventsResponse200 = string
 export type ListApiHelloResponse200 = { greeting: string; q: string }
 export type ListApiResponse200 = { id: string }
 

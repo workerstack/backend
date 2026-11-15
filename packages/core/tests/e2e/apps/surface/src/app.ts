@@ -138,11 +138,11 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 
 		.get("/out/sse")
 		.meta({ operationId: "out.sse.list" })
-		.output({ "text/event-stream": { ok: z.string() } })
+		.output({ "text/event-stream": { ok: { data: z.object({ n: z.number() }), heartbeat: z.string() } } })
 		.handler((ctx) =>
 			ctx.res.sse(async (stream) => {
 				await stream.send({ data: "tick", event: "heartbeat", id: "1" })
-				await stream.send({ data: JSON.stringify({ n: 42 }), event: "data", id: "2" })
+				await stream.send({ data: { n: 42 }, event: "data", id: "2" })
 				stream.close()
 			}),
 		)
@@ -216,7 +216,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 		.get("/stream/filtered")
 		.meta({ operationId: "stream.filtered.list" })
 		.input({ search: z.object({ channel: z.string(), since: z.string().optional() }) })
-		.output({ "text/event-stream": { ok: z.string() } })
+		.output({ "text/event-stream": { ok: { subscribed: z.string() } } })
 		.handler((ctx) =>
 			ctx.res.sse(async (stream) => {
 				await stream.send({ data: ctx.input.search.channel, event: "subscribed" })

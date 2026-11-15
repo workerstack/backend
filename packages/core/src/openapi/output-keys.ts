@@ -16,11 +16,27 @@ export function assertOutputKeys(output: OutputSchemas, id: string): void {
 	for (const [outer, statuses] of Object.entries(output)) {
 		if (!/\/|^headers$|^redirect$/.test(outer))
 			throw new Error(`${id}: .output() key "${outer}" is no type/subtype, headers or redirect`)
-		for (const key of Object.keys(statuses ?? {})) {
+		for (const [key, declared] of Object.entries(statuses ?? {})) {
 			const refusal = refusalOf(outer, key)
 			if (refusal !== null) throw new Error(`${id}: .output() key "${key}" under ${outer} ${refusal}`)
+			assertEvents(outer, key, declared, id)
 		}
 	}
+}
+
+/**
+ * Throws when `declared` is an event map (an object that is no schema) where none may be: under any media type but
+ * `text/event-stream`, empty, or naming an event with a newline, which the wire would read as another field.
+ */
+function assertEvents(outer: string, key: string, declared: unknown, id: string): void {
+	if (declared === null || typeof declared !== "object" || "~standard" in declared) return
+	if (outer === "headers" || outer === "redirect") return
+	if (outer !== "text/event-stream")
+		throw new Error(`${id}: .output() event map under ${outer}: events are declared under text/event-stream only`)
+	const names = Object.keys(declared)
+	if (names.length === 0) throw new Error(`${id}: .output() text/event-stream ${key} declares no event`)
+	const broken = names.find((name) => /[\r\n]/.test(name))
+	if (broken !== undefined) throw new Error(`${id}: .output() event name ${JSON.stringify(broken)} holds a newline`)
 }
 
 /** Why `key` cannot sit under `outer` (a media type, `headers` or `redirect`), or null when it can. */

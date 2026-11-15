@@ -158,7 +158,7 @@ export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
 	corsed
 		.get("/events-live")
 		.meta({ operationId: "eventsLive.list" })
-		.output({ "text/event-stream": { ok: z.string() } })
+		.output({ "text/event-stream": { ok: { resume: z.string(), tick: z.string() } } })
 		.handler((ctx) =>
 			ctx.res.sse(
 				async (stream) => {

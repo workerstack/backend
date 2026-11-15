@@ -645,7 +645,35 @@
       "output": {
         "text/event-stream": {
           "ok": {
-            "type": "string"
+            "data": {
+              "def": {
+                "type": "object",
+                "shape": {
+                  "n": {
+                    "def": {
+                      "type": "number",
+                      "checks": []
+                    },
+                    "type": "number",
+                    "minValue": null,
+                    "maxValue": null,
+                    "isInt": false,
+                    "isFinite": true,
+                    "format": null
+                  }
+                }
+              },
+              "type": "object"
+            },
+            "heartbeat": {
+              "def": {
+                "type": "string"
+              },
+              "type": "string",
+              "format": null,
+              "minLength": null,
+              "maxLength": null
+            }
           }
         }
       },
@@ -1138,7 +1166,15 @@
       "output": {
         "text/event-stream": {
           "ok": {
-            "type": "string"
+            "subscribed": {
+              "def": {
+                "type": "string"
+              },
+              "type": "string",
+              "format": null,
+              "minLength": null,
+              "maxLength": null
+            }
           }
         }
       },

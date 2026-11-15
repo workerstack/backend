@@ -1204,8 +1204,52 @@
             "description": "ok",
             "content": {
               "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListOutCsvResponse200"
+                "itemSchema": {
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "data": {
+                          "contentMediaType": "application/json",
+                          "contentSchema": {
+                            "type": "object",
+                            "properties": {
+                              "n": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "n"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "data"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "string"
+                        },
+                        "event": {
+                          "const": "heartbeat"
+                        }
+                      },
+                      "required": [
+                        "event",
+                        "data"
+                      ],
+                      "type": "object"
+                    }
+                  ]
                 }
               }
             }
@@ -1629,8 +1673,20 @@
             "description": "ok",
             "content": {
               "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListOutCsvResponse200"
+                "itemSchema": {
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "const": "subscribed"
+                    }
+                  },
+                  "required": [
+                    "event",
+                    "data"
+                  ],
+                  "type": "object"
                 }
               }
             }

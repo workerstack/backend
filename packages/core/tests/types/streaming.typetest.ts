@@ -1,11 +1,14 @@
 /**
  * The streaming helpers as typed: sse(), stream() and generate() brand their responses with a
  * content type and the ok status, the SSE stream and event shapes, and a route answering with
- * each. The declared SSE event schema is typed at bit 08 (H10). Checked by typecheck.
+ * each, and the declared events typing `send` under `.output()`. Checked by typecheck.
  */
 import { describe, expectTypeOf, it } from "vitest"
+import { z } from "zod"
 import { HttpRes, type TypedResponse } from "../../src/response/response.ts"
 import type { SSEEvent, SSEStream } from "../../src/response/sse.ts"
+import type { HttpContext } from "../../src/context/context.ts"
+import type { WithOutput } from "../../src/routing/codegen-types.ts"
 import { httpApp } from "../../src/routing/app.ts"
 
 const res = new HttpRes()
@@ -35,10 +38,11 @@ describe("the SSE stream and its events", () => {
 		expectTypeOf<SSEStream["closed"]>().toEqualTypeOf<boolean>()
 	})
 
-	it("an event needs a name and data; id and retry are optional", () => {
+	it("an event needs data; its name (message when left out), id and retry are optional", () => {
 		expectTypeOf<{ data: string; event: string }>().toExtend<SSEEvent>()
 		expectTypeOf<{ data: { n: number }; event: string; id: string; retry: number }>().toExtend<SSEEvent>()
-		expectTypeOf<{ data: string }>().not.toExtend<SSEEvent>()
+		expectTypeOf<{ data: string }>().toExtend<SSEEvent>()
+		expectTypeOf<{ event: string }>().not.toExtend<SSEEvent>()
 		expectTypeOf<{ data: number; event: string }>().not.toExtend<SSEEvent>()
 	})
 
@@ -57,5 +61,57 @@ describe("routes answer with a stream", () => {
 		app.get("/download").handler((ctx) => ctx.res.stream(async () => {}))
 		app.get("/lines").handler((ctx) => ctx.res.generate((function* () {})(), { contentType: "application/x-ndjson" }))
 		expectTypeOf(app.fetch).returns.toEqualTypeOf<Response | Promise<Response>>()
+	})
+})
+
+describe("the declared events type send under .output()", () => {
+	it("a map of events takes each declared name with its schema's data", () => {
+		httpApp<{}>()
+			.get("/events")
+			.output({ "text/event-stream": { ok: { data: z.object({ n: z.number() }), heartbeat: z.string() } } })
+			.handler((ctx) =>
+				ctx.res.sse(async (stream) => {
+					expectTypeOf<Parameters<typeof stream.send>[0]["event"]>().toEqualTypeOf<"data" | "heartbeat">()
+					await stream.send({ data: "tick", event: "heartbeat", id: "1" })
+					await stream.send({ data: { n: 42 }, event: "data", retry: 1000 })
+					// @ts-expect-error "nope" is no declared event
+					await stream.send({ data: "x", event: "nope" })
+					// @ts-expect-error data's schema takes an object, not a string
+					await stream.send({ data: "x", event: "data" })
+					// @ts-expect-error a map names every event: none is message
+					await stream.send({ data: "x" })
+				}),
+			)
+	})
+
+	it("a bare schema is the message event: the name may be left out", () => {
+		httpApp<{}>()
+			.get("/events")
+			.output({ "text/event-stream": { ok: z.string() } })
+			.handler((ctx) =>
+				ctx.res.sse(async (stream) => {
+					expectTypeOf<Parameters<typeof stream.send>[0]["event"]>().toEqualTypeOf<"message" | undefined>()
+					await stream.send({ data: "hi" })
+					await stream.send({ data: "hi", event: "message", id: "2" })
+					// @ts-expect-error a bare schema declares only message
+					await stream.send({ data: "hi", event: "tick" })
+					// @ts-expect-error the schema takes a string
+					await stream.send({ data: 5 })
+				}),
+			)
+	})
+
+	it("ok: true, and a declaration that holds no schema, keep the untyped stream", () => {
+		httpApp<{}>()
+			.get("/events")
+			.output({ "text/event-stream": { ok: true } })
+			.handler((ctx) =>
+				ctx.res.sse(async (stream) => {
+					expectTypeOf(stream.send).toEqualTypeOf<(event: SSEEvent) => Promise<void>>()
+				}),
+			)
+		type Generated = WithOutput<HttpContext<{}>, { "text/event-stream": { ok: string } }>
+		type Callback = Extract<Parameters<Generated["res"]["sse"]>[0], (stream: never) => unknown>
+		expectTypeOf<Parameters<Callback>[0]>().toEqualTypeOf<SSEStream>()
 	})
 })

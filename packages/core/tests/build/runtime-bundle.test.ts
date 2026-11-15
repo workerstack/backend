@@ -145,7 +145,10 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * Node 26.13.0, so a tap is a value: ctx.tap()'s registration, WebSocket and schema refusals, the meta value
 			 * checked where the routes compile, and the refusal of two taps under one name across a mount. The schema
 			 * check itself is defineTap's, set under TAP_CHECK, so an app that defines no tap bundles none of it.
-			 * Locked at 26,000.
+			 * Locked at 26,000. Plan 4 of roadmap 1 added 403 (25,891 to 26,294 on CI's Node 26.13.1, against its base
+			 * on the same Node) so a declared event stream's events are checked: sseCheck behind #output-check, the
+			 * route's check carried to ctx.res, and sse()'s checked send, which logs a refusal, ends the stream and
+			 * keeps un-awaited sends in order behind a pending async check. Locked at 26,300.
 			 */
 			const gzipped = gzipSync(js, { level: 9 }).length
 			const builtBy = run(BUN as string, ["--version"], full).out.trim()
@@ -154,7 +157,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					leaked,
 					features,
 					routeModules("minimal", entry, [...WS_ROUTE, ...MCP_ROUTE, ...GENERATION_ONLY]),
-					gzipped < 26_000,
+					gzipped < 26_300,
 					builtBy,
 				],
 				`${gzipped} bytes gzipped`,
@@ -287,7 +290,8 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 			 * Node and Bun runtime paths, as in the minimal bundle. Locked at 26,900. Plan 55's renames added 6
 			 * (26,872). Still locked at 26,900. Plan 57 added 37 (26,909 on CI's Node 26.13.1): ctx.with(), as in
 			 * the minimal bundle. Locked at 27,000. Plan 60 measured 27,233 on Node 26.13.0: the defined taps' refusals,
-			 * as in the minimal bundle. Locked at 27,300.
+			 * as in the minimal bundle. Locked at 27,300. Plan 4 of roadmap 1 added 422 (27,233 to 27,655 on CI's Node
+			 * 26.13.1): the declared events' check and checked send, as in the minimal bundle. Locked at 27,700.
 			 */
 			const gzipped = gzipSync(bunBundle("static-doc", served), { level: 9 }).length
 			expect(
@@ -295,7 +299,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 					routeModules("static-doc", served, [...GENERATOR, ...PAGES]),
 					routeModules("static-page", withPage, [...GENERATOR, ...PAGES]),
 					routeModules("generated-doc", generated, PAGES),
-					gzipped < 27_300,
+					gzipped < 27_700,
 				],
 				`${gzipped} bytes gzipped`,
 			).toEqual([[], ["openapi/scalar"], [], true])

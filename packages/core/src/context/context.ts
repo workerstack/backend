@@ -6,6 +6,7 @@
 import type { HttpError } from "../errors/error.ts"
 import type { TapDefinition } from "../routing/define-tap.ts"
 import { HttpRes } from "../response/response.ts"
+import type { SseCheck } from "../response/sse.ts"
 import { searchOfUrl } from "../routing/request-path.ts"
 import { dict } from "../routing/tree.ts"
 import { requestBindings } from "../telemetry/fields.ts"
@@ -71,12 +72,20 @@ export type RouteInfo = {
 	readonly meta: Readonly<Record<string, unknown>>
 	/** The route's path pattern, for example `/users/:id`; empty when no route serves the request. */
 	readonly pattern: string
+	/** The check of each event its declared event stream sends; `null` when it declares none or the build drops it. */
+	readonly sse: SseCheck | null
 }
 
 const EMPTY: Readonly<Record<string, never>> = /* @__PURE__ */ Object.freeze({})
 
 /** The route info of a context built without a route, as a test builds one; a 404 or 405 has route info of its own. */
-export const NO_ROUTE: RouteInfo = /* @__PURE__ */ Object.freeze({ errors: null, id: "", meta: EMPTY, pattern: "" })
+export const NO_ROUTE: RouteInfo = /* @__PURE__ */ Object.freeze({
+	errors: null,
+	id: "",
+	meta: EMPTY,
+	pattern: "",
+	sse: null,
+})
 
 /** The members `ctx.with()` may not replace: what one request decided, which a derived context shares as is. */
 type RequestOwned = "input" | "meta" | "params" | "req" | "res"
@@ -248,7 +257,7 @@ export class HttpContext<TEnv = Record<string, unknown>> {
 		this.path = state.path
 		this.req = state.req
 		/* the context is the res's link to its request: signal and headers read only when a stream needs them */
-		this.res = new HttpRes(this)
+		this.res = new HttpRes(this, route.sse)
 		this.routePattern = route.pattern
 		this.#routeId = route.id
 		this[REQUEST] = state
