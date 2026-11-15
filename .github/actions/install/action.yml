@@ -1,0 +1,11 @@
+name: install
+description: Clone @workerstack/repo beside the checkout, where package.json links it, then install both.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        REPO="$GITHUB_WORKSPACE/../workerstack/repo"
+        git clone --depth 1 https://github.com/workerstack/repo.git "$REPO"
+        (cd "$REPO" && bun install --frozen-lockfile --ignore-scripts)
+        bun install --frozen-lockfile

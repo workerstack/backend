@@ -47,7 +47,7 @@ jobs:
       # the tag's notes: a version nobody wrote an entry for never reaches npm
       - name: Check the CHANGELOG entry for the tag
         run: bun "$GITHUB_WORKSPACE/scripts/changelog.ts" "${GITHUB_REF_NAME#v}"
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/install
       # scripts/pack.ts, as the packaging tests pack: catalog: and workspace: resolved to versions, then npm pack
       - name: Pack @workerstack/backend
         working-directory: packages/core

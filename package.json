@@ -66,7 +66,7 @@
 		"@total-typescript/ts-reset": "catalog:",
 		"@types/node": "catalog:",
 		"@vitest/coverage-v8": "4.1.10",
-		"@workerstack/repo": "0.2.0-rc.0",
+		"@workerstack/repo": "link:../workerstack/repo",
 		"ajv": "8.20.0",
 		"ajv-formats": "3.0.1",
 		"arktype": "catalog:",

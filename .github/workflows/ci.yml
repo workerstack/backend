@@ -58,7 +58,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/install
       - name: Lint commit messages
         run: |
           bunx commitlint \
@@ -75,7 +75,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/install
       - run: bun run generate
       - run: bun run fmt:check
       - run: bun run lint
@@ -104,7 +104,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/install
       # backend's own copy of the pinned clients (tests/fixture/mcp-clients), for its mounted-MCP legs
       - name: MCP clients for backend (packages/core/tests/fixture/mcp-clients/client-lock.json)
         run: P="$(git rev-parse --show-toplevel)/packages/core/tests/fixture/mcp-clients" && D="$HOME/.cache/backend-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
@@ -131,7 +131,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/install
       # the runner's CPU model, to tell a per-runner bench level (a ratio cancels speed, not microarchitecture) from a
       # per-process one (a job is one runner and one process)
       - name: cpu
@@ -173,7 +173,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/install
       - run: bun run generate
       # the runner's CPU model, so the build ratios' runner classes can be told by CPU as well as by surface ms (H1)
       - name: cpu
@@ -204,7 +204,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/install
       # packs the real tarball, type-checks a consumer with every strictness flag on, then runs
       # it on Bun and on plain Node: the core entry, backend generate, and vite build with the
       # backend plugins. Every other tier runs backend from source, so nothing else can see this.
@@ -233,7 +233,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ (matrix.node || 'current') == 'current' && needs.node-current.outputs.node || matrix.node }}
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/install
       # backend's own copy of the pinned clients (tests/fixture/mcp-clients), for its mounted-MCP legs
       - name: MCP clients for backend (packages/core/tests/fixture/mcp-clients/client-lock.json)
         run: P="$(git rev-parse --show-toplevel)/packages/core/tests/fixture/mcp-clients" && D="$HOME/.cache/backend-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
