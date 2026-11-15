@@ -414,6 +414,8 @@ describe("OutputSchemas: what .output() takes", () => {
 	it("a media type's status keys, each with a schema; an event stream; several media types at once", () => {
 		expectTypeOf({ "application/json": { ok: z.object({ id: z.string() }) } }).toExtend<OutputSchemas>()
 		expectTypeOf({ "text/event-stream": { ok: z.object({ data: z.string() }) } }).toExtend<OutputSchemas>()
+		expectTypeOf({ "text/event-stream": { ok: { tick: z.string() } } }).toExtend<OutputSchemas>()
+		expectTypeOf({ "application/json": { ok: { tick: z.string() } } }).not.toExtend<OutputSchemas>()
 		expectTypeOf({
 			"application/json": { ok: z.object({ id: z.string() }) },
 			"text/plain": { ok: z.string() },

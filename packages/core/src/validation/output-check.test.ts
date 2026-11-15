@@ -8,8 +8,8 @@ import * as z from "zod"
 import { HttpRes } from "../response/response.ts"
 import { httpApp } from "../routing/app.ts"
 import { createNode, insertRoute } from "../routing/tree.ts"
-import type { StandardSchemaLike } from "./standard-schema.ts"
-import { compileOutput, outputCheck } from "./output-check.ts"
+import type { StandardSchemaIssue, StandardSchemaLike } from "./standard-schema.ts"
+import { compileOutput, outputCheck, sseCheck } from "./output-check.ts"
 
 /** A schema that answers `issues` (none: the value), synchronously. */
 function schemaOf(issues: { message: string }[] = []): StandardSchemaLike {
@@ -162,5 +162,33 @@ describe("a route's projection, across the ways an answer is served", () => {
 		const id = insertRoute(root, "GET", "/orgs")
 		const served = app.routeTree({ meta: {}, root, routes: { [id]: {} }, v: 2 })
 		expect(await answer(served, "/orgs?select=id")).toEqual(ok)
+	})
+})
+
+describe("sseCheck: the refusal each declared event's data is checked to", () => {
+	/** A schema that refuses everything with one issue at `path`. */
+	const refusing = (path?: StandardSchemaIssue["path"]): StandardSchemaLike => ({
+		"~standard": { validate: () => ({ issues: [{ message: "bad", path }] }), vendor: "custom", version: 1 },
+	})
+
+	it("names the event, then the issue's path, keys of either form, before its message; no path, no prefix", () => {
+		const check = sseCheck({
+			"text/event-stream": { ok: { flat: refusing(), keyed: refusing([{ key: "a" }, 0]), none: refusing([]) } },
+		})
+		expect([check?.("keyed", 1), check?.("flat", 1), check?.("none", 1)]).toEqual([
+			"sse keyed: invalid data: a.0: bad",
+			"sse flat: invalid data: bad",
+			"sse none: invalid data: bad",
+		])
+	})
+
+	it("a bare schema is the message event, and a route that declares no events gets no check", () => {
+		expect(sseCheck({ "text/event-stream": { ok: z.string() } })?.("message", 5)).toBe(
+			"sse message: invalid data: Invalid input: expected string, received number",
+		)
+		expect([
+			sseCheck({ "text/event-stream": { ok: true } }),
+			sseCheck({ "application/json": { ok: z.string() } }),
+		]).toEqual([null, null])
 	})
 })

@@ -414,7 +414,9 @@ describe("a declared event stream: the message event and the order events go out
 			["sse tick: undeclared event"],
 		])
 	})
+})
 
+describe("a declared event stream whose schema checks asynchronously", () => {
 	it("sends that are not awaited go out in order, even when one event's schema checks asynchronously", async () => {
 		const app = httpApp<{}>()
 		app
@@ -431,5 +433,31 @@ describe("a declared event stream: the message event and the order events go out
 			)
 		const body = await (await send(app, "/events")).text()
 		expect(body).toBe("event: slow\ndata: 1\n\nevent: fast\ndata: 2\n\nevent: slow\ndata: 3\n\n")
+	})
+
+	it("refuses each event its pending check fails, and logs only the first refusal, which ended the stream", async () => {
+		const lines: string[] = []
+		const logger = createLogger({
+			format: "json",
+			level: "trace",
+			write: (line) => void lines.push((JSON.parse(line) as { msg: string }).msg),
+		})
+		const app = httpApp<{}>().logger(logger)
+		const outcomes = Promise.withResolvers<string[]>()
+		app
+			.get("/events")
+			.output({ "text/event-stream": { ok: { slow: z.string().refine(async () => false, "never") } } })
+			.handler((ctx) =>
+				ctx.res.sse(async (stream) => {
+					const sent = [stream.send({ data: "1", event: "slow" }), stream.send({ data: "2", event: "slow" })]
+					outcomes.resolve((await Promise.allSettled(sent)).map((outcome) => outcome.status))
+				}),
+			)
+		const body = await (await send(app, "/events")).text()
+		expect([body, await outcomes.promise, lines]).toEqual([
+			"",
+			["rejected", "rejected"],
+			["sse slow: invalid data: never"],
+		])
 	})
 })

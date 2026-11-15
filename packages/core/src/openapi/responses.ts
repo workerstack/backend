@@ -7,7 +7,7 @@
 import { compareCodeUnits } from "../schema/canonicalize.ts"
 import type { JsonSchema } from "../schema/to-json-schema.ts"
 import type { ErrorFormat } from "../errors/problem-json.ts"
-import { declaredEvents } from "../response/sse.ts"
+import { declaredEvents, type SseEventSchemas } from "../response/sse.ts"
 import { type StatusKey, statusKeyToCode } from "../response/status.ts"
 import type { OutputSchemas, StatusSchemas } from "../routing/output-types.ts"
 import type { CollectedError } from "./collect.ts"
@@ -51,8 +51,8 @@ const EVENT_STREAM = "text/event-stream"
  * A declared event stream as OpenAPI 3.2 documents one: an `itemSchema` member per event, named by its `event` const,
  * in declaration order. A string schema's data is sent as is; any other is JSON text, documented with its schema.
  */
-function eventStream(declared: unknown, convert: Convert, hint: string): MediaObject {
-	const members = Object.entries(declaredEvents(declared) ?? {}).map(([event, schema]): JsonSchema => {
+function eventStream(events: SseEventSchemas, convert: Convert, hint: string): MediaObject {
+	const members = Object.entries(events).map(([event, schema]): JsonSchema => {
 		const converted = convert(schema, "output", `${hint}${event}`)
 		const data =
 			converted.type === "string"
@@ -84,8 +84,11 @@ function headersOf(schema: JsonSchema): Record<string, HeaderObject> {
 
 /** What one media type documents at a status: nothing for `true`, its events for an event stream, else its schema. */
 function mediaObject(media: string, schema: unknown, convert: Convert, hint: string): MediaObject {
-	if (schema === true) return {}
-	return media === EVENT_STREAM ? eventStream(schema, convert, hint) : { schema: convert(schema, "output", hint) }
+	if (media === EVENT_STREAM) {
+		const events = declaredEvents(schema)
+		return events === null ? {} : eventStream(events, convert, hint)
+	}
+	return schema === true ? {} : { schema: convert(schema, "output", hint) }
 }
 
 /** Every answer `output` declares, with its headers and redirects. */

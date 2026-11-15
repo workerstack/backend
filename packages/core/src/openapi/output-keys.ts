@@ -25,12 +25,11 @@ export function assertOutputKeys(output: OutputSchemas, id: string): void {
 }
 
 /**
- * Throws when `declared` is an event map (an object that is no schema) where none may be: under any media type but
+ * Throws when `declared` is an event map (an object that is no schema) where none may be: under any key but
  * `text/event-stream`, empty, or naming an event with a newline, which the wire would read as another field.
  */
 function assertEvents(outer: string, key: string, declared: unknown, id: string): void {
 	if (declared === null || typeof declared !== "object" || "~standard" in declared) return
-	if (outer === "headers" || outer === "redirect") return
 	if (outer !== "text/event-stream")
 		throw new Error(`${id}: .output() event map under ${outer}: events are declared under text/event-stream only`)
 	const names = Object.keys(declared)

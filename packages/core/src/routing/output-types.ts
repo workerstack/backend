@@ -79,11 +79,16 @@ export type RedirectStatuses = { readonly [K in BodilessKey]?: true }
 /**
  * What `.output()` takes: each media type it answers with (`type/subtype`) and its 2xx bodies, the 3xx statuses
  * (`redirect`: its redirects and a 304), and the headers each 2xx or 3xx status carries (`headers`). An error answer is
- * declared with `.errors()`.
+ * declared with `.errors()`. The open `type/subtype` pattern also covers `text/event-stream`, and a key must fit both
+ * its own entry and the pattern's, so the pattern takes an event map: each known media type but the event stream still
+ * refuses one, and generation refuses one under any other.
  */
 export type OutputSchemas = {
 	/** The 2xx status keys this media type answers with, each with a body schema or `true`; an event stream's may name events. */
-	readonly [M in MediaTypeKey]?: M extends "text/event-stream" ? EventStreamSchemas : StatusSchemas
+	readonly [M in KnownMediaType]?: M extends "text/event-stream" ? EventStreamSchemas : StatusSchemas
+} & {
+	/** Any other media type's 2xx bodies by status key. */
+	readonly [M in `${string}/${string}` & {}]?: EventStreamSchemas
 } & {
 	/** The schema of the headers each 2xx or 3xx status carries, by status key; that status's helper then requires them. */ readonly headers?: HeaderSchemas
 	/** 3xx statuses: the redirects `ctx.res.redirect` takes, each documented with a `Location`, and a 304 a forwarded answer may be. */ readonly redirect?: RedirectStatuses
