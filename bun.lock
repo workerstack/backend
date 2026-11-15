@@ -43,7 +43,7 @@
     },
     "packages/core": {
       "name": "@workerstack/backend",
-      "version": "1.0.0-rc.28",
+      "version": "1.0.0-rc.29",
       "bin": {
         "backend": "bin/backend.js",
       },
@@ -75,7 +75,7 @@
         "zod": "catalog:",
       },
       "peerDependencies": {
-        "@workerstack/clients": ">=1.0.0-rc.28",
+        "@workerstack/clients": ">=1.0.0-rc.29",
       },
       "optionalPeers": [
         "@workerstack/clients",
