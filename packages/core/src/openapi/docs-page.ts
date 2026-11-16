@@ -5,97 +5,100 @@
  * unpinned script could read anything the origin can; a pinned one with an integrity hash can only
  * ever be these bytes.
  */
-import type { TypedResponse } from "../response/response.ts"
+import type { TypedResponse } from "../response/response.ts";
 
 export const SWAGGER_UI = {
-	css: {
-		integrity: "sha384-4c3vsE5f+trhFyHrFrLM1fFGUn531NIaC7dcqEWIJdoRQJ5CkJbSuSCwXLpaS1KF",
-		url: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui.css",
-	},
-	js: {
-		integrity: "sha384-XFYN47VzPiDY6qPtxYKg0nqUeW/upo20xf1j2SUE7gT/i35FJB4cuS/71Iegzk8Z",
-		url: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui-bundle.js",
-	},
-} as const
+  css: {
+    integrity: "sha384-4c3vsE5f+trhFyHrFrLM1fFGUn531NIaC7dcqEWIJdoRQJ5CkJbSuSCwXLpaS1KF",
+    url: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui.css",
+  },
+  js: {
+    integrity: "sha384-XFYN47VzPiDY6qPtxYKg0nqUeW/upo20xf1j2SUE7gT/i35FJB4cuS/71Iegzk8Z",
+    url: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui-bundle.js",
+  },
+} as const;
 
 export const SCALAR = {
-	js: {
-		integrity: "sha384-hwB9WroDTpZaI38gr+u9CXA6ksz5gUYgD2GxXazKl/agT1L2GWUiRFWGJYNiFu4Q",
-		url: "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.4/dist/browser/standalone.js",
-	},
-} as const
+  js: {
+    integrity: "sha384-hwB9WroDTpZaI38gr+u9CXA6ksz5gUYgD2GxXazKl/agT1L2GWUiRFWGJYNiFu4Q",
+    url: "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.4/dist/browser/standalone.js",
+  },
+} as const;
 
-const CDN_ORIGIN = "https://cdn.jsdelivr.net"
+const CDN_ORIGIN = "https://cdn.jsdelivr.net";
 
 /** The page's policy: nothing by default, its own nonce'd inline script and the pinned CDN. */
 const csp = (scriptNonce: string) =>
-	[
-		"default-src 'none'",
-		`script-src 'nonce-${scriptNonce}' ${CDN_ORIGIN}`,
-		`style-src 'self' 'unsafe-inline' ${CDN_ORIGIN}`,
-		"img-src 'self' data: https:",
-		"font-src 'self' data: https:",
-		"connect-src 'self' https:",
-		"worker-src blob:",
-		"base-uri 'none'",
-		"form-action 'none'",
-		"frame-ancestors 'self'",
-		"object-src 'none'",
-	].join("; ")
+  [
+    "default-src 'none'",
+    `script-src 'nonce-${scriptNonce}' ${CDN_ORIGIN}`,
+    `style-src 'self' 'unsafe-inline' ${CDN_ORIGIN}`,
+    "img-src 'self' data: https:",
+    "font-src 'self' data: https:",
+    "connect-src 'self' https:",
+    "worker-src blob:",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'self'",
+    "object-src 'none'",
+  ].join("; ");
 
 /** What a docs page reads of its context: the HTML answer. */
 export type DocsContext = {
-	/** the response helpers; a docs page uses only `html` */
-	readonly res: {
-		/** answers 200 with an HTML body */
-		html(
-			statusKey: "ok",
-			body: string,
-			options?: {
-				/** headers added to the response */
-				headers?: Record<string, string>
-			},
-		): TypedResponse
-	}
-}
+  /** the response helpers; a docs page uses only `html` */
+  readonly res: {
+    /** answers 200 with an HTML body */
+    html(
+      statusKey: "ok",
+      body: string,
+      options?: {
+        /** headers added to the response */
+        headers?: Record<string, string>;
+      },
+    ): TypedResponse;
+  };
+};
 
 /** A docs page config: the document URL, and the rest of the UI's own options. */
 export type DocsConfig = {
-	/** where the page loads the OpenAPI document from */
-	readonly url: string
-	/** any other key goes to the UI's own configuration as JSON, so a function is dropped */
-	readonly [key: string]: unknown
-}
+  /** where the page loads the OpenAPI document from */
+  readonly url: string;
+  /** any other key goes to the UI's own configuration as JSON, so a function is dropped */
+  readonly [key: string]: unknown;
+};
 
 /**
  * JSON for an inline `<script>`: `<`, `>` and `&` cannot end the element or start an entity, and
  * U+2028/U+2029 cannot end a string literal in older engines.
  */
 export function inlineJson(value: unknown): string {
-	return JSON.stringify(value)
-		.replaceAll("<", "\\u003c")
-		.replaceAll(">", "\\u003e")
-		.replaceAll("&", "\\u0026")
-		.replace(/[\u2028\u2029]/g, (separator) => `\\u${separator.charCodeAt(0).toString(16)}`)
+  return JSON.stringify(value)
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll("&", "\\u0026")
+    .replaceAll(/[\u2028\u2029]/g, (separator) => `\\u${separator.charCodeAt(0).toString(16)}`);
 }
 
 /** A fresh 128-bit script nonce, base64. */
 function nonce(): string {
-	let binary = ""
-	for (const byte of crypto.getRandomValues(new Uint8Array(16))) binary += String.fromCharCode(byte)
-	return btoa(binary)
+  let binary = "";
+
+  for (const byte of crypto.getRandomValues(new Uint8Array(16))) binary += String.fromCharCode(byte);
+
+  return btoa(binary);
 }
 
 /** A docs page handler: `render` writes the page around a nonce minted for each answer. */
 export function docsPage(render: (nonce: string) => string): (ctx: DocsContext) => TypedResponse {
-	return (ctx) => {
-		const n = nonce()
-		return ctx.res.html("ok", render(n), {
-			headers: {
-				"content-security-policy": csp(n),
-				"referrer-policy": "no-referrer",
-				"x-content-type-options": "nosniff",
-			},
-		})
-	}
+  return (ctx) => {
+    const n = nonce();
+
+    return ctx.res.html("ok", render(n), {
+      headers: {
+        "content-security-policy": csp(n),
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+      },
+    });
+  };
 }

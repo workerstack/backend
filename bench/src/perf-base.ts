@@ -8,22 +8,22 @@
  * behind main (so a base pinned and forgotten becomes a red, never a widening blind spot). Moving it is the
  * reviewer's commit, and a move must measure itself: see the plan's §1.
  */
-import { execFileSync } from "node:child_process"
+import { execFileSync } from "node:child_process";
 
 /** A base move's record: the sha it moved to, when, and every gated scenario's new-over-old ratio. */
-export type Move = { moved: string; ratios: Record<string, number>; sha: string }
+export type Move = { moved: string; ratios: Record<string, number>; sha: string };
 
 /** perf-base.json: the pinned base, why it was pinned, and every move before it. */
-export type PerfBase = { history: readonly Move[]; note: string; recorded: string; sha: string }
+export type PerfBase = { history: readonly Move[]; note: string; recorded: string; sha: string };
 
 /** How far behind `origin/main` a base may be pinned. 400 is about one bit; main carries 704 commits since v0.7.3. */
-export const STALE_AFTER = 400
+export const STALE_AFTER = 400;
 
 /** A base move's widest ratio: past it the note must name the bytes behind it (the plan's §1, ruling 1). */
-export const DRIFT_BOUND = 1.02
+export const DRIFT_BOUND = 1.02;
 
-const SHA = /^[0-9a-f]{40}$/
-const DATE = /^\d{4}-\d{2}-\d{2}$/
+const SHA = /^[0-9a-f]{40}$/;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * perf-base.json read from `text`, or a thrown error naming what it lacks: the sha is a full 40-hex commit, the date
@@ -31,13 +31,19 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/
  * baseline nobody can check.
  */
 export function readPerfBase(text: string): PerfBase {
-	const raw = JSON.parse(text) as Partial<PerfBase>
-	if (typeof raw.sha !== "string" || !SHA.test(raw.sha)) throw new Error("perf-base.json: sha is not a 40-hex commit")
-	if (typeof raw.recorded !== "string" || !DATE.test(raw.recorded))
-		throw new Error("perf-base.json: recorded is not a YYYY-MM-DD date")
-	if (typeof raw.note !== "string" || raw.note.trim() === "") throw new Error("perf-base.json: note is empty")
-	if (raw.history !== undefined && !Array.isArray(raw.history)) throw new Error("perf-base.json: history is not a list")
-	return { history: raw.history ?? [], note: raw.note, recorded: raw.recorded, sha: raw.sha }
+  const raw = JSON.parse(text) as Partial<PerfBase>;
+
+  if (typeof raw.sha !== "string" || !SHA.test(raw.sha)) throw new Error("perf-base.json: sha is not a 40-hex commit");
+
+  if (typeof raw.recorded !== "string" || !DATE.test(raw.recorded))
+    throw new Error("perf-base.json: recorded is not a YYYY-MM-DD date");
+
+  if (typeof raw.note !== "string" || raw.note.trim() === "") throw new Error("perf-base.json: note is empty");
+
+  if (raw.history !== undefined && !Array.isArray(raw.history))
+    throw new Error("perf-base.json: history is not a list");
+
+  return { history: raw.history ?? [], note: raw.note, recorded: raw.recorded, sha: raw.sha };
 }
 
 /**
@@ -46,26 +52,30 @@ export function readPerfBase(text: string): PerfBase {
  * blamed the base ("not an ancestor") when the cause was a depth-1 checkout. A guard whose message misdirects costs
  * a CI cycle, so the clone is reported before the base is judged.
  */
-export type Placed = { ancestor: boolean; behind: number; known: boolean; lockfile: boolean; shallow: boolean }
+export type Placed = { ancestor: boolean; behind: number; known: boolean; lockfile: boolean; shallow: boolean };
 
 /**
  * Why the base at `sha` cannot be used, or null when it can: every reason, in one message, so one read names them
  * all rather than one per run.
  */
 export function unusable(sha: string, { ancestor, behind, known, lockfile, shallow }: Placed): string | null {
-	const short = sha.slice(0, 7)
-	if (!known)
-		return shallow
-			? `perf-base.json: this clone is shallow and does not hold ${short}: the job needs fetch-depth: 0`
-			: `perf-base.json: ${short} is not a commit in this clone`
-	const why = [
-		...(ancestor ? [] : [`${sha.slice(0, 7)} is not an ancestor of origin/main`]),
-		...(lockfile ? [] : [`${sha.slice(0, 7)} carries no bun.lock`]),
-		...(behind > STALE_AFTER
-			? [`${sha.slice(0, 7)} is ${behind} commits behind origin/main, past ${STALE_AFTER}`]
-			: []),
-	]
-	return why.length === 0 ? null : `perf-base.json: ${why.join("; ")}`
+  const short = sha.slice(0, 7);
+
+  if (!known) {
+    return shallow
+      ? `perf-base.json: this clone is shallow and does not hold ${short}: the job needs fetch-depth: 0`
+      : `perf-base.json: ${short} is not a commit in this clone`;
+  }
+
+  const why = [
+    ...(ancestor ? [] : [`${sha.slice(0, 7)} is not an ancestor of origin/main`]),
+    ...(lockfile ? [] : [`${sha.slice(0, 7)} carries no bun.lock`]),
+    ...(behind > STALE_AFTER
+      ? [`${sha.slice(0, 7)} is ${behind} commits behind origin/main, past ${STALE_AFTER}`]
+      : []),
+  ];
+
+  return why.length === 0 ? null : `perf-base.json: ${why.join("; ")}`;
 }
 
 /**
@@ -73,45 +83,54 @@ export function unusable(sha: string, { ancestor, behind, known, lockfile, shall
  * names the bytes behind the one that is not. A move with no ratios measured nothing, so it is refused outright.
  */
 export function moveRefused(move: Move, note: string): string | null {
-	const ratios = Object.entries(move.ratios)
-	if (ratios.length === 0) return `perf-base.json: the move to ${move.sha.slice(0, 7)} measured no ratios`
-	const over = ratios.filter(([, ratio]) => ratio > DRIFT_BOUND).map(([name, ratio]) => `${name} ${ratio}`)
-	if (over.length === 0) return null
-	/* the escape hatch is a named cost, as a runtime byte lock's raise is: the note must say "bytes" and what they buy */
-	if (/\bbytes\b/.test(note)) return null
-	return `perf-base.json: the move to ${move.sha.slice(0, 7)} drifts (${over.join(", ")}), unnamed`
+  const ratios = Object.entries(move.ratios);
+
+  if (ratios.length === 0) return `perf-base.json: the move to ${move.sha.slice(0, 7)} measured no ratios`;
+  const over = ratios.filter(([, ratio]) => ratio > DRIFT_BOUND).map(([name, ratio]) => `${name} ${ratio}`);
+
+  if (over.length === 0) return null;
+
+  // the escape hatch is a named cost, as a runtime byte lock's raise is: the note must say "bytes" and what they buy
+  if (/\bbytes\b/.test(note)) return null;
+
+  return `perf-base.json: the move to ${move.sha.slice(0, 7)} drifts (${over.join(", ")}), unnamed`;
 }
 
 /** Each git call's bound: a read of local history, so a second is already far past normal. */
-export const GIT_TIMEOUT_MS = 60_000
+const GIT_TIMEOUT_MS = 60_000;
 
 /** The three facts about `sha`, read from the repository at `root` with git; each call is bounded. */
 export function placedAt(root: string, sha: string): Placed {
-	const git = (...args: readonly string[]) =>
-		execFileSync("git", args, { cwd: root, encoding: "utf8", timeout: GIT_TIMEOUT_MS }).trim()
-	const reads = (...args: readonly string[]) => {
-		try {
-			git(...args)
-			return true
-		} catch {
-			/* git itself says no: an unknown object, or a question this clone cannot answer */
-			return false
-		}
-	}
-	const shallow = git("rev-parse", "--is-shallow-repository") === "true"
-	const known = reads("cat-file", "-e", `${sha}^{commit}`)
-	const ancestor = known && reads("merge-base", "--is-ancestor", sha, "origin/main")
-	const lockfile = known && reads("cat-file", "-e", `${sha}:bun.lock`)
-	/* a commit the clone does not hold is as far behind as it gets; asking git would only print a fatal to no one */
-	const behind = !known
-		? Number.POSITIVE_INFINITY
-		: (() => {
-				try {
-					return Number(git("rev-list", "--count", `${sha}..origin/main`))
-				} catch {
-					/* known but uncountable (no origin/main in this clone): unusable, never a thrown read */
-					return Number.POSITIVE_INFINITY
-				}
-			})()
-	return { ancestor, behind, known, lockfile, shallow }
+  const git = (...args: readonly string[]) =>
+    execFileSync("git", args, { cwd: root, encoding: "utf8", timeout: GIT_TIMEOUT_MS }).trim();
+
+  const reads = (...args: readonly string[]) => {
+    try {
+      git(...args);
+
+      return true;
+    } catch {
+      // git itself says no: an unknown object, or a question this clone cannot answer
+      return false;
+    }
+  };
+
+  const shallow = git("rev-parse", "--is-shallow-repository") === "true";
+  const known = reads("cat-file", "-e", `${sha}^{commit}`);
+  const ancestor = known && reads("merge-base", "--is-ancestor", sha, "origin/main");
+  const lockfile = known && reads("cat-file", "-e", `${sha}:bun.lock`);
+
+  // a commit the clone does not hold is as far behind as it gets; asking git would only print a fatal to no one
+  const behind = known
+    ? (() => {
+        try {
+          return Number(git("rev-list", "--count", `${sha}..origin/main`));
+        } catch {
+          // known but uncountable (no origin/main in this clone): unusable, never a thrown read
+          return Number.POSITIVE_INFINITY;
+        }
+      })()
+    : Number.POSITIVE_INFINITY;
+
+  return { ancestor, behind, known, lockfile, shallow };
 }

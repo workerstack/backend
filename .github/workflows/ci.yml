@@ -46,9 +46,8 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
       - id: resolve
         run: bun packages/core/tests/build/node-current.ts
-  commitlint:
-    name: commitlint
-    if: github.event_name == 'pull_request'
+  commits:
+    name: commits
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -59,12 +58,10 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - uses: ./.github/actions/install
-      - name: Lint commit messages
-        run: |
-          bunx commitlint \
-            --from ${{ github.event.pull_request.base.sha }} \
-            --to ${{ github.event.pull_request.head.sha }} \
-            --verbose
+      - name: Check every pushed commit
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bun repo commit-msg --range "$BASE..HEAD"
 
   check:
     name: lint
@@ -77,8 +74,8 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
       - uses: ./.github/actions/install
       - run: bun run generate
+      - run: bun repo check
       - run: bun run fmt:check
-      - run: bun run lint
       - run: bun run typecheck
       - run: bun run typecheck:consumers
 
@@ -105,9 +102,9 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - uses: ./.github/actions/install
-      # backend's own copy of the pinned clients (tests/fixture/mcp-clients), for its mounted-MCP legs
-      - name: MCP clients for backend (packages/core/tests/fixture/mcp-clients/client-lock.json)
-        run: P="$(git rev-parse --show-toplevel)/packages/core/tests/fixture/mcp-clients" && D="$HOME/.cache/backend-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
+      # backend's own copy of the pinned clients (tests/__fixtures__/mcp-clients), for its mounted-MCP legs
+      - name: MCP clients for backend (packages/core/tests/__fixtures__/mcp-clients/client-lock.json)
+        run: P="$(git rev-parse --show-toplevel)/packages/core/tests/__fixtures__/mcp-clients" && D="$HOME/.cache/backend-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
       - run: bun run generate
       - if: ${{ !cancelled() }}
         run: bun run test:v1
@@ -234,9 +231,9 @@ jobs:
         with:
           node-version: ${{ (matrix.node || 'current') == 'current' && needs.node-current.outputs.node || matrix.node }}
       - uses: ./.github/actions/install
-      # backend's own copy of the pinned clients (tests/fixture/mcp-clients), for its mounted-MCP legs
-      - name: MCP clients for backend (packages/core/tests/fixture/mcp-clients/client-lock.json)
-        run: P="$(git rev-parse --show-toplevel)/packages/core/tests/fixture/mcp-clients" && D="$HOME/.cache/backend-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
+      # backend's own copy of the pinned clients (tests/__fixtures__/mcp-clients), for its mounted-MCP legs
+      - name: MCP clients for backend (packages/core/tests/__fixtures__/mcp-clients/client-lock.json)
+        run: P="$(git rev-parse --show-toplevel)/packages/core/tests/__fixtures__/mcp-clients" && D="$HOME/.cache/backend-tmp/mcp-clients-backend" && rm -rf "$D.partial" && mkdir -p "$D.partial" && cp "$P/client-pins.json" "$D.partial/package.json" && cp "$P/client-lock.json" "$D.partial/package-lock.json" && (cd "$D.partial" && npm ci --ignore-scripts --no-audit --no-fund) && sha256sum "$P/client-lock.json" | cut -d" " -f1 > "$D.partial/lock.sha256" && rm -rf "$D" && mv "$D.partial" "$D"
       - run: bun run generate
       # a prod cell builds its app through run-build.ts first, under the same build gate as the build job
       - run: bun run ${{ matrix.script }}

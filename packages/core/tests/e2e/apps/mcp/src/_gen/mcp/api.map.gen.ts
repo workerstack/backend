@@ -12,7 +12,7 @@ export const serviceMap: ServiceMap = {
 			method: "POST",
 			params: ["project_id"],
 			path: "/v1/projects/{project_id}/extract-stream",
-			sse: true,
+			sse: [],
 		},
 		table: {
 			once: {
@@ -25,7 +25,7 @@ export const serviceMap: ServiceMap = {
 				method: "POST",
 				params: ["project_id", "table_id"],
 				path: "/v1/projects/{project_id}/tables/{table_id}/extract-stream",
-				sse: true,
+				sse: [],
 			},
 		},
 	},

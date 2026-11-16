@@ -71,7 +71,7 @@ consumers are decoupled from backend's compiler flags, and the package runs on e
 ## The tests
 
 - **`bun run test:packaging`** (`packages/core/tests/e2e/run-strict-consumer.ts`) installs the packed tarball into a
-  throwaway consumer and type-checks `packages/core/tests/e2e/strict-consumer/`: `strict`,
+  throwaway consumer and type-checks `packages/core/tests/e2e/__fixtures__/strict-consumer/`: `strict`,
   `exactOptionalPropertyTypes`, `noPropertyAccessFromIndexSignature`, `noUncheckedIndexedAccess`,
   `verbatimModuleSyntax` and the rest. It fails on any diagnostic whose path is inside the package, then runs the
   installed package on Node and Bun. CI runs it on Node 22 and the current Node.

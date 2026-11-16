@@ -1,330 +1,335 @@
-import type { WSAdapter } from "@workerstack/backend/http"
-import type { RouteTree } from "@workerstack/backend/http/tree"
-import { createMiddleware, defineErrors, HttpError, httpApp } from "@workerstack/backend/http"
-import { streamed } from "@workerstack/backend/http/input"
-import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
-import { scalar } from "@workerstack/backend/http/openapi/scalar"
-import { realtime } from "@workerstack/backend/realtime"
-import { ws } from "@workerstack/backend/ws"
-import { SearchService } from "./service.ts"
-import * as z from "zod"
+import type { WSAdapter } from "@workerstack/backend/http";
+import { createMiddleware, defineErrors, HttpError, httpApp } from "@workerstack/backend/http";
+import { streamed } from "@workerstack/backend/http/input";
+import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi";
+import { scalar } from "@workerstack/backend/http/openapi/scalar";
+import type { RouteTree } from "@workerstack/backend/http/tree";
+import { realtime } from "@workerstack/backend/realtime";
+import { ws } from "@workerstack/backend/ws";
+import * as z from "zod";
+
+import { SearchService } from "./service.ts";
 
 /** What `/ws/talk` receives and sends: a tagged union each way. */
 const TalkIn = z.discriminatedUnion("type", [
-	z.object({ text: z.string(), type: z.literal("say") }),
-	z.object({ type: z.literal("ping") }),
-])
+  z.object({ text: z.string(), type: z.literal("say") }),
+  z.object({ type: z.literal("ping") }),
+]);
+
 const TalkOut = z.discriminatedUnion("type", [
-	z.object({ text: z.string(), type: z.literal("said") }),
-	z.object({ type: z.literal("pong") }),
-])
+  z.object({ text: z.string(), type: z.literal("said") }),
+  z.object({ type: z.literal("pong") }),
+]);
 
 /** What `/rt/room` receives and publishes: a tagged union each way. */
 const RoomIn = z.discriminatedUnion("type", [
-	z.object({ text: z.string(), type: z.literal("say") }),
-	z.object({ type: z.literal("leave") }),
-])
-const RoomOut = z.discriminatedUnion("type", [
-	z.object({ text: z.string(), type: z.literal("said") }),
-	z.object({ type: z.literal("left") }),
-])
+  z.object({ text: z.string(), type: z.literal("say") }),
+  z.object({ type: z.literal("leave") }),
+]);
 
-type Env = { API_KEY: string; DATABASE_URL: string }
+const RoomOut = z.discriminatedUnion("type", [
+  z.object({ text: z.string(), type: z.literal("said") }),
+  z.object({ type: z.literal("left") }),
+]);
+
+type Env = { API_KEY: string; DATABASE_URL: string };
 
 type Meta = {
-	auth?: "public" | "required"
-	rateLimit?: "default" | "strict"
-}
+  auth?: "public" | "required";
+  rateLimit?: "default" | "strict";
+};
 
 const errors = defineErrors({
-	conflict: "conflict",
-	gone: "gone",
-	rate_limited: "too_many_requests",
-	unauthorized: "unauthorized",
-	unprocessable: "unprocessable_entity",
-	validation_error: "bad_request",
-})
+  conflict: "conflict",
+  gone: "gone",
+  rate_limited: "too_many_requests",
+  unauthorized: "unauthorized",
+  unprocessable: "unprocessable_entity",
+  validation_error: "bad_request",
+});
 
-const withLogger = createMiddleware(async (_ctx, next) => next({ logger: { info: (_msg: string) => {} } }))
+const withLogger = createMiddleware(async (_ctx, next) => next({ logger: { info: (_msg: string) => {} } }));
 
 /** Refuses the room `missing` before the upgrade, so the document's 404 is an answer a client can get. */
 const roomGate = createMiddleware(async (ctx: { req: Request }, next) => {
-	if (new URL(ctx.req.url).searchParams.get("roomId") === "missing")
-		throw new HttpError({ errorKey: "not_found", status: "not_found" })
-	return next()
-})
+  if (new URL(ctx.req.url).searchParams.get("roomId") === "missing")
+    throw new HttpError({ errorKey: "not_found", status: "not_found" });
+
+  return next();
+});
 
 const withAuth = createMiddleware(async (_ctx, next) =>
-	next({ user: { id: "u-1", role: "admin" as "admin" | "member" } }),
-)
+  next({ user: { id: "u-1", role: "admin" as "admin" | "member" } }),
+);
 
 /** Exhaustive consumer surface: every input source, output type, method, SSE, WS. */
 
 /** `routeTree`: boot from a generated route tree (`src/_gen/routes.gen.ts`) instead of building the trie. */
-export type AppOptions = { routeTree?: RouteTree }
+export type AppOptions = { routeTree?: RouteTree };
 
 export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
-	const app = options?.routeTree ? httpApp<Env>().routeTree(options.routeTree) : httpApp<Env>()
-	if (wsAdapter) app.wsAdapter(wsAdapter)
+  const app = options?.routeTree ? httpApp<Env>().routeTree(options.routeTree) : httpApp<Env>();
 
-	const routed = app
-		.errorFactory(errors)
-		.defaultErrors("unauthorized", "validation_error")
-		.defaultBoundary("validation_error")
-		.metaType<Meta>()
-		.use(withLogger)
-		.use(withAuth)
+  if (wsAdapter) app.wsAdapter(wsAdapter);
 
-		.post("/in/json")
-		.meta({ operationId: "input.createJson", tags: ["input"] })
-		.input({ json: z.object({ email: z.string(), name: z.string() }) })
-		.output({ "application/json": { created: z.object({ id: z.string() }) } })
-		.handler((ctx) => ctx.res.json("created", { id: "1" }))
+  const routed = app
+    .errorFactory(errors)
+    .defaultErrors("unauthorized", "validation_error")
+    .defaultBoundary("validation_error")
+    .metaType<Meta>()
+    .use(withLogger)
+    .use(withAuth)
 
-		.post("/in/form")
-		.meta({ operationId: "input.createForm", tags: ["input"] })
-		.input({ form: z.object({ password: z.string(), username: z.string() }) })
-		.output({ "application/json": { ok: z.object({ token: z.string() }) } })
-		.handler((ctx) => ctx.res.json("ok", { token: `t-${ctx.input.form.username}` }))
+    .post("/in/json")
+    .meta({ operationId: "input.createJson", tags: ["input"] })
+    .input({ json: z.object({ email: z.string(), name: z.string() }) })
+    .output({ "application/json": { created: z.object({ id: z.string() }) } })
+    .handler((ctx) => ctx.res.json("created", { id: "1" }))
 
-		.get("/in/search")
-		.meta({ auth: "required", operationId: "input.search", tags: ["input"] })
-		.input({
-			search: z.object({
-				limit: z.coerce.number(),
-				page: z.coerce.number(),
-				q: z.string().optional(),
-			}),
-		})
-		.output({ "application/json": { ok: z.object({ results: z.string().array() }) } })
-		/* the service takes the generated per-route ctx: see src/service.ts */
-		.handler((ctx) => ctx.res.json("ok", { results: [String(SearchService.run(ctx).page)] }))
+    .post("/in/form")
+    .meta({ operationId: "input.createForm", tags: ["input"] })
+    .input({ form: z.object({ password: z.string(), username: z.string() }) })
+    .output({ "application/json": { ok: z.object({ token: z.string() }) } })
+    .handler((ctx) => ctx.res.json("ok", { token: `t-${ctx.input.form.username}` }))
 
-		.get("/in/headers")
-		.meta({ operationId: "in.headers.list" })
-		.input({ headers: z.object({ "x-api-key": z.string(), "x-request-id": z.string() }) })
-		.output({ "application/json": { ok: z.object({ accepted: z.boolean() }) } })
-		.handler((ctx) => ctx.res.json("ok", { accepted: true }))
+    .get("/in/search")
+    .meta({ auth: "required", operationId: "input.search", tags: ["input"] })
+    .input({
+      search: z.object({
+        limit: z.coerce.number(),
+        page: z.coerce.number(),
+        q: z.string().optional(),
+      }),
+    })
+    .output({ "application/json": { ok: z.object({ results: z.string().array() }) } })
+    // the service takes the generated per-route ctx: see src/service.ts
+    .handler((ctx) => ctx.res.json("ok", { results: [String(SearchService.run(ctx).page)] }))
 
-		.get("/in/cookies")
-		.meta({ operationId: "in.cookies.list" })
-		.input({ cookies: z.object({ locale: z.string(), sid: z.string() }) })
-		.output({ "application/json": { ok: z.object({ locale: z.string(), valid: z.boolean() }) } })
-		.handler((ctx) => ctx.res.json("ok", { locale: ctx.input.cookies.locale, valid: true }))
+    .get("/in/headers")
+    .meta({ operationId: "in.headers.list" })
+    .input({ headers: z.object({ "x-api-key": z.string(), "x-request-id": z.string() }) })
+    .output({ "application/json": { ok: z.object({ accepted: z.boolean() }) } })
+    .handler((ctx) => ctx.res.json("ok", { accepted: true }))
 
-		.get("/in/params/:orgId/members/:memberId")
-		.meta({ operationId: "in.params.members.retrieve" })
-		.input({ params: { memberId: z.string().min(1), orgId: z.string().min(1) } })
-		.output({ "application/json": { ok: z.object({ memberId: z.string(), orgId: z.string() }) } })
-		.handler((ctx) => ctx.res.json("ok", { memberId: ctx.params.memberId, orgId: ctx.params.orgId }))
+    .get("/in/cookies")
+    .meta({ operationId: "in.cookies.list" })
+    .input({ cookies: z.object({ locale: z.string(), sid: z.string() }) })
+    .output({ "application/json": { ok: z.object({ locale: z.string(), valid: z.boolean() }) } })
+    .handler((ctx) => ctx.res.json("ok", { locale: ctx.input.cookies.locale, valid: true }))
 
-		.get("/in/none")
-		.meta({ operationId: "input.none", tags: ["input"] })
-		.output({ "application/json": { ok: z.object({ ping: z.literal("pong") }) } })
-		.handler((ctx) => ctx.res.json("ok", { ping: "pong" as const }))
+    .get("/in/params/:orgId/members/:memberId")
+    .meta({ operationId: "in.params.members.retrieve" })
+    .input({ params: { memberId: z.string().min(1), orgId: z.string().min(1) } })
+    .output({ "application/json": { ok: z.object({ memberId: z.string(), orgId: z.string() }) } })
+    .handler((ctx) => ctx.res.json("ok", { memberId: ctx.params.memberId, orgId: ctx.params.orgId }))
 
-		.post("/in/file")
-		.meta({ operationId: "in.file.create" })
-		.input({ form: z.object({ title: z.string(), upload: z.file() }) })
-		.output({ "application/json": { ok: z.object({ name: z.string(), title: z.string() }) } })
-		.handler((ctx) => ctx.res.json("ok", { name: ctx.input.form.upload.name, title: ctx.input.form.title }))
+    .get("/in/none")
+    .meta({ operationId: "input.none", tags: ["input"] })
+    .output({ "application/json": { ok: z.object({ ping: z.literal("pong") }) } })
+    .handler((ctx) => ctx.res.json("ok", { ping: "pong" as const }))
 
-		.put("/in/all/:resourceId")
-		.meta({ operationId: "in.all.replace" })
-		.input({
-			headers: z.object({ "if-match": z.string() }),
-			json: z.object({ data: z.record(z.string(), z.unknown()) }),
-			search: z.object({ force: z.coerce.boolean().optional(), version: z.coerce.number() }),
-		})
-		.output({ "application/json": { ok: z.object({ etag: z.string(), version: z.number() }) } })
-		.handler((ctx) => ctx.res.json("ok", { etag: 'W/"abc"', version: ctx.input.search.version }))
+    .post("/in/file")
+    .meta({ operationId: "in.file.create" })
+    .input({ form: z.object({ title: z.string(), upload: z.file() }) })
+    .output({ "application/json": { ok: z.object({ name: z.string(), title: z.string() }) } })
+    .handler((ctx) => ctx.res.json("ok", { name: ctx.input.form.upload.name, title: ctx.input.form.title }))
 
-		.get("/out/text")
-		.meta({ operationId: "out.text.list" })
-		.output({ "text/plain": { ok: z.string() } })
-		.handler((ctx) => ctx.res.text("ok", "hello world"))
+    .put("/in/all/:resourceId")
+    .meta({ operationId: "in.all.replace" })
+    .input({
+      headers: z.object({ "if-match": z.string() }),
+      json: z.object({ data: z.record(z.string(), z.unknown()) }),
+      search: z.object({ force: z.coerce.boolean().optional(), version: z.coerce.number() }),
+    })
+    .output({ "application/json": { ok: z.object({ etag: z.string(), version: z.number() }) } })
+    .handler((ctx) => ctx.res.json("ok", { etag: 'W/"abc"', version: ctx.input.search.version }))
 
-		.get("/out/html")
-		.meta({ operationId: "out.html.list" })
-		.output({ "text/html": { ok: z.string() } })
-		.handler((ctx) => ctx.res.html("ok", "<h1>Hello</h1>"))
+    .get("/out/text")
+    .meta({ operationId: "out.text.list" })
+    .output({ "text/plain": { ok: z.string() } })
+    .handler((ctx) => ctx.res.text("ok", "hello world"))
 
-		.get("/out/csv")
-		.meta({ operationId: "out.csv.list" })
-		.output({ "text/csv": { ok: z.string() } })
-		.handler((ctx) => ctx.res.csv("ok", "id,name\n1,Alice"))
+    .get("/out/html")
+    .meta({ operationId: "out.html.list" })
+    .output({ "text/html": { ok: z.string() } })
+    .handler((ctx) => ctx.res.html("ok", "<h1>Hello</h1>"))
 
-		.get("/out/xml")
-		.meta({ operationId: "out.xml.list" })
-		.output({ "application/xml": { ok: z.string() } })
-		.handler((ctx) => ctx.res.xml("ok", "<user><id>1</id></user>"))
+    .get("/out/csv")
+    .meta({ operationId: "out.csv.list" })
+    .output({ "text/csv": { ok: z.string() } })
+    .handler((ctx) => ctx.res.csv("ok", "id,name\n1,Alice"))
 
-		.get("/out/binary")
-		.meta({ operationId: "out.binary.list" })
-		.output({ "application/octet-stream": { ok: z.instanceof(Uint8Array) } })
-		.handler((ctx) => ctx.res.binary("ok", new Uint8Array([0x48, 0x49])))
+    .get("/out/xml")
+    .meta({ operationId: "out.xml.list" })
+    .output({ "application/xml": { ok: z.string() } })
+    .handler((ctx) => ctx.res.xml("ok", "<user><id>1</id></user>"))
 
-		.get("/out/sse")
-		.meta({ operationId: "out.sse.list" })
-		.output({ "text/event-stream": { ok: { data: z.object({ n: z.number() }), heartbeat: z.string() } } })
-		.handler((ctx) =>
-			ctx.res.sse(async (stream) => {
-				await stream.send({ data: "tick", event: "heartbeat", id: "1" })
-				await stream.send({ data: { n: 42 }, event: "data", id: "2" })
-				stream.close()
-			}),
-		)
+    .get("/out/binary")
+    .meta({ operationId: "out.binary.list" })
+    .output({ "application/octet-stream": { ok: z.instanceof(Uint8Array) } })
+    .handler((ctx) => ctx.res.binary("ok", new Uint8Array([0x48, 0x49])))
 
-		.post("/out/multi-status")
-		.meta({ operationId: "out.multiStatus.create" })
-		.input({ json: z.object({ slug: z.string() }) })
-		.output({ "application/json": { created: z.object({ id: z.string(), slug: z.string() }) } })
-		.errors("conflict")
-		.handler((ctx) => ctx.res.json("created", { id: "1", slug: ctx.input.json.slug }))
+    .get("/out/sse")
+    .meta({ operationId: "out.sse.list" })
+    .output({ "text/event-stream": { ok: { data: z.object({ n: z.number() }), heartbeat: z.string() } } })
+    .handler((ctx) =>
+      ctx.res.sse(async (stream) => {
+        await stream.send({ data: "tick", event: "heartbeat", id: "1" });
+        await stream.send({ data: { n: 42 }, event: "data", id: "2" });
+        stream.close();
+      }),
+    )
 
-		.delete("/out/no-content/:id")
-		.meta({ operationId: "out.noContent.delete" })
-		.output({ no_content: true })
-		.errors("not_found")
-		.handler((ctx) => ctx.res.noContent())
+    .post("/out/multi-status")
+    .meta({ operationId: "out.multiStatus.create" })
+    .input({ json: z.object({ slug: z.string() }) })
+    .output({ "application/json": { created: z.object({ id: z.string(), slug: z.string() }) } })
+    .errors("conflict")
+    .handler((ctx) => ctx.res.json("created", { id: "1", slug: ctx.input.json.slug }))
 
-		.get("/methods/resource")
-		.meta({ operationId: "resources.list", tags: ["methods"] })
-		.output({ "application/json": { ok: z.object({ items: z.string().array() }) } })
-		.handler((ctx) => ctx.res.json("ok", { items: [] }))
+    .delete("/out/no-content/:id")
+    .meta({ operationId: "out.noContent.delete" })
+    .output({ no_content: true })
+    .errors("not_found")
+    .handler((ctx) => ctx.res.noContent())
 
-		.post("/methods/resource")
-		.meta({ operationId: "resources.create", tags: ["methods"] })
-		.input({ json: z.object({ name: z.string() }) })
-		.output({ "application/json": { created: z.object({ id: z.string() }) } })
-		.handler((ctx) => ctx.res.json("created", { id: "1" }))
+    .get("/methods/resource")
+    .meta({ operationId: "resources.list", tags: ["methods"] })
+    .output({ "application/json": { ok: z.object({ items: z.string().array() }) } })
+    .handler((ctx) => ctx.res.json("ok", { items: [] }))
 
-		.put("/methods/resource/:id")
-		.meta({ operationId: "resources.update", tags: ["methods"] })
-		.input({ json: z.object({ name: z.string() }), params: { id: z.string().min(1) } })
-		.output({ "application/json": { ok: z.object({ id: z.string(), name: z.string() }) } })
-		.handler((ctx) => ctx.res.json("ok", { id: ctx.params.id, name: ctx.input.json.name }))
+    .post("/methods/resource")
+    .meta({ operationId: "resources.create", tags: ["methods"] })
+    .input({ json: z.object({ name: z.string() }) })
+    .output({ "application/json": { created: z.object({ id: z.string() }) } })
+    .handler((ctx) => ctx.res.json("created", { id: "1" }))
 
-		.patch("/methods/resource/:id")
-		.meta({ operationId: "resources.patch", tags: ["methods"] })
-		.input({
-			json: z.object({ name: z.string().optional() }),
-			params: { id: z.string().min(1) },
-		})
-		.output({ "application/json": { ok: z.object({ id: z.string() }) } })
-		.handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
+    .put("/methods/resource/:id")
+    .meta({ operationId: "resources.update", tags: ["methods"] })
+    .input({ json: z.object({ name: z.string() }), params: { id: z.string().min(1) } })
+    .output({ "application/json": { ok: z.object({ id: z.string(), name: z.string() }) } })
+    .handler((ctx) => ctx.res.json("ok", { id: ctx.params.id, name: ctx.input.json.name }))
 
-		.delete("/methods/resource/:id")
-		.output({ no_content: true })
-		.meta({ operationId: "resources.delete", tags: ["methods"] })
-		.handler((ctx) => ctx.res.noContent())
+    .patch("/methods/resource/:id")
+    .meta({ operationId: "resources.patch", tags: ["methods"] })
+    .input({
+      json: z.object({ name: z.string().optional() }),
+      params: { id: z.string().min(1) },
+    })
+    .output({ "application/json": { ok: z.object({ id: z.string() }) } })
+    .handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
 
-		.get("/status/ok")
-		.meta({ operationId: "status.ok.list" })
-		.output({ "application/json": { ok: z.object({ v: z.number() }) } })
-		.handler((ctx) => ctx.res.json("ok", { v: 1 }))
+    .delete("/methods/resource/:id")
+    .output({ no_content: true })
+    .meta({ operationId: "resources.delete", tags: ["methods"] })
+    .handler((ctx) => ctx.res.noContent())
 
-		.post("/status/created")
-		.meta({ operationId: "status.created.create" })
-		.input({ json: z.object({ x: z.string() }) })
-		.output({ "application/json": { created: z.object({ id: z.string() }) } })
-		.handler((ctx) => ctx.res.json("created", { id: "1" }))
+    .get("/status/ok")
+    .meta({ operationId: "status.ok.list" })
+    .output({ "application/json": { ok: z.object({ v: z.number() }) } })
+    .handler((ctx) => ctx.res.json("ok", { v: 1 }))
 
-		.post("/status/accepted")
-		.meta({ operationId: "status.accepted.create" })
-		.input({ json: z.object({ task: z.string() }) })
-		.output({ "application/json": { accepted: z.object({ jobId: z.string() }) } })
-		.handler((ctx) => ctx.res.json("accepted", { jobId: "j-1" }))
+    .post("/status/created")
+    .meta({ operationId: "status.created.create" })
+    .input({ json: z.object({ x: z.string() }) })
+    .output({ "application/json": { created: z.object({ id: z.string() }) } })
+    .handler((ctx) => ctx.res.json("created", { id: "1" }))
 
-		.delete("/status/no-content")
-		.meta({ operationId: "status.noContent.delete" })
-		.output({ no_content: true })
-		.handler((ctx) => ctx.res.noContent())
+    .post("/status/accepted")
+    .meta({ operationId: "status.accepted.create" })
+    .input({ json: z.object({ task: z.string() }) })
+    .output({ "application/json": { accepted: z.object({ jobId: z.string() }) } })
+    .handler((ctx) => ctx.res.json("accepted", { jobId: "j-1" }))
 
-		.get("/stream/filtered")
-		.meta({ operationId: "stream.filtered.list" })
-		.input({ search: z.object({ channel: z.string(), since: z.string().optional() }) })
-		.output({ "text/event-stream": { ok: { subscribed: z.string() } } })
-		.handler((ctx) =>
-			ctx.res.sse(async (stream) => {
-				await stream.send({ data: ctx.input.search.channel, event: "subscribed" })
-				stream.close()
-			}),
-		)
+    .delete("/status/no-content")
+    .meta({ operationId: "status.noContent.delete" })
+    .output({ no_content: true })
+    .handler((ctx) => ctx.res.noContent())
 
-		.post("/rs/upload")
-		.meta({ operationId: "rs.upload.create" })
-		.input({ json: streamed(z.object({ chunks: z.number(), fileName: z.string() })) })
-		.output({ "application/json": { accepted: z.object({ uploadId: z.string() }) } })
-		.handler((ctx) => ctx.res.json("accepted", { uploadId: "up-1" }))
+    .get("/stream/filtered")
+    .meta({ operationId: "stream.filtered.list" })
+    .input({ search: z.object({ channel: z.string(), since: z.string().optional() }) })
+    .output({ "text/event-stream": { ok: { subscribed: z.string() } } })
+    .handler((ctx) =>
+      ctx.res.sse(async (stream) => {
+        await stream.send({ data: ctx.input.search.channel, event: "subscribed" });
+        stream.close();
+      }),
+    )
 
-	ws(routed, "/ws/echo")
-		.meta({ operationId: "ws.echo", tags: ["websocket"] })
-		.handler({
-			onMessage(_ctx, socket, data) {
-				socket.send(data)
-			},
-			onOpen(_ctx, socket) {
-				socket.send("connected")
-			},
-		})
+    .post("/rs/upload")
+    .meta({ operationId: "rs.upload.create" })
+    .input({ json: streamed(z.object({ chunks: z.number(), fileName: z.string() })) })
+    .output({ "application/json": { accepted: z.object({ uploadId: z.string() }) } })
+    .handler((ctx) => ctx.res.json("accepted", { uploadId: "up-1" }));
 
-	ws(routed, "/ws/room")
-		.meta({ operationId: "ws.joinRoom", tags: ["websocket"] })
-		.use(roomGate)
-		.input({
-			cookies: z.object({ session: z.string().optional() }),
-			headers: z.object({ "x-room-token": z.string().optional() }),
-			search: z.object({ roomId: z.string() }),
-		})
-		.errors("not_found")
-		.handler({
-			onMessage(_ctx, socket, data) {
-				socket.send(`room: ${data}`)
-			},
-			onOpen(_ctx, socket) {
-				socket.send("joined")
-			},
-		})
+  ws(routed, "/ws/echo")
+    .meta({ operationId: "ws.echo", tags: ["websocket"] })
+    .handler({
+      onMessage(_ctx, socket, data) {
+        socket.send(data);
+      },
+      onOpen(_ctx, socket) {
+        socket.send("connected");
+      },
+    });
 
-	ws(routed, "/ws/reconnect")
-		.meta({ operationId: "ws.reconnect", tags: ["websocket"] })
-		.handler({
-			onOpen(_ctx, socket) {
-				socket.send(JSON.stringify({ event: "open", token: "reconnect-token-abc" }))
-			},
-			onReconnect(_ctx, socket, token) {
-				socket.send(JSON.stringify({ event: "resumed", token }))
-			},
-		})
+  ws(routed, "/ws/room")
+    .meta({ operationId: "ws.joinRoom", tags: ["websocket"] })
+    .use(roomGate)
+    .input({
+      cookies: z.object({ session: z.string().optional() }),
+      headers: z.object({ "x-room-token": z.string().optional() }),
+      search: z.object({ roomId: z.string() }),
+    })
+    .errors("not_found")
+    .handler({
+      onMessage(_ctx, socket, data) {
+        socket.send(`room: ${data}`);
+      },
+      onOpen(_ctx, socket) {
+        socket.send("joined");
+      },
+    });
 
-	ws(routed, "/ws/chat/:channelId")
-		.meta({ operationId: "ws.chat", tags: ["websocket"] })
-		.handler({
-			onMessage(_ctx, socket, data) {
-				socket.send(data)
-			},
-		})
+  ws(routed, "/ws/reconnect")
+    .meta({ operationId: "ws.reconnect", tags: ["websocket"] })
+    .handler({
+      onOpen(_ctx, socket) {
+        socket.send(JSON.stringify({ event: "open", token: "reconnect-token-abc" }));
+      },
+      onReconnect(_ctx, socket, token) {
+        socket.send(JSON.stringify({ event: "resumed", token }));
+      },
+    });
 
-	ws(routed, "/ws/talk")
-		.meta({ operationId: "ws.talk", tags: ["websocket"] })
-		.messages({ receive: TalkIn, send: TalkOut })
-		.handler({
-			onMessage(_ctx, socket, msg) {
-				socket.send(msg.type === "say" ? { text: msg.text, type: "said" } : { type: "pong" })
-			},
-		})
+  ws(routed, "/ws/chat/:channelId")
+    .meta({ operationId: "ws.chat", tags: ["websocket"] })
+    .handler({
+      onMessage(_ctx, socket, data) {
+        socket.send(data);
+      },
+    });
 
-	realtime(routed, "/rt/room", {
-		handler: (_ctx, conn) => {
-			conn.join("lobby")
-			conn.on("message", (msg) =>
-				conn.publish("lobby", msg.type === "say" ? { text: msg.text, type: "said" } : { type: "left" }),
-			)
-		},
-		messages: { receive: RoomIn, send: RoomOut },
-		meta: { operationId: "rt.room", tags: ["realtime"] },
-	})
+  ws(routed, "/ws/talk")
+    .meta({ operationId: "ws.talk", tags: ["websocket"] })
+    .messages({ receive: TalkIn, send: TalkOut })
+    .handler({
+      onMessage(_ctx, socket, msg) {
+        socket.send(msg.type === "say" ? { text: msg.text, type: "said" } : { type: "pong" });
+      },
+    });
 
-	return serveManifest(serveOpenApi(routed, { docs: { "/docs": scalar }, title: "Backend Surface", version: "1.0.0" }))
+  realtime(routed, "/rt/room", {
+    handler: (_ctx, conn) => {
+      conn.join("lobby");
+      conn.on("message", (msg) =>
+        conn.publish("lobby", msg.type === "say" ? { text: msg.text, type: "said" } : { type: "left" }),
+      );
+    },
+    messages: { receive: RoomIn, send: RoomOut },
+    meta: { operationId: "rt.room", tags: ["realtime"] },
+  });
+
+  return serveManifest(serveOpenApi(routed, { docs: { "/docs": scalar }, title: "Backend Surface", version: "1.0.0" }));
 }

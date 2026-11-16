@@ -6,53 +6,62 @@
  * generation runs. The OpenAPI sources module (plan 39 7.5) reads the config alone, so it is written first, before
  * the app that may import it loads.
  */
-import { existsSync, readFileSync } from "node:fs"
-import { dirname, join, relative, resolve } from "node:path"
-import type * as Artifacts from "./artifacts.ts"
-import { ARTIFACTS, type Clients, type Report } from "./artifacts.ts"
-import { OPENAPI_SOURCES, type ResolvedBackendConfig } from "./config.ts"
-import { createModuleLoader, type ModuleLoader } from "./loaders.ts"
-import { openApiSourcesOf } from "./openapi-sources.ts"
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 
-export type { Report } from "./artifacts.ts"
+import type * as Artifacts from "./artifacts.ts";
+import { ARTIFACTS, type Clients, type Report } from "./artifacts.ts";
+import { OPENAPI_SOURCES, type ResolvedBackendConfig } from "./config.ts";
+import { createModuleLoader, type ModuleLoader } from "./loaders.ts";
+import { openApiSourcesOf } from "./openapi-sources.ts";
 
-const CLIENTS = "@workerstack/clients"
-const CORE = "@workerstack/backend"
+export type { Report } from "./artifacts.ts";
+
+const CLIENTS = "@workerstack/clients";
+const CORE = "@workerstack/backend";
 
 /** clients, or a named error when it is not installed. */
-export async function loadClients(load = () => import("@workerstack/clients")): Promise<Clients> {
-	try {
-		return await load()
-	} catch (error) {
-		if ((error as { code?: string }).code !== "ERR_MODULE_NOT_FOUND" || !String(error).includes(CLIENTS)) throw error
-		throw new Error(`backend: generating the app's artifacts needs ${CLIENTS}: add it to your devDependencies`, {
-			cause: error,
-		})
-	}
+export async function loadClients(
+  load: () => Promise<Clients> = () => import("@workerstack/clients"),
+): Promise<Clients> {
+  try {
+    return await load();
+  } catch (error) {
+    if ((error as { code?: string }).code !== "ERR_MODULE_NOT_FOUND" || !String(error).includes(CLIENTS)) throw error;
+    throw new Error(`backend: generating the app's artifacts needs ${CLIENTS}: add it to your devDependencies`, {
+      cause: error,
+    });
+  }
 }
 
 /** The root of the @workerstack/backend package holding `file`, found up its directories. */
 function packageOf(file: string): string | undefined {
-	for (let dir = dirname(file); dirname(dir) !== dir; dir = dirname(dir)) {
-		const manifest = join(dir, "package.json")
-		if (existsSync(manifest) && (JSON.parse(readFileSync(manifest, "utf8")) as { name?: unknown }).name === CORE)
-			return dir
-	}
-	return undefined
+  for (let dir = dirname(file); dirname(dir) !== dir; dir = dirname(dir)) {
+    const manifest = join(dir, "package.json");
+
+    if (existsSync(manifest) && (JSON.parse(readFileSync(manifest, "utf8")) as { name?: unknown }).name === CORE)
+      return dir;
+  }
+
+  return undefined;
 }
 
 /**
  * artifacts.ts as the app at `root` resolves @workerstack/backend (node_modules up from it), at the path it has in this
  * package, so it shares the app's core even when the plugin was loaded from another copy; else this package's own.
  */
-export function artifactsFor(root: string, own = ARTIFACTS): string {
-	const pkg = packageOf(own)
-	if (pkg === undefined) return own
-	for (let dir = resolve(root); ; dir = dirname(dir)) {
-		const candidate = join(dir, "node_modules", CORE, relative(pkg, own))
-		if (existsSync(candidate)) return candidate
-		if (dirname(dir) === dir) return own
-	}
+export function artifactsFor(root: string, own: string = ARTIFACTS): string {
+  const pkg = packageOf(own);
+
+  if (pkg === undefined) return own;
+
+  for (let dir = resolve(root); ; dir = dirname(dir)) {
+    const candidate = join(dir, "node_modules", CORE, relative(pkg, own));
+
+    if (existsSync(candidate)) return candidate;
+
+    if (dirname(dir) === dir) return own;
+  }
 }
 
 /**
@@ -60,43 +69,49 @@ export function artifactsFor(root: string, own = ARTIFACTS): string {
  * from `root` by default.
  */
 export async function inAppGraph(
-	root: string,
-	load?: ModuleLoader,
+  root: string,
+  load?: ModuleLoader,
 ): Promise<{ graph: typeof Artifacts; load: ModuleLoader }> {
-	const loader = load ?? (await createModuleLoader({ fresh: true, from: resolve(root, "index.ts") }))
-	return { graph: (await loader(artifactsFor(root))) as unknown as typeof Artifacts, load: loader }
+  const loader = load ?? (await createModuleLoader({ fresh: true, from: resolve(root, "index.ts") }));
+
+  return { graph: (await loader(artifactsFor(root))) as unknown as typeof Artifacts, load: loader };
 }
 
 /** Every artifact `config` asks for, written under `root`; the files it rewrote. */
 export async function generateAndWrite(
-	config: ResolvedBackendConfig,
-	root: string,
-	options: { load?: ModuleLoader; report?: Report } = {},
+  config: ResolvedBackendConfig,
+  root: string,
+  options: { load?: ModuleLoader; report?: Report } = {},
 ): Promise<string[]> {
-	const { manifest, mcp, openApi, tree, types } = config.codegen
-	if (tree === false && manifest === false && openApi.length === 0 && types === false && mcp === false) return []
-	const codegen = await loadClients()
-	const report = options.report ?? ((message) => void process.stderr.write(`backend: ${message}\n`))
-	const run = { codegen, report, root }
-	const written: string[] = []
-	/* the sources module reads the config alone: written before the app loads, since the app may import it */
-	const sources = openApiSourcesOf(config, root)
-	if (sources !== null && codegen.writeFileIfChanged(resolve(root, OPENAPI_SOURCES), sources))
-		written.push(resolve(root, OPENAPI_SOURCES))
-	let { graph, load } = await inAppGraph(root, options.load)
-	let { rewrite, source } = await graph.prepare(config, { ...run, first: true, load })
-	if (rewrite !== undefined) {
-		/* a gateway app imports the tree this writes: written first, then the pass redone over it on a fresh graph */
-		codegen.writeFileIfChanged(resolve(root, rewrite[0]), rewrite[1])
-		written.push(resolve(root, rewrite[0]))
-		;({ graph, load } = await inAppGraph(
-			root,
-			await createModuleLoader({ fresh: true, from: resolve(root, "index.ts"), reload: true }),
-		))
-		;({ source } = await graph.prepare(config, { ...run, first: false, load }))
-	}
-	/* the tree just written is the same text again, so it is not rewritten nor listed twice */
-	for (const [path, text] of await graph.artifactsOf(config, run, source))
-		if (codegen.writeFileIfChanged(resolve(root, path), text)) written.push(resolve(root, path))
-	return written
+  const { manifest, mcp, openApi, tree, types } = config.codegen;
+
+  if (tree === false && manifest === false && openApi.length === 0 && types === false && mcp === false) return [];
+  const codegen = await loadClients();
+  const report = options.report ?? ((message) => void process.stderr.write(`backend: ${message}\n`));
+  const run = { codegen, report, root };
+  const written: string[] = [];
+  // the sources module reads the config alone: written before the app loads, since the app may import it
+  const sources = openApiSourcesOf(config, root);
+
+  if (sources !== null && codegen.writeFileIfChanged(resolve(root, OPENAPI_SOURCES), sources))
+    written.push(resolve(root, OPENAPI_SOURCES));
+  let { graph, load } = await inAppGraph(root, options.load);
+  let { rewrite, source } = await graph.prepare(config, { ...run, first: true, load });
+
+  if (rewrite !== undefined) {
+    // a gateway app imports the tree this writes: written first, then the pass redone over it on a fresh graph
+    codegen.writeFileIfChanged(resolve(root, rewrite[0]), rewrite[1]);
+    written.push(resolve(root, rewrite[0]));
+    ({ graph, load } = await inAppGraph(
+      root,
+      await createModuleLoader({ fresh: true, from: resolve(root, "index.ts"), reload: true }),
+    ));
+    ({ source } = await graph.prepare(config, { ...run, first: false, load }));
+  }
+
+  // the tree just written is the same text again, so it is not rewritten nor listed twice
+  for (const [path, text] of await graph.artifactsOf(config, run, source))
+    if (codegen.writeFileIfChanged(resolve(root, path), text)) written.push(resolve(root, path));
+
+  return written;
 }

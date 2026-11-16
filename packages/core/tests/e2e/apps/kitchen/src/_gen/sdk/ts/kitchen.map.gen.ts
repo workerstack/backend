@@ -55,7 +55,7 @@ export const serviceMap: ServiceMap = {
 			call: sseOp,
 			method: "GET",
 			path: "/api/events",
-			sse: true,
+			sse: [],
 		},
 	},
 	eventsLive: {
@@ -63,7 +63,7 @@ export const serviceMap: ServiceMap = {
 			call: sseOp,
 			method: "GET",
 			path: "/api/events-live",
-			sse: true,
+			sse: [],
 		},
 	},
 	health: {

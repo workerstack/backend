@@ -55,38 +55,40 @@
 // v0: efc3e91c83
 // v0: 8c571d55dd
 // v0: c2b9785752
-import { describe, expect, it } from "vitest"
-import { HttpError } from "../errors/error.ts"
-import type { StatusKey } from "../response/status.ts"
-import { type ErrorTranslations, translateError } from "./error-i18n.ts"
-import recorded from "./translate-error.v0.json" with { type: "json" }
+import { describe, expect, it } from "vitest";
 
-type Fields = Record<string, { error_key: string; message: string; path: string }[]>
+import { HttpError } from "../errors/error.ts";
+import type { StatusKey } from "../response/status.ts";
+import { type ErrorTranslations, translateError } from "./error-i18n.ts";
+import recorded from "./translate-error.v0.json" with { type: "json" };
+
+type Fields = Record<string, { error_key: string; message: string; path: string }[]>;
 
 type Row = {
-	readonly case: string
-	readonly error: { errorKey: string; fields: Fields; status: string; vars: Record<string, number | string> | null }
-	readonly locale: string
-	readonly out: { fields: Fields; message: string; same: boolean }
-	readonly translations: ErrorTranslations
-}
+  readonly case: string;
+  readonly error: { errorKey: string; fields: Fields; status: string; vars: Record<string, number | string> | null };
+  readonly locale: string;
+  readonly out: { fields: Fields; message: string; same: boolean };
+  readonly translations: ErrorTranslations;
+};
 
 describe("translateError(): v0's recorded translations, row for row", () => {
-	it.each(recorded as unknown as readonly Row[])(
-		"$case: $error.errorKey in $locale",
-		({ error, locale, out, translations }) => {
-			const thrown = new HttpError({
-				errorKey: error.errorKey,
-				fields: error.fields,
-				status: error.status as StatusKey,
-				...(error.vars === null ? {} : { vars: error.vars }),
-			})
-			const translated = translateError(thrown, translations, locale)
-			expect([translated === thrown, translated.message, translated.fields]).toEqual([
-				out.same,
-				out.message,
-				out.fields,
-			])
-		},
-	)
-})
+  it.each(recorded as unknown as readonly Row[])(
+    "$case: $error.errorKey in $locale",
+    ({ error, locale, out, translations }) => {
+      const thrown = new HttpError({
+        errorKey: error.errorKey,
+        fields: error.fields,
+        status: error.status as StatusKey,
+        ...(error.vars === null ? {} : { vars: error.vars }),
+      });
+
+      const translated = translateError(thrown, translations, locale);
+      expect([translated === thrown, translated.message, translated.fields]).toEqual([
+        out.same,
+        out.message,
+        out.fields,
+      ]);
+    },
+  );
+});

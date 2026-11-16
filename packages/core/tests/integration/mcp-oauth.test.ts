@@ -6,36 +6,38 @@
  * the endpoint as `resource`, and calls; a call needing more scope gets the 403 step-up challenge, re-authorizes for
  * the union and succeeds. Everything is local: the clients run under node from the pinned install.
  */
-import { spawn } from "node:child_process"
-import { writeFileSync } from "node:fs"
-import { join } from "node:path"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { clientsDir, withClients } from "../fixture/mcp-clients/clients.ts"
-import { serve } from "../fixture/loopback.ts"
-import { CLIENT_ID, type OAuthWorld, REDIRECT_URI, startOAuthWorld } from "./mcp-oauth/fixture.ts"
+import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { serve } from "../__fixtures__/loopback.ts";
+import { clientsDir, withClients } from "../__fixtures__/mcp-clients/clients.ts";
+import { CLIENT_ID, type OAuthWorld, REDIRECT_URI, startOAuthWorld } from "./mcp-oauth/fixture.ts";
 
 /** Each client: its imports, its options beside its name, and how it hands the callback to finishAuth. */
 const CLIENTS = {
-	modern: {
-		imports: 'import { Client, StreamableHTTPClientTransport, UnauthorizedError } from "@modelcontextprotocol/client"',
-		finish: "callback",
-		options: '{ versionNegotiation: { mode: { pin: "2026-07-28" } } }',
-	},
-	sdk: {
-		imports: [
-			'import { Client } from "@modelcontextprotocol/sdk/client/index.js"',
-			'import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js"',
-			'import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"',
-		].join("\n"),
-		finish: 'callback.get("code")',
-		options: "{}",
-	},
-	v2: {
-		imports: 'import { Client, StreamableHTTPClientTransport, UnauthorizedError } from "@modelcontextprotocol/client"',
-		finish: "callback",
-		options: "{}",
-	},
-} as const
+  modern: {
+    finish: "callback",
+    imports: 'import { Client, StreamableHTTPClientTransport, UnauthorizedError } from "@modelcontextprotocol/client"',
+    options: '{ versionNegotiation: { mode: { pin: "2026-07-28" } } }',
+  },
+  sdk: {
+    finish: 'callback.get("code")',
+    imports: [
+      'import { Client } from "@modelcontextprotocol/sdk/client/index.js"',
+      'import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js"',
+      'import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"',
+    ].join("\n"),
+    options: "{}",
+  },
+  v2: {
+    finish: "callback",
+    imports: 'import { Client, StreamableHTTPClientTransport, UnauthorizedError } from "@modelcontextprotocol/client"',
+    options: "{}",
+  },
+} as const;
 
 /**
  * The OAuth session for `client`: a provider pre-registered as CLIENT_ID whose redirect is followed at once (the stub
@@ -94,73 +96,74 @@ try {
 	out.failed = String(error?.message ?? error)
 }
 console.log(JSON.stringify(out))
-`
+`;
 
 type Saw = {
-	readonly authorizations: readonly (string | null)[]
-	readonly tools?: readonly string[]
-	readonly read?: { readonly _meta?: unknown; readonly structuredContent?: unknown }
-	readonly created?: { readonly _meta?: unknown; readonly structuredContent?: unknown }
-	readonly failed?: string
-}
+  readonly authorizations: readonly (string | null)[];
+  readonly tools?: readonly string[];
+  readonly read?: { readonly _meta?: unknown; readonly structuredContent?: unknown };
+  readonly created?: { readonly _meta?: unknown; readonly structuredContent?: unknown };
+  readonly failed?: string;
+};
 
 /** `client`'s OAuth session against `endpoint`: what it saw. */
 function session(client: keyof typeof CLIENTS, endpoint: string): Promise<Saw> {
-	const path = join(clientsDir(), `oauth-${client}.mjs`)
-	writeFileSync(path, script(client))
-	return new Promise((settle, reject) => {
-		const child = spawn(process.execPath, [path, endpoint], { cwd: clientsDir(), stdio: ["ignore", "pipe", "pipe"] })
-		let out = ""
-		let err = ""
-		child.stdout.on("data", (chunk: Buffer) => (out += chunk.toString()))
-		child.stderr.on("data", (chunk: Buffer) => (err += chunk.toString()))
-		child.once("error", reject)
-		child.once("close", (status) =>
-			status === 0 ? settle(JSON.parse(out.trim().split("\n").at(-1) ?? "{}") as Saw) : reject(new Error(err)),
-		)
-	})
+  const path = join(clientsDir(), `oauth-${client}.mjs`);
+  writeFileSync(path, script(client));
+
+  return new Promise((settle, reject) => {
+    const child = spawn(process.execPath, [path, endpoint], { cwd: clientsDir(), stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    let err = "";
+    child.stdout.on("data", (chunk: Buffer) => (out += chunk.toString()));
+    child.stderr.on("data", (chunk: Buffer) => (err += chunk.toString()));
+    child.once("error", reject);
+    child.once("close", (status) =>
+      status === 0 ? settle(JSON.parse(out.trim().split("\n").at(-1) ?? "{}") as Saw) : reject(new Error(err)),
+    );
+  });
 }
 
 /** The log's auth sequence: every refusal or server failure, every metadata read, every authorization server step. */
 const authSteps = (log: readonly string[]) =>
-	log.filter((line) => line.startsWith("as ") || / (?:40[13]|5\d\d)$/.test(line) || line.includes("/.well-known/"))
+  log.filter((line) => line.startsWith("as ") || / (?:40[13]|5\d\d)$/.test(line) || line.includes("/.well-known/"));
 
 describe.skipIf(!withClients())("the mounted resource server under the official TS clients' OAuth (bit 21 f)", () => {
-	let world: OAuthWorld
-	beforeAll(async () => {
-		world = await startOAuthWorld(serve)
-	})
-	afterAll(() => world.stop())
+  let world: OAuthWorld;
+  beforeAll(async () => {
+    world = await startOAuthWorld(serve);
+  });
+  afterAll(() => world.stop());
 
-	it.each(["v2", "modern", "sdk"] as const)(
-		"%s: 401 → metadata → authorization server → PKCE token for the endpoint → call; 403 → step-up → call",
-		async (client) => {
-			const from = world.log.length
-			const saw = await session(client, world.endpoint)
-			const { endpoint } = world
-			expect([saw, authSteps(world.log.slice(from))]).toEqual([
-				{
-					authorizations: ["orders:read", "orders:read orders:write"],
-					created: expect.objectContaining({ _meta: { "backend/status": 201 }, structuredContent: { created: "o-2" } }),
-					read: expect.objectContaining({ _meta: { "backend/status": 200 }, structuredContent: { orders: ["o-1"] } }),
-					tools: ["orders_create", "orders_list"],
-				},
-				[
-					"app POST /mcp 401",
-					"app GET /.well-known/oauth-protected-resource/mcp 200",
-					"as GET /.well-known/oauth-authorization-server 200",
-					`as authorize scope=orders:read resource=${endpoint} method=S256`,
-					"as GET /authorize 302",
-					`as token resource=${endpoint} pkce=true`,
-					"as POST /token 200",
-					"app POST /mcp 403",
-					`as authorize scope=orders:read orders:write resource=${endpoint} method=S256`,
-					"as GET /authorize 302",
-					`as token resource=${endpoint} pkce=true`,
-					"as POST /token 200",
-				],
-			])
-		},
-		60_000,
-	)
-})
+  it.each(["v2", "modern", "sdk"] as const)(
+    "%s: 401 → metadata → authorization server → PKCE token for the endpoint → call; 403 → step-up → call",
+    async (client) => {
+      const from = world.log.length;
+      const saw = await session(client, world.endpoint);
+      const { endpoint } = world;
+      expect([saw, authSteps(world.log.slice(from))]).toEqual([
+        {
+          authorizations: ["orders:read", "orders:read orders:write"],
+          created: expect.objectContaining({ _meta: { "backend/status": 201 }, structuredContent: { created: "o-2" } }),
+          read: expect.objectContaining({ _meta: { "backend/status": 200 }, structuredContent: { orders: ["o-1"] } }),
+          tools: ["orders_create", "orders_list"],
+        },
+        [
+          "app POST /mcp 401",
+          "app GET /.well-known/oauth-protected-resource/mcp 200",
+          "as GET /.well-known/oauth-authorization-server 200",
+          `as authorize scope=orders:read resource=${endpoint} method=S256`,
+          "as GET /authorize 302",
+          `as token resource=${endpoint} pkce=true`,
+          "as POST /token 200",
+          "app POST /mcp 403",
+          `as authorize scope=orders:read orders:write resource=${endpoint} method=S256`,
+          "as GET /authorize 302",
+          `as token resource=${endpoint} pkce=true`,
+          "as POST /token 200",
+        ],
+      ]);
+    },
+    60_000,
+  );
+});

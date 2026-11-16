@@ -7,119 +7,129 @@
  * Each leg runs the step's real bash with `npm` and `gh` replaced by recorders on PATH, so what is proven is the
  * command the step would run, not a reading of the YAML.
  */
-import { spawnSync } from "node:child_process"
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { afterAll, describe, expect, it } from "vitest"
-import { ROOT, type Step, stepsRunning, workflow } from "./fixture/workflows.ts"
-import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-const release = workflow("release.yml")
-const dirs: string[] = []
+import { afterAll, describe, expect, it } from "vitest";
+
+import { SPAWN_TIMEOUT } from "../__fixtures__/spawn-timeout.ts";
+import { ROOT, type Step, stepsRunning, workflow } from "./__fixtures__/workflows.ts";
+
+const release = workflow("release.yml");
+const dirs: string[] = [];
+
 afterAll(() => {
-	for (const dir of dirs) rmSync(dir, { force: true, recursive: true })
-})
+  for (const dir of dirs) rmSync(dir, { force: true, recursive: true });
+});
 
 /** A directory on PATH holding `name` as a recorder: it appends its arguments to `calls` and exits 0. */
 function recorder(names: readonly string[]): { calls: string; dir: string } {
-	const dir = mkdtempSync(join(tmpdir(), "backend-pre-"))
-	dirs.push(dir)
-	const calls = join(dir, "calls")
-	for (const name of names) {
-		const path = join(dir, name)
-		/*
-		 * Both lookups must fail, or the step takes its already-done branch and never runs the command under test:
-		 * `npm view <pkg>@<v>` would read the version as published, and `gh release view <tag>` as released.
-		 */
-		const view = name === "npm" ? 'if [ "$1" = view ]; then exit 1; fi\n' : 'if [ "$2" = view ]; then exit 1; fi\n'
-		writeFileSync(path, `#!/bin/sh\n${view}echo "${name} $*" >> ${calls}\nexit 0\n`)
-		chmodSync(path, 0o755)
-	}
-	return { calls, dir }
+  const dir = mkdtempSync(join(tmpdir(), "backend-pre-"));
+  dirs.push(dir);
+  const calls = join(dir, "calls");
+
+  for (const name of names) {
+    const path = join(dir, name);
+    // Both lookups must fail, or the step takes its already-done branch and never runs the command under test:
+    // `npm view <pkg>@<v>` would read the version as published, and `gh release view <tag>` as released.
+    const view = name === "npm" ? 'if [ "$1" = view ]; then exit 1; fi\n' : 'if [ "$2" = view ]; then exit 1; fi\n';
+    writeFileSync(path, `#!/bin/sh\n${view}echo "${name} $*" >> ${calls}\nexit 0\n`);
+    chmodSync(path, 0o755);
+  }
+
+  return { calls, dir };
 }
 
 /** `step`'s script run with `version` as the tag, every outward command recorded. */
 function ran(step: Step | undefined, version: string) {
-	const { calls, dir } = recorder(["npm", "gh"])
-	const env = {
-		GH_TOKEN: "x",
-		GITHUB_REF_NAME: `v${version}`,
-		GITHUB_REPOSITORY: "workerstack/backend",
-		GITHUB_REF_TYPE: "tag",
-		HOME: process.env.HOME ?? "",
-		PATH: `${dir}:/usr/bin:/bin`,
-		RUNNER_TEMP: dir,
-		...step?.env,
-	}
-	const out = spawnSync("bash", ["-e", "-c", step?.run ?? "exit 99"], { encoding: "utf8", env, timeout: SPAWN_TIMEOUT })
-	let recorded = ""
-	try {
-		recorded = readFileSync(calls, "utf8")
-	} catch {
-		/* a step that ran no outward command records nothing */
-	}
-	return { out: `${out.stdout}${out.stderr}`, recorded, status: out.status }
+  const { calls, dir } = recorder(["npm", "gh"]);
+
+  const env = {
+    GH_TOKEN: "x",
+    GITHUB_REF_NAME: `v${version}`,
+    GITHUB_REF_TYPE: "tag",
+    GITHUB_REPOSITORY: "workerstack/backend",
+    HOME: process.env.HOME ?? "",
+    PATH: `${dir}:/usr/bin:/bin`,
+    RUNNER_TEMP: dir,
+    ...step?.env,
+  };
+
+  const out = spawnSync("bash", ["-e", "-c", step?.run ?? "exit 99"], {
+    encoding: "utf8",
+    env,
+    timeout: SPAWN_TIMEOUT,
+  });
+
+  let recorded = "";
+
+  try {
+    recorded = readFileSync(calls, "utf8");
+  } catch {
+    // a step that ran no outward command records nothing
+  }
+
+  return { out: `${out.stdout}${out.stderr}`, recorded, status: out.status };
 }
 
-const publishes = stepsRunning(release, "npm publish")
-const releasing = stepsRunning(release, "gh release create")
+const publishes = stepsRunning(release, "npm publish");
+const releasing = stepsRunning(release, "gh release create");
 
 describe("release.yml publishes a candidate under next, a release under latest", () => {
-	it("has the shipped package's publish step, and one GitHub release step", () => {
-		expect(publishes).toHaveLength(1)
-		expect(releasing).toHaveLength(1)
-	})
+  it("has the shipped package's publish step, and one GitHub release step", () => {
+    expect(publishes).toHaveLength(1);
+    expect(releasing).toHaveLength(1);
+  });
 
-	for (const step of publishes) {
-		const pkg = step.env?.PACKAGE ?? "?"
+  for (const step of publishes) {
+    const pkg = step.env?.PACKAGE ?? "?";
 
-		it(`${pkg}: a prerelease tag publishes --tag next`, { timeout: SPAWN_TIMEOUT }, () => {
-			const result = ran(step, "1.0.0-rc.1")
-			expect(result.status).toBe(0)
-			expect(result.recorded).toContain("--tag next")
-			expect(result.recorded).not.toContain("--tag latest")
-			/* and still with provenance, as every publish here does */
-			expect(result.recorded).toContain("--provenance")
-		})
+    it(`${pkg}: a prerelease tag publishes --tag next`, { timeout: SPAWN_TIMEOUT }, () => {
+      const result = ran(step, "1.0.0-rc.1");
+      expect(result.status).toBe(0);
+      expect(result.recorded).toContain("--tag next");
+      expect(result.recorded).not.toContain("--tag latest");
+      // and still with provenance, as every publish here does
+      expect(result.recorded).toContain("--provenance");
+    });
 
-		it(`${pkg}: a final tag publishes --tag latest`, { timeout: SPAWN_TIMEOUT }, () => {
-			const result = ran(step, "1.0.0")
-			expect(result.status).toBe(0)
-			expect(result.recorded).toContain("--tag latest")
-			expect(result.recorded).not.toContain("--tag next")
-		})
-	}
+    it(`${pkg}: a final tag publishes --tag latest`, { timeout: SPAWN_TIMEOUT }, () => {
+      const result = ran(step, "1.0.0");
+      expect(result.status).toBe(0);
+      expect(result.recorded).toContain("--tag latest");
+      expect(result.recorded).not.toContain("--tag next");
+    });
+  }
 
-	it("marks a prerelease on GitHub, and does not mark a release", { timeout: SPAWN_TIMEOUT }, () => {
-		const candidate = ran(releasing[0], "1.0.0-rc.1")
-		expect(candidate.status).toBe(0)
-		expect(candidate.recorded).toContain("--prerelease")
-		const final = ran(releasing[0], "1.0.0")
-		expect(final.status).toBe(0)
-		expect(final.recorded).not.toContain("--prerelease")
-		/* both create the release for the tag they were given */
-		expect(final.recorded).toContain("release create v1.0.0")
-	})
-})
+  it("marks a prerelease on GitHub, and does not mark a release", { timeout: SPAWN_TIMEOUT }, () => {
+    const candidate = ran(releasing[0], "1.0.0-rc.1");
+    expect(candidate.status).toBe(0);
+    expect(candidate.recorded).toContain("--prerelease");
+    const final = ran(releasing[0], "1.0.0");
+    expect(final.status).toBe(0);
+    expect(final.recorded).not.toContain("--prerelease");
+    // both create the release for the tag they were given
+    expect(final.recorded).toContain("release create v1.0.0");
+  });
+});
 
 /** A package's manifest, for the version and peer legs. */
 const manifestOf = (dir: string) =>
-	JSON.parse(readFileSync(join(ROOT, dir, "package.json"), "utf8")) as {
-		peerDependencies?: Record<string, string>
-		version: string
-	}
+  JSON.parse(readFileSync(join(ROOT, dir, "package.json"), "utf8")) as {
+    peerDependencies?: Record<string, string>;
+    version: string;
+  };
 
 describe("the versions this repository ships", () => {
-	it("take a candidate of clients through the optional peer range", () => {
-		const core = manifestOf("packages/core")
-		/*
-		 * `>=1.0.0` would exclude `1.0.0-rc.1`: under semver a prerelease satisfies a range only when the range
-		 * itself carries a prerelease at the same version. `>=1.0.0-0` accepts every 1.0.0 candidate and everything
-		 * after, so it needs no edit when rc.2 is cut (checked against the semver package before it was written).
-		 * The floor is rc.28, the first clients that fills the operationId slot and drops `RouteCtx`: an older
-		 * candidate generates types keyed by route that this backend no longer exports.
-		 */
-		expect(core.peerDependencies?.["@workerstack/clients"]).toBe(">=1.0.0-rc.28")
-	})
-})
+  it("take a candidate of clients through the optional peer range", () => {
+    const core = manifestOf("packages/core");
+    // `>=1.0.0` would exclude `1.0.0-rc.1`: under semver a prerelease satisfies a range only when the range
+    // itself carries a prerelease at the same version. `>=1.0.0-0` accepts every 1.0.0 candidate and everything
+    // after, so it needs no edit when rc.2 is cut (checked against the semver package before it was written).
+    // The floor is rc.28, the first clients that fills the operationId slot and drops `RouteCtx`: an older
+    // candidate generates types keyed by route that this backend no longer exports.
+    expect(core.peerDependencies?.["@workerstack/clients"]).toBe(">=1.0.0-rc.28");
+  });
+});

@@ -35,9 +35,9 @@ test and run it to show it fails, for the reason the test names. Fix: the smalle
 run it again, then the tests the change reaches. A fix without a test that failed first is not done. A test that
 cannot fail proves nothing: break the fix, and the test must go red.
 
-Locally, a commit runs the tests its change reaches. CI on the pushed tip is the full gate: `fmt:check`, `lint`,
+Locally, a commit runs the tests its change reaches. CI on the pushed tip is the full gate: `bun repo check`, `fmt:check`,
 `typecheck`, `test`, `generate:check`, `typecheck:consumers`, `test:consumers` and `test:e2e`. After a push,
-`bun scripts/ci-wait.ts` waits for the run and names any failed job and its log. While CI is red, the only work is
+`bun repo ci wait` waits for the run and names any failed job and its log. While CI is red, the only work is
 fixing it. Never use `--no-verify`. A failure is never skipped, retried away, or called flaky.
 
 ## Git
@@ -59,8 +59,8 @@ From the repo root; CI runs the same set, with `fmt:check` in place of `fmt`.
 generated clients feed typecheck and tests.
 
     bun run generate
-    bun run fmt          # oxfmt, rewrites in place
-    bun run lint         # oxlint
+    bun run fmt          # repo fmt (oxfmt), rewrites in place
+    bun repo check       # configs, manifests, comments, the lint ratchet, knip
     bun run typecheck
     bun run typecheck:consumers
     bun run test

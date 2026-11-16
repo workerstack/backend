@@ -1,20 +1,10 @@
 {
-	"compilerOptions": {
-		"allowImportingTsExtensions": true,
-		"allowJs": true,
-		"customConditions": ["backend-source"],
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"isolatedModules": true,
-		"module": "ESNext",
-		"moduleResolution": "bundler",
-		"noEmit": true,
-		"resolveJsonModule": true,
-		"skipLibCheck": true,
-		"strict": true,
-		"target": "ESNext",
-		"types": ["@total-typescript/ts-reset", "node"]
-	},
-	"include": ["src/**/*", "tests/**/*", "lint/**/*", "scripts/**/*"],
-	"exclude": ["tests/e2e/**"]
+  "compilerOptions": {
+    "allowJs": true,
+    "customConditions": ["backend-source"],
+    "types": ["node"]
+  },
+  "exclude": ["tests/e2e/**"],
+  "extends": "@workerstack/repo/tsconfig/web",
+  "include": ["src/**/*", "tests/**/*", "lint/**/*", "scripts/**/*"]
 }

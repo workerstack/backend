@@ -4,28 +4,31 @@
  * one body, so json and form are exclusive. Per request: the media type must select the declared
  * parser, by essence, before the body is read; anything else is a 415.
  */
-import { EK, HttpError } from "../errors/error.ts"
-import { type BodyParser, bodyParserFor } from "../response/media-type.ts"
+import { EK, HttpError } from "../errors/error.ts";
+import { type BodyParser, bodyParserFor } from "../response/media-type.ts";
 
 /** The body sources a route may declare; any other key is a non-body source. */
 type BodySchemas = {
-	readonly [source: string]: unknown
-	readonly binary?: unknown
-	readonly form?: unknown
-	readonly json?: unknown
-}
+  readonly [source: string]: unknown;
+  readonly binary?: unknown;
+  readonly form?: unknown;
+  readonly json?: unknown;
+};
 
 /** A route's declared body as data a generated tree can carry: `"json"`, `"form"`, or the binary media types. */
-export type DeclaredBody = "form" | "json" | readonly string[]
+export type DeclaredBody = "form" | "json" | readonly string[];
 
-const BODIES = ["binary", "form", "json"] as const
+const BODIES = ["binary", "form", "json"] as const;
 
 /** What `schemas` declare as a body, or `null` when they declare none. */
 export function declaredBody(schemas: BodySchemas | null | undefined): DeclaredBody | null {
-	const binary = schemas?.binary as string | readonly string[] | undefined
-	if (binary !== undefined) return typeof binary === "string" ? [binary] : binary
-	if (schemas?.json !== undefined) return "json"
-	return schemas?.form === undefined ? null : "form"
+  const binary = schemas?.binary as string | readonly string[] | undefined;
+
+  if (binary !== undefined) return typeof binary === "string" ? [binary] : binary;
+
+  if (schemas?.json !== undefined) return "json";
+
+  return schemas?.form === undefined ? null : "form";
 }
 
 /**
@@ -34,20 +37,23 @@ export function declaredBody(schemas: BodySchemas | null | undefined): DeclaredB
  * a GET reaching it without a body answers 415.
  */
 export function assertBodySchemaAllowed(schemas: BodySchemas, methods: readonly string[], path: string): void {
-	const declared = BODIES.filter((kind) => schemas[kind] !== undefined)
-	const kind = declared[0]
-	if (kind === undefined) return
-	const method = methods[0] as string
-	if (declared.length > 1) {
-		throw new Error(
-			`${method} ${path} declares more than one body (${declared.join(", ")}); a request carries one body.`,
-		)
-	}
-	if (!methods.every((m) => m === "GET" || m === "HEAD")) return
-	throw new Error(
-		`${method} ${path} declares a ${kind} body schema, but ${method} requests have no body. ` +
-			"Validate query data with `search`, or register the route for a method that carries a body.",
-	)
+  const declared = BODIES.filter((kind) => schemas[kind] !== undefined);
+  const kind = declared[0];
+
+  if (kind === undefined) return;
+  const method = methods[0] as string;
+
+  if (declared.length > 1) {
+    throw new Error(
+      `${method} ${path} declares more than one body (${declared.join(", ")}); a request carries one body.`,
+    );
+  }
+
+  if (!methods.every((m) => m === "GET" || m === "HEAD")) return;
+  throw new Error(
+    `${method} ${path} declares a ${kind} body schema, but ${method} requests have no body. ` +
+      "Validate query data with `search`, or register the route for a method that carries a body.",
+  );
 }
 
 /**
@@ -56,9 +62,10 @@ export function assertBodySchemaAllowed(schemas: BodySchemas, methods: readonly 
  * is never read here.
  */
 export function assertRequestContentType(schemas: BodySchemas, contentType: string | null): BodyParser | null {
-	if (schemas.json === undefined && schemas.form === undefined) return null
-	const parser = bodyParserFor(contentType)
-	const accepted = schemas.json !== undefined ? parser === "json" : parser === "multipart" || parser === "urlencoded"
-	if (accepted) return parser
-	throw new HttpError({ errorKey: EK.unsupported_media_type, status: "unsupported_media_type" })
+  if (schemas.json === undefined && schemas.form === undefined) return null;
+  const parser = bodyParserFor(contentType);
+  const accepted = schemas.json === undefined ? parser === "multipart" || parser === "urlencoded" : parser === "json";
+
+  if (accepted) return parser;
+  throw new HttpError({ errorKey: EK.unsupported_media_type, status: "unsupported_media_type" });
 }

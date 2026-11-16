@@ -15,185 +15,210 @@
  * The code under test is v1, from packages/core/src. The trust scenario retired at the cutover
  * (j1): trustProxy is cut (H23).
  */
-import { cors as corsV1 } from "../../packages/core/src/middleware/cors.ts"
-import { createMiddleware as createV1Middleware } from "../../packages/core/src/middleware/middleware.ts"
-import { requestId as requestIdV1 } from "../../packages/core/src/middleware/request-id.ts"
-import { secureHeaders as secureHeadersV1 } from "../../packages/core/src/middleware/secure-headers.ts"
-import { httpApp as httpAppV1 } from "../../packages/core/src/routing/app.ts"
-import { ceilingsOf, measure, passesOf, report, rowOf, runtime, samplingOf } from "./gate.ts"
-import { median } from "./significance.ts"
+import { cors as corsV1 } from "../../packages/core/src/middleware/cors.ts";
+import { createMiddleware as createV1Middleware } from "../../packages/core/src/middleware/middleware.ts";
+import { requestId as requestIdV1 } from "../../packages/core/src/middleware/request-id.ts";
+import { secureHeaders as secureHeadersV1 } from "../../packages/core/src/middleware/secure-headers.ts";
+import { httpApp as httpAppV1 } from "../../packages/core/src/routing/app.ts";
+import { ceilingsOf, measure, passesOf, report, rowOf, runtime, samplingOf } from "./gate.ts";
+import { median } from "./significance.ts";
 
-const SAMPLES = Number(process.env.HOTPATH_SAMPLES ?? 15)
-const ITERATIONS = Number(process.env.HOTPATH_ITERATIONS ?? 50_000)
+const SAMPLES = Number(process.env.HOTPATH_SAMPLES ?? 15);
+const ITERATIONS = Number(process.env.HOTPATH_ITERATIONS ?? 50_000);
 
-type Fetch = (req: Request) => Response | Promise<Response>
+type Fetch = (req: Request) => Response | Promise<Response>;
 
-/* A minimal standard-schema (no validator dependency): exercises backend's validate plumbing
- * on the input and output paths. `body` reads the request body once; `output` validates from
- * the retained raw JSON (no clone, no tee) — the path bit 08 pins as must-not-regress. */
+// A minimal standard-schema (no validator dependency): exercises backend's validate plumbing
+// on the input and output paths. `body` reads the request body once; `output` validates from
+// the retained raw JSON (no clone, no tee) — the path bit 08 pins as must-not-regress.
 const passSchema = {
-	"~standard": {
-		types: undefined as unknown as { input: unknown; output: unknown },
-		validate: (value: unknown) => ({ value }),
-		vendor: "bench",
-		version: 1 as const,
-	},
-}
+  "~standard": {
+    types: undefined as unknown as { input: unknown; output: unknown },
+    validate: (value: unknown) => ({ value }),
+    vendor: "bench",
+    version: 1 as const,
+  },
+};
 
 /** The same routes as v0's app, for every scenario. */
 function buildV1App() {
-	const pass = createV1Middleware(async (_ctx, next) => next())
-	const app = httpAppV1<{}>()
-	app.get("/json").handler((ctx) => ctx.res.json("ok", { message: "Hello, World!" }))
-	app.get("/users/:id").handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }))
-	app
-		.use(pass)
-		.use(pass)
-		.get("/chain")
-		.handler((ctx) => ctx.res.json("ok", { ok: true }))
-	for (let i = 0; i < 50; i++) app.use(`/area${i}`, pass)
-	app.use("/scoped", pass)
-	app.get("/scoped/item").handler((ctx) => ctx.res.json("ok", { ok: true }))
-	app.use(
-		"/sync",
-		createV1Middleware((_ctx, next) => next()),
-	)
-	app.get("/sync/item").handler((ctx) => ctx.res.json("ok", { ok: true }))
-	/* mw-stack: the same edge middleware as v0's, writing their headers through withHeaders */
-	app
-		.use(requestIdV1())
-		.use(secureHeadersV1())
-		.use(corsV1())
-		.get("/stack")
-		.handler((ctx) => ctx.res.json("ok", { ok: true }))
-	for (let i = 0; i < 300; i++) app.get(`/r${i}/:a/:b`).handler((ctx) => ctx.res.json("ok", { a: ctx.params.a }))
-	app.get("/deep/:a/:b/:c/:d/:e").handler((ctx) => ctx.res.json("ok", { e: ctx.params.e }))
-	/* body and large-response as v0 builds them, with no answer check on either side: backend runs under
-	 * backend-no-output-check (bench:hotpath), as a production build resolves #output-check */
-	app
-		.post("/echo")
-		.input({ json: passSchema })
-		.output({ "application/json": { ok: passSchema } })
-		.handler((ctx) => ctx.res.json("ok", ctx.input.json))
-	const big = { items: Array.from({ length: 500 }, (_, i) => ({ id: i, name: `n${i}`, ok: true })) }
-	app
-		.get("/large")
-		.output({ "application/json": { ok: passSchema } })
-		.handler((ctx) => ctx.res.json("ok", big))
-	return app
+  const pass = createV1Middleware(async (_ctx, next) => next());
+  const app = httpAppV1<{}>();
+  app.get("/json").handler((ctx) => ctx.res.json("ok", { message: "Hello, World!" }));
+  app.get("/users/:id").handler((ctx) => ctx.res.json("ok", { id: ctx.params.id }));
+  app
+    .use(pass)
+    .use(pass)
+    .get("/chain")
+    .handler((ctx) => ctx.res.json("ok", { ok: true }));
+
+  for (let i = 0; i < 50; i++) app.use(`/area${i}`, pass);
+  app.use("/scoped", pass);
+  app.get("/scoped/item").handler((ctx) => ctx.res.json("ok", { ok: true }));
+  app.use(
+    "/sync",
+    createV1Middleware((_ctx, next) => next()),
+  );
+  app.get("/sync/item").handler((ctx) => ctx.res.json("ok", { ok: true }));
+  // mw-stack: the same edge middleware as v0's, writing their headers through withHeaders
+  app
+    .use(requestIdV1())
+    .use(secureHeadersV1())
+    .use(corsV1())
+    .get("/stack")
+    .handler((ctx) => ctx.res.json("ok", { ok: true }));
+
+  for (let i = 0; i < 300; i++) app.get(`/r${i}/:a/:b`).handler((ctx) => ctx.res.json("ok", { a: ctx.params.a }));
+  app.get("/deep/:a/:b/:c/:d/:e").handler((ctx) => ctx.res.json("ok", { e: ctx.params.e }));
+  // body and large-response as v0 builds them, with no answer check on either side: backend runs under
+  // backend-no-output-check (bench:hotpath), as a production build resolves #output-check
+  app
+    .post("/echo")
+    .input({ json: passSchema })
+    .output({ "application/json": { ok: passSchema } })
+    .handler((ctx) => ctx.res.json("ok", ctx.input.json));
+  const big = { items: Array.from({ length: 500 }, (_, i) => ({ id: i, name: `n${i}`, ok: true })) };
+  app
+    .get("/large")
+    .output({ "application/json": { ok: passSchema } })
+    .handler((ctx) => ctx.res.json("ok", big));
+
+  return app;
 }
 
 function json(body: unknown, status = 200): Response {
-	return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" }, status })
+  return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" }, status });
 }
 
 /** The floor: what any router has to do — read the path, look up a handler, build a response. */
 function buildRaw(): Fetch {
-	const big = { items: Array.from({ length: 500 }, (_, i) => ({ id: i, name: `n${i}`, ok: true })) }
-	const routes = new Map<string, (path: string) => Response>([
-		["/json", () => json({ message: "Hello, World!" })],
-		["/chain", () => json({ ok: true })],
-		["/scoped/item", () => json({ ok: true })],
-		["/large", () => json(big)],
-		["/sync/item", () => json({ ok: true })],
-		[
-			/* the floor for the edge-middleware stack: set the same response headers cors+secureHeaders+requestId do */
-			"/stack",
-			() => {
-				const r = json({ ok: true })
-				r.headers.set("x-request-id", crypto.randomUUID())
-				r.headers.set("x-content-type-options", "nosniff")
-				r.headers.set("x-frame-options", "DENY")
-				r.headers.set("referrer-policy", "no-referrer")
-				r.headers.set("strict-transport-security", "max-age=15552000; includeSubDomains")
-				r.headers.set("access-control-allow-origin", "*")
-				return r
-			},
-		],
-	])
-	return async (req) => {
-		const url = req.url
-		const path = url.slice(url.indexOf("/", 8))
-		const handler = routes.get(path)
-		if (handler !== undefined) return handler(path)
-		if (path.startsWith("/users/")) return json({ id: path.slice(7) })
-		if (path.startsWith("/deep/")) return json({ e: path.split("/")[6] })
-		/* the floor for body handling: read + echo */
-		if (path === "/echo") return json(await req.json())
-		return json({ error_key: "not_found", message: "not_found", status: 404, success: false }, 404)
-	}
+  const big = { items: Array.from({ length: 500 }, (_, i) => ({ id: i, name: `n${i}`, ok: true })) };
+
+  const routes = new Map<string, (path: string) => Response>([
+    ["/json", () => json({ message: "Hello, World!" })],
+    ["/chain", () => json({ ok: true })],
+    ["/scoped/item", () => json({ ok: true })],
+    ["/large", () => json(big)],
+    ["/sync/item", () => json({ ok: true })],
+    [
+      // the floor for the edge-middleware stack: set the same response headers cors+secureHeaders+requestId do
+      "/stack",
+      () => {
+        const r = json({ ok: true });
+        r.headers.set("x-request-id", crypto.randomUUID());
+        r.headers.set("x-content-type-options", "nosniff");
+        r.headers.set("x-frame-options", "DENY");
+        r.headers.set("referrer-policy", "no-referrer");
+        r.headers.set("strict-transport-security", "max-age=15552000; includeSubDomains");
+        r.headers.set("access-control-allow-origin", "*");
+
+        return r;
+      },
+    ],
+  ]);
+
+  return async (req) => {
+    const url = req.url;
+    const path = url.slice(url.indexOf("/", 8));
+    const handler = routes.get(path);
+
+    if (handler !== undefined) return handler(path);
+
+    if (path.startsWith("/users/")) return json({ id: path.slice(7) });
+
+    if (path.startsWith("/deep/")) return json({ e: path.split("/")[6] });
+
+    // the floor for body handling: read + echo
+    if (path === "/echo") return json(await req.json());
+
+    return json({ error_key: "not_found", message: "not_found", status: 404, success: false }, 404);
+  };
 }
 
 type Scenario = {
-	path: string
-	method?: string
-	body?: string
-	headers?: Record<string, string>
-	status?: number
-	/* a one-shot body: build a fresh Request each iteration (for backend and raw alike, so the
-	 * Request-construction cost is on both sides and the ratio still cancels it) */
-	fresh?: boolean
-}
+  path: string;
+  method?: string;
+  body?: string;
+  headers?: Record<string, string>;
+  status?: number;
+  // a one-shot body: build a fresh Request each iteration (for backend and raw alike, so the
+  // Request-construction cost is on both sides and the ratio still cancels it)
+  fresh?: boolean;
+};
 
 const SCENARIOS: Record<string, Scenario> = {
-	chain: { path: "/chain" },
-	"not-found": { path: "/nope/at/all", status: 404 },
-	param: { path: "/users/42" },
-	scoped: { path: "/scoped/item" },
-	static: { path: "/json" },
-	body: {
-		body: '{"age":30,"name":"ada"}',
-		fresh: true,
-		headers: { "content-type": "application/json" },
-		method: "POST",
-		path: "/echo",
-	},
-	"mw-stack": { path: "/stack" },
-	"mw-sync": { path: "/sync/item" },
-	"many-routes": { path: "/deep/a/b/c/d/e" },
-	"large-response": { path: "/large" },
-}
+  body: {
+    body: '{"age":30,"name":"ada"}',
+    fresh: true,
+    headers: { "content-type": "application/json" },
+    method: "POST",
+    path: "/echo",
+  },
+  chain: { path: "/chain" },
+  "large-response": { path: "/large" },
+  "many-routes": { path: "/deep/a/b/c/d/e" },
+  "mw-stack": { path: "/stack" },
+  "mw-sync": { path: "/sync/item" },
+  "not-found": { path: "/nope/at/all", status: 404 },
+  param: { path: "/users/42" },
+  scoped: { path: "/scoped/item" },
+  static: { path: "/json" },
+};
 
 async function timePerOp(fetch: Fetch, make: Request | (() => Request), expectStatus: number): Promise<number> {
-	const start = performance.now()
-	for (let i = 0; i < ITERATIONS; i++) {
-		const req = typeof make === "function" ? make() : make
-		let res = fetch(req)
-		if (res instanceof Promise) res = await res
-		if (res.status !== expectStatus) throw new Error(`${req.url}: expected ${expectStatus}, got ${res.status}`)
-	}
-	return ((performance.now() - start) * 1e6) / ITERATIONS
+  const start = performance.now();
+
+  for (let i = 0; i < ITERATIONS; i++) {
+    const req = typeof make === "function" ? make() : make;
+    let res = fetch(req);
+
+    if (res instanceof Promise) res = await res;
+
+    if (res.status !== expectStatus) throw new Error(`${req.url}: expected ${expectStatus}, got ${res.status}`);
+  }
+
+  return ((performance.now() - start) * 1e6) / ITERATIONS;
 }
 
 function targetFetch(): Fetch {
-	const app = buildV1App()
-	return (req) => app.fetch(req, {})
+  const app = buildV1App();
+
+  return (req) => app.fetch(req, {});
 }
 
-/* one in-process app per side for every scenario; gate.ts interleaves each sample of backend with one of raw, in passes */
+// one in-process app per side for every scenario; gate.ts interleaves each sample of backend with one of raw, in passes
 function scenariosOf(httpAppFetch: Fetch, raw: Fetch) {
-	return Object.entries(SCENARIOS).map(([name, sc]) => {
-		const url = `http://bench.local${sc.path}`
-		const init: RequestInit = { body: sc.body, headers: sc.headers, method: sc.method }
-		const make: Request | (() => Request) = sc.fresh ? () => new Request(url, init) : new Request(url, init)
-		const status = sc.status ?? 200
-		return { name, raw: () => timePerOp(raw, make, status), v1: () => timePerOp(httpAppFetch, make, status) }
-	})
+  return Object.entries(SCENARIOS).map(([name, sc]) => {
+    const url = `http://bench.local${sc.path}`;
+
+    const init: RequestInit = {
+      method: sc.method ?? "GET",
+      ...(sc.body === undefined ? {} : { body: sc.body }),
+      ...(sc.headers === undefined ? {} : { headers: sc.headers }),
+    };
+
+    const make: Request | (() => Request) = sc.fresh ? () => new Request(url, init) : new Request(url, init);
+    const status = sc.status ?? 200;
+
+    return { name, raw: () => timePerOp(raw, make, status), v1: () => timePerOp(httpAppFetch, make, status) };
+  });
 }
 
-const version = typeof Bun !== "undefined" ? Bun.version : process.version.slice(1)
-const passes = passesOf(process.env)
-const { idleMs, measured } = await measure(scenariosOf(targetFetch(), buildRaw()), { passes, samples: SAMPLES })
+const version = typeof Bun === "undefined" ? process.version.slice(1) : Bun.version;
+const passes = passesOf(process.env);
+const { idleMs, measured } = await measure(scenariosOf(targetFetch(), buildRaw()), { passes, samples: SAMPLES });
 
-const own = ceilingsOf("hotpath")
+const own = ceilingsOf("hotpath");
+
 const rows = measured.map((m) => ({
-	...rowOf(m.name, m.passes, own?.[m.name]),
-	backend_ns: Math.round(median(m.v1)),
-	raw_ns: Math.round(median(m.raw)),
-}))
+  ...rowOf(m.name, m.passes, own?.[m.name]),
+  backend_ns: Math.round(median(m.v1)),
+  raw_ns: Math.round(median(m.raw)),
+}));
+
 report(
-	"hotpath",
-	`hotpath v1 on ${runtime} (${version}), ${samplingOf(passes, SAMPLES, idleMs)}`,
-	rows,
-	own !== undefined,
-)
+  "hotpath",
+  `hotpath v1 on ${runtime} (${version}), ${samplingOf(passes, SAMPLES, idleMs)}`,
+  rows,
+  own !== undefined,
+);

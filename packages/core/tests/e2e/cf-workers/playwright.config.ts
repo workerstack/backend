@@ -1,32 +1,37 @@
-import { defineConfig } from "@playwright/test"
-import { e2eAppName, e2eAppTestDir, e2eBaseUrl, e2eReporter } from "../playwright-app.ts"
+import { defineConfig } from "@playwright/test";
 
-const PORT = "4102"
-process.env.PORT = PORT
-process.env.BACKEND_E2E_ENV = "cf"
+import { e2eAppName, e2eAppTestDir, e2eBaseUrl, e2eReporter } from "../playwright-app.ts";
 
-const mode = process.env.TEST_MODE ?? "dev"
-const isDev = mode === "dev"
-const app = e2eAppName()
-/* a deployed worker's https URL (the live run): prod targets it, and no local server starts */
-const deployed = process.env.BACKEND_CF_URL
-/* the apps whose Workers bundle runs with no node compatibility at all: the MCP mount's portable runtime (bit 21 e) */
-const WEB_ONLY = new Set(["mcp"])
+const PORT = "4102";
+
+process.env.PORT = PORT;
+
+process.env.BACKEND_E2E_ENV = "cf";
+
+const mode = process.env.TEST_MODE ?? "dev";
+const isDev = mode === "dev";
+const app = e2eAppName();
+
+// a deployed worker's https URL (the live run): prod targets it, and no local server starts
+const deployed = process.env.BACKEND_CF_URL;
+
+// the apps whose Workers bundle runs with no node compatibility at all: the MCP mount's portable runtime (bit 21 e)
+const WEB_ONLY = new Set(["mcp"]);
 
 export default defineConfig({
-	...e2eReporter(),
-	expect: { timeout: 10_000 },
-	forbidOnly: true,
-	grepInvert: isDev ? /@prod-only/ : /@dev-only/,
-	retries: 0,
-	testDir: e2eAppTestDir(),
-	timeout: 30_000,
-	use: {
-		baseURL: e2eBaseUrl(),
-		trace: "on-first-retry",
-	},
-	...(deployed === undefined ? { webServer: webServer() } : {}),
-})
+  ...e2eReporter(),
+  expect: { timeout: 10_000 },
+  forbidOnly: true,
+  grepInvert: isDev ? /@prod-only/ : /@dev-only/,
+  retries: 0,
+  testDir: e2eAppTestDir(),
+  timeout: 30_000,
+  use: {
+    baseURL: e2eBaseUrl(),
+    trace: "on-first-retry",
+  },
+  ...(deployed === undefined ? { webServer: webServer() } : {}),
+});
 
 /**
  * dev resolves @workerstack/backend to its source through src/worker.ts; prod serves the app's built Workers bundle under
@@ -36,22 +41,25 @@ export default defineConfig({
  * which exports the object class itself: backend's build passes the entry's named exports on).
  */
 function webServer() {
-	const bundle = `../apps/${app}/dist/workers/index.js`
-	const web = WEB_ONLY.has(app)
-	/* dev: backend-source first, then wrangler's defaults; prod: nothing resolves, the bundle is already built */
-	const env: Record<string, string> = isDev
-		? { BACKEND_E2E_APP: app, PORT, WRANGLER_BUILD_CONDITIONS: "backend-source,workerd,worker,browser" }
-		: { PORT }
-	const command = isDev
-		? web
-			? `bunx wrangler dev --config wrangler.mcp.jsonc --port ${PORT} --ip 0.0.0.0`
-			: `bunx wrangler dev --port ${PORT} --ip 0.0.0.0 --var BACKEND_E2E_APP:${app}`
-		: `bunx wrangler dev ${bundle} --config ${web ? "wrangler.web.jsonc" : "wrangler.jsonc"} --no-bundle --port ${PORT} --ip 0.0.0.0`
-	return {
-		command,
-		env,
-		port: Number(PORT),
-		reuseExistingServer: process.env.BACKEND_E2E_REUSE === "1",
-		timeout: 15_000,
-	}
+  const bundle = `../apps/${app}/dist/workers/index.js`;
+  const web = WEB_ONLY.has(app);
+
+  // dev: backend-source first, then wrangler's defaults; prod: nothing resolves, the bundle is already built
+  const env: Record<string, string> = isDev
+    ? { BACKEND_E2E_APP: app, PORT, WRANGLER_BUILD_CONDITIONS: "backend-source,workerd,worker,browser" }
+    : { PORT };
+
+  const command = isDev
+    ? web
+      ? `bunx wrangler dev --config wrangler.mcp.jsonc --port ${PORT} --ip 0.0.0.0`
+      : `bunx wrangler dev --port ${PORT} --ip 0.0.0.0 --var BACKEND_E2E_APP:${app}`
+    : `bunx wrangler dev ${bundle} --config ${web ? "wrangler.web.jsonc" : "wrangler.jsonc"} --no-bundle --port ${PORT} --ip 0.0.0.0`;
+
+  return {
+    command,
+    env,
+    port: Number(PORT),
+    reuseExistingServer: process.env.BACKEND_E2E_REUSE === "1",
+    timeout: 15_000,
+  };
 }

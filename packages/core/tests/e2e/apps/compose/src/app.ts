@@ -1,87 +1,97 @@
-import type { WSAdapter } from "@workerstack/backend/http"
-import type { RouteTree } from "@workerstack/backend/http/tree"
-import { createMiddleware, defineErrors, httpApp } from "@workerstack/backend/http"
-import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi"
-import { scalar } from "@workerstack/backend/http/openapi/scalar"
-import * as z from "zod"
+import type { WSAdapter } from "@workerstack/backend/http";
+import { createMiddleware, defineErrors, httpApp } from "@workerstack/backend/http";
+import { serveManifest, serveOpenApi } from "@workerstack/backend/http/openapi";
+import { scalar } from "@workerstack/backend/http/openapi/scalar";
+import type { RouteTree } from "@workerstack/backend/http/tree";
+import * as z from "zod";
 
-type Env = { JWT_SECRET: string; REDIS_URL: string }
+type Env = { JWT_SECRET: string; REDIS_URL: string };
 
 const errors = defineErrors({
-	expired_token: "unauthorized",
-	invalid_token: "unauthorized",
-	rate_limited: "too_many_requests",
-})
+  expired_token: "unauthorized",
+  invalid_token: "unauthorized",
+  rate_limited: "too_many_requests",
+});
 
 const withCache = createMiddleware(async (_ctx, next) =>
-	next({
-		cache: { get: (_k: string): string | null => null, set: (_k: string, _v: string) => {} },
-	}),
-)
+  next({
+    cache: { get: (_k: string): string | null => null, set: (_k: string, _v: string) => {} },
+  }),
+);
 
 const withSession = createMiddleware(async (_ctx, next) =>
-	next({ session: { orgId: "org-1", permissions: ["read", "write"] as string[], userId: "u-1" } }),
-)
+  next({ session: { orgId: "org-1", permissions: ["read", "write"] as string[], userId: "u-1" } }),
+);
 
 /** `routeTree`: boot from a generated route tree (`src/_gen/routes.gen.ts`) instead of building the trie. */
-export type AppOptions = { routeTree?: RouteTree }
+export type AppOptions = { routeTree?: RouteTree };
 
 /** Shared base + .route() groups. User /docs owns /docs, so Scalar is served at /reference. */
 export function createApp(wsAdapter?: WSAdapter, options?: AppOptions) {
-	const root = options?.routeTree ? httpApp<Env>().routeTree(options.routeTree) : httpApp<Env>()
-	const base = root.errorFactory(errors).defaultErrors("invalid_token", "expired_token").use(withCache).use(withSession)
-	if (wsAdapter) base.wsAdapter(wsAdapter)
+  const root = options?.routeTree ? httpApp<Env>().routeTree(options.routeTree) : httpApp<Env>();
 
-	const publicRoutes = base
-		.get("/health")
-		.meta({ operationId: "health.list" })
-		.handler((ctx) => ctx.res.json("ok", { cached: ctx.cache.get("health"), status: "up" }))
-		.get("/docs")
-		.meta({ operationId: "docs.list" })
-		.handler((ctx) => ctx.res.text("ok", "API documentation"))
-		.get("/feed")
-		.meta({ operationId: "feed.list" })
-		.input({ search: z.object({ page: z.number().default(1) }) })
-		.handler((ctx) => ctx.res.json("ok", { items: [], page: ctx.input.search.page }))
+  const base = root
+    .errorFactory(errors)
+    .defaultErrors("invalid_token", "expired_token")
+    .use(withCache)
+    .use(withSession);
 
-	const accountRoutes = base
-		.get("/account")
-		.meta({ operationId: "account.list" })
-		.errors("forbidden")
-		.handler((ctx) => ctx.res.json("ok", { orgId: ctx.session.orgId, userId: ctx.session.userId }))
-		.post("/account/settings")
-		.meta({ operationId: "account.settings.create" })
-		.input({ json: z.object({ notifications: z.boolean(), theme: z.enum(["dark", "light"]) }) })
-		.errors("forbidden")
-		.handler((ctx) => ctx.res.json("ok", ctx.input.json))
+  if (wsAdapter) base.wsAdapter(wsAdapter);
 
-	const resourceRoutes = base
-		.get("/resources/:resourceId")
-		.meta({ operationId: "resources.retrieve" })
-		.errors("not_found", "forbidden")
-		.handler((ctx) => {
-			if (!ctx.session.permissions.includes("read")) throw ctx.errors.forbidden()
-			return ctx.res.json("ok", { id: ctx.params.resourceId })
-		})
-		.delete("/resources/:resourceId")
-		.meta({ operationId: "resources.delete" })
-		.output({ no_content: true })
-		.errors("not_found", "forbidden")
-		.handler((ctx) => {
-			if (!ctx.session.permissions.includes("write")) throw ctx.errors.forbidden()
-			return ctx.res.noContent()
-		})
-		.post("/resources")
-		.meta({ operationId: "resources.create" })
-		.input({ json: z.object({ name: z.string(), type: z.enum(["doc", "image", "video"]) }) })
-		.errors("forbidden", "rate_limited")
-		.handler((ctx) => {
-			ctx.cache.set(`resource:${ctx.input.json.name}`, "pending")
-			return ctx.res.json("created", { name: ctx.input.json.name, type: ctx.input.json.type })
-		})
+  const publicRoutes = base
+    .get("/health")
+    .meta({ operationId: "health.list" })
+    .handler((ctx) => ctx.res.json("ok", { cached: ctx.cache.get("health"), status: "up" }))
+    .get("/docs")
+    .meta({ operationId: "docs.list" })
+    .handler((ctx) => ctx.res.text("ok", "API documentation"))
+    .get("/feed")
+    .meta({ operationId: "feed.list" })
+    .input({ search: z.object({ page: z.number().default(1) }) })
+    .handler((ctx) => ctx.res.json("ok", { items: [], page: ctx.input.search.page }));
 
-	const app = publicRoutes.route(accountRoutes).route(resourceRoutes)
-	return serveManifest(
-		serveOpenApi(app, { docs: { "/reference": scalar }, title: "Backend Compose", version: "0.0.1" }),
-	)
+  const accountRoutes = base
+    .get("/account")
+    .meta({ operationId: "account.list" })
+    .errors("forbidden")
+    .handler((ctx) => ctx.res.json("ok", { orgId: ctx.session.orgId, userId: ctx.session.userId }))
+    .post("/account/settings")
+    .meta({ operationId: "account.settings.create" })
+    .input({ json: z.object({ notifications: z.boolean(), theme: z.enum(["dark", "light"]) }) })
+    .errors("forbidden")
+    .handler((ctx) => ctx.res.json("ok", ctx.input.json));
+
+  const resourceRoutes = base
+    .get("/resources/:resourceId")
+    .meta({ operationId: "resources.retrieve" })
+    .errors("not_found", "forbidden")
+    .handler((ctx) => {
+      if (!ctx.session.permissions.includes("read")) throw ctx.errors.forbidden();
+
+      return ctx.res.json("ok", { id: ctx.params.resourceId });
+    })
+    .delete("/resources/:resourceId")
+    .meta({ operationId: "resources.delete" })
+    .output({ no_content: true })
+    .errors("not_found", "forbidden")
+    .handler((ctx) => {
+      if (!ctx.session.permissions.includes("write")) throw ctx.errors.forbidden();
+
+      return ctx.res.noContent();
+    })
+    .post("/resources")
+    .meta({ operationId: "resources.create" })
+    .input({ json: z.object({ name: z.string(), type: z.enum(["doc", "image", "video"]) }) })
+    .errors("forbidden", "rate_limited")
+    .handler((ctx) => {
+      ctx.cache.set(`resource:${ctx.input.json.name}`, "pending");
+
+      return ctx.res.json("created", { name: ctx.input.json.name, type: ctx.input.json.type });
+    });
+
+  const app = publicRoutes.route(accountRoutes).route(resourceRoutes);
+
+  return serveManifest(
+    serveOpenApi(app, { docs: { "/reference": scalar }, title: "Backend Compose", version: "0.0.1" }),
+  );
 }

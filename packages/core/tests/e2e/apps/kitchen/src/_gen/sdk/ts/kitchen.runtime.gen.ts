@@ -1118,6 +1118,14 @@ export type SSEEvent<T = string> = {
 	retry?: number
 }
 
+/**
+ * One event of a stream that names its events (an OpenAPI 3.2 `itemSchema`), `M` mapping each name to its `data`:
+ * narrowing on `event` types `data`. An unnamed event is `message`, as `EventSource` names it.
+ */
+export type SSEEventOf<M> = {
+	[K in keyof M & string]: { data: M[K]; event: K; id?: string; retry?: number }
+}[keyof M & string]
+
 /* the siblings' caps, in UTF-8 bytes */
 const MAX_LINE = 1 << 20
 const MAX_EVENT = 8 << 20
@@ -1557,6 +1565,8 @@ export type ResumableConnectionOpts = {
 	/** Ping every this many ms (WebSocket 20 s, SSE none, unless set; 0: none); one unanswered as long reconnects. */
 	keepaliveInterval?: number | undefined
 	lastEventId?: string | undefined
+	/** The field each message is handed to `on(value)` by: the operation's declared messages are keyed on it. */
+	dispatch?: string | undefined
 	/** Reconnects after a drop before the stream ends; 0 retries forever. Default 5. */
 	maxReconnectAttempts?: number | undefined
 	onReconnected?: (() => void) | undefined
@@ -1568,18 +1578,41 @@ export type ResumableConnectionOpts = {
 	url: string
 }
 
-export type ResumableConnection<T = unknown> = {
+/** The values of `T`'s field `K`, `"message"` left out: `on("message")` hears every message. */
+type MessageKey<T, K extends string> = Exclude<
+	T extends { readonly [P in K]: infer V extends string } ? V : never,
+	"message"
+>
+
+/** `on(value)` and `off(value)` for a connection whose messages are keyed on `K`; nothing for an unkeyed one. */
+type KeyedMessages<T, K extends string> = [K] extends [never]
+	? unknown
+	: {
+			off(event: MessageKey<T, K>, handler: (...args: never[]) => void): void
+			/** The messages whose `K` is `event`, after `"message"` hears them. */
+			on<V extends MessageKey<T, K>>(event: V, handler: (data: Extract<T, { readonly [P in K]: V }>) => void): void
+		}
+
+/**
+ * One logical stream of `T` that sends `In`. Iterating it opens it; `on("message")` and, when `T` is a union keyed on
+ * `K`, `on(value)` (D9) hear each message as it arrives, beside the iterator, which still yields every one.
+ */
+export type ResumableConnection<T = unknown, In = unknown, K extends string = never> = {
 	close(reason?: string): void
+	off(event: "message", handler: (...args: never[]) => void): void
+	/** Every message as it arrives; a handler that throws is skipped, and the stream carries on. */
+	on(event: "message", handler: (data: T) => void): void
 	readonly provenTransport: Transport | null
 	/** Resolves once sent; over SSE and long-poll a POST, rejecting with its error. */
-	send(data: unknown): Promise<void>
+	send(data: In): Promise<void>
 	/** `send`'s raw form: `text` as it is, a text frame or a POSTed text/plain body. */
 	sendText(text: string): Promise<void>
 	readonly state: ConnectionState
 	[Symbol.asyncIterator](): AsyncIterableIterator<T>
-}
+} & KeyedMessages<T, K>
 
 type QueueEntry = { type: "done" } | { error: unknown; type: "error" } | { type: "value"; value: unknown }
+type MessageHandler = (data: never) => void
 
 /**
  * One logical stream over reconnecting transports: messages arrive in order through the async
@@ -1604,6 +1637,8 @@ export class Resumable implements ResumableConnection {
 	readonly #timers = new Set<ReturnType<typeof setTimeout>>()
 	/** the transport being dialed, closed with the connection */
 	#dialing: TransportConnection | null = null
+	/** `on`'s handlers by event: `"message"`, and the values of the dispatch key */
+	readonly #handlers = new Map<string, Set<MessageHandler>>()
 
 	constructor(opts: ResumableConnectionOpts, refresh?: () => Promise<boolean>) {
 		this.#opts = opts
@@ -1688,6 +1723,7 @@ export class Resumable implements ResumableConnection {
 			this.#lastEventId = frame.id ?? this.#lastEventId
 			this.#reconnectToken = frame.reconnectToken || this.#reconnectToken
 			this.#enqueue({ type: "value", value: frame.data })
+			this.#hear(frame.data)
 		} else if (frame.t === "ready") this.#reconnectToken = frame.reconnectToken || this.#reconnectToken
 		else if (frame.t === "pong") this.#keepalive?.onPong()
 		else {
@@ -1811,6 +1847,24 @@ export class Resumable implements ResumableConnection {
 		const attempt = this.#attempts
 		safely(() => this.#opts.onReconnecting?.(attempt, transportAt(0)))
 		this.#later(() => void this.#connect(), this.#opts.reconnectDelayMs ?? 1000)
+	}
+
+	/** `data` to `on("message")`, then to `on(value)` by the dispatch key's value. */
+	#hear(data: unknown): void {
+		const key = this.#opts.dispatch
+		const value = key === undefined || typeof data !== "object" || data === null ? undefined : Reflect.get(data, key)
+		const events = typeof value === "string" && value !== "message" ? ["message", value] : ["message"]
+		for (const event of events)
+			for (const handler of this.#handlers.get(event) ?? []) safely(() => (handler as (data: unknown) => void)(data))
+	}
+
+	on(event: string, handler: MessageHandler): void {
+		const handlers = this.#handlers.get(event) ?? new Set()
+		this.#handlers.set(event, handlers.add(handler))
+	}
+
+	off(event: string, handler: MessageHandler): void {
+		this.#handlers.get(event)?.delete(handler)
 	}
 
 	send(data: unknown): Promise<void> {
@@ -2155,26 +2209,58 @@ export async function openStream(
  * with no onAuthExpired refresh. The platform WebSocket exposes no ping and no message cap, so this socket has neither.
  */
 
-export type TypedWebSocket = {
+/** What an untyped socket sends: strings, bytes and `Blob` as they are, any other value as JSON. */
+export type WsFrame = ArrayBuffer | ArrayBufferView | Blob | object | string
+
+/** The events every socket has; a message whose key is one of these names gets no `on(value)` of its own. */
+type SocketEvent = "binary" | "close" | "error" | "message" | "open"
+
+/** The values of `Out`'s field `K`, the lifecycle names left out. */
+type KeyOf<Out, K extends string> = Exclude<
+	Out extends { readonly [P in K]: infer V extends string } ? V : never,
+	SocketEvent
+>
+
+/** `on(value)` and `off(value)` for a socket whose messages are keyed on `K`; nothing for an unkeyed one. */
+type Keyed<Out, K extends string> = [K] extends [never]
+	? unknown
+	: {
+			off(event: KeyOf<Out, K>, handler: (...args: never[]) => void): void
+			/** The messages whose `K` is `event`, after `"message"` hears them. */
+			on<V extends KeyOf<Out, K>>(event: V, handler: (data: Extract<Out, { readonly [P in K]: V }>) => void): void
+		}
+
+/**
+ * A WebSocket typed both ways: `send` takes `In`, `on("message")` gets `Out`, and when `Out` is a union keyed on `K`,
+ * `on(value)` gets the member whose `K` is `value` (D9). Untyped, it sends `WsFrame` and hears text.
+ */
+export type TypedWebSocket<In = WsFrame, Out = string, K extends string = never> = {
 	close(code?: number, reason?: string): void
-	off(event: "binary" | "close" | "error" | "message" | "open", handler: (...args: never[]) => void): void
+	off(event: SocketEvent, handler: (...args: never[]) => void): void
 	/** Binary frames, as `ArrayBuffer`. Text frames go to `"message"`. */
 	on(event: "binary", handler: (data: ArrayBuffer) => void): void
 	on(event: "close", handler: (code: number, reason: string) => void): void
+	/** A socket error; for a socket with declared messages, also a text frame that is no JSON, as a `ClientError`. */
 	on(event: "error", handler: (error: unknown) => void): void
-	/** Text frames. */
-	on(event: "message", handler: (data: string) => void): void
+	/** Text frames: as text, or parsed as JSON for a socket with declared messages. */
+	on(event: "message", handler: (data: Out) => void): void
 	on(event: "open", handler: () => void): void
 	readonly readyState: number
 	/**
-	 * Strings, `ArrayBuffer`, typed arrays and `Blob` are sent as-is; any other value is JSON-encoded.
-	 * Sends before the socket opens are queued; after it closes they are dropped.
+	 * Untyped, strings, `ArrayBuffer`, typed arrays and `Blob` are sent as-is and any other value is JSON-encoded; with
+	 * declared messages every value is JSON. Sends before the socket opens are queued; after it closes they are dropped.
 	 */
-	send(data: ArrayBuffer | ArrayBufferView | Blob | object | string): void
-}
+	send(data: In): void
+} & Keyed<Out, K>
 
 export type WSOptions = {
 	protocols?: string | string[] | undefined
+	/** Parse each text frame as JSON: the operation declares what the server sends. */
+	decode?: boolean | undefined
+	/** The field a parsed message is handed to `on(value)` by. */
+	dispatch?: string | undefined
+	/** Send every value as JSON: the operation declares what the server receives. */
+	encode?: boolean | undefined
 }
 
 type Payload = Blob | string | Uint8Array<ArrayBuffer>
@@ -2182,28 +2268,8 @@ type Handler = (...args: never[]) => void
 
 const WS_EVENTS: readonly string[] = ["binary", "close", "error", "message", "open"]
 
-/** The DOM listener that hands `event` to `handler` in its typed shape. */
-function wrapListener(event: string, handler: Handler): EventListener {
-	const call = handler as (...args: unknown[]) => void
-	if (event === "message") {
-		return (e) => {
-			const data = (e as MessageEvent).data
-			if (typeof data === "string") call(data)
-		}
-	}
-	if (event === "binary") {
-		return (e) => {
-			const data = (e as MessageEvent).data
-			if (data instanceof ArrayBuffer) call(data)
-		}
-	}
-	if (event === "open") return () => call()
-	if (event === "close") return (e) => call((e as CloseEvent).code, (e as CloseEvent).reason)
-	return (e) => call(e)
-}
-
 /** `data` as a frame: text and Blobs as they are, bytes copied, anything else as JSON. */
-function toPayload(data: ArrayBuffer | ArrayBufferView | Blob | object | string): Payload {
+function toPayload(data: WsFrame): Payload {
 	if (typeof data === "string") return data
 	if (typeof Blob !== "undefined" && data instanceof Blob) return data
 	if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
@@ -2216,30 +2282,64 @@ function toPayload(data: ArrayBuffer | ArrayBufferView | Blob | object | string)
 	return JSON.stringify(data)
 }
 
+/** The error a text frame that is no JSON raises on a socket with declared messages. */
+function notJson(frame: string, error: unknown): ClientError {
+	const message = `WebSocket frame is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
+	return new ClientError({ body: frame, message, response: Response.error(), status: 0 })
+}
+
 /** A WebSocket with typed events, a send queue until it opens, and nothing sent once it closes. */
 class TypedSocket {
 	readonly #ws: WebSocket
-	/* user handler → wrapped listener, per event, so one handler can be registered for several events */
-	readonly #listeners = new Map<string, WeakMap<Handler, EventListener>>()
+	readonly #opts: WSOptions
+	readonly #handlers = new Map<string, Set<Handler>>()
 	readonly #queue: Payload[] = []
 	#state: "closed" | "connecting" | "open" = "connecting"
 
-	constructor(ws: WebSocket) {
+	constructor(ws: WebSocket, opts: WSOptions) {
 		this.#ws = ws
+		this.#opts = opts
 		ws.binaryType = "arraybuffer"
 		ws.addEventListener("open", () => {
 			this.#state = "open"
 			for (const msg of this.#queue) ws.send(msg)
 			this.#queue.length = 0
+			this.#emit("open")
 		})
-		ws.addEventListener("close", () => {
+		ws.addEventListener("close", (e) => {
 			this.#state = "closed"
 			this.#queue.length = 0
+			this.#emit("close", (e as CloseEvent).code, (e as CloseEvent).reason)
 		})
+		ws.addEventListener("error", (e) => this.#emit("error", e))
+		ws.addEventListener("message", (e) => this.#frame((e as MessageEvent).data))
 	}
 
 	get readyState(): number {
 		return this.#ws.readyState
+	}
+
+	#emit(event: string, ...args: unknown[]): void {
+		const handlers = this.#handlers.get(event)
+		if (handlers === undefined) return
+		for (const handler of handlers) (handler as (...args: unknown[]) => void)(...args)
+	}
+
+	/** One frame from the server: bytes to `"binary"`, text to `"message"`, parsed and dispatched when typed. */
+	#frame(data: unknown): void {
+		if (data instanceof ArrayBuffer) return this.#emit("binary", data)
+		if (typeof data !== "string") return
+		if (this.#opts.decode !== true) return this.#emit("message", data)
+		let value: unknown
+		try {
+			value = JSON.parse(data)
+		} catch (error) {
+			return this.#emit("error", notJson(data, error))
+		}
+		this.#emit("message", value)
+		const { dispatch } = this.#opts
+		const key = dispatch !== undefined && typeof value === "object" && value !== null ? value[dispatch as never] : null
+		if (typeof key === "string" && !WS_EVENTS.includes(key)) this.#emit(key, value)
 	}
 
 	close(code?: number, reason?: string): void {
@@ -2249,28 +2349,19 @@ class TypedSocket {
 	}
 
 	on(event: string, handler: Handler): void {
-		if (!WS_EVENTS.includes(event)) return
-		const byHandler = this.#listeners.get(event) ?? new WeakMap<Handler, EventListener>()
-		this.#listeners.set(event, byHandler)
-		const target = event === "binary" ? "message" : event
-		const previous = byHandler.get(handler)
-		if (previous) this.#ws.removeEventListener(target, previous)
-		const wrapped = wrapListener(event, handler)
-		byHandler.set(handler, wrapped)
-		this.#ws.addEventListener(target, wrapped)
+		if (!WS_EVENTS.includes(event) && this.#opts.dispatch === undefined) return
+		const handlers = this.#handlers.get(event) ?? new Set<Handler>()
+		this.#handlers.set(event, handlers)
+		handlers.add(handler)
 	}
 
 	off(event: string, handler: Handler): void {
-		const byHandler = this.#listeners.get(event)
-		const wrapped = byHandler?.get(handler)
-		if (!wrapped) return
-		this.#ws.removeEventListener(event === "binary" ? "message" : event, wrapped)
-		byHandler?.delete(handler)
+		this.#handlers.get(event)?.delete(handler)
 	}
 
-	send(data: ArrayBuffer | ArrayBufferView | Blob | object | string): void {
+	send(data: WsFrame): void {
 		if (this.#state === "closed") return
-		const payload = toPayload(data)
+		const payload = this.#opts.encode === true ? JSON.stringify(data) : toPayload(data)
 		if (this.#state === "connecting") this.#queue.push(payload)
 		else this.#ws.send(payload)
 	}
@@ -2290,7 +2381,7 @@ export function createTypedWebSocket(
 	WebSocketImpl: typeof WebSocket = WebSocket,
 ): TypedWebSocket {
 	const ws = opts?.protocols ? new WebSocketImpl(url, opts.protocols) : new WebSocketImpl(url)
-	const socket = new TypedSocket(ws)
+	const socket = new TypedSocket(ws, opts ?? {})
 	const typed: TypedWebSocket = {
 		close: (code, reason) => socket.close(code, reason),
 		off: (event, handler) => socket.off(event, handler),
@@ -2306,7 +2397,7 @@ export function createTypedWebSocket(
 
 type Target = { http: HTTPClient; opts: RequestOptions; path: string }
 
-export type RealtimeOptions = Omit<ResumableConnectionOpts, "headers" | "signal" | "transports" | "url">
+export type RealtimeOptions = Omit<ResumableConnectionOpts, "dispatch" | "headers" | "signal" | "transports" | "url">
 
 /** A payload's JSON when it parses, else its text. */
 function payloadOf(text: string): unknown {
@@ -2432,12 +2523,21 @@ function pollAdapter(at: Target): TransportAdapter {
 	}
 }
 
-/** An x-realtime op's chain, as Go's: WebSocket, SSE, long-poll; no JSON keepalive unless set. */
-export function realtimeConnection(http: HTTPClient, path: string, input: RequestOptions & RealtimeOptions): Resumable {
+/**
+ * An x-realtime op's chain, as Go's: WebSocket, SSE, long-poll; no JSON keepalive unless set. `dispatch` is the field
+ * its declared messages are keyed on.
+ */
+export function realtimeConnection(
+	http: HTTPClient,
+	path: string,
+	input: RequestOptions & RealtimeOptions,
+	dispatch?: string,
+): Resumable {
 	const { baseURL, cookies, headers, params, search, signal, ...opts } = input
 	const at = { http, opts: { baseURL, cookies, headers, params, search }, path }
 	const transports = [wsAdapter(at), sseAdapter(at), pollAdapter(at)]
-	return new Resumable({ keepaliveInterval: 0, ...opts, signal, transports, url: path }, () => http[REFRESH_AUTH]())
+	const resumable = { keepaliveInterval: 0, ...opts, dispatch, signal, transports, url: path }
+	return new Resumable(resumable, () => http[REFRESH_AUTH]())
 }
 
 /**
@@ -2591,11 +2691,18 @@ export type ServiceEntry = {
 	/** the OpenAPI path template, `{param}` kept */
 	path: string
 	realtime?: boolean
-	/** an event stream; `"json"` when its events carry JSON `data` the client parses */
-	sse?: boolean | "json"
+	/** an event stream; `"json"` when its events carry JSON `data` the client parses, or the names of the events that
+	    do when the operation names its events (an unnamed one is `message`) */
+	sse?: boolean | "json" | readonly string[]
 	/** the param that spans segments (`x-backend-wildcard`) */
 	wildcard?: string
 	ws?: boolean
+	/** a socket whose server declares what it sends: each text frame is parsed as JSON */
+	decode?: boolean
+	/** the field a socket's parsed message is handed to `on(value)` by (D9) */
+	dispatch?: string
+	/** a socket whose server declares what it receives: every send is JSON */
+	encode?: boolean
 	/** how a stream, WebSocket or realtime operation is called; a REST one has none */
 	call?: OperationCall
 }
@@ -2811,21 +2918,38 @@ export class SDKClient {
 	}
 }
 
-/** Each event with its `data` parsed as JSON; an event that does not parse fails the stream, naming it. */
-function jsonEvents(events: AsyncIterable<SSEEvent>): AsyncIterable<SSEEvent<unknown>> {
+/** `event` with its `data` parsed as JSON; data that does not parse fails the stream, naming the event. */
+function parsed(event: SSEEvent): SSEEvent<unknown> {
+	try {
+		return { ...event, data: JSON.parse(event.data) }
+	} catch (e) {
+		const name = event.id === undefined ? "an event" : `event ${JSON.stringify(event.id)}`
+		const message = `SSE ${name} is not valid JSON: ${e instanceof Error ? e.message : String(e)}`
+		throw new ClientError({ body: event.data, message, response: Response.error(), status: 0 })
+	}
+}
+
+/**
+ * The events of `events` as `entry` reads them: each parsed (`"json"`); or, for a stream that names its events, each
+ * named `message` when it has no name and parsed when `sse` holds its name; else as they came.
+ */
+function eventsOf(events: AsyncIterable<SSEEvent>, sse: ServiceEntry["sse"]): AsyncIterable<SSEEvent<unknown>> {
+	if (sse === "json") return mapEvents(events, parsed)
+	if (typeof sse !== "object") return events
+	return mapEvents(events, (raw) => {
+		const event = { ...raw, event: raw.event ?? "message" }
+		return sse.includes(event.event) ? parsed(event) : event
+	})
+}
+
+/** `events`, each through `map`. */
+function mapEvents(
+	events: AsyncIterable<SSEEvent>,
+	map: (event: SSEEvent) => SSEEvent<unknown>,
+): AsyncIterable<SSEEvent<unknown>> {
 	return {
 		async *[Symbol.asyncIterator]() {
-			for await (const event of events) {
-				let data: unknown
-				try {
-					data = JSON.parse(event.data)
-				} catch (e) {
-					const name = event.id === undefined ? "an event" : `event ${JSON.stringify(event.id)}`
-					const message = `SSE ${name} is not valid JSON: ${e instanceof Error ? e.message : String(e)}`
-					throw new ClientError({ body: event.data, message, response: Response.error(), status: 0 })
-				}
-				yield { ...event, data }
-			}
+			for await (const event of events) yield map(event)
 		},
 	}
 }
@@ -2847,7 +2971,7 @@ async function open(core: SdkCore, entry: ServiceEntry, input: RequestOptions): 
 		if (selector !== undefined) core.mark(entry, input.params, selector)
 	}
 	const { data, response } = await openStream(core.http, { meta, method: entry.method, onOpen, opts, path: template })
-	return { data: entry.sse === "json" ? jsonEvents(data) : data, response }
+	return { data: eventsOf(data, entry.sse), response }
 }
 
 /** An event stream: sent when iterated, or opened into a Result by the safe twin. */
@@ -2867,7 +2991,8 @@ export const wsOp: OperationCall =
 	(input: WsInput = {}): TypedWebSocket => {
 		const url = new URL(wsUrl(core.http, templateOf(entry), { params: input.params, search: input.search }))
 		if (input.reconnectToken) url.searchParams.append("reconnect_token", input.reconnectToken)
-		const socket = createTypedWebSocket(url.toString(), { protocols: input.protocols })
+		const { decode, dispatch, encode } = entry
+		const socket = createTypedWebSocket(url.toString(), { decode, dispatch, encode, protocols: input.protocols })
 		if (entry.invalidate?.length) {
 			const selector = `WS ${interpolatePath(templateOf(entry), input.params)}`
 			socket.on("open", () => core.mark(entry, input.params, selector))
@@ -2879,4 +3004,4 @@ export const wsOp: OperationCall =
 export const realtimeOp: OperationCall =
 	(core, entry) =>
 	(input: RequestOptions & RealtimeOptions = {}): ResumableConnection =>
-		realtimeConnection(core.http, templateOf(entry), input)
+		realtimeConnection(core.http, templateOf(entry), input, entry.dispatch)

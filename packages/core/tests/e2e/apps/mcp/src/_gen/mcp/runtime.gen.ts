@@ -94,7 +94,7 @@ export type Files = {
 	readonly uploads?: Uploads
 	readonly credential?: string
 	readonly asked?: Record<string, unknown>
-	readonly client?: { readonly extensions?: Record<string, unknown> }
+	readonly client?: { readonly extensions?: Record<string, unknown> } | undefined
 }
 
 /* canonical base64: whole quads, the last padded, its unused bits zero */
@@ -295,7 +295,7 @@ export type Context = {
 	readonly signal: AbortSignal
 	readonly notify: (message: object) => void
 	readonly connection: Connection
-	readonly files?: Files
+	readonly files?: Files | undefined
 }
 
 /** Each message's reply, a batch's, or none; a promise only for a call, never rejected. */
@@ -461,7 +461,11 @@ export function createProtocol(info: ServerInfo, tools: readonly Tool[], extensi
  */
 
 /** What the transport serves beside its own origin, its body cap in bytes, and its calls' files (a mount's). */
-export type HttpOptions = { readonly origins?: readonly string[]; readonly max?: number; readonly files?: Files }
+export type HttpOptions = {
+	readonly origins?: readonly string[] | undefined
+	readonly max?: number | undefined
+	readonly files?: Files | undefined
+}
 
 const SSE = { "cache-control": "no-cache", "content-type": "text/event-stream", "x-accel-buffering": "no" }
 
@@ -555,7 +559,7 @@ function streamed(
 	protocol: Protocol,
 	body: unknown,
 	version: string,
-	{ closed, files }: { closed?: AbortSignal; files?: Files },
+	{ closed, files }: { closed?: AbortSignal | undefined; files?: Files | undefined },
 ) {
 	const call = new AbortController()
 	const signal = closed ? AbortSignal.any([closed, call.signal]) : call.signal
@@ -1120,8 +1124,8 @@ export type MountConfig = {
  */
 export type Mount = {
 	readonly dispatch: (request: Request) => Promise<Response>
-	readonly origins?: readonly string[]
-	readonly max?: number
+	readonly origins?: readonly string[] | undefined
+	readonly max?: number | undefined
 	readonly uploads?: Uploads | undefined
 	readonly fetchFile?: FetchFile | undefined
 }

@@ -41,9 +41,11 @@ export type {
 	ResumableConnectionOpts,
 	ServerFrame,
 	SSEEvent,
+	SSEEventOf,
 	Transport,
 	TransportAdapter,
 	TransportConnection,
 	TransportOpts,
 	TypedWebSocket,
+	WsFrame,
 } from "./kitchen.runtime.gen.js"

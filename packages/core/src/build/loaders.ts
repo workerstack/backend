@@ -3,25 +3,26 @@
  * reads a TypeScript config on plain Node (H70b), and through Bun's own import on Bun; and Effect's JSON Schema converter, when effect is
  * installed, for the documents core generates (core never imports a validator, F2).
  */
-import { existsSync } from "node:fs"
-import { createRequire } from "node:module"
-import { join, resolve } from "node:path"
-import { pathToFileURL } from "node:url"
-import type { EffectConverter } from "../schema/to-json-schema.ts"
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
-export type ModuleLoader = (path: string) => Promise<Record<string, unknown>>
+import type { EffectConverter } from "../schema/to-json-schema.ts";
+
+export type ModuleLoader = (path: string) => Promise<Record<string, unknown>>;
 
 export type ModuleLoaderOptions = {
-	/** no module shared with an earlier fresh loader: a generation's redo pass sees the tree its first pass wrote */
-	fresh: boolean
-	/** the file imports resolve from */
-	from: string
-	/** a fresh loader after one that evaluated the project in this process: it must evict some module */
-	reload?: boolean
-}
+  /** no module shared with an earlier fresh loader: a generation's redo pass sees the tree its first pass wrote */
+  fresh: boolean;
+  /** the file imports resolve from */
+  from: string;
+  /** a fresh loader after one that evaluated the project in this process: it must evict some module */
+  reload?: boolean;
+};
 
 /** The runtime's module registry (Bun's, its ES modules included; Node's require cache, jiti's), keyed by path. */
-export type ModuleRegistry = Record<string, unknown>
+export type ModuleRegistry = Record<string, unknown>;
 
 /**
  * A loader for one generation: each path evaluated at most once, so the app never runs twice, and every path's
@@ -31,53 +32,61 @@ export type ModuleRegistry = Record<string, unknown>
  * stack hook then breaks Bun (bit 20 k-fix).
  */
 export async function createModuleLoader(
-	options: ModuleLoaderOptions,
-	registry: ModuleRegistry = createRequire(import.meta.url).cache,
-	bun = typeof (globalThis as { Bun?: unknown }).Bun !== "undefined",
+  options: ModuleLoaderOptions,
+  registry: ModuleRegistry = createRequire(import.meta.url).cache,
+  bun: boolean = typeof (globalThis as { Bun?: unknown }).Bun !== "undefined",
 ): Promise<ModuleLoader> {
-	const evicted = options.fresh ? Object.keys(registry).filter((key) => !/[\\/]node_modules[\\/]/.test(key)) : []
-	for (const key of evicted) delete registry[key]
-	/* a registry keyed otherwise than this reads (a runtime upgrade) leaves a reload the stale graph: said, not served */
-	if (options.reload === true && evicted.length === 0)
-		throw new Error("the module registry held none of the project's modules to evict: a reload would read them stale")
-	const evaluate = bun
-		? (path: string) => import(pathToFileURL(path).href) as Promise<Record<string, unknown>>
-		: await jitiEvaluator(options)
-	const loaded = new Map<string, Promise<Record<string, unknown>>>()
-	return (path) => {
-		const abs = resolve(path)
-		let mod = loaded.get(abs)
-		if (!mod) {
-			mod = evaluate(abs)
-			loaded.set(abs, mod)
-		}
-		return mod
-	}
+  const evicted = options.fresh ? Object.keys(registry).filter((key) => !/[\\/]node_modules[\\/]/.test(key)) : [];
+
+  for (const key of evicted) delete registry[key];
+
+  // a registry keyed otherwise than this reads (a runtime upgrade) leaves a reload the stale graph: said, not served
+  if (options.reload === true && evicted.length === 0)
+    throw new Error("the module registry held none of the project's modules to evict: a reload would read them stale");
+
+  const evaluate = bun
+    ? (path: string) => import(pathToFileURL(path).href) as Promise<Record<string, unknown>>
+    : await jitiEvaluator(options);
+
+  const loaded = new Map<string, Promise<Record<string, unknown>>>();
+
+  return (path) => {
+    const abs = resolve(path);
+    let mod = loaded.get(abs);
+
+    if (!mod) {
+      mod = evaluate(abs);
+      loaded.set(abs, mod);
+    }
+
+    return mod;
+  };
 }
 
 async function jitiEvaluator(
-	options: ModuleLoaderOptions,
+  options: ModuleLoaderOptions,
 ): Promise<(path: string) => Promise<Record<string, unknown>>> {
-	const { createJiti } = await import("jiti")
-	const jiti = createJiti(options.from, { fsCache: false, interopDefault: true, moduleCache: true })
-	return (path) => jiti.import(path) as Promise<Record<string, unknown>>
+  const { createJiti } = await import("jiti");
+  const jiti = createJiti(options.from, { fsCache: false, interopDefault: true, moduleCache: true });
+
+  return (path) => jiti.import(path) as Promise<Record<string, unknown>>;
 }
 
 export const VITE_CONFIG_FILES: readonly string[] = [
-	"vite.config.ts",
-	"vite.config.mts",
-	"vite.config.cts",
-	"vite.config.js",
-	"vite.config.mjs",
-	"vite.config.cjs",
-]
+  "vite.config.ts",
+  "vite.config.mts",
+  "vite.config.cts",
+  "vite.config.js",
+  "vite.config.mjs",
+  "vite.config.cjs",
+];
 
 /** The Vite config file in `cwd`, by Vite's own order; undefined when there is none. */
 export function findViteConfig(cwd: string): string | undefined {
-	return VITE_CONFIG_FILES.map((name) => join(cwd, name)).find((path) => existsSync(path))
+  return VITE_CONFIG_FILES.map((name) => join(cwd, name)).find((path) => existsSync(path));
 }
 
-export type ViteConfigEnv = { command: "build" | "serve"; mode: string }
+export type ViteConfigEnv = { command: "build" | "serve"; mode: string };
 
 /**
  * The config each `backendPlugin()` in a Vite config file carries, in plugin order: a function-form config is called
@@ -85,36 +94,45 @@ export type ViteConfigEnv = { command: "build" | "serve"; mode: string }
  * name `backend`, its `api.backendConfig`), so it holds across module instances and runtimes.
  */
 export async function loadPluginConfigs<T>(configPath: string, load: ModuleLoader, env: ViteConfigEnv): Promise<T[]> {
-	const mod = await load(configPath)
-	let config: unknown = "default" in mod ? mod.default : mod
-	if (typeof config === "function") {
-		config = (config as (env: object) => unknown)({ ...env, isPreview: false, isSsrBuild: false })
-	}
-	const plugins = await flattened((await config) as { plugins?: unknown } | null | undefined)
-	return plugins.flatMap((plugin) => {
-		const p = plugin as { api?: { backendConfig?: T }; name?: unknown } | null
-		return p?.name === "backend" && p.api?.backendConfig !== undefined ? [p.api.backendConfig] : []
-	})
+  const mod = await load(configPath);
+  let config: unknown = "default" in mod ? mod.default : mod;
+
+  if (typeof config === "function")
+    config = (config as (env: object) => unknown)({ ...env, isPreview: false, isSsrBuild: false });
+
+  const plugins = await flattened((await config) as { plugins?: unknown } | null | undefined);
+
+  return plugins.flatMap((plugin) => {
+    const p = plugin as { api?: { backendConfig?: T }; name?: unknown } | null;
+
+    return p?.name === "backend" && p.api?.backendConfig !== undefined ? [p.api.backendConfig] : [];
+  });
 }
 
 async function flattened(config: { plugins?: unknown } | null | undefined): Promise<unknown[]> {
-	const flat = async (value: unknown): Promise<unknown[]> => {
-		const resolved = await value
-		if (Array.isArray(resolved)) return (await Promise.all(resolved.map(flat))).flat()
-		return resolved ? [resolved] : []
-	}
-	return flat(config?.plugins)
+  const flat = async (value: unknown): Promise<unknown[]> => {
+    const resolved = await value;
+
+    if (Array.isArray(resolved)) return (await Promise.all(resolved.map(flat))).flat();
+
+    return resolved ? [resolved] : [];
+  };
+
+  return flat(config?.plugins);
 }
 
 /** Effect's `JSONSchema.make` for core's converters, when effect is installed; else undefined. */
-export async function effectConverter(specifier = ["eff", "ect"].join("")): Promise<EffectConverter | undefined> {
-	try {
-		/* an opaque specifier: a literal one is folded into a Worker bundle, pulling the optional dependency in */
-		const effect = (await import(specifier)) as { JSONSchema?: { make?: unknown } }
-		const make = effect.JSONSchema?.make
-		return typeof make === "function" ? (make as EffectConverter) : undefined
-	} catch {
-		/* effect is not installed: core then documents each Effect schema unconstrained and reports it */
-		return undefined
-	}
+export async function effectConverter(
+  specifier: string = ["eff", "ect"].join(""),
+): Promise<EffectConverter | undefined> {
+  try {
+    // an opaque specifier: a literal one is folded into a Worker bundle, pulling the optional dependency in
+    const effect = (await import(specifier)) as { JSONSchema?: { make?: unknown } };
+    const make = effect.JSONSchema?.make;
+
+    return typeof make === "function" ? (make as EffectConverter) : undefined;
+  } catch {
+    // effect is not installed: core then documents each Effect schema unconstrained and reports it
+    return undefined;
+  }
 }

@@ -3,136 +3,136 @@
  * request state and the route's precomputed info positionally; cookies, headers, the query and
  * the abort signal are read from the request only when first asked for.
  */
-import type { HttpError } from "../errors/error.ts"
-import type { TapDefinition } from "../routing/define-tap.ts"
-import { HttpRes } from "../response/response.ts"
-import type { SseCheck } from "../response/sse.ts"
-import { searchOfUrl } from "../routing/request-path.ts"
-import { dict } from "../routing/tree.ts"
-import { requestBindings } from "../telemetry/fields.ts"
-import type { InferInput } from "../validation/standard-schema.ts"
-import type { BackendLogger } from "../telemetry/logger.ts"
-import type { RequestTrace } from "../telemetry/request-trace.ts"
-import { parseCookieHeader } from "./cookie.ts"
-import { ipOf } from "./peer.ts"
+import type { HttpError } from "../errors/error.ts";
+import { HttpRes } from "../response/response.ts";
+import type { SseCheck } from "../response/sse.ts";
+import type { TapDefinition } from "../routing/define-tap.ts";
+import { searchOfUrl } from "../routing/request-path.ts";
+import { dict } from "../routing/tree.ts";
+import { requestBindings } from "../telemetry/fields.ts";
+import type { BackendLogger } from "../telemetry/logger.ts";
+import type { RequestTrace } from "../telemetry/request-trace.ts";
+import type { InferInput } from "../validation/standard-schema.ts";
+import { parseCookieHeader } from "./cookie.ts";
+import { ipOf } from "./peer.ts";
 
 /** The runtime's execution context, as far as backend uses it. */
 export type ExecutionCtx = {
-	/** Keeps the runtime alive until `p` settles, after the response is sent. */
-	waitUntil?: (p: Promise<unknown>) => void
-}
+  /** Keeps the runtime alive until `p` settles, after the response is sent. */
+  waitUntil?: (p: Promise<unknown>) => void;
+};
 
 /** The per-request state dispatch owns; the context reads its request fields from it. */
 export type RequestState<TEnv> = {
-	/** The environment passed to `app.fetch()`. */
-	readonly env: TEnv
-	/** The execution context passed to `app.fetch()`, if any; Workers provide one. */
-	readonly executionCtx: ExecutionCtx | undefined
-	/** the app's logger */
-	readonly logger: BackendLogger
-	/** The normalized request path, as on `ctx.path`. */
-	readonly path: string
-	/** The incoming request. */
-	readonly req: Request
-	/** `ctx.ip` once something asked: the canonical peer, or `null` when no runtime reports one */
-	ip?: string | null
-	/** set when the route's handler answered, on a route with taps only: they fire on nothing else */
-	answered?: true
-	/** the taps registered for the route, set by routing/tap.ts on a route with taps only */
-	taps?: ReadonlyMap<string, TapDefinition>
-	/** set on a WebSocket upgrade, to the serving app's adapter or `null`: an upgrade fires no taps */
-	ws?: unknown
-	/** the id `requestId()` gave the request and the header it travels in, for `proxy()` and the request log */
-	requestId?: {
-		/** The header `requestId()` reads and answers the id in. */
-		readonly header: string
-		/** The request's id, as on `ctx.requestId`. */
-		readonly id: string
-	}
-	/** this request's spans, when the app has telemetry */
-	trace?: RequestTrace
-	/** the key of the error that answered, for the request log */
-	errorKey?: string
-	/** a 5xx answer's digest: in its body, on its operator line and in its telemetry */
-	digest?: string
-}
+  /** The environment passed to `app.fetch()`. */
+  readonly env: TEnv;
+  /** The execution context passed to `app.fetch()`, if any; Workers provide one. */
+  readonly executionCtx: ExecutionCtx | undefined;
+  /** the app's logger */
+  readonly logger: BackendLogger;
+  /** The normalized request path, as on `ctx.path`. */
+  readonly path: string;
+  /** The incoming request. */
+  readonly req: Request;
+  /** `ctx.ip` once something asked: the canonical peer, or `null` when no runtime reports one */
+  ip?: string | null;
+  /** set when the route's handler answered, on a route with taps only: they fire on nothing else */
+  answered?: true;
+  /** the taps registered for the route, set by routing/tap.ts on a route with taps only */
+  taps?: ReadonlyMap<string, TapDefinition>;
+  /** set on a WebSocket upgrade, to the serving app's adapter or `null`: an upgrade fires no taps */
+  ws?: unknown;
+  /** the id `requestId()` gave the request and the header it travels in, for `proxy()` and the request log */
+  requestId?: {
+    /** The header `requestId()` reads and answers the id in. */
+    readonly header: string;
+    /** The request's id, as on `ctx.requestId`. */
+    readonly id: string;
+  };
+  /** this request's spans, when the app has telemetry */
+  trace?: RequestTrace;
+  /** the key of the error that answered, for the request log */
+  errorKey?: string;
+  /** a 5xx answer's digest: in its body, on its operator line and in its telemetry */
+  digest?: string;
+};
 
 /** What a context reads from its route, computed once at finalize. */
 export type RouteInfo = {
-	/** the route's id (`GET /users/:id`); empty for a request no route serves */
-	readonly id: string
-	/**
-	 * The error factories handlers on this route get. With no key declared, every key of the app's factory. Once the route,
-	 * its middleware or the app's defaults declare a key, only the declared keys that the factory named by `.errors()` or
-	 * the app's defines; a key a middleware brings from its own factory stays out. `null` when neither the app nor the route
-	 * has a factory.
-	 */
-	readonly errors: Readonly<Record<string, (...args: never[]) => unknown>> | null
-	/** The route's metadata: what its middleware contributes, overlaid by its handle's `.meta()`, then the route's own. */
-	readonly meta: Readonly<Record<string, unknown>>
-	/** The route's path pattern, for example `/users/:id`; empty when no route serves the request. */
-	readonly pattern: string
-	/** The check of each event its declared event stream sends; `null` when it declares none or the build drops it. */
-	readonly sse: SseCheck | null
-}
+  /** the route's id (`GET /users/:id`); empty for a request no route serves */
+  readonly id: string;
+  /**
+   * The error factories handlers on this route get. With no key declared, every key of the app's factory. Once the route,
+   * its middleware or the app's defaults declare a key, only the declared keys that the factory named by `.errors()` or
+   * the app's defines; a key a middleware brings from its own factory stays out. `null` when neither the app nor the route
+   * has a factory.
+   */
+  readonly errors: Readonly<Record<string, (...args: never[]) => unknown>> | null;
+  /** The route's metadata: what its middleware contributes, overlaid by its handle's `.meta()`, then the route's own. */
+  readonly meta: Readonly<Record<string, unknown>>;
+  /** The route's path pattern, for example `/users/:id`; empty when no route serves the request. */
+  readonly pattern: string;
+  /** The check of each event its declared event stream sends; `null` when it declares none or the build drops it. */
+  readonly sse: SseCheck | null;
+};
 
-const EMPTY: Readonly<Record<string, never>> = /* @__PURE__ */ Object.freeze({})
+const EMPTY: Readonly<Record<string, never>> = /* @__PURE__ */ Object.freeze({});
 
 /** The route info of a context built without a route, as a test builds one; a 404 or 405 has route info of its own. */
 export const NO_ROUTE: RouteInfo = /* @__PURE__ */ Object.freeze({
-	errors: null,
-	id: "",
-	meta: EMPTY,
-	pattern: "",
-	sse: null,
-})
+  errors: null,
+  id: "",
+  meta: EMPTY,
+  pattern: "",
+  sse: null,
+});
 
 /** The members `ctx.with()` may not replace: what one request decided, which a derived context shares as is. */
-type RequestOwned = "input" | "meta" | "params" | "req" | "res"
+type RequestOwned = "input" | "meta" | "params" | "req" | "res";
 
 /** The context's slot for its request state: an own symbol key the package does not export, so it is no part of the API. */
-export const REQUEST: unique symbol = /* @__PURE__ */ Symbol("backend.request")
+export const REQUEST: unique symbol = /* @__PURE__ */ Symbol("backend.request");
 
 /** Abort `ctx.signal` from inside backend (a timeout): not exported from the package. */
-export const ABORT_CONTEXT: unique symbol = /* @__PURE__ */ Symbol("backend.abortContext")
+export const ABORT_CONTEXT: unique symbol = /* @__PURE__ */ Symbol("backend.abortContext");
 
 /** The request's trace when the app has telemetry: read by requestId and proxy, never part of the package API. */
-export const TRACE: unique symbol = /* @__PURE__ */ Symbol("backend.trace")
+export const TRACE: unique symbol = /* @__PURE__ */ Symbol("backend.trace");
 
 /** The taps `ctx.tap()` queued, and whether the route's handler answered: read by routing/tap.ts only. */
-export const TAPS: unique symbol = /* @__PURE__ */ Symbol("backend.taps")
+export const TAPS: unique symbol = /* @__PURE__ */ Symbol("backend.taps");
 
 /** A defined tap's payload check: the schema's output, or the first issue as `<path>: <message>`. */
 export type TapCheck = (value: unknown) =>
-	| {
-			/** The first issue, as `<path>: <message>`; the path is `(root)` for the value as a whole. */
-			readonly issue: string
-	  }
-	| {
-			/** The schema's output: what the tap's handler gets. */
-			readonly value: unknown
-	  }
+  | {
+      /** The first issue, as `<path>: <message>`; the path is `(root)` for the value as a whole. */
+      readonly issue: string;
+    }
+  | {
+      /** The schema's output: what the tap's handler gets. */
+      readonly value: unknown;
+    };
 
 /**
  * The key of a defined tap's check, set by `defineTap` and called by `ctx.tap()` and the route compile: the key lives
  * here and the check there, so an app that defines no tap bundles none of it. Not exported from the package.
  */
-export const TAP_CHECK: unique symbol = /* @__PURE__ */ Symbol("backend.tapCheck")
+export const TAP_CHECK: unique symbol = /* @__PURE__ */ Symbol("backend.tapCheck");
 
 /**
  * The instance the constructor built, on that instance: a context derived with `Object.create(ctx)`
  * reaches it through its prototype, so its getters read and write the base's private state rather
  * than throwing for the private fields it lacks. Not exported from the package.
  */
-const SELF: unique symbol = /* @__PURE__ */ Symbol("backend.self")
+const SELF: unique symbol = /* @__PURE__ */ Symbol("backend.self");
 
 /** One `ctx.tap(tap, payload)` call, waiting for the handler's answer. */
 export type TapCall = {
-	/** The registered tap `ctx.tap()` was given. */
-	readonly tap: TapDefinition
-	/** The payload, already parsed by the tap's schema: what its handler gets. */
-	readonly payload: unknown
-}
+  /** The registered tap `ctx.tap()` was given. */
+  readonly tap: TapDefinition;
+  /** The payload, already parsed by the tap's schema: what its handler gets. */
+  readonly payload: unknown;
+};
 
 /**
  * Every name the framework owns on a context. `next({ ... })` additions and `.context()` values may
@@ -140,31 +140,31 @@ export type TapCall = {
  * getter-only field throws on every request.
  */
 const RESERVED: Readonly<Record<string, true>> = /* @__PURE__ */ Object.freeze({
-	background: true,
-	cookies: true,
-	env: true,
-	error: true,
-	errors: true,
-	executionCtx: true,
-	headers: true,
-	input: true,
-	ip: true,
-	log: true,
-	meta: true,
-	params: true,
-	path: true,
-	req: true,
-	res: true,
-	routePattern: true,
-	search: true,
-	searchAll: true,
-	signal: true,
-	tap: true,
-	with: true,
-})
+  background: true,
+  cookies: true,
+  env: true,
+  error: true,
+  errors: true,
+  executionCtx: true,
+  headers: true,
+  input: true,
+  ip: true,
+  log: true,
+  meta: true,
+  params: true,
+  path: true,
+  req: true,
+  res: true,
+  routePattern: true,
+  search: true,
+  searchAll: true,
+  signal: true,
+  tap: true,
+  with: true,
+});
 
 export function isReservedCtxKey(key: string): boolean {
-	return Object.hasOwn(RESERVED, key)
+  return Object.hasOwn(RESERVED, key);
 }
 
 /**
@@ -172,252 +172,293 @@ export function isReservedCtxKey(key: string): boolean {
  * they were, so ctx's parsed views (headers, cookies, the query) still describe it.
  */
 export function replaceRequest(ctx: object, req: Request): void {
-	;(ctx as { req: Request }).req = req
+  (ctx as { req: Request }).req = req;
 }
 
 /** Record the error behind the response on `ctx.error`, read-only for user code. */
 export function setCtxError(ctx: HttpContext<never> | HttpContext, error: HttpError): void {
-	;(ctx as { error: HttpError | undefined }).error = error
-	ctx[REQUEST].errorKey = error.errorKey
+  (ctx as { error: HttpError | undefined }).error = error;
+  ctx[REQUEST].errorKey = error.errorKey;
 }
 
+export interface HttpContext<TEnv = Record<string, unknown>> {
+  readonly [REQUEST]: RequestState<TEnv>;
+  readonly [SELF]: HttpContext<TEnv>;
+  readonly [TRACE]: RequestTrace | null;
+  /** What `tap()` queued, or null when nothing was. */
+  readonly [TAPS]: readonly TapCall[] | null;
+  /** Abort `signal` with `reason`, so work that takes it stops (a timeout answered for it). */
+  [ABORT_CONTEXT](reason: unknown): void;
+}
+
+// The symbol-keyed members are declared on the interface above: isolatedDeclarations refuses a computed key in an
+// exported class body, and the static block below puts the getters and the method on the prototype.
 /**
  * What a handler and its middleware see for one request: the request and response helpers, the route's params and
  * metadata, the environment, the logger and the abort signal.
  */
 export class HttpContext<TEnv = Record<string, unknown>> {
-	/**
-	 * Keep a promise running past the response. With a `waitUntil` on the execution context (Workers) the runtime holds it
-	 * open and reports a rejection itself. On Bun and Node nothing waits for it, so `close()` or the process exiting can cut
-	 * it off; a rejection goes to the request's logger as an error.
-	 */
-	readonly background: (p: Promise<unknown>) => void
-	/**
-	 * The environment passed to `app.fetch()`: the bindings on Workers, the `env` serve option on Node, and on Bun a copy
-	 * of that option that also carries the server.
-	 */
-	readonly env: TEnv
-	/**
-	 * The error behind the response, once a handler or a deeper middleware threw, or returned no `Response`, and the
-	 * `next()` boundary turned that into an error response: the thrown `HttpError`, what `onError` replaced it with, or the
-	 * boundary error or 500 it became. `undefined` while nothing failed, and on a 404, a 405 or an error status a handler
-	 * returned without throwing.
-	 */
-	readonly error: HttpError | undefined = undefined
-	/**
-	 * The error factories this route may use. With no key declared, every key of the app's factory. Once the route, its
-	 * middleware or the app's defaults declare a key, only the declared keys that the factory named by `.errors()` or the
-	 * app's defines; a key a middleware brings from its own factory stays out. A middleware's key counts, so `timeout()`
-	 * alone can leave this empty. Empty when neither the app nor the route has a factory.
-	 */
-	readonly errors: Readonly<Record<string, (...args: never[]) => unknown>>
-	/** The execution context passed to `app.fetch()`: Workers provide one, the Bun and Node adapters do not. */
-	readonly executionCtx: ExecutionCtx | undefined
-	/**
-	 * The route's metadata: what its middleware contributes, overlaid by its handle's `.meta()`, then the route's own. Empty
-	 * when none of them sets any.
-	 */
-	readonly meta: Readonly<Record<string, unknown>>
-	/**
-	 * The route's path parameters by name, percent-decoded; a malformed escape stays as sent. An optional parameter left out
-	 * has no key, and an unnamed wildcard is under `*`. Empty on a route without parameters or when no route serves the
-	 * request; an empty one may be frozen, so do not write to it.
-	 */
-	readonly params: Record<string, string>
-	/**
-	 * The request path without the query or the app's `stripPrefix`, normalized the same way on every runtime: repeated
-	 * slashes collapse, dot segments resolve, and percent escapes stay encoded.
-	 */
-	readonly path: string
-	/** The incoming request. */
-	readonly req: Request
-	/** Builders for the response: `json`, `text`, `redirect` and the rest; `forward` needs the route's `.output()`. */
-	readonly res: Omit<HttpRes, "forward">
-	/** The route's path pattern, for example `/users/:id`; empty when no route serves the request. */
-	readonly routePattern: string
-	readonly [REQUEST]: RequestState<TEnv>
-	readonly [SELF]: HttpContext<TEnv>
+  /**
+   * Keep a promise running past the response. With a `waitUntil` on the execution context (Workers) the runtime holds it
+   * open and reports a rejection itself. On Bun and Node nothing waits for it, so `close()` or the process exiting can cut
+   * it off; a rejection goes to the request's logger as an error.
+   */
+  readonly background: (p: Promise<unknown>) => void;
+  /**
+   * The environment passed to `app.fetch()`: the bindings on Workers, the `env` serve option on Node, and on Bun a copy
+   * of that option that also carries the server.
+   */
+  readonly env: TEnv;
+  /**
+   * The error behind the response, once a handler or a deeper middleware threw, or returned no `Response`, and the
+   * `next()` boundary turned that into an error response: the thrown `HttpError`, what `onError` replaced it with, or the
+   * boundary error or 500 it became. `undefined` while nothing failed, and on a 404, a 405 or an error status a handler
+   * returned without throwing.
+   */
+  readonly error: HttpError | undefined = undefined;
+  /**
+   * The error factories this route may use. With no key declared, every key of the app's factory. Once the route, its
+   * middleware or the app's defaults declare a key, only the declared keys that the factory named by `.errors()` or the
+   * app's defines; a key a middleware brings from its own factory stays out. A middleware's key counts, so `timeout()`
+   * alone can leave this empty. Empty when neither the app nor the route has a factory.
+   */
+  readonly errors: Readonly<Record<string, (...args: never[]) => unknown>>;
+  /** The execution context passed to `app.fetch()`: Workers provide one, the Bun and Node adapters do not. */
+  readonly executionCtx: ExecutionCtx | undefined;
+  /**
+   * The route's metadata: what its middleware contributes, overlaid by its handle's `.meta()`, then the route's own. Empty
+   * when none of them sets any.
+   */
+  readonly meta: Readonly<Record<string, unknown>>;
+  /**
+   * The route's path parameters by name, percent-decoded; a malformed escape stays as sent. An optional parameter left out
+   * has no key, and an unnamed wildcard is under `*`. Empty on a route without parameters or when no route serves the
+   * request; an empty one may be frozen, so do not write to it.
+   */
+  readonly params: Record<string, string>;
+  /**
+   * The request path without the query or the app's `stripPrefix`, normalized the same way on every runtime: repeated
+   * slashes collapse, dot segments resolve, and percent escapes stay encoded.
+   */
+  readonly path: string;
+  /** The incoming request. */
+  readonly req: Request;
+  /** Builders for the response: `json`, `text`, `redirect` and the rest; `forward` needs the route's `.output()`. */
+  readonly res: Omit<HttpRes, "forward">;
+  /** The route's path pattern, for example `/users/:id`; empty when no route serves the request. */
+  readonly routePattern: string;
 
-	#ac: AbortController | null = null
-	#cookies: Record<string, string> | null = null
-	#headers: Record<string, string> | null = null
-	#log: BackendLogger | null = null
-	readonly #routeId: string
-	#search: Record<string, string> | null = null
-	#searchAll: Record<string, string[]> | null = null
-	#taps: TapCall[] | null = null
+  #ac: AbortController | null = null;
+  #cookies: Record<string, string> | null = null;
+  #headers: Record<string, string> | null = null;
+  #log: BackendLogger | null = null;
+  readonly #routeId: string;
+  #search: Record<string, string> | null = null;
+  #searchAll: Record<string, string[]> | null = null;
+  #taps: TapCall[] | null = null;
 
-	/** Backend builds one for each request; application code receives the context instead of making one. */
-	constructor(state: RequestState<TEnv>, route: RouteInfo, params: Record<string, string>) {
-		this.env = state.env
-		this.errors = route.errors ?? EMPTY
-		this.executionCtx = state.executionCtx
-		this.meta = route.meta
-		this.params = params
-		this.path = state.path
-		this.req = state.req
-		/* the context is the res's link to its request: signal and headers read only when a stream needs them */
-		this.res = new HttpRes(this, route.sse)
-		this.routePattern = route.pattern
-		this.#routeId = route.id
-		this[REQUEST] = state
-		this[SELF] = this
-		/* called on its owner: workerd's waitUntil throws "Illegal invocation" when detached */
-		const executionCtx = state.executionCtx
-		const waitUntil = executionCtx?.waitUntil
-		this.background = waitUntil
-			? (p) => waitUntil.call(executionCtx, p)
-			: (p) => void p.catch((error: unknown) => this.log.error({ err: error }, "background task failed"))
-	}
+  /** Backend builds one for each request; application code receives the context instead of making one. */
+  constructor(state: RequestState<TEnv>, route: RouteInfo, params: Record<string, string>) {
+    this.env = state.env;
+    this.errors = route.errors ?? EMPTY;
+    this.executionCtx = state.executionCtx;
+    this.meta = route.meta;
+    this.params = params;
+    this.path = state.path;
+    this.req = state.req;
+    // the context is the res's link to its request: signal and headers read only when a stream needs them
+    this.res = new HttpRes(this, route.sse);
+    this.routePattern = route.pattern;
+    this.#routeId = route.id;
+    // readonly to everyone else; the constructor sets them once through a writable view of itself
+    const own: { [REQUEST]: RequestState<TEnv>; [SELF]: HttpContext<TEnv> } = this;
+    own[REQUEST] = state;
+    own[SELF] = this;
+    // called on its owner: workerd's waitUntil throws "Illegal invocation" when detached
+    const executionCtx = state.executionCtx;
+    const waitUntil = executionCtx?.waitUntil;
+    this.background = waitUntil
+      ? (p) => waitUntil.call(executionCtx, p)
+      : (p) => void p.catch((error: unknown) => this.log.error({ err: error }, "background task failed"));
+  }
 
-	get [TRACE](): RequestTrace | null {
-		return this[REQUEST].trace ?? null
-	}
+  /**
+   * The client address the platform reports, in one canonical spelling: `CF-Connecting-IP` on Workers. `null` when nothing reports one
+   * or what it reports is not one address. Forwarding headers are not trusted, so behind your own reverse proxy this is
+   * the proxy's address.
+   */
+  get ip(): string | null {
+    return ipOf(this[REQUEST]);
+  }
 
-	/**
-	 * The client address the platform reports, in one canonical spelling: `CF-Connecting-IP` on Workers. `null` when nothing reports one
-	 * or what it reports is not one address. Forwarding headers are not trusted, so behind your own reverse proxy this is
-	 * the proxy's address.
-	 */
-	get ip(): string | null {
-		return ipOf(this[REQUEST])
-	}
+  /**
+   * This request's logger: a child of the app's that binds method, path (without its query), route id, the request id
+   * when one is set, and the trace's ids when traced. Built once, on first use, so a request id set after that is not on
+   * it: read `log` after `requestId()` has run.
+   */
+  get log(): BackendLogger {
+    const self = this[SELF];
+    self.#log ??= self[REQUEST].logger.child(
+      requestBindings(self.req.method, self.path, self.#routeId, {
+        requestId: (self as { requestId?: string }).requestId,
+        trace: self[REQUEST].trace?.ids(),
+      }),
+    );
 
-	/**
-	 * This request's logger: a child of the app's that binds method, path (without its query), route id, the request id
-	 * when one is set, and the trace's ids when traced. Built once, on first use, so a request id set after that is not on
-	 * it: read `log` after `requestId()` has run.
-	 */
-	get log(): BackendLogger {
-		const self = this[SELF]
-		self.#log ??= self[REQUEST].logger.child(
-			requestBindings(self.req.method, self.path, self.#routeId, {
-				requestId: (self as { requestId?: string }).requestId,
-				trace: self[REQUEST].trace?.ids(),
-			}),
-		)
-		return self.#log
-	}
+    return self.#log;
+  }
 
-	/**
-	 * The request's cookies by name, percent-decoded, parsed from the `Cookie` header on first use. Surrounding double
-	 * quotes are dropped and a malformed escape stays as sent. When a name repeats, the first value wins. Names are request
-	 * data, so no prototype.
-	 */
-	get cookies(): Record<string, string> {
-		const self = this[SELF]
-		self.#cookies ??= parseCookieHeader(self.req.headers.get("cookie") ?? "")
-		return self.#cookies
-	}
+  /**
+   * The request's cookies by name, percent-decoded, parsed from the `Cookie` header on first use. Surrounding double
+   * quotes are dropped and a malformed escape stays as sent. When a name repeats, the first value wins. Names are request
+   * data, so no prototype.
+   */
+  get cookies(): Record<string, string> {
+    const self = this[SELF];
+    self.#cookies ??= parseCookieHeader(self.req.headers.get("cookie") ?? "");
 
-	/** The request headers as a record: keys are lower-case and request data, so no prototype. */
-	get headers(): Record<string, string> {
-		const self = this[SELF]
-		if (self.#headers === null) {
-			const out = dict<string>()
-			for (const [key, value] of self.req.headers) out[key] = value
-			self.#headers = out
-		}
-		return self.#headers
-	}
+    return self.#cookies;
+  }
 
-	/**
-	 * The query, decoded with `+` as a space: the first value of each key, empty for a key with no value. Keys are request
-	 * data, so no prototype.
-	 */
-	get search(): Record<string, string> {
-		const self = this[SELF]
-		if (self.#search === null) self.#parseSearch()
-		return self.#search as Record<string, string>
-	}
+  /** The request headers as a record: keys are lower-case and request data, so no prototype. */
+  get headers(): Record<string, string> {
+    const self = this[SELF];
 
-	/** The query, decoded as `search` is: every value of each key, in order. Keys are request data, so no prototype. */
-	get searchAll(): Record<string, string[]> {
-		const self = this[SELF]
-		if (self.#searchAll === null) self.#parseSearch()
-		return self.#searchAll as Record<string, string[]>
-	}
+    if (self.#headers === null) {
+      const out = dict<string>();
 
-	/**
-	 * Aborts when `timeout()` answers for the request, with a `TimeoutError` as its reason. On Bun and Node it also aborts
-	 * when the client disconnects, and when shutdown gives up on the request: once `close()`'s timeout runs out, or as soon
-	 * as shutdown starts for a response already streaming on Node. On Workers do not rely on a disconnect: the request's own
-	 * signal does not fire on one in workerd. A normal answer does not abort it. Pass it to `fetch()`, database drivers and
-	 * timers so abandoned work stops.
-	 */
-	get signal(): AbortSignal {
-		const self = this[SELF]
-		self.#ac ??= self.#linkSignal()
-		return self.#ac.signal
-	}
+      for (const [key, value] of self.req.headers) out[key] = value;
+      self.#headers = out;
+    }
 
-	/**
-	 * Fire `tap` with `payload` once the chain settled on this request's handler's answer. Nothing fires when a throw or a
-	 * middleware answered instead, but an error status the handler returned still fires, as does an answer a middleware
-	 * replaced afterwards. The tap cannot change the response, but it can start before the response is written, so its
-	 * synchronous work can delay it. Throws when the route's app (or an app serving it) did not register this tap, on a
-	 * WebSocket upgrade, and when the payload fails the tap's schema.
-	 */
-	tap<T extends TapDefinition>(tap: T, payload: InferInput<T["schema"]>): void {
-		const self = this[SELF]
-		const state = self[REQUEST]
-		if (state.ws !== undefined) throw new Error(`tap ${tap.name}: a WebSocket upgrade fires no taps`)
-		if (state.taps?.get(tap.name) !== tap) throw new Error(`tap ${tap.name}: not registered on this app`)
-		const checked = tap[TAP_CHECK](payload)
-		if ("issue" in checked) throw new Error(`tap ${tap.name}: the payload fails its schema: ${checked.issue}`)
-		;(self.#taps ??= []).push({ payload: checked.value, tap })
-	}
+    return self.#headers;
+  }
 
-	/**
-	 * A context that answers `overrides` and reads everything else from this one: the lazy views, the logger, the signal
-	 * and the tap queue stay this request's, and a member set here later shows through. For a step that needs one member
-	 * swapped, such as a database handle resolved per tenant. Typed as the context it is called on, so an override takes
-	 * that member's declared type; `req`, `res`, `input`, `params` and `meta` belong to the request and cannot be replaced.
-	 */
-	with<C>(this: C, overrides: Partial<Omit<C, RequestOwned>>): C {
-		return Object.create(this as object, Object.getOwnPropertyDescriptors(overrides)) as C
-	}
+  /**
+   * The query, decoded with `+` as a space: the first value of each key, empty for a key with no value. Keys are request
+   * data, so no prototype.
+   */
+  get search(): Record<string, string> {
+    const self = this[SELF];
 
-	/** What `tap()` queued, or null when nothing was. */
-	get [TAPS](): readonly TapCall[] | null {
-		return this[SELF].#taps
-	}
+    if (self.#search === null) self.#parseSearch();
 
-	/** Abort `signal` with `reason`, so work that takes it stops (a timeout answered for it). */
-	[ABORT_CONTEXT](reason: unknown): void {
-		const self = this[SELF]
-		self.#ac ??= self.#linkSignal()
-		self.#ac.abort(reason)
-	}
+    return self.#search as Record<string, string>;
+  }
 
-	#parseSearch(): void {
-		const first = dict<string>()
-		const all = dict<string[]>()
-		for (const [key, value] of new URLSearchParams(searchOfUrl(this.req.url))) {
-			const values = all[key]
-			if (values === undefined) {
-				first[key] = value
-				all[key] = [value]
-			} else {
-				values.push(value)
-			}
-		}
-		this.#search = first
-		this.#searchAll = all
-	}
+  /** The query, decoded as `search` is: every value of each key, in order. Keys are request data, so no prototype. */
+  get searchAll(): Record<string, string[]> {
+    const self = this[SELF];
 
-	/** A controller that follows the request's own signal; a request shim without one stands alone. */
-	#linkSignal(): AbortController {
-		const ac = new AbortController()
-		let request: AbortSignal | undefined
-		try {
-			request = this.req.signal
-		} catch {
-			/* a request shim with no usable signal: the controller stands alone, nothing failed */
-			return ac
-		}
-		if (request?.aborted) ac.abort(request.reason)
-		else request?.addEventListener("abort", () => ac.abort(request.reason), { once: true })
-		return ac
-	}
+    if (self.#searchAll === null) self.#parseSearch();
+
+    return self.#searchAll as Record<string, string[]>;
+  }
+
+  /**
+   * Aborts when `timeout()` answers for the request, with a `TimeoutError` as its reason. On Bun and Node it also aborts
+   * when the client disconnects, and when shutdown gives up on the request: once `close()`'s timeout runs out, or as soon
+   * as shutdown starts for a response already streaming on Node. On Workers do not rely on a disconnect: the request's own
+   * signal does not fire on one in workerd. A normal answer does not abort it. Pass it to `fetch()`, database drivers and
+   * timers so abandoned work stops.
+   */
+  get signal(): AbortSignal {
+    const self = this[SELF];
+    self.#ac ??= self.#linkSignal();
+
+    return self.#ac.signal;
+  }
+
+  /**
+   * Fire `tap` with `payload` once the chain settled on this request's handler's answer. Nothing fires when a throw or a
+   * middleware answered instead, but an error status the handler returned still fires, as does an answer a middleware
+   * replaced afterwards. The tap cannot change the response, but it can start before the response is written, so its
+   * synchronous work can delay it. Throws when the route's app (or an app serving it) did not register this tap, on a
+   * WebSocket upgrade, and when the payload fails the tap's schema.
+   */
+  tap<T extends TapDefinition>(tap: T, payload: InferInput<T["schema"]>): void {
+    const self = this[SELF];
+    const state = self[REQUEST];
+
+    if (state.ws !== undefined) throw new Error(`tap ${tap.name}: a WebSocket upgrade fires no taps`);
+
+    if (state.taps?.get(tap.name) !== tap) throw new Error(`tap ${tap.name}: not registered on this app`);
+    const checked = tap[TAP_CHECK](payload);
+
+    if ("issue" in checked) throw new Error(`tap ${tap.name}: the payload fails its schema: ${checked.issue}`);
+    (self.#taps ??= []).push({ payload: checked.value, tap });
+  }
+
+  /**
+   * A context that answers `overrides` and reads everything else from this one: the lazy views, the logger, the signal
+   * and the tap queue stay this request's, and a member set here later shows through. For a step that needs one member
+   * swapped, such as a database handle resolved per tenant. Typed as the context it is called on, so an override takes
+   * that member's declared type; `req`, `res`, `input`, `params` and `meta` belong to the request and cannot be replaced.
+   */
+  with<C>(this: C, overrides: Partial<Omit<C, RequestOwned>>): C {
+    return Object.create(this as object, Object.getOwnPropertyDescriptors(overrides)) as C;
+  }
+
+  static {
+    Object.defineProperties(this.prototype, {
+      [ABORT_CONTEXT]: {
+        configurable: true,
+        value(this: HttpContext, reason: unknown): void {
+          const self = this[SELF];
+          self.#ac ??= self.#linkSignal();
+          self.#ac.abort(reason);
+        },
+        writable: true,
+      },
+      [TAPS]: {
+        configurable: true,
+        get(this: HttpContext): readonly TapCall[] | null {
+          return this[SELF].#taps;
+        },
+      },
+      [TRACE]: {
+        configurable: true,
+        get(this: HttpContext): RequestTrace | null {
+          return this[REQUEST].trace ?? null;
+        },
+      },
+    });
+  }
+
+  #parseSearch(): void {
+    const first = dict<string>();
+    const all = dict<string[]>();
+
+    for (const [key, value] of new URLSearchParams(searchOfUrl(this.req.url))) {
+      const values = all[key];
+
+      if (values === undefined) {
+        first[key] = value;
+        all[key] = [value];
+      } else {
+        values.push(value);
+      }
+    }
+
+    this.#search = first;
+    this.#searchAll = all;
+  }
+
+  /** A controller that follows the request's own signal; a request shim without one stands alone. */
+  #linkSignal(): AbortController {
+    const ac = new AbortController();
+    let request: AbortSignal | undefined;
+
+    try {
+      request = this.req.signal;
+    } catch {
+      // a request shim with no usable signal: the controller stands alone, nothing failed
+      return ac;
+    }
+
+    if (request?.aborted) ac.abort(request.reason);
+    else request?.addEventListener("abort", () => ac.abort(request.reason), { once: true });
+
+    return ac;
+  }
 }

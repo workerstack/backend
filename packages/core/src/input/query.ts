@@ -1,10 +1,10 @@
 /** The query as `.input({ search })` declares it. */
-import type { StandardSchemaLike } from "../validation/standard-schema.ts"
-import { runSchema, type Shape, shapedRecord, shapeOf } from "../validation/validate-input.ts"
+import type { StandardSchemaLike } from "../validation/standard-schema.ts";
+import { runSchema, type Shape, shapedRecord, shapeOf } from "../validation/validate-input.ts";
 
 /** ctx.searchAll as key/value pairs, in request order per key. */
 function* pairs(searchAll: Readonly<Record<string, readonly string[]>>): Generator<[string, string]> {
-	for (const key in searchAll) for (const value of searchAll[key] as readonly string[]) yield [key, value]
+  for (const key in searchAll) for (const value of searchAll[key] as readonly string[]) yield [key, value];
 }
 
 /**
@@ -13,9 +13,9 @@ function* pairs(searchAll: Readonly<Record<string, readonly string[]>>): Generat
  * never reach it (H18.13).
  */
 export function searchInput(
-	schema: StandardSchemaLike,
-	searchAll: Readonly<Record<string, readonly string[]>>,
-	shape: Shape | null = shapeOf(schema),
+  schema: StandardSchemaLike,
+  searchAll: Readonly<Record<string, readonly string[]>>,
+  shape: Shape | null = shapeOf(schema),
 ): unknown {
-	return runSchema(schema, shapedRecord(pairs(searchAll), shape), "search")
+  return runSchema(schema, shapedRecord(pairs(searchAll), shape), "search");
 }

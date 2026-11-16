@@ -18,44 +18,44 @@
  * history (tests/structure/no-deno.test.ts) — and `why` then says so.
  */
 export type RemovedSubpath = {
-	readonly covers: string | null
-	readonly subpath: string
-	readonly why?: string
-}
+  readonly covers: string | null;
+  readonly subpath: string;
+  readonly why?: string;
+};
 
 /** What a removed name is: a name the guide must carry, or an internal with the reason it never was one. */
-export type Verdict = { readonly kind: "guide" } | { readonly kind: "internal"; readonly why: string }
+export type Verdict = { readonly kind: "guide" } | { readonly kind: "internal"; readonly why: string };
 
 /**
  * Every subpath 0.7.3 exported that 1.0 does not, with the words of the guide that cover it. A name under one of
  * these is judged by its subpath, not one by one: the subpath's own section is where the reader goes.
  */
 export const REMOVED_SUBPATHS: readonly RemovedSubpath[] = [
-	{ covers: "clients generate", subpath: "./cli" },
-	{ covers: "client.safe", subpath: "./client" },
-	{ covers: "client.safe", subpath: "./client/sdk" },
-	{ covers: "@workerstack/clients", subpath: "./codegen" },
-	{ covers: "@workerstack/clients", subpath: "./codegen-go-cli" },
-	{ covers: "@workerstack/clients", subpath: "./codegen/extract" },
-	{ covers: "@workerstack/backend/errors", subpath: "./errors" },
-	{ covers: "serveOpenApi", subpath: "./openapi/spec" },
-	{ covers: "@workerstack/backend/node", subpath: "./node" },
-	{ covers: "@workerstack/backend/node", subpath: "./serve" },
-	{ covers: "trustProxy", subpath: "./trust" },
-	{ covers: "workersWebSocket", subpath: "./ws/bun" },
-	{ covers: "workersWebSocket", subpath: "./ws/cloudflare" },
-	{ covers: "workersWebSocket", subpath: "./ws/node" },
-	{
-		covers: null,
-		subpath: "./ws/session",
-		why: "the session helper the Node and Bun adapters shared; the route builder keeps it inside the package, so there is nothing left to import",
-	},
-	{
-		covers: null,
-		subpath: "./ws/deno",
-		why: "its runtime is gone from v1 and no file outside history names it, the guide included",
-	},
-]
+  { covers: "clients generate", subpath: "./cli" },
+  { covers: "client.safe", subpath: "./client" },
+  { covers: "client.safe", subpath: "./client/sdk" },
+  { covers: "@workerstack/clients", subpath: "./codegen" },
+  { covers: "@workerstack/clients", subpath: "./codegen-go-cli" },
+  { covers: "@workerstack/clients", subpath: "./codegen/extract" },
+  { covers: "@workerstack/backend/errors", subpath: "./errors" },
+  { covers: "serveOpenApi", subpath: "./openapi/spec" },
+  { covers: "@workerstack/backend/node", subpath: "./node" },
+  { covers: "@workerstack/backend/node", subpath: "./serve" },
+  { covers: "trustProxy", subpath: "./trust" },
+  { covers: "workersWebSocket", subpath: "./ws/bun" },
+  { covers: "workersWebSocket", subpath: "./ws/cloudflare" },
+  { covers: "workersWebSocket", subpath: "./ws/node" },
+  {
+    covers: null,
+    subpath: "./ws/session",
+    why: "the session helper the Node and Bun adapters shared; the route builder keeps it inside the package, so there is nothing left to import",
+  },
+  {
+    covers: null,
+    subpath: "./ws/deno",
+    why: "its runtime is gone from v1 and no file outside history names it, the guide included",
+  },
+];
 
 /**
  * Every subpath the 1.0 layout moved, old to new (docs/migrating-from-honey.md). `.` is `./http`, and the three
@@ -63,170 +63,175 @@ export const REMOVED_SUBPATHS: readonly RemovedSubpath[] = [
  * subpath is looked up at its new subpath, so the per-name check stays as strong as it was.
  */
 export const MOVED_SUBPATHS: ReadonlyMap<string, string> = new Map([
-	[".", "./http"],
-	["./accepts", "./http/accepts"],
-	["./body-limit", "./http/body-limit"],
-	["./cache-control", "./http/cache-control"],
-	["./compress", "./http/compress"],
-	["./cookie", "./http/cookie"],
-	["./cookie-sign", "./http/cookie-sign"],
-	["./cors", "./http/cors"],
-	["./csrf", "./http/csrf"],
-	["./curl-logger", "./http/curl-logger"],
-	["./etag", "./http/etag"],
-	["./i18n", "./http/i18n"],
-	["./input", "./http/input"],
-	["./ip-restrict", "./http/ip-restrict"],
-	["./jwt", "./http/jwt"],
-	["./openapi", "./http/openapi"],
-	["./openapi/auth", "./http/openapi/auth"],
-	["./openapi/scalar", "./http/openapi/scalar"],
-	["./openapi/static", "./http/openapi/static"],
-	["./openapi/swagger", "./http/openapi/swagger"],
-	["./powered-by", "./http/powered-by"],
-	["./pretty-json", "./http/pretty-json"],
-	["./proxy", "./http/proxy"],
-	["./range", "./http/range"],
-	["./rate-limit", "./http/rate-limit"],
-	["./request-id", "./http/request-id"],
-	["./request-to-curl", "./http/request-to-curl"],
-	["./secure-headers", "./http/secure-headers"],
-	["./server-timing", "./http/server-timing"],
-	["./static", "./http/static"],
-	["./testing", "./http/testing"],
-	["./timeout", "./http/timeout"],
-	["./tree", "./http/tree"],
-	["./user-agent", "./http/user-agent"],
-	["./webhook", "./http/webhook"],
-	["./cron/workers", "./cron"],
-	["./queue/workers", "./queue"],
-	["./ws/workers", "./ws"],
-])
+  [".", "./http"],
+  ["./accepts", "./http/accepts"],
+  ["./body-limit", "./http/body-limit"],
+  ["./cache-control", "./http/cache-control"],
+  ["./compress", "./http/compress"],
+  ["./cookie", "./http/cookie"],
+  ["./cookie-sign", "./http/cookie-sign"],
+  ["./cors", "./http/cors"],
+  ["./csrf", "./http/csrf"],
+  ["./curl-logger", "./http/curl-logger"],
+  ["./etag", "./http/etag"],
+  ["./i18n", "./http/i18n"],
+  ["./input", "./http/input"],
+  ["./ip-restrict", "./http/ip-restrict"],
+  ["./jwt", "./http/jwt"],
+  ["./openapi", "./http/openapi"],
+  ["./openapi/auth", "./http/openapi/auth"],
+  ["./openapi/scalar", "./http/openapi/scalar"],
+  ["./openapi/static", "./http/openapi/static"],
+  ["./openapi/swagger", "./http/openapi/swagger"],
+  ["./powered-by", "./http/powered-by"],
+  ["./pretty-json", "./http/pretty-json"],
+  ["./proxy", "./http/proxy"],
+  ["./range", "./http/range"],
+  ["./rate-limit", "./http/rate-limit"],
+  ["./request-id", "./http/request-id"],
+  ["./request-to-curl", "./http/request-to-curl"],
+  ["./secure-headers", "./http/secure-headers"],
+  ["./server-timing", "./http/server-timing"],
+  ["./static", "./http/static"],
+  ["./testing", "./http/testing"],
+  ["./timeout", "./http/timeout"],
+  ["./tree", "./http/tree"],
+  ["./user-agent", "./http/user-agent"],
+  ["./webhook", "./http/webhook"],
+  ["./cron/workers", "./cron"],
+  ["./queue/workers", "./queue"],
+  ["./ws/workers", "./ws"],
+]);
 
-/* why a name was never one to write: the same reason reads for a whole family */
-const ADAPTER = "a WebSocket adapter's own plumbing, reached through ws() and the adapter, never imported"
-const PLUGIN = "the plugin's resolved config and write path, read by the plugin itself"
-const TREE = "the matcher behind a route tree; a consumer names RouteTree and TreeNode, which 1.0 keeps"
-const SHAPE = "an internal shape of the route builder's types, never written in an app"
+// why a name was never one to write: the same reason reads for a whole family
+const ADAPTER = "a WebSocket adapter's own plumbing, reached through ws() and the adapter, never imported";
+const PLUGIN = "the plugin's resolved config and write path, read by the plugin itself";
+const TREE = "the matcher behind a route tree; a consumer names RouteTree and TreeNode, which 1.0 keeps";
+const SHAPE = "an internal shape of the route builder's types, never written in an app";
 
 /**
  * Each name a kept subpath exported at 0.7.3 and no longer does. `guide` means migration.md names it: those are
  * the enablers and types a 0.7.3 app wrote (`logger()` in a `.use()`, `detectRuntime()`, `trustProxy`'s types).
  */
 export const REMOVED_NAMES: Readonly<Record<string, Verdict>> = {
-	ClientInfo: { kind: "guide" },
-	CustomErrorFormatter: { kind: "guide" },
-	DefaultMeta: { kind: "guide" },
-	GenerateOptions: { kind: "internal", why: PLUGIN },
-	BackendGoCliConfig: { kind: "internal", why: PLUGIN },
-	BackendSdkPortsConfig: { kind: "internal", why: PLUGIN },
-	BackendServeOptions: { kind: "guide" },
-	HttpMethod: { kind: "internal", why: TREE },
-	InferRouteCtx: { kind: "guide" },
-	InputSchemasDef: { kind: "internal", why: SHAPE },
-	InvalidateCheckConfig: { kind: "internal", why: PLUGIN },
-	InvalidateCheckLevel: { kind: "internal", why: PLUGIN },
-	LogData: { kind: "guide" },
-	LoggerInstance: { kind: "guide" },
-	LoggerOptions: { kind: "guide" },
-	MatchResult: { kind: "internal", why: TREE },
-	MetaSpecTarget: { kind: "internal", why: SHAPE },
-	OpenApiMeta: { kind: "guide" },
-	OutputSchemaDef: { kind: "internal", why: SHAPE },
-	OutputValidator: { kind: "internal", why: TREE },
-	Overwrite: { kind: "internal", why: SHAPE },
-	PendingTap: { kind: "internal", why: "the tap queue's own entry, filled by tap() and read by the dispatcher" },
-	ROUTE_TREE_VERSION: { kind: "internal", why: TREE },
-	ReadableStreamSchema: { kind: "guide" },
-	RealtimeRouteOpts: { kind: "guide" },
-	ResolvedGoCliConfig: { kind: "internal", why: PLUGIN },
-	ResolvedBackendConfig: { kind: "internal", why: PLUGIN },
-	ResolvedInvalidateCheck: { kind: "internal", why: PLUGIN },
-	ResolvedOpenApiOutput: { kind: "internal", why: PLUGIN },
-	ResolvedSdkPorts: { kind: "internal", why: PLUGIN },
-	RouteHandler: { kind: "internal", why: TREE },
-	RouteId: { kind: "internal", why: TREE },
-	ServeHandle: { kind: "guide" },
-	SignOptions: { kind: "guide" },
-	ServeRuntime: {
-		kind: "internal",
-		why: "the runtime name the request log records; a server imports its runtime's serve, so an app never names one",
-	},
-	SuccessStatusKey: { kind: "internal", why: SHAPE },
-	TapHandler: { kind: "guide" },
-	Timing: { kind: "guide" },
-	TranslationRegistry: {
-		kind: "internal",
-		why: "the i18n registry core fills; an app passes createErrorTranslator() instead",
-	},
-	TrustProxy: { kind: "guide" },
-	VerifyOptions: { kind: "guide" },
-	WSPreUpgrade: { kind: "internal", why: ADAPTER },
-	WSRouteHandler: { kind: "internal", why: TREE },
-	assertTreeFormat: { kind: "internal", why: TREE },
-	clientInfo: { kind: "guide" },
-	cloneTree: { kind: "internal", why: TREE },
-	createErrorResponse: { kind: "guide" },
-	createNode: { kind: "internal", why: TREE },
-	detectRuntime: { kind: "guide" },
-	createProxyHandler: { kind: "guide" },
-	defineMiddleware: { kind: "guide" },
-	enableI18n: { kind: "guide" },
-	enableOpenApi: { kind: "guide" },
-	findLeaf: { kind: "internal", why: TREE },
-	forEachLeaf: { kind: "internal", why: TREE },
-	freezeTree: { kind: "internal", why: TREE },
-	generateAndWrite: { kind: "internal", why: PLUGIN },
-	generateFromApp: { kind: "internal", why: PLUGIN },
-	generateRouteTree: { kind: "internal", why: PLUGIN },
-	generatedOutputs: { kind: "internal", why: PLUGIN },
-	getLastBackendConfig: { kind: "internal", why: PLUGIN },
-	hasWsLeaf: { kind: "internal", why: TREE },
-	insertLeaf: { kind: "internal", why: TREE },
-	insertRoute: { kind: "internal", why: TREE },
-	insertWsRoute: { kind: "internal", why: TREE },
-	isGeneratedOutput: { kind: "internal", why: PLUGIN },
-	logger: { kind: "guide" },
-	matchRoute: { kind: "internal", why: TREE },
-	matchWsRoute: { kind: "internal", why: TREE },
-	mergeInto: { kind: "internal", why: TREE },
-	mergeTree: { kind: "guide" },
-	overlaySchemas: { kind: "internal", why: TREE },
-	readableStream: { kind: "guide" },
-	resolveFieldName: {
-		kind: "internal",
-		why: "the i18n lookup core calls; an app passes createErrorTranslator() instead",
-	},
-	resolveBackendConfig: { kind: "internal", why: PLUGIN },
-	resolveTranslation: {
-		kind: "internal",
-		why: "the i18n lookup core calls; an app passes createErrorTranslator() instead",
-	},
-	sign: { kind: "guide" },
-	spec: { kind: "guide" },
-	toFetchRequest: { kind: "guide" },
-	verify: { kind: "guide" },
-}
+  BackendGoCliConfig: { kind: "internal", why: PLUGIN },
+  BackendSdkPortsConfig: { kind: "internal", why: PLUGIN },
+  BackendServeOptions: { kind: "guide" },
+  ClientInfo: { kind: "guide" },
+  CustomErrorFormatter: { kind: "guide" },
+  DefaultMeta: { kind: "guide" },
+  GenerateOptions: { kind: "internal", why: PLUGIN },
+  HttpMethod: { kind: "internal", why: TREE },
+  InferRouteCtx: { kind: "guide" },
+  InputSchemasDef: { kind: "internal", why: SHAPE },
+  InvalidateCheckConfig: { kind: "internal", why: PLUGIN },
+  InvalidateCheckLevel: { kind: "internal", why: PLUGIN },
+  LogData: { kind: "guide" },
+  LoggerInstance: { kind: "guide" },
+  LoggerOptions: { kind: "guide" },
+  MatchResult: { kind: "internal", why: TREE },
+  MetaSpecTarget: { kind: "internal", why: SHAPE },
+  OpenApiMeta: { kind: "guide" },
+  OutputSchemaDef: { kind: "internal", why: SHAPE },
+  OutputValidator: { kind: "internal", why: TREE },
+  Overwrite: { kind: "internal", why: SHAPE },
+  PendingTap: { kind: "internal", why: "the tap queue's own entry, filled by tap() and read by the dispatcher" },
+  ROUTE_TREE_VERSION: { kind: "internal", why: TREE },
+  ReadableStreamSchema: { kind: "guide" },
+  RealtimeRouteOpts: { kind: "guide" },
+  ResolvedBackendConfig: { kind: "internal", why: PLUGIN },
+  ResolvedGoCliConfig: { kind: "internal", why: PLUGIN },
+  ResolvedInvalidateCheck: { kind: "internal", why: PLUGIN },
+  ResolvedOpenApiOutput: { kind: "internal", why: PLUGIN },
+  ResolvedSdkPorts: { kind: "internal", why: PLUGIN },
+  RouteHandler: { kind: "internal", why: TREE },
+  RouteId: { kind: "internal", why: TREE },
+  ServeHandle: { kind: "guide" },
+  ServeRuntime: {
+    kind: "internal",
+    why: "the runtime name the request log records; a server imports its runtime's serve, so an app never names one",
+  },
+  SignOptions: { kind: "guide" },
+  SuccessStatusKey: { kind: "internal", why: SHAPE },
+  TapHandler: { kind: "guide" },
+  Timing: { kind: "guide" },
+  TranslationRegistry: {
+    kind: "internal",
+    why: "the i18n registry core fills; an app passes createErrorTranslator() instead",
+  },
+  TrustProxy: { kind: "guide" },
+  VerifyOptions: { kind: "guide" },
+  WSPreUpgrade: { kind: "internal", why: ADAPTER },
+  WSRouteHandler: { kind: "internal", why: TREE },
+  assertTreeFormat: { kind: "internal", why: TREE },
+  clientInfo: { kind: "guide" },
+  cloneTree: { kind: "internal", why: TREE },
+  createErrorResponse: { kind: "guide" },
+  createNode: { kind: "internal", why: TREE },
+  createProxyHandler: { kind: "guide" },
+  defineMiddleware: { kind: "guide" },
+  detectRuntime: { kind: "guide" },
+  enableI18n: { kind: "guide" },
+  enableOpenApi: { kind: "guide" },
+  findLeaf: { kind: "internal", why: TREE },
+  forEachLeaf: { kind: "internal", why: TREE },
+  freezeTree: { kind: "internal", why: TREE },
+  generateAndWrite: { kind: "internal", why: PLUGIN },
+  generateFromApp: { kind: "internal", why: PLUGIN },
+  generateRouteTree: { kind: "internal", why: PLUGIN },
+  generatedOutputs: { kind: "internal", why: PLUGIN },
+  getLastBackendConfig: { kind: "internal", why: PLUGIN },
+  hasWsLeaf: { kind: "internal", why: TREE },
+  insertLeaf: { kind: "internal", why: TREE },
+  insertRoute: { kind: "internal", why: TREE },
+  insertWsRoute: { kind: "internal", why: TREE },
+  isGeneratedOutput: { kind: "internal", why: PLUGIN },
+  logger: { kind: "guide" },
+  matchRoute: { kind: "internal", why: TREE },
+  matchWsRoute: { kind: "internal", why: TREE },
+  mergeInto: { kind: "internal", why: TREE },
+  mergeTree: { kind: "guide" },
+  overlaySchemas: { kind: "internal", why: TREE },
+  readableStream: { kind: "guide" },
+  resolveBackendConfig: { kind: "internal", why: PLUGIN },
+  resolveFieldName: {
+    kind: "internal",
+    why: "the i18n lookup core calls; an app passes createErrorTranslator() instead",
+  },
+  resolveTranslation: {
+    kind: "internal",
+    why: "the i18n lookup core calls; an app passes createErrorTranslator() instead",
+  },
+  sign: { kind: "guide" },
+  spec: { kind: "guide" },
+  toFetchRequest: { kind: "guide" },
+  verify: { kind: "guide" },
+};
 
 /** The names a module's source exports, however it writes them: a list, a re-export, or a declaration. */
 export function exportedNames(source: string): Set<string> {
-	const names = new Set<string>()
-	for (const match of source.matchAll(/^export (?:type )?\{([^}]*)\}/gm)) {
-		for (const part of (match[1] as string).split(",")) {
-			const named = part.trim().replace(/^type\s+/, "")
-			const name = (named.includes(" as ") ? named.split(" as ")[1] : named)?.trim()
-			if (name !== undefined && /^[A-Za-z_$][\w$]*$/.test(name)) names.add(name)
-		}
-	}
-	const declared =
-		/^export (?:declare )?(?:const|let|var|function|async function|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm
-	for (const match of source.matchAll(declared)) names.add(match[1] as string)
-	return names
+  const names = new Set<string>();
+
+  for (const match of source.matchAll(/^export (?:type )?\{([^}]*)\}/gm)) {
+    for (const part of (match[1] as string).split(",")) {
+      const named = part.trim().replace(/^type\s+/, "");
+      const name = (named.includes(" as ") ? named.split(" as ")[1] : named)?.trim();
+
+      if (name !== undefined && /^[A-Za-z_$][\w$]*$/.test(name)) names.add(name);
+    }
+  }
+
+  const declared =
+    /^export (?:declare )?(?:const|let|var|function|async function|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm;
+
+  for (const match of source.matchAll(declared)) names.add(match[1] as string);
+
+  return names;
 }
 
 /** Every name the subpaths of `sources` export, by subpath. */
 export function surfaceOf(sources: Readonly<Record<string, string>>): Record<string, Set<string>> {
-	return Object.fromEntries(Object.entries(sources).map(([subpath, text]) => [subpath, exportedNames(text)]))
+  return Object.fromEntries(Object.entries(sources).map(([subpath, text]) => [subpath, exportedNames(text)]));
 }
 
 /**
@@ -235,28 +240,35 @@ export function surfaceOf(sources: Readonly<Record<string, string>>): Record<str
  * other subpath's names count as kept when any live subpath exports them.
  */
 export function removed(
-	old: Readonly<Record<string, readonly string[]>>,
-	now: Readonly<Record<string, Set<string>>>,
-	moved: ReadonlyMap<string, string>,
+  old: Readonly<Record<string, readonly string[]>>,
+  now: Readonly<Record<string, Set<string>>>,
+  moved: ReadonlyMap<string, string>,
 ): { readonly names: string[]; readonly subpaths: string[] } {
-	const live = new Set(Object.values(now).flatMap((names) => [...names]))
-	const keptAt = (subpath: string): string | undefined => {
-		const target = moved.get(subpath) ?? subpath
-		return Object.hasOwn(now, target) ? target : undefined
-	}
-	const subpaths = Object.keys(old)
-		.filter((subpath) => keptAt(subpath) === undefined)
-		.sort()
-	const names = [
-		...new Set(
-			Object.entries(old).flatMap(([subpath, names]) => {
-				const at = keptAt(subpath)
-				if (at === undefined) return []
-				return moved.has(subpath)
-					? names.filter((name) => !now[at]?.has(name))
-					: names.filter((name) => !live.has(name))
-			}),
-		),
-	].sort()
-	return { names, subpaths }
+  const live = new Set(Object.values(now).flatMap((names) => [...names]));
+
+  const keptAt = (subpath: string): string | undefined => {
+    const target = moved.get(subpath) ?? subpath;
+
+    return Object.hasOwn(now, target) ? target : undefined;
+  };
+
+  const subpaths = Object.keys(old)
+    .filter((subpath) => keptAt(subpath) === undefined)
+    .sort();
+
+  const names = [
+    ...new Set(
+      Object.entries(old).flatMap(([subpath, names]) => {
+        const at = keptAt(subpath);
+
+        if (at === undefined) return [];
+
+        return moved.has(subpath)
+          ? names.filter((name) => !now[at]?.has(name))
+          : names.filter((name) => !live.has(name));
+      }),
+    ),
+  ].sort();
+
+  return { names, subpaths };
 }

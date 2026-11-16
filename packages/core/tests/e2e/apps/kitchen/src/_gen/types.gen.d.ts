@@ -32,17 +32,17 @@ type CreateApiHelloRequest = { name: string }
 
 type CreateApiHelloResponse200 = { by: string; created: string; greeting: string }
 
-type CreateApiV1OrganizationResponse409 = { error_key: "org_slug_taken"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 409; status_key: string; success: false; vars?: Record<string, number | string> }
+type CreateApiV1OrganizationResponse409 = { error_key: "org_slug_taken"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 409; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
 
-type Err400InvalidInput = { error_key: "invalid_input"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 400; status_key: string; success: false; vars?: Record<string, number | string> }
+type Err400InvalidInput = { error_key: "invalid_input"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 400; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
 
-type Err401Unauthorized = { error_key: "unauthorized"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 401; status_key: string; success: false; vars?: Record<string, number | string> }
+type Err401Unauthorized = { error_key: "unauthorized"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 401; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
 
-type Err403GreetingRefused = { error_key: "greeting_refused"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 403; status_key: string; success: false; vars?: Record<string, number | string> }
+type Err403GreetingRefused = { error_key: "greeting_refused"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 403; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
 
-type Err403OrgLimitReached = { error_key: "org_limit_reached"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 403; status_key: string; success: false; vars?: Record<string, number | string> }
+type Err403OrgLimitReached = { error_key: "org_limit_reached"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 403; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
 
-type Err500ApiError = { error_key: "api_error"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 500; status_key: string; success: false; vars?: Record<string, number | string> }
+type Err500ApiError = { error_key: "api_error"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 500; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
 
 type ListApiHelloResponse200 = { greeting: string; q: string }
 
@@ -56,7 +56,7 @@ export type Routes = {
 			errorShapes: { api_error: null; invalid_input: null; unauthorized: null }
 			errorsByStatus: { 400: null; 401: null; 500: null }
 			input: { search: { id: string } }
-			meta: { operationId: "root.list"; description: "Test route"; summary: "Root test route"; tags: ["test"] }
+			meta: { description: "Test route"; operationId: "root.list"; summary: "Root test route"; tags: ["test"] }
 			output: { "application/json": { ok: ListApiResponse200 } }
 		}
 	}

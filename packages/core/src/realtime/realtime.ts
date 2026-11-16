@@ -10,61 +10,68 @@
  * given here, as written: a sub-app mounted twice runs one `realtime()` call, so both mounts share
  * its bus and namespace; call `realtime()` per mount to keep them apart.
  */
-import { type HttpContext, REQUEST } from "../context/context.ts"
-import type { MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts"
-import { AS_REALTIME, type WSRouteBuilder, type WSRouteCtx } from "../routing/ws-builder.ts"
-import type { WsMessages } from "../ws/messages.ts"
-import { type AnyHttpApp, ws, type WsRouteOf } from "../ws/route.ts"
-import { createRealtimePublisher, type RealtimePublisher } from "./publisher.ts"
-import { type RealtimeOptions, resolveRealtimeConfig } from "./route.ts"
-import { createRealtimeSession, type RealtimeSession } from "./server.ts"
+import { type HttpContext, REQUEST } from "../context/context.ts";
+import type { MiddlewareFn, RuntimeMiddleware } from "../middleware/middleware.ts";
+import { AS_REALTIME, type WSRouteBuilder, type WSRouteCtx } from "../routing/ws-builder.ts";
+import type { WsMessages } from "../ws/messages.ts";
+import { type AnyHttpApp, ws, type WsRouteOf } from "../ws/route.ts";
+import { createRealtimePublisher, type RealtimePublisher } from "./publisher.ts";
+import { type RealtimeOptions, resolveRealtimeConfig } from "./route.ts";
+import { createRealtimeSession, type RealtimeSession } from "./server.ts";
 
 /** The ctx `ws(app, path)` hands its callbacks, which `identify` and `handler` receive. */
 export type RealtimeCtx<TApp, TPath extends string> =
-	WsRouteOf<TApp, TPath> extends WSRouteBuilder<infer TCtx, infer TFull extends string, any>
-		? WSRouteCtx<TCtx, TFull>
-		: never
+  WsRouteOf<TApp, TPath> extends WSRouteBuilder<infer TCtx, infer TFull extends string, any>
+    ? WSRouteCtx<TCtx, TFull>
+    : never;
 
 /** The app meta type `ws(app, path).meta()` holds a route to, which `options.meta` takes. */
 export type RealtimeMeta<TApp, TPath extends string> =
-	WsRouteOf<TApp, TPath> extends WSRouteBuilder<any, any, infer TParent>
-		? TParent extends { readonly $meta: infer TMeta }
-			? TMeta
-			: never
-		: never
+  WsRouteOf<TApp, TPath> extends WSRouteBuilder<any, any, infer TParent>
+    ? TParent extends { readonly $meta: infer TMeta }
+      ? TMeta
+      : never
+    : never;
 
 /**
  * Add a realtime route at `path` on `app`. Returns the publisher for the route's namespace, which REST handlers use
  * to push frames to connected clients. Throws a `TypeError` for an invalid option.
  */
 export function realtime<TApp extends AnyHttpApp, const TPath extends string, const M extends WsMessages = {}>(
-	app: TApp,
-	path: TPath,
-	options: RealtimeOptions<RealtimeCtx<TApp, TPath>, RealtimeMeta<TApp, TPath>, M>,
+  app: TApp,
+  path: TPath,
+  options: RealtimeOptions<RealtimeCtx<TApp, TPath>, RealtimeMeta<TApp, TPath>, M>,
 ): RealtimePublisher<M> {
-	const config = resolveRealtimeConfig(path, options)
-	const { identify } = config
-	/* one session per upgrade request, keyed by its ctx: every ws callback receives that ctx */
-	const sessions = new WeakMap<object, RealtimeSession>()
-	/* after the route's middleware, before the origin check and the upgrade; a throw rejects the upgrade */
-	const connect: RuntimeMiddleware = async (ctx, next) => {
-		const userId = identify === null ? null : ((await identify(ctx)) ?? null)
-		sessions.set(
-			ctx,
-			createRealtimeSession({ config, ctx, log: (ctx as unknown as HttpContext)[REQUEST].logger, userId }),
-		)
-		return next()
-	}
-	let route = (ws(app, path) as WSRouteBuilder<unknown, string, unknown>)[AS_REALTIME](config.messages)
-	for (const mw of [...config.use, connect]) route = route.use(mw as MiddlewareFn<unknown, unknown>)
-	if (config.allowedOrigins !== null) route = route.origins(config.allowedOrigins)
-	if (config.meta !== null) route = route.meta(config.meta as never)
-	const session = (ctx: unknown) => sessions.get(ctx as object) as RealtimeSession
-	route.handler({
-		onClose: (ctx, _ws, _code, reason) => session(ctx).close(reason),
-		onError: (ctx, _ws, error) => session(ctx).error(error),
-		onMessage: (ctx, _ws, data) => session(ctx).message(data),
-		onOpen: (ctx, socket) => session(ctx).attach(socket),
-	})
-	return createRealtimePublisher(config.bus, config.namespace, config.checks.send) as RealtimePublisher<M>
+  const config = resolveRealtimeConfig(path, options);
+  const { identify } = config;
+  // one session per upgrade request, keyed by its ctx: every ws callback receives that ctx
+  const sessions = new WeakMap<object, RealtimeSession>();
+
+  // after the route's middleware, before the origin check and the upgrade; a throw rejects the upgrade
+  const connect: RuntimeMiddleware = async (ctx, next) => {
+    const userId = identify === null ? null : ((await identify(ctx)) ?? null);
+    sessions.set(
+      ctx,
+      createRealtimeSession({ config, ctx, log: (ctx as unknown as HttpContext)[REQUEST].logger, userId }),
+    );
+
+    return next();
+  };
+
+  let route = (ws(app, path) as WSRouteBuilder<unknown, string, unknown>)[AS_REALTIME](config.messages);
+
+  for (const mw of [...config.use, connect]) route = route.use(mw as MiddlewareFn<unknown, unknown>);
+
+  if (config.allowedOrigins !== null) route = route.origins(config.allowedOrigins);
+
+  if (config.meta !== null) route = route.meta(config.meta as never);
+  const session = (ctx: unknown) => sessions.get(ctx as object) as RealtimeSession;
+  route.handler({
+    onClose: (ctx, _ws, _code, reason) => session(ctx).close(reason),
+    onError: (ctx, _ws, error) => session(ctx).error(error),
+    onMessage: (ctx, _ws, data) => session(ctx).message(data),
+    onOpen: (ctx, socket) => session(ctx).attach(socket),
+  });
+
+  return createRealtimePublisher(config.bus, config.namespace, config.checks.send) as RealtimePublisher<M>;
 }

@@ -1,10 +1,16 @@
-# repo:generated 7daa4918
+# repo:generated 0ba0da52
 * text=auto eol=lf
+**/_gen/** linguist-generated
+.githooks/commit-msg linguist-generated
+.githooks/pre-commit linguist-generated
+.githooks/pre-push linguist-generated
+.githooks/reference-transaction linguist-generated
 .repo/.gitkeep linguist-generated
 .repo/lessons/INDEX.md linguist-generated
 .vscode/tasks.json linguist-generated
 bench/bunfig.toml linguist-generated
 bunfig.toml linguist-generated
+packages/core/README.md linguist-generated
 packages/core/bunfig.toml linguist-generated
 packages/core/tests/e2e/apps/compose/bunfig.toml linguist-generated
 packages/core/tests/e2e/apps/defaults/bunfig.toml linguist-generated
@@ -13,5 +19,4 @@ packages/core/tests/e2e/apps/kitchen/bunfig.toml linguist-generated
 packages/core/tests/e2e/apps/mcp/bunfig.toml linguist-generated
 packages/core/tests/e2e/apps/surface/bunfig.toml linguist-generated
 packages/core/tests/e2e/cf-workers/bunfig.toml linguist-generated
-packages/core/tests/e2e/strict-consumer/bunfig.toml linguist-generated
 # /repo:generated

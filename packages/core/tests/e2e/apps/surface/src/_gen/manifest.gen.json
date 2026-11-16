@@ -294,7 +294,6 @@
       ],
       "input": {
         "params": {
-          "type": "object",
           "properties": {
             "memberId": {
               "type": "string",
@@ -308,7 +307,8 @@
           "required": [
             "memberId",
             "orgId"
-          ]
+          ],
+          "type": "object"
         }
       },
       "meta": {
@@ -858,7 +858,6 @@
           ]
         },
         "params": {
-          "type": "object",
           "properties": {
             "id": {
               "type": "string",
@@ -867,7 +866,8 @@
           },
           "required": [
             "id"
-          ]
+          ],
+          "type": "object"
         }
       },
       "meta": {
@@ -921,7 +921,6 @@
           }
         },
         "params": {
-          "type": "object",
           "properties": {
             "id": {
               "type": "string",
@@ -930,7 +929,8 @@
           },
           "required": [
             "id"
-          ]
+          ],
+          "type": "object"
         }
       },
       "meta": {

@@ -1,29 +1,30 @@
 {
-	"name": "@backend/e2e-cf-workers",
-	"version": "0.0.1",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"deploy": "WRANGLER_BUILD_CONDITIONS=backend-source,workerd,worker,browser wrangler deploy --name backend-cf-e2e",
-		"dev": "WRANGLER_BUILD_CONDITIONS=backend-source,workerd,worker,browser bunx wrangler dev --port 0 --ip 0.0.0.0 --inspector-port 0",
-		"test": "playwright test",
-		"test:live": "bun scripts/live-smoke.ts",
-		"test:prod": "TEST_MODE=prod playwright test",
-		"type:check": "bun type-check.ts"
-	},
-	"dependencies": {
-		"@backend/e2e-compose": "workspace:*",
-		"@backend/e2e-defaults": "workspace:*",
-		"@backend/e2e-gateway": "workspace:*",
-		"@backend/e2e-kitchen": "workspace:*",
-		"@backend/e2e-mcp": "workspace:*",
-		"@backend/e2e-surface": "workspace:*",
-		"@workerstack/backend": "workspace:*"
-	},
-	"devDependencies": {
-		"@cloudflare/workers-types": "catalog:",
-		"@playwright/test": "catalog:",
-		"typescript": "catalog:",
-		"wrangler": "catalog:"
-	}
+  "name": "@backend/e2e-cf-workers",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "deploy": "WRANGLER_BUILD_CONDITIONS=backend-source,workerd,worker,browser wrangler deploy --name backend-cf-e2e",
+    "dev": "WRANGLER_BUILD_CONDITIONS=backend-source,workerd,worker,browser bunx wrangler dev --port 0 --ip 0.0.0.0 --inspector-port 0",
+    "options-tail": "bun scripts/options-tail.ts",
+    "test": "playwright test",
+    "test:live": "bun scripts/live-smoke.ts",
+    "test:prod": "TEST_MODE=prod playwright test",
+    "type:check": "bun type-check.ts"
+  },
+  "dependencies": {
+    "@backend/e2e-compose": "workspace:*",
+    "@backend/e2e-defaults": "workspace:*",
+    "@backend/e2e-gateway": "workspace:*",
+    "@backend/e2e-kitchen": "workspace:*",
+    "@backend/e2e-mcp": "workspace:*",
+    "@backend/e2e-surface": "workspace:*",
+    "@workerstack/backend": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "@playwright/test": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
+  }
 }

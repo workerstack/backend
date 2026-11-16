@@ -3,284 +3,291 @@
  * fetch as a Worker's default, node's builtins external, dependencies bundled, and no other target (H15). v0's five
  * feature-detection cases retire (Q4, H23).
  */
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { describe, expect, it } from "vitest"
-import { type BuildTarget, createBuildPlugin, type BuildConfig } from "./targets.ts"
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-const APP = { entry: "src/app.ts", export: "app" }
+import { describe, expect, it } from "vitest";
 
-const plugin = (overrides?: Partial<BuildConfig>) => createBuildPlugin({ target: "workers", ...overrides }, APP)
+import { type BuildTarget, createBuildPlugin, type BuildConfig } from "./targets.ts";
+
+const APP = { entry: "src/app.ts", export: "app" };
+
+const plugin = (overrides?: Partial<BuildConfig>) => createBuildPlugin({ target: "workers", ...overrides }, APP);
 
 /** The entry module the plugin answers for its virtual id. */
 const entryOf = async (built: ReturnType<typeof createBuildPlugin>) =>
-	((await built.load.call(context([]), "\0virtual:backend-build-entry")) as { code: string } | undefined)?.code ?? ""
+  ((await built.load.call(context([]), "\0virtual:backend-build-entry")) as { code: string } | undefined)?.code ?? "";
 
 /** A build's context whose app entry exports `exports`, or that resolves no entry at all. */
 function context(exports: readonly string[], resolved = true) {
-	return {
-		load: async ({ id }: { id: string }) => ({ exports: id === "/app/src/app.ts" ? exports : null }),
-		resolve: async (source: string) => (resolved && source === "./src/app.ts" ? { id: "/app/src/app.ts" } : null),
-	}
+  return {
+    load: async ({ id }: { id: string }) => ({ exports: id === "/app/src/app.ts" ? exports : null }),
+    resolve: async (source: string) => (resolved && source === "./src/app.ts" ? { id: "/app/src/app.ts" } : null),
+  };
 }
 
 /** The Worker entry the plugin answers on cloudflare, its app entry exporting `exports`. */
 const workerOf = async (exports: readonly string[], app = APP) =>
-	(
-		(await createBuildPlugin({ target: "workers" }, app).load.call(
-			context(exports),
-			"\0virtual:backend-build-entry",
-		)) as {
-			code: string
-		}
-	).code
+  (
+    (await createBuildPlugin({ target: "workers" }, app).load.call(
+      context(exports),
+      "\0virtual:backend-build-entry",
+    )) as {
+      code: string;
+    }
+  ).code;
 
 type Built = {
-	build: {
-		emptyOutDir: boolean
-		minify: boolean
-		outDir: string
-		rolldownOptions: { external: string[]; input: string; output: { entryFileNames: string } }
-		ssr: boolean
-	}
-	ssr: { noExternal: boolean; target: string }
-}
-const configOf = (built: ReturnType<typeof createBuildPlugin>) => built.config() as Built
+  build: {
+    emptyOutDir: boolean;
+    minify: boolean;
+    outDir: string;
+    rolldownOptions: { external: string[]; input: string; output: { entryFileNames: string } };
+    ssr: boolean;
+  };
+  ssr: { noExternal: boolean; target: string };
+};
+
+const configOf = (built: ReturnType<typeof createBuildPlugin>) => built.config() as Built;
 
 describe("the build plugin's identity and virtual entry (bit 19 h2)", () => {
-	// v0: fc4b7f62c0
-	it("has name backend:build", () => {
-		expect(plugin().name).toBe("backend:build")
-	})
+  // v0: fc4b7f62c0
+  it("has name backend:build", () => {
+    expect(plugin().name).toBe("backend:build");
+  });
 
-	// v0: db1b9397b6
-	it("has apply build", () => {
-		expect(plugin().apply).toBe("build")
-	})
+  // v0: db1b9397b6
+  it("has apply build", () => {
+    expect(plugin().apply).toBe("build");
+  });
 
-	// v0: 74e64e5f9a
-	it("resolves virtual:backend-build-entry", () => {
-		expect(plugin().resolveId("virtual:backend-build-entry")).toBe("\0virtual:backend-build-entry")
-	})
+  // v0: 74e64e5f9a
+  it("resolves virtual:backend-build-entry", () => {
+    expect(plugin().resolveId("virtual:backend-build-entry")).toBe("\0virtual:backend-build-entry");
+  });
 
-	// v0: b28cd2009c
-	it("returns undefined for other ids from resolveId", () => {
-		expect(plugin().resolveId("./other.ts")).toBeUndefined()
-	})
+  // v0: b28cd2009c
+  it("returns undefined for other ids from resolveId", () => {
+    expect(plugin().resolveId("./other.ts")).toBeUndefined();
+  });
 
-	// v0: b0b0937126
-	it("loads entry code with moduleType js", async () => {
-		const loaded = (await plugin().load.call(context([]), "\0virtual:backend-build-entry")) as
-			| { code: string; moduleType: string }
-			| undefined
-		expect([loaded?.moduleType, Boolean(loaded?.code)]).toEqual(["js", true])
-	})
+  // v0: b0b0937126
+  it("loads entry code with moduleType js", async () => {
+    const loaded = (await plugin().load.call(context([]), "\0virtual:backend-build-entry")) as
+      | { code: string; moduleType: string }
+      | undefined;
 
-	// v0: 8896ddb8da
-	it("returns undefined for other ids from load", () => {
-		expect(plugin().load.call(context([]), "./other.ts")).toBeUndefined()
-	})
+    expect([loaded?.moduleType, Boolean(loaded?.code)]).toEqual(["js", true]);
+  });
 
-	it("refuses a target it does not build (H15)", () => {
-		const refused = (target: string) => () => createBuildPlugin({ target: target as BuildTarget }, APP)
-		expect(refused("lambda")).toThrow('backend build: unknown target "lambda"; expected workers')
-		expect(refused("node")).toThrow('unknown target "node"; expected workers')
-		expect(refused("bun")).toThrow('unknown target "bun"; expected workers')
-		expect(refused("toString")).toThrow('unknown target "toString"')
-	})
-})
+  // v0: 8896ddb8da
+  it("returns undefined for other ids from load", () => {
+    expect(plugin().load.call(context([]), "./other.ts")).toBeUndefined();
+  });
+
+  it("refuses a target it does not build (H15)", () => {
+    const refused = (target: string) => () => createBuildPlugin({ target: target as BuildTarget }, APP);
+    expect(refused("lambda")).toThrow('backend build: unknown target "lambda"; expected workers');
+    expect(refused("node")).toThrow('unknown target "node"; expected workers');
+    expect(refused("bun")).toThrow('unknown target "bun"; expected workers');
+    expect(refused("toString")).toThrow('unknown target "toString"');
+  });
+});
 
 describe("the build plugin's Vite config (bit 19 h2)", () => {
-	// v0: 720f473777
-	it("returns SSR build settings", () => {
-		const built = configOf(plugin())
-		expect([built.ssr, built.build]).toMatchObject([
-			{ target: "webworker" },
-			{ emptyOutDir: false, minify: true, outDir: "./dist", ssr: true },
-		])
-	})
+  // v0: 720f473777
+  it("returns SSR build settings", () => {
+    const built = configOf(plugin());
+    expect([built.ssr, built.build]).toMatchObject([
+      { target: "webworker" },
+      { emptyOutDir: false, minify: true, outDir: "./dist", ssr: true },
+    ]);
+  });
 
-	// v0: b11404b0af
-	it("externals include all node builtins in both forms", () => {
-		const { external } = configOf(plugin()).build.rolldownOptions
-		expect(["fs", "node:fs", "path", "node:path"].every((name) => external.includes(name))).toBe(true)
-	})
+  // v0: b11404b0af
+  it("externals include all node builtins in both forms", () => {
+    const { external } = configOf(plugin()).build.rolldownOptions;
+    expect(["fs", "node:fs", "path", "node:path"].every((name) => external.includes(name))).toBe(true);
+  });
 
-	// v0: 46e06340fb
-	it("includes user-provided externals", () => {
-		expect(configOf(plugin({ external: ["pg-native"] })).build.rolldownOptions.external).toContain("pg-native")
-	})
+  // v0: 46e06340fb
+  it("includes user-provided externals", () => {
+    expect(configOf(plugin({ external: ["pg-native"] })).build.rolldownOptions.external).toContain("pg-native");
+  });
 
-	// v0: fe2dfed53e
-	it("respects custom outDir", () => {
-		expect(configOf(plugin({ outDir: "./out" })).build.outDir).toBe("./out")
-	})
+  // v0: fe2dfed53e
+  it("respects custom outDir", () => {
+    expect(configOf(plugin({ outDir: "./out" })).build.outDir).toBe("./out");
+  });
 
-	// v0: 98af09fd33
-	it("respects minify false", () => {
-		expect(configOf(plugin({ minify: false })).build.minify).toBe(false)
-	})
+  // v0: 98af09fd33
+  it("respects minify false", () => {
+    expect(configOf(plugin({ minify: false })).build.minify).toBe(false);
+  });
 
-	// v0: 85bfe318e6
-	it("bundles every dependency: a Worker has no node_modules at run time", () => {
-		expect(configOf(plugin()).ssr.noExternal).toBe(true)
-	})
+  // v0: 85bfe318e6
+  it("bundles every dependency: a Worker has no node_modules at run time", () => {
+    expect(configOf(plugin()).ssr.noExternal).toBe(true);
+  });
 
-	// v0: 4e76fd1ac8
-	it("uses webworker target for cloudflare", () => {
-		expect(configOf(plugin()).ssr.target).toBe("webworker")
-	})
+  // v0: 4e76fd1ac8
+  it("uses webworker target for cloudflare", () => {
+    expect(configOf(plugin()).ssr.target).toBe("webworker");
+  });
 
-	// v0: a8e8fac3ee
-	it("sets rolldown input to virtual entry", () => {
-		expect(configOf(plugin()).build.rolldownOptions.input).toBe("virtual:backend-build-entry")
-	})
+  // v0: a8e8fac3ee
+  it("sets rolldown input to virtual entry", () => {
+    expect(configOf(plugin()).build.rolldownOptions.input).toBe("virtual:backend-build-entry");
+  });
 
-	// v0: 4be4036e68
-	it("sets output entryFileNames to index.js", () => {
-		expect(configOf(plugin()).build.rolldownOptions.output.entryFileNames).toBe("index.js")
-	})
-})
+  // v0: 4be4036e68
+  it("sets output entryFileNames to index.js", () => {
+    expect(configOf(plugin()).build.rolldownOptions.output.entryFileNames).toBe("index.js");
+  });
+});
 
 describe("the build entry's app import (bit 19 h2)", () => {
-	// v0: 18a35528c9
-	it("uses named import for non-default export", async () => {
-		const built = createBuildPlugin({ target: "workers" }, { entry: "src/app.ts", export: "myApp" })
-		expect(await entryOf(built)).toContain('import { myApp as app } from "./src/app.ts"')
-	})
+  // v0: 18a35528c9
+  it("uses named import for non-default export", async () => {
+    const built = createBuildPlugin({ target: "workers" }, { entry: "src/app.ts", export: "myApp" });
+    expect(await entryOf(built)).toContain('import { myApp as app } from "./src/app.ts"');
+  });
 
-	// v0: 45cd1541d9
-	it("uses default import for default export", async () => {
-		const built = createBuildPlugin({ target: "workers" }, { entry: "src/app.ts", export: "default" })
-		expect(await entryOf(built)).toContain('import app from "./src/app.ts"')
-	})
-})
+  // v0: 45cd1541d9
+  it("uses default import for default export", async () => {
+    const built = createBuildPlugin({ target: "workers" }, { entry: "src/app.ts", export: "default" });
+    expect(await entryOf(built)).toContain('import app from "./src/app.ts"');
+  });
+});
 
 describe("the build entry as a Worker (bit 19 h2)", () => {
-	// v0: d3d2b0e62d
-	it("exports default with fetch on cloudflare", async () => {
-		const entry = await workerOf(["app"])
-		expect([entry.includes("export default {"), entry.includes("app.fetch(req, env, ctx)")]).toEqual([true, true])
-	})
+  // v0: d3d2b0e62d
+  it("exports default with fetch on cloudflare", async () => {
+    const entry = await workerOf(["app"]);
+    expect([entry.includes("export default {"), entry.includes("app.fetch(req, env, ctx)")]).toEqual([true, true]);
+  });
 
-	// v0: 859e502913
-	it("has no port variable or PORT env reference on cloudflare", async () => {
-		const entry = await workerOf(["app"])
-		expect([entry.includes("const port"), entry.includes("PORT"), entry.includes("serve")]).toEqual([
-			false,
-			false,
-			false,
-		])
-	})
-})
+  // v0: 859e502913
+  it("has no port variable or PORT env reference on cloudflare", async () => {
+    const entry = await workerOf(["app"]);
+    expect([entry.includes("const port"), entry.includes("PORT"), entry.includes("serve")]).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+});
 
 describe("a Worker's named exports (bit 21 h)", () => {
-	it("passes every named export of the app's entry through, beside backend's default fetch, the app itself not", async () => {
-		const entry = await workerOf(["app", "McpUploads", "Jobs", "with-dash"])
-		expect([
-			entry.includes('export { named0 as McpUploads, named1 as Jobs, named2 as "with-dash" }'),
-			entry.includes("export default {"),
-			/\bexport \{[^}]*\bapp\b/.test(entry),
-		]).toEqual([true, true, false])
-	})
+  it("passes every named export of the app's entry through, beside backend's default fetch, the app itself not", async () => {
+    const entry = await workerOf(["app", "McpUploads", "Jobs", "with-dash"]);
+    expect([
+      entry.includes('export { named0 as McpUploads, named1 as Jobs, named2 as "with-dash" }'),
+      entry.includes("export default {"),
+      /\bexport \{[^}]*\bapp\b/.test(entry),
+    ]).toEqual([true, true, false]);
+  });
 
-	it("passes them on beside an app that is the entry's default export", async () => {
-		const entry = await workerOf(["default", "McpUploads"], { entry: "src/app.ts", export: "default" })
-		expect([
-			entry.includes('import app from "./src/app.ts"'),
-			entry.includes("export { named0 as McpUploads }"),
-		]).toEqual([true, true])
-	})
+  it("passes them on beside an app that is the entry's default export", async () => {
+    const entry = await workerOf(["default", "McpUploads"], { entry: "src/app.ts", export: "default" });
+    expect([
+      entry.includes('import app from "./src/app.ts"'),
+      entry.includes("export { named0 as McpUploads }"),
+    ]).toEqual([true, true]);
+  });
 
-	it("adds no export line when the entry has none beside the app", async () => {
-		expect((await workerOf(["app"])).includes("export {")).toBe(false)
-	})
+  it("adds no export line when the entry has none beside the app", async () => {
+    expect((await workerOf(["app"])).includes("export {")).toBe(false);
+  });
 
-	it("binds each passed export through the check a value must pass to be a Worker's entrypoint", async () => {
-		const entry = await workerOf(["app", "config", "with-dash"])
-		expect([
-			entry.includes('import * as entry from "./src/app.ts"'),
-			entry.includes('const named0 = entrypoint(entry["config"])'),
-			entry.includes('const named1 = entrypoint(entry["with-dash"])'),
-			entry.includes('typeof value === "function" || (typeof value === "object" && value !== null) ? value : {}'),
-		]).toEqual([true, true, true, true])
-	})
+  it("binds each passed export through the check a value must pass to be a Worker's entrypoint", async () => {
+    const entry = await workerOf(["app", "config", "with-dash"]);
+    expect([
+      entry.includes('import * as entry from "./src/app.ts"'),
+      entry.includes('const named0 = entrypoint(entry["config"])'),
+      entry.includes('const named1 = entrypoint(entry["with-dash"])'),
+      entry.includes('typeof value === "function" || (typeof value === "object" && value !== null) ? value : {}'),
+    ]).toEqual([true, true, true, true]);
+  });
 
-	it("refuses an entry exporting a default beside its named app: a Worker's default is backend's fetch", async () => {
-		await expect(workerOf(["app", "default", "McpUploads"])).rejects.toThrow(
-			"backend build: src/app.ts exports a default beside its app \"app\": a Worker's default export is backend's fetch handler, so the entry's own default would be lost; drop it, or export the app as the default",
-		)
-	})
+  it("refuses an entry exporting a default beside its named app: a Worker's default is backend's fetch", async () => {
+    await expect(workerOf(["app", "default", "McpUploads"])).rejects.toThrow(
+      "backend build: src/app.ts exports a default beside its app \"app\": a Worker's default export is backend's fetch handler, so the entry's own default would be lost; drop it, or export the app as the default",
+    );
+  });
 
-	it("passes nothing on from an entry the build reports no exports for (an external module's are null)", async () => {
-		const built = createBuildPlugin({ target: "workers" }, APP)
-		const external = { ...context([]), resolve: async () => ({ id: "/elsewhere/app.ts" }) }
-		const entry = (await built.load.call(external, "\0virtual:backend-build-entry")) as { code: string }
-		expect(entry.code.includes("export {")).toBe(false)
-	})
+  it("passes nothing on from an entry the build reports no exports for (an external module's are null)", async () => {
+    const built = createBuildPlugin({ target: "workers" }, APP);
+    const external = { ...context([]), resolve: async () => ({ id: "/elsewhere/app.ts" }) };
+    const entry = (await built.load.call(external, "\0virtual:backend-build-entry")) as { code: string };
+    expect(entry.code.includes("export {")).toBe(false);
+  });
 
-	it("refuses an app entry the build cannot resolve", async () => {
-		const built = createBuildPlugin({ target: "workers" }, APP)
-		await expect(built.load.call(context([], false), "\0virtual:backend-build-entry")).rejects.toThrow(
-			"backend build: cannot resolve the app entry ./src/app.ts",
-		)
-	})
-})
+  it("refuses an app entry the build cannot resolve", async () => {
+    const built = createBuildPlugin({ target: "workers" }, APP);
+    await expect(built.load.call(context([], false), "\0virtual:backend-build-entry")).rejects.toThrow(
+      "backend build: cannot resolve the app entry ./src/app.ts",
+    );
+  });
+});
 
 describe("a Worker's scheduled and queue handlers", () => {
-	/* the emitted module, run for real against an app entry written as `source` */
-	const worker = async (exports: readonly string[], source: string) => {
-		const dir = mkdtempSync(join(tmpdir(), "backend-worker-entry-"))
-		const code = (await workerOf(exports)).replaceAll("./src/app.ts", "./app.mjs")
-		writeFileSync(join(dir, "app.mjs"), `export const app = { fetch: () => "served" }\n${source}`)
-		writeFileSync(join(dir, "worker.mjs"), code)
-		try {
-			return (await import(/* @vite-ignore */ join(dir, "worker.mjs"))) as Record<string, unknown> & {
-				default: Record<string, unknown>
-			}
-		} finally {
-			rmSync(dir, { force: true, recursive: true })
-		}
-	}
+  // the emitted module, run for real against an app entry written as `source`
+  const worker = async (exports: readonly string[], source: string) => {
+    const dir = mkdtempSync(join(tmpdir(), "backend-worker-entry-"));
+    const code = (await workerOf(exports)).replaceAll("./src/app.ts", "./app.mjs");
+    writeFileSync(join(dir, "app.mjs"), `export const app = { fetch: () => "served" }\n${source}`);
+    writeFileSync(join(dir, "worker.mjs"), code);
 
-	it("moves a function onto the default export, where workerd calls it", async () => {
-		const built = await worker(
-			["app", "queue", "scheduled"],
-			'export const scheduled = () => "ticked"\nexport const queue = () => "drained"\n',
-		)
-		const handlers = built.default as { queue: () => string; scheduled: () => string }
-		expect([handlers.scheduled(), handlers.queue()]).toEqual(["ticked", "drained"])
-	})
+    try {
+      return (await import(/* @vite-ignore */ join(dir, "worker.mjs"))) as Record<string, unknown> & {
+        default: Record<string, unknown>;
+      };
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
+  };
 
-	it("keeps the moved name from being an entrypoint with a handler of its own", async () => {
-		const built = await worker(["app", "scheduled"], "export const scheduled = () => 1\n")
-		expect([typeof built.scheduled, Object.keys(built.scheduled as object)]).toEqual(["object", []])
-	})
+  it("moves a function onto the default export, where workerd calls it", async () => {
+    const built = await worker(
+      ["app", "queue", "scheduled"],
+      'export const scheduled = () => "ticked"\nexport const queue = () => "drained"\n',
+    );
 
-	it("adds no key for a handler the entry does not export", async () => {
-		const built = await worker(["app", "scheduled"], "export const scheduled = () => 1\n")
-		expect(Object.keys(built.default).toSorted()).toEqual(["fetch", "scheduled"])
-	})
+    const handlers = built.default as { queue: () => string; scheduled: () => string };
+    expect([handlers.scheduled(), handlers.queue()]).toEqual(["ticked", "drained"]);
+  });
 
-	it("leaves a value that is no function a named export, under the usual rule", async () => {
-		const built = await worker(
-			["app", "queue", "scheduled"],
-			'export const scheduled = { fetch: () => "own" }\nexport const queue = "text"\n',
-		)
-		expect([Object.keys(built.default), Object.keys(built.scheduled as object), built.queue]).toEqual([
-			["fetch"],
-			["fetch"],
-			{},
-		])
-	})
+  it("keeps the moved name from being an entrypoint with a handler of its own", async () => {
+    const built = await worker(["app", "scheduled"], "export const scheduled = () => 1\n");
+    expect([typeof built.scheduled, Object.keys(built.scheduled as object)]).toEqual(["object", []]);
+  });
 
-	it("leaves every other name where it was", async () => {
-		const built = await worker(["app", "tail"], "export const tail = () => 1\n")
-		expect([Object.keys(built.default), typeof built.tail]).toEqual([["fetch"], "function"])
-	})
+  it("adds no key for a handler the entry does not export", async () => {
+    const built = await worker(["app", "scheduled"], "export const scheduled = () => 1\n");
+    expect(Object.keys(built.default).toSorted()).toEqual(["fetch", "scheduled"]);
+  });
 
-	it("imports the entry when a handler is its only other export", async () => {
-		expect(await workerOf(["app", "scheduled"])).toContain('import * as entry from "./src/app.ts"')
-	})
-})
+  it("leaves a value that is no function a named export, under the usual rule", async () => {
+    const built = await worker(
+      ["app", "queue", "scheduled"],
+      'export const scheduled = { fetch: () => "own" }\nexport const queue = "text"\n',
+    );
+
+    expect([Object.keys(built.default), Object.keys(built.scheduled as object), built.queue]).toEqual([
+      ["fetch"],
+      ["fetch"],
+      {},
+    ]);
+  });
+
+  it("leaves every other name where it was", async () => {
+    const built = await worker(["app", "tail"], "export const tail = () => 1\n");
+    expect([Object.keys(built.default), typeof built.tail]).toEqual([["fetch"], "function"]);
+  });
+
+  it("imports the entry when a handler is its only other export", async () => {
+    expect(await workerOf(["app", "scheduled"])).toContain('import * as entry from "./src/app.ts"');
+  });
+});

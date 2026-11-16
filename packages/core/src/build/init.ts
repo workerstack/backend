@@ -3,18 +3,19 @@
  * Vite config. An existing file is refused unless `--force`; an existing package.json keeps its own scripts, `wrangler`
  * and `type` unless `--force`, each kept script reported. Lines go to `out` (the CLI's stdout): core prints only through it.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { basename, dirname, join } from "node:path"
-import type { InitFlags } from "./cli-args.ts"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+
+import type { InitFlags } from "./cli-args.ts";
 
 type PackageJson = {
-	dependencies?: Record<string, string>
-	devDependencies?: Record<string, string>
-	name?: string
-	private?: boolean
-	scripts?: Record<string, string>
-	type?: string
-}
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  name?: string;
+  private?: boolean;
+  scripts?: Record<string, string>;
+  type?: string;
+};
 
 const APP_TS = `import { httpApp } from "@workerstack/backend/http"
 import { serveOpenApi } from "@workerstack/backend/http/openapi"
@@ -27,7 +28,7 @@ export const app = serveOpenApi(
 		.handler((ctx) => ctx.res.text("ok", "ok")),
 	{ docs: { "/docs": scalar }, title: "Backend", version: "0.0.1" },
 )
-`
+`;
 
 const VITE_CONFIG_TS = `import { backendPlugin } from "@workerstack/backend/plugin"
 
@@ -38,7 +39,7 @@ export default {
 		}),
 	],
 }
-`
+`;
 
 const WORKER_TS = `import { workersWebSocket } from "@workerstack/backend/ws"
 import { app } from "./app.ts"
@@ -48,96 +49,113 @@ app.wsAdapter(workersWebSocket())
 export default {
 	fetch: (...args: Parameters<typeof app.fetch>) => app.fetch(...args),
 }
-`
+`;
 
 /** The scoped package the templates import: unscoped `backend` on npm is someone else's. */
-const PACKAGE_NAME = "@workerstack/backend"
+const PACKAGE_NAME = "@workerstack/backend";
 
-const SCRIPTS: Readonly<Record<string, string>> = { dev: "wrangler dev", generate: "backend generate" }
+const SCRIPTS: Readonly<Record<string, string>> = { dev: "wrangler dev", generate: "backend generate" };
+
 /** The range `wrangler dev` runs from: its major, so a new project takes the current release. */
-const WRANGLER = "^4"
+const WRANGLER = "^4";
 
 /** Scaffold `cwd`; an existing file is refused, naming it, unless `flags.force`. */
 export function runInit(cwd: string, flags: InitFlags, out: (line: string) => void): void {
-	const files: Record<string, string> = {
-		"src/app.ts": APP_TS,
-		"src/worker.ts": WORKER_TS,
-		"vite.config.ts": VITE_CONFIG_TS,
-		"wrangler.jsonc": wranglerJsonc(packageNameOf(cwd)),
-	}
-	const collision = Object.keys(files).find((rel) => existsSync(join(cwd, rel)))
-	if (collision !== undefined && !flags.force)
-		throw new Error(`${collision} already exists: rerun with --force to overwrite it`)
-	for (const [rel, contents] of Object.entries(files)) writeText(join(cwd, rel), contents)
-	for (const note of writePackageJson(cwd, flags.force)) out(`backend: ${note}`)
-	out("backend: initialized")
+  const files: Record<string, string> = {
+    "src/app.ts": APP_TS,
+    "src/worker.ts": WORKER_TS,
+    "vite.config.ts": VITE_CONFIG_TS,
+    "wrangler.jsonc": wranglerJsonc(packageNameOf(cwd)),
+  };
+
+  const collision = Object.keys(files).find((rel) => existsSync(join(cwd, rel)));
+
+  if (collision !== undefined && !flags.force)
+    throw new Error(`${collision} already exists: rerun with --force to overwrite it`);
+
+  for (const [rel, contents] of Object.entries(files)) writeText(join(cwd, rel), contents);
+
+  for (const note of writePackageJson(cwd, flags.force)) out(`backend: ${note}`);
+  out("backend: initialized");
 }
 
 function wranglerJsonc(name: string): string {
-	return `{
+  return `{
 	"compatibility_date": "2026-01-20",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "src/worker.ts",
 	"name": ${JSON.stringify(name)},
 	"workers_dev": true
 }
-`
+`;
 }
 
 /** Write package.json, or add what is missing to the one there; what it kept, as notes. */
 function writePackageJson(cwd: string, force: boolean): string[] {
-	const path = join(cwd, "package.json")
-	const exists = existsSync(path)
-	const existing = exists ? readPackageJson(path) : {}
-	const notes: string[] = []
-	const scripts = { ...existing.scripts }
-	for (const [name, command] of Object.entries(SCRIPTS)) {
-		const current = scripts[name]
-		if (current === undefined || current === command || force) scripts[name] = command
-		else notes.push(`kept scripts.${name} (${JSON.stringify(current)}); backend expects ${JSON.stringify(command)}`)
-	}
-	const dependencies = { ...existing.dependencies }
-	if (dependencies[PACKAGE_NAME] === undefined || force) dependencies[PACKAGE_NAME] = `^${backendVersion()}`
-	const devDependencies = { ...existing.devDependencies }
-	if (devDependencies.wrangler === undefined || force) devDependencies.wrangler = WRANGLER
-	const next: PackageJson = { ...existing, dependencies, devDependencies, scripts }
-	if (!exists) Object.assign(next, { name: packageNameOf(cwd), private: true })
-	/* an explicit `type` is the project's choice, kept even under --force */
-	if (existing.type === undefined && (!exists || force)) next.type = "module"
-	else if (existing.type === undefined)
-		notes.push('package.json has no "type"; the scaffold is ESM: set "type": "module", or rerun with --force')
-	writeText(path, `${JSON.stringify(next, null, "\t")}\n`)
-	return notes
+  const path = join(cwd, "package.json");
+  const exists = existsSync(path);
+  const existing = exists ? readPackageJson(path) : {};
+  const notes: string[] = [];
+  const scripts = { ...existing.scripts };
+
+  for (const [name, command] of Object.entries(SCRIPTS)) {
+    const current = scripts[name];
+
+    if (current === undefined || current === command || force) scripts[name] = command;
+    else notes.push(`kept scripts.${name} (${JSON.stringify(current)}); backend expects ${JSON.stringify(command)}`);
+  }
+
+  const dependencies = { ...existing.dependencies };
+
+  if (dependencies[PACKAGE_NAME] === undefined || force) dependencies[PACKAGE_NAME] = `^${backendVersion()}`;
+  const devDependencies = { ...existing.devDependencies };
+
+  if (devDependencies.wrangler === undefined || force) devDependencies.wrangler = WRANGLER;
+  const next: PackageJson = { ...existing, dependencies, devDependencies, scripts };
+
+  if (!exists) Object.assign(next, { name: packageNameOf(cwd), private: true });
+
+  // an explicit `type` is the project's choice, kept even under --force
+  if (existing.type === undefined && (!exists || force)) next.type = "module";
+  else if (existing.type === undefined)
+    notes.push('package.json has no "type"; the scaffold is ESM: set "type": "module", or rerun with --force');
+  writeText(path, `${JSON.stringify(next, null, "\t")}\n`);
+
+  return notes;
 }
 
 function readPackageJson(path: string): PackageJson {
-	let parsed: unknown
-	try {
-		parsed = JSON.parse(readFileSync(path, "utf8"))
-	} catch {
-		throw new Error("package.json is not valid JSON")
-	}
-	if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
-		throw new Error("package.json must be an object")
-	return parsed as PackageJson
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    throw new Error("package.json is not valid JSON");
+  }
+
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error("package.json must be an object");
+
+  return parsed as PackageJson;
 }
 
 function writeText(path: string, contents: string): void {
-	mkdirSync(dirname(path), { recursive: true })
-	writeFileSync(path, contents, "utf8")
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, contents, "utf8");
 }
 
 /** A package name from the directory's: lower case, npm's characters only, else `backend-app`. */
 function packageNameOf(dir: string): string {
-	const base = basename(dir)
-		.toLowerCase()
-		.replace(/[^a-z0-9._-]+/g, "-")
-		.replace(/^[-.]+|[-.]+$/g, "")
-	return base || "backend-app"
+  const base = basename(dir)
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9._-]+/g, "-")
+    .replaceAll(/^[-.]+|[-.]+$/g, "");
+
+  return base || "backend-app";
 }
 
 /** This package's version, the dependency range the scaffold asks for. */
 function backendVersion(): string {
-	return (JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string })
-		.version
+  return (JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string })
+    .version;
 }

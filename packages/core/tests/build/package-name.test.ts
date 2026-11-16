@@ -9,90 +9,98 @@
  * stay that way: a constant does not become exported to satisfy a test (the budget ledger leg reads its constants
  * the same way).
  */
-import { existsSync, readFileSync } from "node:fs"
-import { createRequire } from "node:module"
-import { dirname, join } from "node:path"
-import { describe, expect, it } from "vitest"
-import { ROOT } from "./fixture/workflows.ts"
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { ROOT } from "./__fixtures__/workflows.ts";
 
 type Manifest = {
-	bin?: Record<string, string>
-	devDependencies?: Record<string, string>
-	files?: string[]
-	name?: string
-	peerDependencies?: Record<string, string>
-	peerDependenciesMeta?: Record<string, { optional?: boolean }>
-}
+  bin?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  files?: string[];
+  name?: string;
+  peerDependencies?: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+};
 
-const read = (path: string) => JSON.parse(readFileSync(join(ROOT, path), "utf8")) as Manifest
-/* the generator as core resolves it: by its package name, wherever it is installed */
-const GEN = dirname(createRequire(import.meta.url).resolve("@workerstack/clients/package.json"))
-const gen = JSON.parse(readFileSync(join(GEN, "package.json"), "utf8")) as Manifest
-const core = read("packages/core/package.json")
+const read = (path: string) => JSON.parse(readFileSync(join(ROOT, path), "utf8")) as Manifest;
+
+// the generator as core resolves it: by its package name, wherever it is installed
+const GEN = dirname(createRequire(import.meta.url).resolve("@workerstack/clients/package.json"));
+const gen = JSON.parse(readFileSync(join(GEN, "package.json"), "utf8")) as Manifest;
+const core = read("packages/core/package.json");
 
 /** The package `generate.ts` imports, from its `CLIENTS` constant; it throws when the constant is not there to read. */
 export function importedName(source: string): string {
-	const named = /^const CLIENTS = "(@[\w./-]+)"$/m.exec(source)
-	if (named === null) throw new Error('generate.ts declares no `const CLIENTS = "…"` to read')
-	return named[1] as string
+  const named = /^const CLIENTS = "(@[\w./-]+)";?$/m.exec(source);
+
+  if (named === null) throw new Error('generate.ts declares no `const CLIENTS = "…"` to read');
+
+  return named[1] as string;
 }
 
 /** Each place that names the generator package, by where it is declared. */
 export function declaredNames(manifest: Manifest, consumer: Manifest, source: string): Record<string, string[]> {
-	const scoped = (names: readonly string[]) => names.filter((name) => name.startsWith("@workerstack/"))
-	return {
-		"core's dynamic import": [importedName(source)],
-		"core's optional peer": scoped(Object.keys(consumer.peerDependencies ?? {})),
-		"core's peer meta": scoped(Object.keys(consumer.peerDependenciesMeta ?? {})),
-		"the generator's manifest": manifest.name === undefined ? [] : [manifest.name],
-	}
+  const scoped = (names: readonly string[]) => names.filter((name) => name.startsWith("@workerstack/"));
+
+  return {
+    "core's dynamic import": [importedName(source)],
+    "core's optional peer": scoped(Object.keys(consumer.peerDependencies ?? {})),
+    "core's peer meta": scoped(Object.keys(consumer.peerDependenciesMeta ?? {})),
+    "the generator's manifest": manifest.name === undefined ? [] : [manifest.name],
+  };
 }
 
 /** The names in `declared` that are not the one `manifest` carries, as `<where>: <name>`. */
 export function disagreeing(declared: Record<string, string[]>, expected: string): string[] {
-	return Object.entries(declared).flatMap(([where, names]) =>
-		names.filter((name) => name !== expected).map((name) => `${where}: ${name}`),
-	)
+  return Object.entries(declared).flatMap(([where, names]) =>
+    names.filter((name) => name !== expected).map((name) => `${where}: ${name}`),
+  );
 }
 
 describe("the generator package is named the same everywhere (bit 22)", () => {
-	it("reads the name out of generate.ts, and refuses a source that declares none", () => {
-		expect(importedName('const CLIENTS = "@workerstack/clients"\n')).toBe("@workerstack/clients")
-		expect(() => importedName("const CLIENTS = loadIt()\n")).toThrow("declares no `const CLIENTS")
-	})
+  it("reads the name out of generate.ts, and refuses a source that declares none", () => {
+    expect(importedName('const CLIENTS = "@workerstack/clients"\n')).toBe("@workerstack/clients");
+    expect(() => importedName("const CLIENTS = loadIt()\n")).toThrow("declares no `const CLIENTS");
+  });
 
-	it("holds the manifest, the import and both peer entries to one name", () => {
-		const source = readFileSync(join(ROOT, "packages/core/src/build/generate.ts"), "utf8")
-		const declared = declaredNames(gen, core, source)
-		expect(gen.name).toBe("@workerstack/clients")
-		expect(disagreeing(declared, gen.name as string)).toEqual([])
-		/* and every place is actually declared: a missing one is not an agreement */
-		expect(Object.entries(declared).filter(([, names]) => names.length === 0)).toEqual([])
-	})
+  it("holds the manifest, the import and both peer entries to one name", () => {
+    const source = readFileSync(join(ROOT, "packages/core/src/build/generate.ts"), "utf8");
+    const declared = declaredNames(gen, core, source);
+    expect(gen.name).toBe("@workerstack/clients");
+    expect(disagreeing(declared, gen.name as string)).toEqual([]);
+    // and every place is actually declared: a missing one is not an agreement
+    expect(Object.entries(declared).filter(([, names]) => names.length === 0)).toEqual([]);
+  });
 
-	it("reports each place that drifts, naming it", () => {
-		const declared = declaredNames(
-			{ name: "@workerstack/clients" },
-			{ peerDependencies: { "@workerstack/clients-codegen": ">=1.0.0" }, peerDependenciesMeta: {} },
-			'const CLIENTS = "@workerstack/clients-older"\n',
-		)
-		expect(disagreeing(declared, "@workerstack/clients")).toEqual([
-			"core's dynamic import: @workerstack/clients-older",
-			"core's optional peer: @workerstack/clients-codegen",
-		])
-	})
+  it("reports each place that drifts, naming it", () => {
+    const declared = declaredNames(
+      { name: "@workerstack/clients" },
+      { peerDependencies: { "@workerstack/clients-codegen": ">=1.0.0" }, peerDependenciesMeta: {} },
+      'const CLIENTS = "@workerstack/clients-older"\n',
+    );
 
-	it("installs a bin of that name, and every bin from a file it ships", () => {
-		const bins = gen.bin ?? {}
-		expect(bins["clients"]).toBe("bin/clients.js")
-		for (const path of Object.values(bins)) {
-			expect(existsSync(join(GEN, path)), path).toBe(true)
-			expect(gen.files, path).toContain(path.split("/")[0])
-		}
-	})
+    expect(disagreeing(declared, "@workerstack/clients")).toEqual([
+      "core's dynamic import: @workerstack/clients-older",
+      "core's optional peer: @workerstack/clients-codegen",
+    ]);
+  });
 
-	it("keeps the devDependency on the same package, so the workspace link is the shipped name", () => {
-		const dev = Object.keys(core.devDependencies ?? {}).filter((name) => name.startsWith("@workerstack/"))
-		expect(dev).toEqual([gen.name])
-	})
-})
+  it("installs a bin of that name, and every bin from a file it ships", () => {
+    const bins = gen.bin ?? {};
+    expect(bins["clients"]).toBe("bin/clients.js");
+
+    for (const path of Object.values(bins)) {
+      expect(existsSync(join(GEN, path)), path).toBe(true);
+      expect(gen.files, path).toContain(path.split("/")[0]);
+    }
+  });
+
+  it("keeps the devDependency on the same package, so the workspace link is the shipped name", () => {
+    const dev = Object.keys(core.devDependencies ?? {}).filter((name) => name.startsWith("@workerstack/"));
+    expect(dev).toEqual([gen.name]);
+  });
+});

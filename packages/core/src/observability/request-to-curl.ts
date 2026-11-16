@@ -7,16 +7,18 @@
 
 /** Options for `requestToCurl`. */
 export type RequestToCurlOptions = {
-	/** Leave a header out of the command. */
-	excludeHeader?: (name: string, value: string) => boolean
-}
+  /** Leave a header out of the command. */
+  excludeHeader?: (name: string, value: string) => boolean;
+};
 
 function hasControl(value: string): boolean {
-	for (let i = 0; i < value.length; i++) {
-		const code = value.charCodeAt(i)
-		if (code < 0x20 || code === 0x7f) return true
-	}
-	return false
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+
+  return false;
 }
 
 /**
@@ -25,15 +27,18 @@ function hasControl(value: string): boolean {
  * and a log line cannot be split.
  */
 export function shellQuote(value: string): string {
-	if (!hasControl(value)) return `'${value.replaceAll("'", "'\\''")}'`
-	let out = "$'"
-	for (const ch of value) {
-		const code = ch.codePointAt(0) as number
-		if (ch === "\\" || ch === "'") out += `\\${ch}`
-		else if (code < 0x20 || code === 0x7f) out += `\\x${code.toString(16).padStart(2, "0")}`
-		else out += ch
-	}
-	return `${out}'`
+  if (!hasControl(value)) return `'${value.replaceAll("'", "'\\''")}'`;
+  let out = "$'";
+
+  for (const ch of value) {
+    const code = ch.codePointAt(0) as number;
+
+    if (ch === "\\" || ch === "'") out += `\\${ch}`;
+    else if (code < 0x20 || code === 0x7f) out += `\\x${code.toString(16).padStart(2, "0")}`;
+    else out += ch;
+  }
+
+  return `${out}'`;
 }
 
 /**
@@ -42,13 +47,16 @@ export function shellQuote(value: string): string {
  * decoded as text, so a binary one does not survive. Rejects with a `TypeError` when the body was already read.
  */
 export async function requestToCurl(request: Request, options: RequestToCurlOptions = {}): Promise<string> {
-	const copy = request.clone()
-	const parts = ["curl", "-X", shellQuote(copy.method)]
-	for (const [name, value] of copy.headers) {
-		if (options.excludeHeader?.(name, value) !== true) parts.push("-H", shellQuote(`${name}: ${value}`))
-	}
-	const body = await copy.text()
-	if (body.length > 0) parts.push("--data-raw", shellQuote(body))
-	parts.push(shellQuote(copy.url))
-	return parts.join(" ")
+  const copy = request.clone();
+  const parts = ["curl", "-X", shellQuote(copy.method)];
+
+  for (const [name, value] of copy.headers)
+    if (options.excludeHeader?.(name, value) !== true) parts.push("-H", shellQuote(`${name}: ${value}`));
+
+  const body = await copy.text();
+
+  if (body.length > 0) parts.push("--data-raw", shellQuote(body));
+  parts.push(shellQuote(copy.url));
+
+  return parts.join(" ");
 }

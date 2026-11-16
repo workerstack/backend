@@ -6,99 +6,109 @@
  * then without its leading segments (`json.email`, then `email`). The result is a copy; the thrown
  * error is never changed, so one instance can answer many requests in many locales.
  */
-import { type FieldError, HttpError } from "../errors/error.ts"
-import { dict } from "../routing/tree.ts"
-import type { ErrorI18n, ResolveLocaleCtx } from "../routing/settings.ts"
-import type { MaybePromise } from "../middleware/middleware.ts"
-import { Formatter } from "./icu.ts"
+import { type FieldError, HttpError } from "../errors/error.ts";
+import type { MaybePromise } from "../middleware/middleware.ts";
+import type { ErrorI18n, ResolveLocaleCtx } from "../routing/settings.ts";
+import { dict } from "../routing/tree.ts";
+import { Formatter } from "./icu.ts";
 
 /** Message templates and field display names, each keyed by locale. */
 export type ErrorTranslations = {
-	/** locale → error key → ICU template */
-	errors?: Record<string, Record<string, string>>
-	/** locale → field path → display name */
-	fieldNames?: Record<string, Record<string, string>>
-}
+  /** locale → error key → ICU template */
+  errors?: Record<string, Record<string, string>> | undefined;
+  /** locale → field path → display name */
+  fieldNames?: Record<string, Record<string, string>> | undefined;
+};
 
 /** What `createErrorTranslator` takes: the message templates and field names per locale, and how to pick the request's locale. */
 export type ErrorTranslatorConfig<TEnv> = ErrorTranslations & {
-	/** The request's locale: a header, a cookie, the tenant in env, a path param. */
-	resolveLocale: (ctx: ResolveLocaleCtx<TEnv>) => MaybePromise<string>
-}
+  /** The request's locale: a header, a cookie, the tenant in env, a path param. */
+  resolveLocale: (ctx: ResolveLocaleCtx<TEnv>) => MaybePromise<string>;
+};
 
-/* the locale and keys come from request data: own keys only */
+// the locale and keys come from request data: own keys only
 function ownValue<T>(record: Record<string, T> | undefined, key: string): T | undefined {
-	return record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined
+  return record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined;
 }
 
 /** `path`'s display name: as written, else without its leading segments; the path itself when none. */
 function displayName(names: Record<string, string>, path: string): string {
-	let candidate = path
-	while (candidate) {
-		const name = ownValue(names, candidate)
-		if (name) return name
-		const dot = candidate.indexOf(".")
-		if (dot === -1) break
-		candidate = candidate.slice(dot + 1)
-	}
-	return path
+  let candidate = path;
+
+  while (candidate) {
+    const name = ownValue(names, candidate);
+
+    if (name) return name;
+    const dot = candidate.indexOf(".");
+
+    if (dot === -1) break;
+    candidate = candidate.slice(dot + 1);
+  }
+
+  return path;
 }
 
 function translatedFields(
-	fields: Readonly<Record<string, FieldError[]>>,
-	names: Record<string, string>,
+  fields: Readonly<Record<string, FieldError[]>>,
+  names: Record<string, string>,
 ): Record<string, FieldError[]> {
-	const out = dict<FieldError[]>()
-	for (const source of Object.keys(fields)) {
-		out[source] = (fields[source] as FieldError[]).map((field) => ({ ...field, path: displayName(names, field.path) }))
-	}
-	return out
+  const out = dict<FieldError[]>();
+
+  for (const source of Object.keys(fields))
+    out[source] = (fields[source] as FieldError[]).map((field) => ({ ...field, path: displayName(names, field.path) }));
+
+  return out;
 }
 
 /** A copy of `error` with `message` and `fields`: same key, status, data, headers, vars, cause and stack. */
 function copyOf(
-	error: HttpError,
-	message: string | undefined,
-	fields: Record<string, FieldError[]> | undefined,
+  error: HttpError,
+  message: string | undefined,
+  fields: Record<string, FieldError[]> | undefined,
 ): HttpError {
-	const copy = new HttpError({
-		cause: error.cause,
-		data: error.data,
-		errorKey: error.errorKey,
-		fields: fields ?? error.fields,
-		headers: error.headers,
-		status: error.statusKey,
-		vars: error.vars,
-	})
-	copy.message = message ?? error.message
-	if (error.stack !== undefined) copy.stack = error.stack
-	return copy
+  const copy = new HttpError({
+    cause: error.cause,
+    data: error.data,
+    errorKey: error.errorKey,
+    fields: fields ?? error.fields,
+    headers: error.headers,
+    status: error.statusKey,
+    vars: error.vars,
+  });
+
+  copy.message = message ?? error.message;
+
+  if (error.stack !== undefined) copy.stack = error.stack;
+
+  return copy;
 }
 
 function translateWith(
-	formatter: Formatter,
-	error: HttpError,
-	translations: ErrorTranslations,
-	locale: string,
+  formatter: Formatter,
+  error: HttpError,
+  translations: ErrorTranslations,
+  locale: string,
 ): HttpError {
-	const template = ownValue(ownValue(translations.errors, locale), error.errorKey)
-	const message = template ? formatter.interpolate(template, error.vars ?? {}, locale) : undefined
-	const names = ownValue(translations.fieldNames, locale)
-	const fields = names && Object.keys(error.fields).length > 0 ? translatedFields(error.fields, names) : undefined
-	return message === undefined && fields === undefined ? error : copyOf(error, message, fields)
+  const template = ownValue(ownValue(translations.errors, locale), error.errorKey);
+  const message = template ? formatter.interpolate(template, error.vars ?? {}, locale) : undefined;
+  const names = ownValue(translations.fieldNames, locale);
+  const fields = names && Object.keys(error.fields).length > 0 ? translatedFields(error.fields, names) : undefined;
+
+  return message === undefined && fields === undefined ? error : copyOf(error, message, fields);
 }
 
 /** `error` in `locale`, as a copy; `error` itself when nothing translates. */
 export function translateError(error: HttpError, translations: ErrorTranslations, locale: string): HttpError {
-	return translateWith(new Formatter(), error, translations, locale)
+  return translateWith(new Formatter(), error, translations, locale);
 }
 
 /** The value `app.errorI18n(value)` carries; it keeps one Formatter, so plural rules are built once. */
 export function createErrorTranslator<TEnv = unknown>(config: ErrorTranslatorConfig<TEnv>): ErrorI18n<TEnv> {
-	const formatter = new Formatter()
-	const translations: ErrorTranslations = { errors: config.errors, fieldNames: config.fieldNames }
-	return Object.freeze({
-		resolveLocale: config.resolveLocale,
-		translate: (error: HttpError, locale: string) => translateWith(formatter, error, translations, locale),
-	})
+  const formatter = new Formatter();
+  const translations: ErrorTranslations = { errors: config.errors, fieldNames: config.fieldNames };
+
+  return Object.freeze({
+    resolveLocale: config.resolveLocale,
+    translate: (error: HttpError, locale: string) => translateWith(formatter, error, translations, locale),
+  });
 }

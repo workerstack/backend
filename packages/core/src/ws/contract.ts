@@ -3,36 +3,36 @@
  * route's handler, the adapter shape, and `WSContextImpl` over a runtime socket. A plain module:
  * importing it registers nothing (H23).
  */
-import { invokeUser, type InvokeLogger } from "../realtime/invoke-user.ts"
-import type { UntypedFrame, UntypedSend } from "./messages.ts"
-import { bufferedAmountOf, CLOSE_TRY_AGAIN, MAX_CLOSE_REASON, type ResolvedWSOptions, truncateUtf8 } from "./shared.ts"
+import { invokeUser, type InvokeLogger } from "../realtime/invoke-user.ts";
+import type { UntypedFrame, UntypedSend } from "./messages.ts";
+import { bufferedAmountOf, CLOSE_TRY_AGAIN, MAX_CLOSE_REASON, type ResolvedWSOptions, truncateUtf8 } from "./shared.ts";
 
 /** CONNECTING, OPEN, CLOSING, CLOSED. */
-export type WSReadyState = 0 | 1 | 2 | 3
+type WSReadyState = 0 | 1 | 2 | 3;
 
 /** Messages kept while a socket is still opening; past this the oldest goes. */
-export const WS_SEND_BUFFER_MAX = 32
+export const WS_SEND_BUFFER_MAX = 32;
 
 /**
  * The socket a WebSocket handler talks to: `T` is the runtime's own socket type, `TSend` what `send` takes (the route's
  * declared `send` schema, else any message).
  */
 export type WSContext<T = unknown, TSend = UntypedSend> = {
-	/** Outbound bytes the runtime holds unsent, when it reports them (0 otherwise). */
-	readonly bufferedAmount?: number
-	/** Close the connection; a reason over 123 UTF-8 bytes is cut to fit. */
-	close(code?: number, reason?: string): void
-	/** The runtime's own socket object, for anything `WSContext` does not cover. */
-	readonly raw: T
-	/** Connection state: 0 connecting, 1 open, 2 closing, 3 closed. */
-	readonly readyState: WSReadyState
-	/**
-	 * Send a message; any other value goes as JSON. While the socket opens, the newest 32 wait
-	 * for it; after it closed they are dropped. Over the adapter's backpressure limit its policy
-	 * applies (close with 1013, or drop).
-	 */
-	send(data: TSend): void
-}
+  /** Outbound bytes the runtime holds unsent, when it reports them (0 otherwise). */
+  readonly bufferedAmount?: number;
+  /** Close the connection; a reason over 123 UTF-8 bytes is cut to fit. */
+  close(code?: number, reason?: string): void;
+  /** The runtime's own socket object, for anything `WSContext` does not cover. */
+  readonly raw: T;
+  /** Connection state: 0 connecting, 1 open, 2 closing, 3 closed. */
+  readonly readyState: WSReadyState;
+  /**
+   * Send a message; any other value goes as JSON. While the socket opens, the newest 32 wait
+   * for it; after it closed they are dropped. Over the adapter's backpressure limit its policy
+   * applies (close with 1013, or drop).
+   */
+  send(data: TSend): void;
+};
 
 /**
  * The callbacks of a WebSocket route. Each receives the route's request context and the socket. They run one at a
@@ -40,129 +40,145 @@ export type WSContext<T = unknown, TSend = UntypedSend> = {
  * `TReceive` is what `onMessage` gets and `TSend` what the socket sends: the route's declared messages, else untyped.
  */
 export type WSHandler<TCtx = unknown, TReceive = UntypedFrame, TSend = UntypedSend> = {
-	/** Runs once when the connection closes, with the close code and reason. */
-	onClose?(ctx: TCtx, ws: WSContext<unknown, TSend>, code: number, reason: string): Promise<void> | void
-	/**
-	 * Runs when the connection reports an error, when another callback throws or rejects, or with `invalid_message` for
-	 * a frame the route's `receive` schema refuses. Its own failure is logged.
-	 */
-	onError?(ctx: TCtx, ws: WSContext<unknown, TSend>, error: unknown): Promise<void> | void
-	/**
-	 * Runs for each inbound message: the `receive` schema's value when the route declares one, else text as a string
-	 * and binary as an `ArrayBuffer`. A message that finds 1024 waiting for this callback closes the connection with 1008.
-	 */
-	onMessage?(ctx: TCtx, ws: WSContext<unknown, TSend>, data: TReceive): Promise<void> | void
-	/** Runs once when the connection opens, unless `onReconnect` runs in its place. */
-	onOpen?(ctx: TCtx, ws: WSContext<unknown, TSend>): Promise<void> | void
-	/** In place of `onOpen` when the client reconnects with a `reconnect_token`; the token is client data. */
-	onReconnect?(ctx: TCtx, ws: WSContext<unknown, TSend>, token: string): Promise<void> | void
-}
+  /** Runs once when the connection closes, with the close code and reason. */
+  onClose?(ctx: TCtx, ws: WSContext<unknown, TSend>, code: number, reason: string): Promise<void> | void;
+  /**
+   * Runs when the connection reports an error, when another callback throws or rejects, or with `invalid_message` for
+   * a frame the route's `receive` schema refuses. Its own failure is logged.
+   */
+  onError?(ctx: TCtx, ws: WSContext<unknown, TSend>, error: unknown): Promise<void> | void;
+  /**
+   * Runs for each inbound message: the `receive` schema's value when the route declares one, else text as a string
+   * and binary as an `ArrayBuffer`. A message that finds 1024 waiting for this callback closes the connection with 1008.
+   */
+  onMessage?(ctx: TCtx, ws: WSContext<unknown, TSend>, data: TReceive): Promise<void> | void;
+  /** Runs once when the connection opens, unless `onReconnect` runs in its place. */
+  onOpen?(ctx: TCtx, ws: WSContext<unknown, TSend>): Promise<void> | void;
+  /** In place of `onOpen` when the client reconnects with a `reconnect_token`; the token is client data. */
+  onReconnect?(ctx: TCtx, ws: WSContext<unknown, TSend>, token: string): Promise<void> | void;
+};
 
 /**
  * What a runtime adapter provides: it upgrades a request to a WebSocket and wires the socket to a handler. Use
  * `workersWebSocket()`.
  */
 export type WSAdapter = {
-	/**
-	 * Upgrade `req` to a WebSocket handled by `handler`. Returns the 101 response and the connection's context. Backend
-	 * calls this for each WebSocket route; app code does not.
-	 */
-	upgrade(
-		req: Request,
-		env: unknown,
-		handler: WSHandler<unknown>,
-	):
-		| Promise<{
-				/** The 101 for this request. */
-				response: Response
-				/** The connection's context. */
-				socket: WSContext
-		  }>
-		| {
-				/** The 101 for this request. */
-				response: Response
-				/** The connection's context. */
-				socket: WSContext
-		  }
-	/** The adapter's options with defaults applied. */
-	readonly options?: ResolvedWSOptions
-}
+  /**
+   * Upgrade `req` to a WebSocket handled by `handler`. Returns the 101 response and the connection's context. Backend
+   * calls this for each WebSocket route; app code does not.
+   */
+  upgrade(
+    req: Request,
+    env: unknown,
+    handler: WSHandler,
+  ):
+    | Promise<{
+        /** The 101 for this request. */
+        response: Response;
+        /** The connection's context. */
+        socket: WSContext;
+      }>
+    | {
+        /** The 101 for this request. */
+        response: Response;
+        /** The connection's context. */
+        socket: WSContext;
+      };
+  /** The adapter's options with defaults applied. */
+  readonly options?: ResolvedWSOptions;
+};
 
 export type RawSocket = {
-	close(code?: number, reason?: string): void
-	readyState: number
-	send(data: ArrayBuffer | Uint8Array | string): void
-}
+  close(code?: number, reason?: string): void;
+  readyState: number;
+  send(data: ArrayBuffer | Uint8Array | string): void;
+};
 
-type Limits = Pick<ResolvedWSOptions, "backpressureLimit" | "backpressurePolicy">
+type Limits = Pick<ResolvedWSOptions, "backpressureLimit" | "backpressurePolicy">;
 
 /**
  * The socket handle the constructor built, on that handle: one derived with `Object.create(ws)` reaches it
  * through its prototype, so its methods use the original's queue and limits rather than throwing for the
  * private fields it lacks.
  */
-const SELF: unique symbol = /* @__PURE__ */ Symbol("backend.wsContext")
+const SELF: unique symbol = /* @__PURE__ */ Symbol("backend.wsContext");
 
+export interface WSContextImpl<T extends RawSocket = RawSocket> {
+  readonly [SELF]: WSContextImpl<T>;
+}
+
+// [SELF] is declared on the interface above: isolatedDeclarations refuses a computed key in an exported class body.
 /** `WSContext` over a runtime socket: JSON for objects, a queue while opening, the backpressure policy. */
 export class WSContextImpl<T extends RawSocket = RawSocket> implements WSContext<T> {
-	readonly raw: T
-	readonly [SELF]: WSContextImpl<T> = this
-	readonly #limits: Limits | null
-	#queue: (ArrayBuffer | Uint8Array | string)[] = []
+  readonly raw: T;
+  readonly #limits: Limits | null;
+  #queue: (ArrayBuffer | Uint8Array | string)[] = [];
 
-	constructor(raw: T, limits?: Limits) {
-		this.raw = raw
-		this.#limits = limits ?? null
-		const target = raw as T & { addEventListener?(type: string, listener: () => void): void }
-		if (raw.readyState !== 1 && typeof target.addEventListener === "function") {
-			target.addEventListener("open", () => this.flush())
-		}
-	}
+  constructor(raw: T, limits?: Limits) {
+    // readonly to everyone else; the constructor sets it once through a writable view of itself
+    const own: { [SELF]: WSContextImpl<T> } = this;
+    own[SELF] = this;
+    this.raw = raw;
+    this.#limits = limits ?? null;
+    const target = raw as T & { addEventListener?(type: string, listener: () => void): void };
 
-	get bufferedAmount(): number {
-		return bufferedAmountOf(this.raw)
-	}
+    if (raw.readyState !== 1 && typeof target.addEventListener === "function")
+      target.addEventListener("open", () => this.flush());
+  }
 
-	get readyState(): WSReadyState {
-		return this.raw.readyState as WSReadyState
-	}
+  get bufferedAmount(): number {
+    return bufferedAmountOf(this.raw);
+  }
 
-	/** Send what waited while the socket opened; adapters without an `open` event call this. */
-	flush(): void {
-		const self = this[SELF]
-		const queued = self.#queue
-		self.#queue = []
-		for (const message of queued) self.send(message)
-	}
+  get readyState(): WSReadyState {
+    return this.raw.readyState as WSReadyState;
+  }
 
-	close(code?: number, reason?: string): void {
-		const self = this[SELF]
-		self.#queue = []
-		self.raw.close(code, reason === undefined ? undefined : truncateUtf8(reason, MAX_CLOSE_REASON))
-	}
+  /** Send what waited while the socket opened; adapters without an `open` event call this. */
+  flush(): void {
+    const self = this[SELF];
+    const queued = self.#queue;
+    self.#queue = [];
 
-	send(data: UntypedSend): void {
-		const self = this[SELF]
-		const payload =
-			typeof data === "string" || data instanceof ArrayBuffer || data instanceof Uint8Array
-				? data
-				: JSON.stringify(data)
-		const state = self.raw.readyState
-		if (state === 1) return self.#sendOpen(payload)
-		/* closing or closed: nothing would ever send it */
-		if (state !== 0) return
-		if (self.#queue.length >= WS_SEND_BUFFER_MAX) self.#queue.shift()
-		self.#queue.push(payload)
-	}
+    for (const message of queued) self.send(message);
+  }
 
-	#sendOpen(payload: ArrayBuffer | Uint8Array | string): void {
-		const limits = this.#limits
-		if (limits !== null && limits.backpressureLimit > 0 && this.bufferedAmount > limits.backpressureLimit) {
-			if (limits.backpressurePolicy === "close") this.close(CLOSE_TRY_AGAIN, "slow consumer")
-			return
-		}
-		this.raw.send(payload)
-	}
+  close(code?: number, reason?: string): void {
+    const self = this[SELF];
+    self.#queue = [];
+    self.raw.close(code, reason === undefined ? undefined : truncateUtf8(reason, MAX_CLOSE_REASON));
+  }
+
+  send(data: UntypedSend): void {
+    const self = this[SELF];
+
+    const payload =
+      typeof data === "string" || data instanceof ArrayBuffer || data instanceof Uint8Array
+        ? data
+        : JSON.stringify(data);
+
+    const state = self.raw.readyState;
+
+    if (state === 1) return self.#sendOpen(payload);
+
+    // closing or closed: nothing would ever send it
+    if (state !== 0) return;
+
+    if (self.#queue.length >= WS_SEND_BUFFER_MAX) self.#queue.shift();
+    self.#queue.push(payload);
+  }
+
+  #sendOpen(payload: ArrayBuffer | Uint8Array | string): void {
+    const limits = this.#limits;
+
+    if (limits !== null && limits.backpressureLimit > 0 && this.bufferedAmount > limits.backpressureLimit) {
+      if (limits.backpressurePolicy === "close") this.close(CLOSE_TRY_AGAIN, "slow consumer");
+
+      return;
+    }
+
+    this.raw.send(payload);
+  }
 }
 
 /**
@@ -171,17 +187,18 @@ export class WSContextImpl<T extends RawSocket = RawSocket> implements WSContext
  * dispatch passes it on unchanged and the runtime writes the real handshake itself.
  */
 export function switchingProtocols(headers: Record<string, string>, init?: Record<string, unknown>): Response {
-	try {
-		return new Response(null, { ...init, headers, status: 101 })
-	} catch {
-		/* Fetch refuses 101 outside Workers: expected, not a failure; the runtime writes the real handshake */
-		const response = new Response(null, { headers })
-		Object.defineProperty(response, "status", { value: 101 })
-		return response
-	}
+  try {
+    return new Response(null, { ...init, headers, status: 101 });
+  } catch {
+    // Fetch refuses 101 outside Workers: expected, not a failure; the runtime writes the real handshake
+    const response = new Response(null, { headers });
+    Object.defineProperty(response, "status", { value: 101 });
+
+    return response;
+  }
 }
 
 /** Call an adapter event on the handler; what it throws or rejects is logged, never thrown into the runtime. */
 export function fireHandler(phase: string, fn: () => unknown, log?: InvokeLogger | null): void {
-	void invokeUser(fn, { log, phase: `websocket ${phase}` })
+  void invokeUser(fn, { log, phase: `websocket ${phase}` });
 }

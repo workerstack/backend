@@ -1,47 +1,51 @@
-import { describe, expect, it } from "vitest"
-import plugin from "./no-header-mode.js"
-import { oxlintReports, reportsOf } from "./rule-harness.ts"
-import { SPAWN_TIMEOUT } from "../tests/fixture/spawn-timeout.ts"
+import { describe, expect, it } from "vitest";
 
-const rule = plugin.rules["no-header-mode"]
-const MESSAGE = "a request header never selects an internal mode: do not read a backend-namespaced header (H19.7)"
+import { SPAWN_TIMEOUT } from "../tests/__fixtures__/spawn-timeout.ts";
+import plugin from "./no-header-mode.js";
+import { oxlintReports, reportsOf } from "./rule-harness.ts";
+
+const rule = plugin.rules["no-header-mode"];
+const MESSAGE = "a request header never selects an internal mode: do not read a backend-namespaced header (H19.7)";
 
 describe("backend/no-header-mode", () => {
-	it("rejects reading a backend-namespaced header, however it is spelled", () => {
-		const fixture = {
-			"packages/core/src/routing/dispatch.ts":
-				'export const f = (req: Request) => req.headers.get("x-backend-debug") === "1"\n',
-			"packages/core/src/response/builder.ts": "export const f = (h: Headers) => h.has('Backend-Mode')\n",
-			"packages/core/src/middleware/cors.ts": "export const f = (h: Headers) => h.get(`X-BACKEND-TRACE`)\n",
-		}
-		expect(reportsOf(rule, fixture)).toEqual([
-			{ file: "packages/core/src/routing/dispatch.ts", message: MESSAGE },
-			{ file: "packages/core/src/response/builder.ts", message: MESSAGE },
-			{ file: "packages/core/src/middleware/cors.ts", message: MESSAGE },
-		])
-	})
+  it("rejects reading a backend-namespaced header, however it is spelled", () => {
+    const fixture = {
+      "packages/core/src/middleware/cors.ts": "export const f = (h: Headers) => h.get(`X-BACKEND-TRACE`)\n",
+      "packages/core/src/response/builder.ts": "export const f = (h: Headers) => h.has('Backend-Mode')\n",
+      "packages/core/src/routing/dispatch.ts":
+        'export const f = (req: Request) => req.headers.get("x-backend-debug") === "1"\n',
+    };
 
-	it("allows standard headers, configured names, response writes, tests and the SDKs", () => {
-		const fixture = {
-			"packages/core/src/routing/dispatch.ts": [
-				'export const a = (h: Headers) => h.get("accept") ?? h.get("x-forwarded-for") ?? h.get("x-request-id")',
-				"export const b = (h: Headers, name: string) => h.get(name)",
-				'export const c = (h: Headers) => h.set("x-backend-version", "1")',
-				'export const d = (m: Map<string, number>) => m.get("honeycomb")',
-				"",
-			].join("\n"),
-			"packages/core/src/routing/dispatch.test.ts": 'export const f = (h: Headers) => h.get("x-backend-debug")\n',
-			"packages/core/tests/e2e/apps/kitchen/src/_gen/sdk/response.ts":
-				'export const f = (h: Headers) => h.get("x-backend-version")\n',
-		}
-		expect(reportsOf(rule, fixture)).toEqual([])
-	})
+    expect(reportsOf(rule, fixture)).toEqual([
+      { file: "packages/core/src/middleware/cors.ts", message: MESSAGE },
+      { file: "packages/core/src/response/builder.ts", message: MESSAGE },
+      { file: "packages/core/src/routing/dispatch.ts", message: MESSAGE },
+    ]);
+  });
 
-	it("fails oxlint through the backend plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
-		const fixture = {
-			"packages/core/src/a.ts": 'export const f = (h: Headers) => h.get("x-backend-debug")\n',
-			"packages/core/src/b.ts": 'export const f = (h: Headers) => h.get("accept")\n',
-		}
-		expect(oxlintReports("no-header-mode", fixture)).toEqual([{ file: "packages/core/src/a.ts", message: MESSAGE }])
-	})
-})
+  it("allows standard headers, configured names, response writes, tests and the SDKs", () => {
+    const fixture = {
+      "packages/core/src/routing/dispatch.test.ts": 'export const f = (h: Headers) => h.get("x-backend-debug")\n',
+      "packages/core/src/routing/dispatch.ts": [
+        'export const a = (h: Headers) => h.get("accept") ?? h.get("x-forwarded-for") ?? h.get("x-request-id")',
+        "export const b = (h: Headers, name: string) => h.get(name)",
+        'export const c = (h: Headers) => h.set("x-backend-version", "1")',
+        'export const d = (m: Map<string, number>) => m.get("honeycomb")',
+        "",
+      ].join("\n"),
+      "packages/core/tests/e2e/apps/kitchen/src/_gen/sdk/response.ts":
+        'export const f = (h: Headers) => h.get("x-backend-version")\n',
+    };
+
+    expect(reportsOf(rule, fixture)).toEqual([]);
+  });
+
+  it("fails oxlint through the backend plugin entry", { timeout: SPAWN_TIMEOUT }, () => {
+    const fixture = {
+      "packages/core/src/a.ts": 'export const f = (h: Headers) => h.get("x-backend-debug")\n',
+      "packages/core/src/b.ts": 'export const f = (h: Headers) => h.get("accept")\n',
+    };
+
+    expect(oxlintReports("no-header-mode", fixture)).toEqual([{ file: "packages/core/src/a.ts", message: MESSAGE }]);
+  });
+});

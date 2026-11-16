@@ -1,14 +1,18 @@
 {
-	"name": "@backend/bench",
-	"version": "0.0.1",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"test": "vitest run src"
-	},
-	"devDependencies": {
-		"bun-types": "catalog:",
-		"typescript": "catalog:",
-		"vitest": "catalog:"
-	}
+  "name": "@backend/bench",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "bench:finalize": "bun --conditions=backend-source src/finalize.ts",
+    "bench:hotpath": "bun --conditions=backend-source --conditions=backend-no-output-check src/hotpath.ts",
+    "bench:middleware": "bun --conditions=backend-source src/middleware.ts",
+    "bench:streaming": "bun --conditions=backend-source src/streaming.ts",
+    "test": "vitest run src",
+    "type:check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.src.json"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
 }

@@ -3,7 +3,7 @@ import type {
 	Result,
 	ResumableConnection,
 	SDKConfig,
-	SSEEvent,
+	SSEEventOf,
 	TypedWebSocket,
 } from "./kitchen.runtime.gen.js"
 
@@ -16,7 +16,7 @@ export type CreateApiV1OrganizationResponse409 = {
 	status: 409
 	status_key: string
 	success: false
-	vars?: Record<string, number | string>
+	vars?: Record<string, number | string> | undefined
 }
 export type Err400InvalidInput = {
 	error_key: "invalid_input"
@@ -25,7 +25,7 @@ export type Err400InvalidInput = {
 	status: 400
 	status_key: string
 	success: false
-	vars?: Record<string, number | string>
+	vars?: Record<string, number | string> | undefined
 }
 export type Err401Unauthorized = {
 	error_key: "unauthorized"
@@ -34,7 +34,7 @@ export type Err401Unauthorized = {
 	status: 401
 	status_key: string
 	success: false
-	vars?: Record<string, number | string>
+	vars?: Record<string, number | string> | undefined
 }
 export type Err403GreetingRefused = {
 	error_key: "greeting_refused"
@@ -43,7 +43,7 @@ export type Err403GreetingRefused = {
 	status: 403
 	status_key: string
 	success: false
-	vars?: Record<string, number | string>
+	vars?: Record<string, number | string> | undefined
 }
 export type Err403OrgLimitReached = {
 	error_key: "org_limit_reached"
@@ -52,7 +52,7 @@ export type Err403OrgLimitReached = {
 	status: 403
 	status_key: string
 	success: false
-	vars?: Record<string, number | string>
+	vars?: Record<string, number | string> | undefined
 }
 export type Err500ApiError = {
 	error_key: "api_error"
@@ -61,7 +61,7 @@ export type Err500ApiError = {
 	status: 500
 	status_key: string
 	success: false
-	vars?: Record<string, number | string>
+	vars?: Record<string, number | string> | undefined
 }
 export type ListApiHelloResponse200 = { greeting: string; q: string }
 export type ListApiResponse200 = { id: string }
@@ -173,10 +173,18 @@ export interface KitchenOperations {
 	echo_post: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	echo_put: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	events: {
-		list: HttpStream<{}, SSEEvent, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+		list: HttpStream<
+			{},
+			SSEEventOf<{ message: string }>,
+			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
+		>
 	}
 	eventsLive: {
-		list: HttpStream<{}, SSEEvent, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
+		list: HttpStream<
+			{},
+			SSEEventOf<{ resume: string; tick: string }>,
+			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
+		>
 	}
 	health: {
 		check: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
