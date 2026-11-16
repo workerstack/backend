@@ -1,335 +1,345 @@
 {
-	"name": "@workerstack/backend",
-	"version": "1.0.0-rc.29",
-	"description": "Type-safe API framework built on Web Standards. Builder-pattern DX, precompiled radix tree in production.",
-	"keywords": [
-		"api",
-		"cloudflare-workers",
-		"framework",
-		"openapi",
-		"workerstack"
-	],
-	"homepage": "https://github.com/workerstack/backend#readme",
-	"bugs": {
-		"url": "https://github.com/workerstack/backend/issues"
-	},
-	"license": "MIT",
-	"author": "lovrozagar",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/workerstack/backend.git",
-		"directory": "packages/core"
-	},
-	"bin": {
-		"backend": "bin/backend.js"
-	},
-	"files": [
-		"bin",
-		"dist"
-	],
-	"type": "module",
-	"sideEffects": false,
-	"imports": {
-		"#output-check": {
-			"backend-no-output-check": {
-				"backend-source": "./src/validation/output-check-off.ts",
-				"types": "./dist/validation/output-check-off.d.ts",
-				"default": "./dist/validation/output-check-off.js"
-			},
-			"backend-source": "./src/validation/output-check.ts",
-			"types": "./dist/validation/output-check.d.ts",
-			"default": "./dist/validation/output-check.js"
-		}
-	},
-	"exports": {
-		"./build": {
-			"backend-source": "./src/build/index.ts",
-			"types": "./dist/build/index.d.ts",
-			"default": "./dist/build/index.js"
-		},
-		"./cron": {
-			"backend-source": "./src/cron/cron-subpath.ts",
-			"types": "./dist/cron/cron-subpath.d.ts",
-			"default": "./dist/cron/cron-subpath.js"
-		},
-		"./crypto": {
-			"backend-source": "./src/security/crypto.ts",
-			"types": "./dist/security/crypto.d.ts",
-			"default": "./dist/security/crypto.js"
-		},
-		"./http": {
-			"backend-source": "./src/index.ts",
-			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
-		},
-		"./http/accepts": {
-			"backend-source": "./src/input/accepts.ts",
-			"types": "./dist/input/accepts.d.ts",
-			"default": "./dist/input/accepts.js"
-		},
-		"./http/body-limit": {
-			"backend-source": "./src/input/body-limit.ts",
-			"types": "./dist/input/body-limit.d.ts",
-			"default": "./dist/input/body-limit.js"
-		},
-		"./http/cache-control": {
-			"backend-source": "./src/response/cache-control.ts",
-			"types": "./dist/response/cache-control.d.ts",
-			"default": "./dist/response/cache-control.js"
-		},
-		"./http/compress": {
-			"backend-source": "./src/middleware/compress.ts",
-			"types": "./dist/middleware/compress.d.ts",
-			"default": "./dist/middleware/compress.js"
-		},
-		"./http/cookie": {
-			"backend-source": "./src/context/cookie.ts",
-			"types": "./dist/context/cookie.d.ts",
-			"default": "./dist/context/cookie.js"
-		},
-		"./http/cookie-sign": {
-			"backend-source": "./src/context/cookie-sign.ts",
-			"types": "./dist/context/cookie-sign.d.ts",
-			"default": "./dist/context/cookie-sign.js"
-		},
-		"./http/cors": {
-			"backend-source": "./src/middleware/cors.ts",
-			"types": "./dist/middleware/cors.d.ts",
-			"default": "./dist/middleware/cors.js"
-		},
-		"./http/csrf": {
-			"backend-source": "./src/middleware/csrf.ts",
-			"types": "./dist/middleware/csrf.d.ts",
-			"default": "./dist/middleware/csrf.js"
-		},
-		"./http/curl-logger": {
-			"backend-source": "./src/observability/curl-logger.ts",
-			"types": "./dist/observability/curl-logger.d.ts",
-			"default": "./dist/observability/curl-logger.js"
-		},
-		"./http/etag": {
-			"backend-source": "./src/response/etag.ts",
-			"types": "./dist/response/etag.d.ts",
-			"default": "./dist/response/etag.js"
-		},
-		"./http/i18n": {
-			"backend-source": "./src/i18n/index.ts",
-			"types": "./dist/i18n/index.d.ts",
-			"default": "./dist/i18n/index.js"
-		},
-		"./http/input": {
-			"backend-source": "./src/input/input-subpath.ts",
-			"types": "./dist/input/input-subpath.d.ts",
-			"default": "./dist/input/input-subpath.js"
-		},
-		"./http/ip-restrict": {
-			"backend-source": "./src/middleware/ip-restrict.ts",
-			"types": "./dist/middleware/ip-restrict.d.ts",
-			"default": "./dist/middleware/ip-restrict.js"
-		},
-		"./http/jwt": {
-			"backend-source": "./src/security/jwt.ts",
-			"types": "./dist/security/jwt.d.ts",
-			"default": "./dist/security/jwt.js"
-		},
-		"./http/openapi": {
-			"backend-source": "./src/openapi/register.ts",
-			"types": "./dist/openapi/register.d.ts",
-			"default": "./dist/openapi/register.js"
-		},
-		"./http/openapi/auth": {
-			"backend-source": "./src/openapi/auth.ts",
-			"types": "./dist/openapi/auth.d.ts",
-			"default": "./dist/openapi/auth.js"
-		},
-		"./http/openapi/scalar": {
-			"backend-source": "./src/openapi/scalar.ts",
-			"types": "./dist/openapi/scalar.d.ts",
-			"default": "./dist/openapi/scalar.js"
-		},
-		"./http/openapi/static": {
-			"backend-source": "./src/openapi/static.ts",
-			"types": "./dist/openapi/static.d.ts",
-			"default": "./dist/openapi/static.js"
-		},
-		"./http/openapi/swagger": {
-			"backend-source": "./src/openapi/swagger.ts",
-			"types": "./dist/openapi/swagger.d.ts",
-			"default": "./dist/openapi/swagger.js"
-		},
-		"./http/powered-by": {
-			"backend-source": "./src/middleware/powered-by.ts",
-			"types": "./dist/middleware/powered-by.d.ts",
-			"default": "./dist/middleware/powered-by.js"
-		},
-		"./http/pretty-json": {
-			"backend-source": "./src/response/pretty-json.ts",
-			"types": "./dist/response/pretty-json.d.ts",
-			"default": "./dist/response/pretty-json.js"
-		},
-		"./http/proxy": {
-			"backend-source": "./src/proxy/proxy.ts",
-			"types": "./dist/proxy/proxy.d.ts",
-			"default": "./dist/proxy/proxy.js"
-		},
-		"./http/range": {
-			"backend-source": "./src/response/range.ts",
-			"types": "./dist/response/range.d.ts",
-			"default": "./dist/response/range.js"
-		},
-		"./http/rate-limit": {
-			"backend-source": "./src/middleware/rate-limit.ts",
-			"types": "./dist/middleware/rate-limit.d.ts",
-			"default": "./dist/middleware/rate-limit.js"
-		},
-		"./http/request-id": {
-			"backend-source": "./src/middleware/request-id.ts",
-			"types": "./dist/middleware/request-id.d.ts",
-			"default": "./dist/middleware/request-id.js"
-		},
-		"./http/request-to-curl": {
-			"backend-source": "./src/observability/request-to-curl.ts",
-			"types": "./dist/observability/request-to-curl.d.ts",
-			"default": "./dist/observability/request-to-curl.js"
-		},
-		"./http/secure-headers": {
-			"backend-source": "./src/middleware/secure-headers.ts",
-			"types": "./dist/middleware/secure-headers.d.ts",
-			"default": "./dist/middleware/secure-headers.js"
-		},
-		"./http/server-timing": {
-			"backend-source": "./src/middleware/server-timing.ts",
-			"types": "./dist/middleware/server-timing.d.ts",
-			"default": "./dist/middleware/server-timing.js"
-		},
-		"./http/static": {
-			"backend-source": "./src/response/static.ts",
-			"types": "./dist/response/static.d.ts",
-			"default": "./dist/response/static.js"
-		},
-		"./http/testing": {
-			"backend-source": "./src/testing/testing.ts",
-			"types": "./dist/testing/testing.d.ts",
-			"default": "./dist/testing/testing.js"
-		},
-		"./http/timeout": {
-			"backend-source": "./src/middleware/timeout.ts",
-			"types": "./dist/middleware/timeout.d.ts",
-			"default": "./dist/middleware/timeout.js"
-		},
-		"./http/tree": {
-			"backend-source": "./src/routing/tree-subpath.ts",
-			"types": "./dist/routing/tree-subpath.d.ts",
-			"default": "./dist/routing/tree-subpath.js"
-		},
-		"./http/user-agent": {
-			"backend-source": "./src/context/user-agent.ts",
-			"types": "./dist/context/user-agent.d.ts",
-			"default": "./dist/context/user-agent.js"
-		},
-		"./http/webhook": {
-			"backend-source": "./src/security/webhook.ts",
-			"types": "./dist/security/webhook.d.ts",
-			"default": "./dist/security/webhook.js"
-		},
-		"./logger": {
-			"backend-source": "./src/telemetry/logger-subpath.ts",
-			"types": "./dist/telemetry/logger-subpath.d.ts",
-			"default": "./dist/telemetry/logger-subpath.js"
-		},
-		"./mcp": {
-			"backend-source": "./src/mcp/mount.ts",
-			"types": "./dist/mcp/mount.d.ts",
-			"default": "./dist/mcp/mount.js"
-		},
-		"./mcp/oauth": {
-			"backend-source": "./src/mcp/oauth.ts",
-			"types": "./dist/mcp/oauth.d.ts",
-			"default": "./dist/mcp/oauth.js"
-		},
-		"./mcp/uploads": {
-			"backend-source": "./src/mcp/uploads.ts",
-			"types": "./dist/mcp/uploads.d.ts",
-			"default": "./dist/mcp/uploads.js"
-		},
-		"./mcp/url-files": {
-			"backend-source": "./src/mcp/url-files.ts",
-			"types": "./dist/mcp/url-files.d.ts",
-			"default": "./dist/mcp/url-files.js"
-		},
-		"./plugin": {
-			"backend-source": "./src/build/plugin-subpath.ts",
-			"types": "./dist/build/plugin-subpath.d.ts",
-			"default": "./dist/build/plugin-subpath.js"
-		},
-		"./queue": {
-			"backend-source": "./src/queue/queue-subpath.ts",
-			"types": "./dist/queue/queue-subpath.d.ts",
-			"default": "./dist/queue/queue-subpath.js"
-		},
-		"./realtime": {
-			"backend-source": "./src/realtime/realtime.ts",
-			"types": "./dist/realtime/realtime.d.ts",
-			"default": "./dist/realtime/realtime.js"
-		},
-		"./telemetry/otel": {
-			"backend-source": "./src/telemetry/otel-subpath.ts",
-			"types": "./dist/telemetry/otel-subpath.d.ts",
-			"default": "./dist/telemetry/otel-subpath.js"
-		},
-		"./ws": {
-			"backend-source": "./src/ws/ws-subpath.ts",
-			"types": "./dist/ws/ws-subpath.d.ts",
-			"default": "./dist/ws/ws-subpath.js"
-		},
-		"./package.json": "./package.json"
-	},
-	"publishConfig": {
-		"access": "public",
-		"provenance": true
-	},
-	"scripts": {
-		"prepack": "bun scripts/build.ts",
-		"test": "vitest run --coverage",
-		"type:check": "tsc --noEmit -p tsconfig.json"
-	},
-	"devDependencies": {
-		"@opentelemetry/api": "1.9.1",
-		"@opentelemetry/core": "2.11.0",
-		"@opentelemetry/sdk-trace-base": "2.11.0",
-		"@scalar/openapi-parser": "0.29.19",
-		"@total-typescript/ts-reset": "catalog:",
-		"@types/node": "catalog:",
-		"@vitest/coverage-v8": "4.1.10",
-		"@workerstack/clients": "1.0.0-rc.29",
-		"ajv": "8.20.0",
-		"ajv-formats": "3.0.1",
-		"arktype": "catalog:",
-		"effect": "catalog:",
-		"js-yaml": "4.3.1",
-		"oxc-parser": "0.152.0",
-		"standardwebhooks": "1.1.1",
-		"ts-morph": "catalog:",
-		"typescript": "catalog:",
-		"valibot": "catalog:",
-		"vite": "catalog:",
-		"vitest": "catalog:",
-		"yup": "catalog:",
-		"zod": "catalog:"
-	},
-	"peerDependencies": {
-		"@workerstack/clients": ">=1.0.0-rc.29",
-		"vite": ">=8.1.4"
-	},
-	"peerDependenciesMeta": {
-		"@workerstack/clients": {
-			"optional": true
-		},
-		"vite": {
-			"optional": true
-		}
-	},
-	"engines": {
-		"node": ">=22.12.0"
-	}
+  "name": "@workerstack/backend",
+  "version": "1.0.0-rc.29",
+  "private": false,
+  "description": "Type-safe API framework built on Web Standards. Builder-pattern DX, precompiled radix tree in production.",
+  "keywords": [
+    "api",
+    "cloudflare-workers",
+    "framework",
+    "openapi",
+    "workerstack"
+  ],
+  "homepage": "https://github.com/workerstack/backend#readme",
+  "bugs": {
+    "url": "https://github.com/workerstack/backend/issues"
+  },
+  "license": "MIT",
+  "author": "lovrozagar",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/workerstack/backend.git",
+    "directory": "packages/core"
+  },
+  "bin": {
+    "backend": "bin/backend.js"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "imports": {
+    "#output-check": {
+      "backend-no-output-check": {
+        "backend-source": "./src/validation/output-check-off.ts",
+        "types": "./dist/validation/output-check-off.d.ts",
+        "default": "./dist/validation/output-check-off.js"
+      },
+      "backend-source": "./src/validation/output-check.ts",
+      "types": "./dist/validation/output-check.d.ts",
+      "default": "./dist/validation/output-check.js"
+    }
+  },
+  "exports": {
+    "./build": {
+      "backend-source": "./src/build/index.ts",
+      "types": "./dist/build/index.d.ts",
+      "default": "./dist/build/index.js"
+    },
+    "./cron": {
+      "backend-source": "./src/cron/cron-subpath.ts",
+      "types": "./dist/cron/cron-subpath.d.ts",
+      "default": "./dist/cron/cron-subpath.js"
+    },
+    "./crypto": {
+      "backend-source": "./src/security/crypto.ts",
+      "types": "./dist/security/crypto.d.ts",
+      "default": "./dist/security/crypto.js"
+    },
+    "./http": {
+      "backend-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./http/accepts": {
+      "backend-source": "./src/input/accepts.ts",
+      "types": "./dist/input/accepts.d.ts",
+      "default": "./dist/input/accepts.js"
+    },
+    "./http/body-limit": {
+      "backend-source": "./src/input/body-limit.ts",
+      "types": "./dist/input/body-limit.d.ts",
+      "default": "./dist/input/body-limit.js"
+    },
+    "./http/cache-control": {
+      "backend-source": "./src/response/cache-control.ts",
+      "types": "./dist/response/cache-control.d.ts",
+      "default": "./dist/response/cache-control.js"
+    },
+    "./http/compress": {
+      "backend-source": "./src/middleware/compress.ts",
+      "types": "./dist/middleware/compress.d.ts",
+      "default": "./dist/middleware/compress.js"
+    },
+    "./http/cookie": {
+      "backend-source": "./src/context/cookie.ts",
+      "types": "./dist/context/cookie.d.ts",
+      "default": "./dist/context/cookie.js"
+    },
+    "./http/cookie-sign": {
+      "backend-source": "./src/context/cookie-sign.ts",
+      "types": "./dist/context/cookie-sign.d.ts",
+      "default": "./dist/context/cookie-sign.js"
+    },
+    "./http/cors": {
+      "backend-source": "./src/middleware/cors.ts",
+      "types": "./dist/middleware/cors.d.ts",
+      "default": "./dist/middleware/cors.js"
+    },
+    "./http/csrf": {
+      "backend-source": "./src/middleware/csrf.ts",
+      "types": "./dist/middleware/csrf.d.ts",
+      "default": "./dist/middleware/csrf.js"
+    },
+    "./http/curl-logger": {
+      "backend-source": "./src/observability/curl-logger.ts",
+      "types": "./dist/observability/curl-logger.d.ts",
+      "default": "./dist/observability/curl-logger.js"
+    },
+    "./http/etag": {
+      "backend-source": "./src/response/etag.ts",
+      "types": "./dist/response/etag.d.ts",
+      "default": "./dist/response/etag.js"
+    },
+    "./http/i18n": {
+      "backend-source": "./src/i18n/index.ts",
+      "types": "./dist/i18n/index.d.ts",
+      "default": "./dist/i18n/index.js"
+    },
+    "./http/input": {
+      "backend-source": "./src/input/input-subpath.ts",
+      "types": "./dist/input/input-subpath.d.ts",
+      "default": "./dist/input/input-subpath.js"
+    },
+    "./http/ip-restrict": {
+      "backend-source": "./src/middleware/ip-restrict.ts",
+      "types": "./dist/middleware/ip-restrict.d.ts",
+      "default": "./dist/middleware/ip-restrict.js"
+    },
+    "./http/jwt": {
+      "backend-source": "./src/security/jwt.ts",
+      "types": "./dist/security/jwt.d.ts",
+      "default": "./dist/security/jwt.js"
+    },
+    "./http/openapi": {
+      "backend-source": "./src/openapi/register.ts",
+      "types": "./dist/openapi/register.d.ts",
+      "default": "./dist/openapi/register.js"
+    },
+    "./http/openapi/auth": {
+      "backend-source": "./src/openapi/auth.ts",
+      "types": "./dist/openapi/auth.d.ts",
+      "default": "./dist/openapi/auth.js"
+    },
+    "./http/openapi/scalar": {
+      "backend-source": "./src/openapi/scalar.ts",
+      "types": "./dist/openapi/scalar.d.ts",
+      "default": "./dist/openapi/scalar.js"
+    },
+    "./http/openapi/static": {
+      "backend-source": "./src/openapi/static.ts",
+      "types": "./dist/openapi/static.d.ts",
+      "default": "./dist/openapi/static.js"
+    },
+    "./http/openapi/swagger": {
+      "backend-source": "./src/openapi/swagger.ts",
+      "types": "./dist/openapi/swagger.d.ts",
+      "default": "./dist/openapi/swagger.js"
+    },
+    "./http/powered-by": {
+      "backend-source": "./src/middleware/powered-by.ts",
+      "types": "./dist/middleware/powered-by.d.ts",
+      "default": "./dist/middleware/powered-by.js"
+    },
+    "./http/pretty-json": {
+      "backend-source": "./src/response/pretty-json.ts",
+      "types": "./dist/response/pretty-json.d.ts",
+      "default": "./dist/response/pretty-json.js"
+    },
+    "./http/proxy": {
+      "backend-source": "./src/proxy/proxy.ts",
+      "types": "./dist/proxy/proxy.d.ts",
+      "default": "./dist/proxy/proxy.js"
+    },
+    "./http/range": {
+      "backend-source": "./src/response/range.ts",
+      "types": "./dist/response/range.d.ts",
+      "default": "./dist/response/range.js"
+    },
+    "./http/rate-limit": {
+      "backend-source": "./src/middleware/rate-limit.ts",
+      "types": "./dist/middleware/rate-limit.d.ts",
+      "default": "./dist/middleware/rate-limit.js"
+    },
+    "./http/request-id": {
+      "backend-source": "./src/middleware/request-id.ts",
+      "types": "./dist/middleware/request-id.d.ts",
+      "default": "./dist/middleware/request-id.js"
+    },
+    "./http/request-to-curl": {
+      "backend-source": "./src/observability/request-to-curl.ts",
+      "types": "./dist/observability/request-to-curl.d.ts",
+      "default": "./dist/observability/request-to-curl.js"
+    },
+    "./http/secure-headers": {
+      "backend-source": "./src/middleware/secure-headers.ts",
+      "types": "./dist/middleware/secure-headers.d.ts",
+      "default": "./dist/middleware/secure-headers.js"
+    },
+    "./http/server-timing": {
+      "backend-source": "./src/middleware/server-timing.ts",
+      "types": "./dist/middleware/server-timing.d.ts",
+      "default": "./dist/middleware/server-timing.js"
+    },
+    "./http/static": {
+      "backend-source": "./src/response/static.ts",
+      "types": "./dist/response/static.d.ts",
+      "default": "./dist/response/static.js"
+    },
+    "./http/testing": {
+      "backend-source": "./src/testing/testing.ts",
+      "types": "./dist/testing/testing.d.ts",
+      "default": "./dist/testing/testing.js"
+    },
+    "./http/timeout": {
+      "backend-source": "./src/middleware/timeout.ts",
+      "types": "./dist/middleware/timeout.d.ts",
+      "default": "./dist/middleware/timeout.js"
+    },
+    "./http/tree": {
+      "backend-source": "./src/routing/tree-subpath.ts",
+      "types": "./dist/routing/tree-subpath.d.ts",
+      "default": "./dist/routing/tree-subpath.js"
+    },
+    "./http/user-agent": {
+      "backend-source": "./src/context/user-agent.ts",
+      "types": "./dist/context/user-agent.d.ts",
+      "default": "./dist/context/user-agent.js"
+    },
+    "./http/webhook": {
+      "backend-source": "./src/security/webhook.ts",
+      "types": "./dist/security/webhook.d.ts",
+      "default": "./dist/security/webhook.js"
+    },
+    "./logger": {
+      "backend-source": "./src/telemetry/logger-subpath.ts",
+      "types": "./dist/telemetry/logger-subpath.d.ts",
+      "default": "./dist/telemetry/logger-subpath.js"
+    },
+    "./mcp": {
+      "backend-source": "./src/mcp/mount.ts",
+      "types": "./dist/mcp/mount.d.ts",
+      "default": "./dist/mcp/mount.js"
+    },
+    "./mcp/oauth": {
+      "backend-source": "./src/mcp/oauth.ts",
+      "types": "./dist/mcp/oauth.d.ts",
+      "default": "./dist/mcp/oauth.js"
+    },
+    "./mcp/uploads": {
+      "backend-source": "./src/mcp/uploads.ts",
+      "types": "./dist/mcp/uploads.d.ts",
+      "default": "./dist/mcp/uploads.js"
+    },
+    "./mcp/url-files": {
+      "backend-source": "./src/mcp/url-files.ts",
+      "types": "./dist/mcp/url-files.d.ts",
+      "default": "./dist/mcp/url-files.js"
+    },
+    "./plugin": {
+      "backend-source": "./src/build/plugin-subpath.ts",
+      "types": "./dist/build/plugin-subpath.d.ts",
+      "default": "./dist/build/plugin-subpath.js"
+    },
+    "./queue": {
+      "backend-source": "./src/queue/queue-subpath.ts",
+      "types": "./dist/queue/queue-subpath.d.ts",
+      "default": "./dist/queue/queue-subpath.js"
+    },
+    "./realtime": {
+      "backend-source": "./src/realtime/realtime.ts",
+      "types": "./dist/realtime/realtime.d.ts",
+      "default": "./dist/realtime/realtime.js"
+    },
+    "./telemetry/otel": {
+      "backend-source": "./src/telemetry/otel-subpath.ts",
+      "types": "./dist/telemetry/otel-subpath.d.ts",
+      "default": "./dist/telemetry/otel-subpath.js"
+    },
+    "./ws": {
+      "backend-source": "./src/ws/ws-subpath.ts",
+      "types": "./dist/ws/ws-subpath.d.ts",
+      "default": "./dist/ws/ws-subpath.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "derive:build-ceilings": "bun tests/e2e/derive-build-ceilings.ts",
+    "prepack": "bun scripts/build.ts",
+    "test": "vitest run --coverage",
+    "test:build": "bun tests/e2e/run-build.ts",
+    "test:build:ci": "bun tests/e2e/run-build.ts --check-generated",
+    "test:e2e:cf": "bun tests/e2e/run.ts --env cf",
+    "test:e2e:cf:prod": "bun tests/e2e/run.ts --env cf --mode prod",
+    "test:packaging": "bun tests/e2e/run-strict-consumer.ts",
+    "type:check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.src.json"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/core": "2.11.0",
+    "@opentelemetry/sdk-trace-base": "2.11.0",
+    "@playwright/test": "catalog:",
+    "@scalar/openapi-parser": "0.29.19",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "5.1.0",
+    "@workerstack/clients": "1.0.0-rc.30",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "arktype": "catalog:",
+    "effect": "catalog:",
+    "js-yaml": "4.3.1",
+    "oxc-parser": "0.152.0",
+    "oxlint": "1.93.0",
+    "rolldown": "1.1.5",
+    "standardwebhooks": "1.1.1",
+    "ts-morph": "catalog:",
+    "typescript": "catalog:",
+    "valibot": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "yup": "catalog:",
+    "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "@workerstack/clients": ">=1.0.0-rc.29",
+    "vite": ">=8.1.4"
+  },
+  "peerDependenciesMeta": {
+    "@workerstack/clients": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
 }

@@ -1,29 +1,11 @@
 {
-	"compilerOptions": {
-		"allowImportingTsExtensions": true,
-		"customConditions": ["backend-source"],
-		"emitDecoratorMetadata": true,
-		"esModuleInterop": true,
-		"experimentalDecorators": true,
-		"forceConsistentCasingInFileNames": true,
-		"isolatedModules": true,
-		"module": "ESNext",
-		"moduleResolution": "bundler",
-		"noEmit": true,
-		"resolveJsonModule": true,
-		"skipLibCheck": true,
-		"strict": true,
-		"target": "ESNext",
-		"types": ["bun-types"]
-	},
-	"include": [
-		"src/middleware.ts",
-		"src/finalize.ts",
-		"src/gate.ts",
-		"src/gate.test.ts",
-		"src/hotpath.ts",
-		"src/streaming.ts",
-		"src/significance.ts",
-		"src/significance.test.ts"
-	]
+  "compilerOptions": {
+    "customConditions": ["backend-source"],
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    // the benches compile packages/core/src, which is typed against the DOM lib (BodyInit, HeadersInit, FormDataEntryValue)
+    "lib": ["DOM", "DOM.Iterable", "ESNext"]
+  },
+  "extends": "@workerstack/repo/tsconfig/bun",
+  "include": ["src/**/*.ts"]
 }

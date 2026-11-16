@@ -3,447 +3,501 @@
  * (shown the route's meta), security, servers, tags and sanitize (plan 39 7.4); the tree's topology holding every route, a websocket's
  * included; the virtual modules' code; and the app imported here sharing this core.
  */
-import { join } from "node:path"
-import { afterEach, describe, expect, it, vi } from "vitest"
-import * as codegen from "@workerstack/clients"
-import { httpApp } from "../routing/app.ts"
-import { appSource, type Project, project } from "./__fixtures__/project.ts"
-import { artifactsOf, documentOf, prepare, virtualCode } from "./artifacts.ts"
-import { type BackendPluginConfig, MCP_COMPANIONS, resolveBackendConfig } from "./config.ts"
-import type { ModuleLoader } from "./loaders.ts"
-import { sourceOf } from "./source.ts"
+import { join } from "node:path";
 
-/* type extraction (ts-morph) runs for seconds under coverage */
-const SLOW = 60_000
-const projects: Project[] = []
+import * as codegen from "@workerstack/clients";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { httpApp } from "../routing/app.ts";
+import { appSource, type Project, project } from "./__fixtures__/project.ts";
+import { artifactsOf, documentOf, prepare, virtualCode } from "./artifacts.ts";
+import { type BackendPluginConfig, MCP_COMPANIONS, resolveBackendConfig } from "./config.ts";
+import type { ModuleLoader } from "./loaders.ts";
+import { sourceOf } from "./source.ts";
+
+// type extraction (ts-morph) runs for seconds under coverage
+const SLOW = 60_000;
+const projects: Project[] = [];
+
 afterEach(() => {
-	for (const made of projects.splice(0)) made.done()
-})
+  for (const made of projects.splice(0)) made.done();
+});
 
 /** A fresh project of `files`, removed after the leg. */
 function fresh(files: Record<string, string> = {}): Project {
-	const made = project(files, { link: true })
-	projects.push(made)
-	return made
+  const made = project(files, { link: true });
+  projects.push(made);
+
+  return made;
 }
 
 const SCHEMES = {
-	apiKey: { in: "header", name: "Authorization", type: "apiKey" },
-	iaKey: { in: "header", name: "x-ia-key", type: "apiKey" },
-	jwt: { scheme: "bearer", type: "http" },
-} as const
+  apiKey: { in: "header", name: "Authorization", type: "apiKey" },
+  iaKey: { in: "header", name: "x-ia-key", type: "apiKey" },
+  jwt: { scheme: "bearer", type: "http" },
+} as const;
 
 /** An app with a public route (apiKey or jwt), an internal one (iaKey) and a contract one. */
 function app() {
-	return httpApp<{}>()
-		.get("/public")
+  return httpApp<{}>()
+    .get("/public")
 
-		.meta({
-			operationId: "public.list",
-			extensions: { "x-team": "growth" },
-			public: true,
-			security: ["apiKey", "jwt"],
-			tags: ["Tables", "Billing"],
-		} as never)
-		.handler((c) => c.res.text("ok", "p"))
-		.get("/internal")
+    .meta({
+      extensions: { "x-team": "growth" },
+      operationId: "public.list",
+      public: true,
+      security: ["apiKey", "jwt"],
+      tags: ["Tables", "Billing"],
+    } as never)
+    .handler((c) => c.res.text("ok", "p"))
+    .get("/internal")
 
-		.meta({ operationId: "internal.list", security: "iaKey" } as never)
-		.handler((c) => c.res.text("ok", "i"))
-		.get("/contract")
+    .meta({ operationId: "internal.list", security: "iaKey" } as never)
+    .handler((c) => c.res.text("ok", "i"))
+    .get("/contract")
 
-		.meta({ operationId: "contract.list", contract: true, security: "jwt" } as never)
-		.handler((c) => c.res.text("ok", "c"))
+    .meta({ contract: true, operationId: "contract.list", security: "jwt" } as never)
+    .handler((c) => c.res.text("ok", "c"));
 }
 
 type Document = {
-	components?: { securitySchemes?: Record<string, unknown> }
-	externalDocs?: unknown
-	paths: Record<string, { get: Record<string, unknown> }>
-	servers?: unknown
-	tags?: { description?: string; name: string }[]
-}
-const output = (entry: object) => ({ formats: ["json"] as const, path: "x.json", title: "T", version: "1", ...entry })
-const off = { effect: undefined, invalidate: "off", securitySchemes: SCHEMES } as const
+  components?: { securitySchemes?: Record<string, unknown> };
+  externalDocs?: unknown;
+  paths: Record<string, { get: Record<string, unknown> }>;
+  servers?: unknown;
+  tags?: { description?: string; name: string }[];
+};
+
+const output = (entry: object) => ({ formats: ["json"] as const, path: "x.json", title: "T", version: "1", ...entry });
+const off = { effect: undefined, invalidate: "off", securitySchemes: SCHEMES } as const;
 
 describe("documentOf: each output its own (bit 19 h2, plan 39 7.4)", () => {
-	it("filters by the route's meta, shows the schemes its routes name or the ones it lists, and sanitizes only itself", () => {
-		const served = app()
-		const all = documentOf(served, output({}), off) as Document
-		const contract = documentOf(
-			served,
-			output({ filterRoutes: (route: { meta: { contract?: boolean } }) => route.meta.contract === true }),
-			off,
-		) as Document
-		const published = documentOf(
-			served,
-			output({
-				filterRoutes: (route: { meta: { public?: boolean } }) => route.meta.public === true,
-				sanitize: { stripXExtensions: true },
-				security: ["apiKey"],
-			}),
-			off,
-		) as Document
-		expect([Object.keys(all.paths), Object.keys(contract.paths), Object.keys(published.paths)]).toEqual([
-			["/public", "/internal", "/contract"],
-			["/contract"],
-			["/public"],
-		])
-		expect(
-			[all, contract, published].map((document) => Object.keys(document.components?.securitySchemes ?? {})),
-		).toEqual([["apiKey", "iaKey", "jwt"], ["jwt"], ["apiKey"]])
-		const extensions = (document: Document, path: string) =>
-			Object.keys(document.paths[path]?.get ?? {}).filter((key) => key.startsWith("x-"))
-		/* the published document drops the app's own extension and keeps the one backend's generators read */
-		expect([extensions(all, "/public"), extensions(published, "/public")]).toEqual([
-			["x-team", "x-backend-route"],
-			["x-backend-route"],
-		])
-		expect([all.paths["/public"]?.get.security, published.paths["/public"]?.get.security]).toEqual([
-			[{ apiKey: [] }, { jwt: [] }],
-			[{ apiKey: [] }],
-		])
-	})
+  it("filters by the route's meta, shows the schemes its routes name or the ones it lists, and sanitizes only itself", () => {
+    const served = app();
+    const all = documentOf(served, output({}), off) as Document;
 
-	it("carries its servers, external docs and tags, the tags in the order it lists them", () => {
-		const document = documentOf(
-			app(),
-			output({
-				externalDocs: { url: "https://docs.example.com" },
-				servers: [{ url: "https://api.example.com" }],
-				tags: [{ description: "Invoices", name: "Billing" }, { name: "Tables" }],
-			}),
-			off,
-		) as Document
-		expect([document.servers, document.externalDocs, document.tags]).toEqual([
-			[{ url: "https://api.example.com" }],
-			{ url: "https://docs.example.com" },
-			[{ description: "Invoices", name: "Billing" }, { name: "Tables" }],
-		])
-	})
-})
+    const contract = documentOf(
+      served,
+      output({ filterRoutes: (route: { meta: { contract?: boolean } }) => route.meta.contract === true }),
+      off,
+    ) as Document;
+
+    const published = documentOf(
+      served,
+      output({
+        filterRoutes: (route: { meta: { public?: boolean } }) => route.meta.public === true,
+        sanitize: { stripXExtensions: true },
+        security: ["apiKey"],
+      }),
+      off,
+    ) as Document;
+
+    expect([Object.keys(all.paths), Object.keys(contract.paths), Object.keys(published.paths)]).toEqual([
+      ["/public", "/internal", "/contract"],
+      ["/contract"],
+      ["/public"],
+    ]);
+    expect(
+      [all, contract, published].map((document) => Object.keys(document.components?.securitySchemes ?? {})),
+    ).toEqual([["apiKey", "iaKey", "jwt"], ["jwt"], ["apiKey"]]);
+
+    const extensions = (document: Document, path: string) =>
+      Object.keys(document.paths[path]?.get ?? {}).filter((key) => key.startsWith("x-"));
+
+    // the published document drops the app's own extension and keeps the one backend's generators read
+    expect([extensions(all, "/public"), extensions(published, "/public")]).toEqual([
+      ["x-team", "x-backend-route"],
+      ["x-backend-route"],
+    ]);
+    expect([all.paths["/public"]?.get.security, published.paths["/public"]?.get.security]).toEqual([
+      [{ apiKey: [] }, { jwt: [] }],
+      [{ apiKey: [] }],
+    ]);
+  });
+
+  it("carries its servers, external docs and tags, the tags in the order it lists them", () => {
+    const document = documentOf(
+      app(),
+      output({
+        externalDocs: { url: "https://docs.example.com" },
+        servers: [{ url: "https://api.example.com" }],
+        tags: [{ description: "Invoices", name: "Billing" }, { name: "Tables" }],
+      }),
+      off,
+    ) as Document;
+
+    expect([document.servers, document.externalDocs, document.tags]).toEqual([
+      [{ url: "https://api.example.com" }],
+      { url: "https://docs.example.com" },
+      [{ description: "Invoices", name: "Billing" }, { name: "Tables" }],
+    ]);
+  });
+});
 
 /** The loader a Bun or type-stripping Node test can use: the platform's own import. */
-const native: ModuleLoader = (path) => import(path) as Promise<Record<string, unknown>>
+const native: ModuleLoader = (path) => import(path) as Promise<Record<string, unknown>>;
 
 /** Every artifact of `config` for the project at `dir`, through prepare() then artifactsOf(), with what it reported. */
 async function artifacts(config: BackendPluginConfig, dir: string) {
-	const reports: string[] = []
-	const run = { codegen, load: native, report: (line: string) => void reports.push(line), root: dir }
-	const resolved = resolveBackendConfig(config)
-	const { rewrite, source } = await prepare(resolved, { ...run, first: true })
-	/* a tree to write first is written before any artifact, as generate.ts does */
-	const files = rewrite === undefined ? Object.fromEntries(await artifactsOf(resolved, run, source)) : {}
-	return { files, reports, rewrite }
+  const reports: string[] = [];
+  const run = { codegen, load: native, report: (line: string) => void reports.push(line), root: dir };
+  const resolved = resolveBackendConfig(config);
+  const { rewrite, source } = await prepare(resolved, { ...run, first: true });
+  // a tree to write first is written before any artifact, as generate.ts does
+  const files = rewrite === undefined ? Object.fromEntries(await artifactsOf(resolved, run, source)) : {};
+
+  return { files, reports, rewrite };
 }
 
 const WITH_HIDDEN_ADDITION = [
-	'\t.get("/hidden")',
-	"\t.meta({ internal: true } as never)",
-	"\t.use(createMiddleware((_c, next) => next({ hidden: 1 })))",
-	'\t.handler((c) => c.res.text("ok", "h"))',
-]
+  '\t.get("/hidden")',
+  "\t.meta({ internal: true } as never)",
+  "\t.use(createMiddleware((_c, next) => next({ hidden: 1 })))",
+  '\t.handler((c) => c.res.text("ok", "h"))',
+];
 
-/* a ws route after the app's chain; the import hoists */
+// a ws route after the app's chain; the import hoists
 const WITH_UNCONVERTIBLE = [
-	'\t.logger(createLogger({ level: "warn", write: (line) => void (globalThis as { appLines?: string[] }).appLines?.push(line) }))',
-	'\t.post("/custom").meta({ operationId: "custom.create" })',
-	'\t.input({ json: { "~standard": { validate: (value: unknown) => ({ value }), vendor: "custom", version: 1 } } })',
-	'\t.handler((c) => c.res.text("ok", "c"))',
-	'import { createLogger } from "@workerstack/backend/logger"',
-]
+  '\t.logger(createLogger({ level: "warn", write: (line) => void (globalThis as { appLines?: string[] }).appLines?.push(line) }))',
+  '\t.post("/custom").meta({ operationId: "custom.create" })',
+  '\t.input({ json: { "~standard": { validate: (value: unknown) => ({ value }), vendor: "custom", version: 1 } } })',
+  '\t.handler((c) => c.res.text("ok", "c"))',
+  'import { createLogger } from "@workerstack/backend/logger"',
+];
 
 const WITH_SECURED = [
-	'\t.get("/secured")',
-	'\t.meta({ operationId: "secured.list", security: "jwt" } as never)',
-	'\t.handler((c) => c.res.text("ok", "s"))',
-]
+  '\t.get("/secured")',
+  '\t.meta({ operationId: "secured.list", security: "jwt" } as never)',
+  '\t.handler((c) => c.res.text("ok", "s"))',
+];
 
-/* a route registered with a trailing slash and a mount joining two slashes, each adding to the ctx: the router serves
-   both at the canonical pattern, so the extractor must key them there */
+// a route registered with a trailing slash and a mount joining two slashes, each adding to the ctx: the router serves
+// both at the canonical pattern, so the extractor must key them there
 const WITH_UNCANONICAL = [
-	'\t.get("/slashed/")',
-	'\t.meta({ operationId: "slashed.list" })',
-	"\t.use(createMiddleware((_c, next) => next({ slashed: 1 })))",
-	'\t.handler((c) => c.res.text("ok", "s"))',
-	'app.route("/joined/", httpApp().use(createMiddleware((_c, next) => next({ joined: 1 }))).get("/x").meta({ operationId: "joined.list" }).handler((c) => c.res.text("ok", "j")))',
-]
+  '\t.get("/slashed/")',
+  '\t.meta({ operationId: "slashed.list" })',
+  "\t.use(createMiddleware((_c, next) => next({ slashed: 1 })))",
+  '\t.handler((c) => c.res.text("ok", "s"))',
+  'app.route("/joined/", httpApp().use(createMiddleware((_c, next) => next({ joined: 1 }))).get("/x").meta({ operationId: "joined.list" }).handler((c) => c.res.text("ok", "j")))',
+];
 
-const WITH_SOCKET = ['import { ws } from "@workerstack/backend/ws"', 'ws(app, "/live").handler({})']
+const WITH_SOCKET = ['import { ws } from "@workerstack/backend/ws"', 'ws(app, "/live").handler({})'];
 
 describe("artifactsOf (bit 19 h2)", () => {
-	// v0: 7d37ebfc5c
-	it("writes every route into the tree's topology, a websocket's included", async () => {
-		const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_SOCKET }) })
-		const { files } = await artifacts({ app: "src/app.ts" }, dir)
-		expect(Object.keys(files)).toEqual(["src/_gen/routes.gen.ts"])
-		/* the leaf is the node's ws slot, an interned route id */
-		expect(files["src/_gen/routes.gen.ts"]).toMatch(
-			/const (P\d+) = "WS \/live"[\s\S]*"live": N\(undefined, null, null, null, \1\)/,
-		)
-	})
+  // v0: 7d37ebfc5c
+  it("writes every route into the tree's topology, a websocket's included", async () => {
+    const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_SOCKET }) });
+    const { files } = await artifacts({ app: "src/app.ts" }, dir);
+    expect(Object.keys(files)).toEqual(["src/_gen/routes.gen.ts"]);
+    // the leaf is the node's ws slot, an interned route id
+    expect(files["src/_gen/routes.gen.ts"]).toMatch(
+      /const (P\d+) = "WS \/live"[\s\S]*"live": N\(undefined, null, null, null, \1\)/,
+    );
+  });
 
-	it(
-		"writes the manifest, each output as JSON and YAML or YAML alone, and the types from the first output's info",
-		async () => {
-			const { dir } = fresh({ "src/app.ts": appSource() })
-			const openApi = [
-				{ formats: ["json", "yaml"] as const, path: "a.json", title: "A", version: "2" },
-				{ path: "b.yaml", title: "B", version: "3" },
-			]
-			const securitySchemes = { key: { in: "header", name: "x-key", type: "apiKey" } }
-			const { files } = await artifacts(
-				{ app: "src/app.ts", codegen: { manifest: true, openApi, securitySchemes, tree: false, types: true } },
-				dir,
-			)
-			expect(Object.keys(files)).toEqual([
-				"src/_gen/manifest.gen.json",
-				"a.json",
-				"a.yaml",
-				"b.yaml",
-				"src/_gen/types.gen.d.ts",
-			])
-			expect([
-				(JSON.parse(files["a.json"] as string) as { info: unknown }).info,
-				(files["b.yaml"] as string).split("\n").slice(1, 4),
-			]).toEqual([{ title: "A", version: "2" }, ["info:", "  title: B", '  version: "3"']])
-			expect(files["src/_gen/types.gen.d.ts"]).toContain(
-				[
-					"\t\toperationId: {",
-					'\t\t\t"health.list": { kind: "http"; ctx: Routes["/health"]["get"]["ctx"] }',
-					'\t\t\t"items.create": { kind: "http"; ctx: Routes["/items"]["post"]["ctx"] }',
-					"\t\t}",
-				].join("\n"),
-			)
-		},
-		SLOW,
-	)
-})
+  it(
+    "writes the manifest, each output as JSON and YAML or YAML alone, and the types from the first output's info",
+    async () => {
+      const { dir } = fresh({ "src/app.ts": appSource() });
+
+      const openApi = [
+        { formats: ["json", "yaml"] as const, path: "a.json", title: "A", version: "2" },
+        { path: "b.yaml", title: "B", version: "3" },
+      ];
+
+      const securitySchemes = { key: { in: "header", name: "x-key", type: "apiKey" } };
+
+      const { files } = await artifacts(
+        { app: "src/app.ts", codegen: { manifest: true, openApi, securitySchemes, tree: false, types: true } },
+        dir,
+      );
+
+      expect(Object.keys(files)).toEqual([
+        "src/_gen/manifest.gen.json",
+        "a.json",
+        "a.yaml",
+        "b.yaml",
+        "src/_gen/types.gen.d.ts",
+      ]);
+      expect([
+        (JSON.parse(files["a.json"] as string) as { info: unknown }).info,
+        (files["b.yaml"] as string).split("\n").slice(1, 4),
+      ]).toEqual([{ title: "A", version: "2" }, ["info:", "  title: B", '  version: "3"']]);
+      expect(files["src/_gen/types.gen.d.ts"]).toContain(
+        [
+          "\t\toperationId: {",
+          '\t\t\t"health.list": { kind: "http"; ctx: Routes["/health"]["get"]["ctx"] }',
+          '\t\t\t"items.create": { kind: "http"; ctx: Routes["/items"]["post"]["ctx"] }',
+          "\t\t}",
+        ].join("\n"),
+      );
+    },
+    SLOW,
+  );
+});
 
 describe("artifactsOf (bit 19 h2): types alone", () => {
-	it(
-		"builds types alone from a bare info, and reports what the types cannot join",
-		async () => {
-			const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_HIDDEN_ADDITION }) })
-			const { files, reports } = await artifacts({ app: "src/app.ts", codegen: { tree: false, types: true } }, dir)
-			expect([Object.keys(files), reports]).toEqual([
-				["src/_gen/types.gen.d.ts"],
-				[
-					"GET /hidden: extracted ctx additions match no documented operation (internal and filtered routes are not documented); not typed",
-				],
-			])
-		},
-		SLOW,
-	)
+  it(
+    "builds types alone from a bare info, and reports what the types cannot join",
+    async () => {
+      const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_HIDDEN_ADDITION }) });
+      const { files, reports } = await artifacts({ app: "src/app.ts", codegen: { tree: false, types: true } }, dir);
+      expect([Object.keys(files), reports]).toEqual([
+        ["src/_gen/types.gen.d.ts"],
+        [
+          "GET /hidden: extracted ctx additions match no documented operation (internal and filtered routes are not documented); not typed",
+        ],
+      ]);
+    },
+    SLOW,
+  );
 
-	it(
-		"types a route at the router's canonical id, a trailing slash and a doubled one at a mount dropped",
-		async () => {
-			const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_UNCANONICAL }) })
-			const { files, reports } = await artifacts({ app: "src/app.ts", codegen: { tree: false, types: true } }, dir)
-			const types = files["src/_gen/types.gen.d.ts"] as string
-			/* each at its canonical id; the mounted one keeps the base's routePattern (clients 0ac97e7) */
-			expect([
-				reports,
-				types.match(/"(slashed|joined)\.list": [^\n]*/g),
-				types.match(/ctx: WithOutput<BaseCtx & \{ (slashed|joined): number \}[^\n]*/g),
-			]).toEqual([
-				[],
-				[
-					'"joined.list": { kind: "http"; ctx: Routes["/joined/x"]["get"]["ctx"] }',
-					'"slashed.list": { kind: "http"; ctx: Routes["/slashed"]["get"]["ctx"] }',
-				],
-				[
-					"ctx: WithOutput<BaseCtx & { joined: number } & { readonly meta: Readonly<Partial<HttpMeta>> }, never>",
-					'ctx: WithOutput<BaseCtx & { slashed: number } & { readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/slashed" }, never>',
-				],
-			])
-		},
-		SLOW,
-	)
-})
+  it(
+    "types a route at the router's canonical id, a trailing slash and a doubled one at a mount dropped",
+    async () => {
+      const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_UNCANONICAL }) });
+      const { files, reports } = await artifacts({ app: "src/app.ts", codegen: { tree: false, types: true } }, dir);
+      const types = files["src/_gen/types.gen.d.ts"] as string;
+      // each at its canonical id; the mounted one keeps the base's routePattern (clients 0ac97e7)
+      expect([
+        reports,
+        types.match(/"(slashed|joined)\.list": [^\n]*/g),
+        types.match(/ctx: WithOutput<BaseCtx & \{ (slashed|joined): number \}[^\n]*/g),
+      ]).toEqual([
+        [],
+        [
+          '"joined.list": { kind: "http"; ctx: Routes["/joined/x"]["get"]["ctx"] }',
+          '"slashed.list": { kind: "http"; ctx: Routes["/slashed"]["get"]["ctx"] }',
+        ],
+        [
+          "ctx: WithOutput<BaseCtx & { joined: number } & { readonly meta: Readonly<Partial<HttpMeta>> }, never>",
+          'ctx: WithOutput<BaseCtx & { slashed: number } & { readonly meta: Readonly<Partial<HttpMeta>>; readonly routePattern: "/slashed" }, never>',
+        ],
+      ]);
+    },
+    SLOW,
+  );
+});
 
 describe("artifactsOf (bit 19 h2), continued (2)", () => {
-	it(
-		"reports a diagnostic once per generation through the report channel, never through the app's logger",
-		async () => {
-			const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_UNCONVERTIBLE }) })
-			const openApi = [
-				{ path: "a.json", title: "A", version: "1" },
-				{ path: "b.json", title: "B", version: "1" },
-			]
-			const logged = ((globalThis as { appLines?: string[] }).appLines = [])
-			const { reports } = await artifacts({ app: "src/app.ts", codegen: { openApi, tree: false, types: true } }, dir)
-			const degraded = reports.filter((line) => line.includes("SCHEMA_DEGRADED"))
-			expect([degraded, logged]).toEqual([
-				[
-					'[backend:openapi] SCHEMA_DEGRADED: POST /custom: no JSON Schema converter for vendor "custom" (input); documented unconstrained',
-				],
-				[],
-			])
-		},
-		SLOW,
-	)
-	it(
-		"builds types alone for routes naming a security scheme no OpenAPI output declares",
-		async () => {
-			const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_SECURED }) })
-			const { files } = await artifacts({ app: "src/app.ts", codegen: { tree: false, types: true } }, dir)
-			expect(files["src/_gen/types.gen.d.ts"]).toContain(
-				'"secured.list": { kind: "http"; ctx: Routes["/secured"]["get"]["ctx"] }',
-			)
-		},
-		SLOW,
-	)
-	it("refuses types for a gateway with no app, its types having no module to be read from", async () => {
-		const made = fresh({ "src/down.ts": appSource() })
-		made.write(
-			"src/routes.ts",
-			'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n',
-		)
-		await expect(artifacts({ codegen: { mergeTree: "src/routes.ts", types: true } }, made.dir)).rejects.toThrow(
-			"codegen.types with codegen.mergeTree needs a gateway app: config.app, or the merge entry's app export",
-		)
-	})
-})
+  it(
+    "reports a diagnostic once per generation through the report channel, never through the app's logger",
+    async () => {
+      const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_UNCONVERTIBLE }) });
+
+      const openApi = [
+        { path: "a.json", title: "A", version: "1" },
+        { path: "b.json", title: "B", version: "1" },
+      ];
+
+      const logged = ((globalThis as { appLines?: string[] }).appLines = []);
+      const { reports } = await artifacts({ app: "src/app.ts", codegen: { openApi, tree: false, types: true } }, dir);
+      const degraded = reports.filter((line) => line.includes("SCHEMA_DEGRADED"));
+      expect([degraded, logged]).toEqual([
+        [
+          '[backend:openapi] SCHEMA_DEGRADED: POST /custom: no JSON Schema converter for vendor "custom" (input); documented unconstrained',
+        ],
+        [],
+      ]);
+    },
+    SLOW,
+  );
+  it(
+    "names the base context type the types option gives, in place of the default",
+    async () => {
+      const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_SECURED }) });
+
+      const built = await artifacts(
+        { app: "src/app.ts", codegen: { tree: false, types: { baseCtxName: "AppCtx" } } },
+        dir,
+      );
+
+      const named = built.files["src/_gen/types.gen.d.ts"] ?? "";
+
+      expect([named.includes("AppCtx"), named.includes("BaseCtx")]).toStrictEqual([true, false]);
+    },
+    SLOW,
+  );
+  it(
+    "builds types alone for routes naming a security scheme no OpenAPI output declares",
+    async () => {
+      const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_SECURED }) });
+      const { files } = await artifacts({ app: "src/app.ts", codegen: { tree: false, types: true } }, dir);
+      expect(files["src/_gen/types.gen.d.ts"]).toContain(
+        '"secured.list": { kind: "http"; ctx: Routes["/secured"]["get"]["ctx"] }',
+      );
+    },
+    SLOW,
+  );
+  it("refuses types for a gateway with no app, its types having no module to be read from", async () => {
+    const made = fresh({ "src/down.ts": appSource() });
+    made.write(
+      "src/routes.ts",
+      'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n',
+    );
+    await expect(artifacts({ codegen: { mergeTree: "src/routes.ts", types: true } }, made.dir)).rejects.toThrow(
+      "codegen.types with codegen.mergeTree needs a gateway app: config.app, or the merge entry's app export",
+    );
+  });
+});
 
 describe("prepare: the tree written first (bit 19 h2)", () => {
-	const GATEWAY = {
-		"src/app.ts":
-			'import { httpApp } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = httpApp().routeTree(routeTree)\n',
-		"src/down.ts": appSource(),
-		"src/routes.ts":
-			'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n',
-	}
+  const GATEWAY = {
+    "src/app.ts":
+      'import { httpApp } from "@workerstack/backend/http"\nimport { routeTree } from "./_gen/routes.gen.ts"\nexport const app = httpApp().routeTree(routeTree)\n',
+    "src/down.ts": appSource(),
+    "src/routes.ts":
+      'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "./down.ts"\nexport const tree = mergeTree([app.toRouteTree(), {}])\n',
+  };
 
-	it("asks a gateway whose app loads the tree to write it first while it is missing or stale, then not", async () => {
-		const config = { app: "src/app.ts", codegen: { mergeTree: "src/routes.ts" } }
-		const missing = await artifacts(config, fresh(GATEWAY).dir)
-		const stale = await artifacts(
-			config,
-			fresh({ ...GATEWAY, "src/_gen/routes.gen.ts": `${missing.rewrite?.[1]}// edited\n` }).dir,
-		)
-		expect([missing.rewrite?.[0], stale.rewrite?.[1]]).toEqual(["src/_gen/routes.gen.ts", missing.rewrite?.[1]])
-		/* a fresh project, since the test runner keeps an import that failed: the tree as written is current */
-		const current = await artifacts(
-			config,
-			fresh({ ...GATEWAY, "src/_gen/routes.gen.ts": missing.rewrite?.[1] as string }).dir,
-		)
-		expect(current.rewrite).toBeUndefined()
-	})
+  it("asks a gateway whose app loads the tree to write it first while it is missing or stale, then not", async () => {
+    const config = { app: "src/app.ts", codegen: { mergeTree: "src/routes.ts" } };
+    const missing = await artifacts(config, fresh(GATEWAY).dir);
 
-	it("asks nothing of an app that does not load its tree, of a later pass, or with no tree to write", async () => {
-		const made = fresh({ ...GATEWAY, "src/_gen/routes.gen.ts": "stale" })
-		const run = { codegen, load: native, root: made.dir }
-		const plain = await prepare(resolveBackendConfig({ app: "src/down.ts" }), { ...run, first: true })
-		const later = resolveBackendConfig({ app: "src/down.ts", codegen: { mergeTree: "src/routes.ts" } })
-		const off = resolveBackendConfig({ app: "src/down.ts", codegen: { mergeTree: "src/routes.ts", tree: false } })
-		const results = [plain, await prepare(later, { ...run, first: false }), await prepare(off, { ...run, first: true })]
-		expect(results.map(({ rewrite }) => rewrite)).toEqual([undefined, undefined, undefined])
-	})
-})
+    const stale = await artifacts(
+      config,
+      fresh({ ...GATEWAY, "src/_gen/routes.gen.ts": `${missing.rewrite?.[1]}// edited\n` }).dir,
+    );
+
+    expect([missing.rewrite?.[0], stale.rewrite?.[1]]).toEqual(["src/_gen/routes.gen.ts", missing.rewrite?.[1]]);
+
+    // a fresh project, since the test runner keeps an import that failed: the tree as written is current
+    const current = await artifacts(
+      config,
+      fresh({ ...GATEWAY, "src/_gen/routes.gen.ts": missing.rewrite?.[1] as string }).dir,
+    );
+
+    expect(current.rewrite).toBeUndefined();
+  });
+
+  it("asks nothing of an app that does not load its tree, of a later pass, or with no tree to write", async () => {
+    const made = fresh({ ...GATEWAY, "src/_gen/routes.gen.ts": "stale" });
+    const run = { codegen, load: native, root: made.dir };
+    const plain = await prepare(resolveBackendConfig({ app: "src/down.ts" }), { ...run, first: true });
+    const later = resolveBackendConfig({ app: "src/down.ts", codegen: { mergeTree: "src/routes.ts" } });
+    const off = resolveBackendConfig({ app: "src/down.ts", codegen: { mergeTree: "src/routes.ts", tree: false } });
+
+    const results = [
+      plain,
+      await prepare(later, { ...run, first: false }),
+      await prepare(off, { ...run, first: true }),
+    ];
+
+    expect(results.map(({ rewrite }) => rewrite)).toEqual([undefined, undefined, undefined]);
+  });
+});
 
 describe("virtualCode (bit 19 h2)", () => {
-	it("gives the route tree, the manifest and the first document as module code, a gateway's from its merge entry", async () => {
-		const made = fresh({ "down/app.ts": appSource() })
-		made.write(
-			"src/routes.ts",
-			'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "../down/app.ts"\nexport const tree = mergeTree([app.toRouteTree(), { worker: "down" }])\n',
-		)
-		const config = resolveBackendConfig({
-			codegen: {
-				manifest: true,
-				mergeTree: "src/routes.ts",
-				openApi: [output({ title: "First" }), output({ title: "Second" })],
-			},
-		})
-		const run = { codegen: async () => codegen, load: native, root: made.dir }
-		const [routes, manifest, document] = await Promise.all(
-			(["routes", "manifest", "openApi"] as const).map((kind) => virtualCode(kind, config, run)),
-		)
-		expect(routes).toMatch(/"POST \/items"/)
-		const value = (code: string | undefined) =>
-			JSON.parse(String(code).replace(/^export default /, "")) as Record<string, unknown>
-		expect([(value(manifest).routes as unknown[]).length, value(document).info]).toEqual([
-			2,
-			{ title: "First", version: "1" },
-		])
-	})
+  it("gives the route tree, the manifest and the first document as module code, a gateway's from its merge entry", async () => {
+    const made = fresh({ "down/app.ts": appSource() });
+    made.write(
+      "src/routes.ts",
+      'import { mergeTree } from "@workerstack/backend/http"\nimport { app } from "../down/app.ts"\nexport const tree = mergeTree([app.toRouteTree(), { worker: "down" }])\n',
+    );
 
-	it(
-		"reports none of the document's diagnostics on a module load, since the generation already did",
-		async () => {
-			const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_UNCONVERTIBLE }) })
-			const config = resolveBackendConfig({ app: "src/app.ts", codegen: { openApi: [output({ title: "T" })] } })
-			const logged = ((globalThis as { appLines?: string[] }).appLines = [])
-			let printed = ""
-			vi.spyOn(process.stderr, "write").mockImplementation((chunk) => ((printed += String(chunk)), true))
-			const code = await virtualCode("openApi", config, { codegen: async () => codegen, load: native, root: dir })
-			vi.restoreAllMocks()
-			expect([code.includes('"/custom"'), printed, logged]).toEqual([true, "", []])
-		},
-		SLOW,
-	)
-})
+    const config = resolveBackendConfig({
+      codegen: {
+        manifest: true,
+        mergeTree: "src/routes.ts",
+        openApi: [output({ title: "First" }), output({ title: "Second" })],
+      },
+    });
+
+    const run = { codegen: async () => codegen, load: native, root: made.dir };
+
+    const [routes, manifest, document] = await Promise.all(
+      (["routes", "manifest", "openApi"] as const).map((kind) => virtualCode(kind, config, run)),
+    );
+
+    expect(routes).toMatch(/"POST \/items"/);
+
+    const value = (code: string | undefined) =>
+      JSON.parse(String(code).replace(/^export default /, "")) as Record<string, unknown>;
+
+    expect([(value(manifest).routes as unknown[]).length, value(document).info]).toEqual([
+      2,
+      { title: "First", version: "1" },
+    ]);
+  });
+
+  it(
+    "reports none of the document's diagnostics on a module load, since the generation already did",
+    async () => {
+      const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_UNCONVERTIBLE }) });
+      const config = resolveBackendConfig({ app: "src/app.ts", codegen: { openApi: [output({ title: "T" })] } });
+      const logged = ((globalThis as { appLines?: string[] }).appLines = []);
+      let printed = "";
+      vi.spyOn(process.stderr, "write").mockImplementation((chunk) => ((printed += String(chunk)), true));
+      const code = await virtualCode("openApi", config, { codegen: async () => codegen, load: native, root: dir });
+      vi.restoreAllMocks();
+      expect([code.includes('"/custom"'), printed, logged]).toEqual([true, "", []]);
+    },
+    SLOW,
+  );
+});
 
 describe("sourceOf, natively (bit 19 h2)", () => {
-	it("imports the app into this core's graph, its default export when it names no app", async () => {
-		const { dir } = fresh({ "src/app.ts": appSource({ named: false }) })
-		const source = await sourceOf(resolveBackendConfig({ app: "src/app.ts" }), dir, native)
-		const { entry, exportName } = await source.documented()
-		expect([exportName, entry, Object.keys(source.tree.routes)]).toEqual([
-			"default",
-			join(dir, "src/app.ts"),
-			["GET /health", "POST /items"],
-		])
-	})
-})
+  it("imports the app into this core's graph, its default export when it names no app", async () => {
+    const { dir } = fresh({ "src/app.ts": appSource({ named: false }) });
+    const source = await sourceOf(resolveBackendConfig({ app: "src/app.ts" }), dir, native);
+    const { entry, exportName } = await source.documented();
+    expect([exportName, entry, Object.keys(source.tree.routes)]).toEqual([
+      "default",
+      join(dir, "src/app.ts"),
+      ["GET /health", "POST /items"],
+    ]);
+  });
+});
 
-/* a tool requiring the `k` scheme */
+// a tool requiring the `k` scheme
 const WITH_TOOL = [
-	'\t.post("/orders")',
-	'\t.meta({ operationId: "orders.create", mcp: true, security: [{ k: [] }] } as never)',
-	'\t.handler((c) => c.res.text("ok", "o"))',
-]
+  '\t.post("/orders")',
+  '\t.meta({ operationId: "orders.create", mcp: true, security: [{ k: [] }] } as never)',
+  '\t.handler((c) => c.res.text("ok", "o"))',
+];
 
 describe("artifactsOf's MCP handler (bit 21 e)", () => {
-	it("writes the handler and its companions, its name and version its own or the first output's, the schemes declared", async () => {
-		const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_TOOL }) })
-		const k = { in: "header", name: "X-K", type: "apiKey" }
-		const bare = (
-			await artifacts({ app: "src/app.ts", codegen: { mcp: true, securitySchemes: { k }, tree: false } }, dir)
-		).files
-		const own = (
-			await artifacts(
-				{
-					app: "src/app.ts",
-					codegen: {
-						mcp: { name: "shop", path: "gen/shop.ts" },
-						openApi: [
-							{ path: "o.json", title: "T", version: "4" },
-							{ path: "p.json", title: "P", version: "5" },
-						],
-						securitySchemes: { k: { ...k, name: "X-Other" } },
-						tree: false,
-					},
-				},
-				dir,
-			)
-		).files
-		const stated = (entry: string | undefined) =>
-			["name", "version", "credentials", "secured"].map(
-				(key) => new RegExp(`${key}: ([^,\\n]+)`).exec((entry ?? "").split("export const mcpHandler")[1] ?? "")?.[1],
-			)
-		expect([
-			Object.keys(bare),
-			stated(bare["src/_gen/mcp.gen.ts"]),
-			Object.keys(own).filter((path) => path.startsWith("gen/")),
-			stated(own["gen/shop.ts"]),
-		]).toEqual([
-			["src/_gen/mcp.gen.ts", ...MCP_COMPANIONS.map((name) => `src/_gen/mcp/${name}`)],
-			['"api"', '"0.0.0" }', '["x-k"]', "true"],
-			["gen/shop.ts", ...MCP_COMPANIONS.map((name) => `gen/shop/${name}`)],
-			['"shop"', '"4" }', '["x-other"]', "true"],
-		])
-	})
-})
+  it("writes the handler and its companions, its name and version its own or the first output's, the schemes declared", async () => {
+    const { dir } = fresh({ "src/app.ts": appSource({ extra: WITH_TOOL }) });
+    const k = { in: "header", name: "X-K", type: "apiKey" };
+
+    const bare = (
+      await artifacts({ app: "src/app.ts", codegen: { mcp: true, securitySchemes: { k }, tree: false } }, dir)
+    ).files;
+
+    const own = (
+      await artifacts(
+        {
+          app: "src/app.ts",
+          codegen: {
+            mcp: { name: "shop", path: "gen/shop.ts" },
+            openApi: [
+              { path: "o.json", title: "T", version: "4" },
+              { path: "p.json", title: "P", version: "5" },
+            ],
+            securitySchemes: { k: { ...k, name: "X-Other" } },
+            tree: false,
+          },
+        },
+        dir,
+      )
+    ).files;
+
+    const stated = (entry: string | undefined) =>
+      ["name", "version", "credentials", "secured"].map(
+        (key) => new RegExp(`${key}: ([^,\\n]+)`).exec((entry ?? "").split("export const mcpHandler")[1] ?? "")?.[1],
+      );
+
+    expect([
+      Object.keys(bare),
+      stated(bare["src/_gen/mcp.gen.ts"]),
+      Object.keys(own).filter((path) => path.startsWith("gen/")),
+      stated(own["gen/shop.ts"]),
+    ]).toEqual([
+      ["src/_gen/mcp.gen.ts", ...MCP_COMPANIONS.map((name) => `src/_gen/mcp/${name}`)],
+      ['"api"', '"0.0.0" }', '["x-k"]', "true"],
+      ["gen/shop.ts", ...MCP_COMPANIONS.map((name) => `gen/shop/${name}`)],
+      ['"shop"', '"4" }', '["x-other"]', "true"],
+    ]);
+  });
+});

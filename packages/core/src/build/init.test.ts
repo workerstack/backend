@@ -4,23 +4,26 @@
  * existing app refused without --force and overwritten with it; an existing package.json's scripts and type kept and
  * reported; the scaffolded app serving /health, its document and its docs on v1's own source.
  */
-import { execFile } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
-import { promisify } from "node:util"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { parseInitFlags } from "./cli-args.ts"
-import { runInit } from "./init.ts"
+import { execFile } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { promisify } from "node:util";
 
-const SRC = new URL("../", import.meta.url).pathname
-let dir = ""
-let lines: string[] = []
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { parseInitFlags } from "./cli-args.ts";
+import { runInit } from "./init.ts";
+
+const SRC = new URL("../", import.meta.url).pathname;
+let dir = "";
+let lines: string[] = [];
 
 /** `backend init` with `argv` in the temp project: its stdout lines. */
 function init(argv: string[] = []): string[] {
-	lines = []
-	runInit(dir, parseInitFlags(argv), (line) => lines.push(line))
-	return lines
+  lines = [];
+  runInit(dir, parseInitFlags(argv), (line) => lines.push(line));
+
+  return lines;
 }
 
 /**
@@ -35,174 +38,183 @@ const get = (path) => app.fetch(new Request("http://x" + path), {})
 const [health, spec, docs] = await Promise.all([get("/health"), get("/openapi.json"), get("/docs")])
 const document = await spec.json()
 console.log(JSON.stringify([health.status, await health.text(), document.openapi, document.info.title, docs.status, (await docs.text()).includes("scalar")]))
-`
+`;
 
 /** `dir`'s node_modules holding backend as this package and zod as the repo's, as a user's install would. */
 function linkInstall() {
-	mkdirSync(join(dir, "node_modules/@workerstack"), { recursive: true })
-	symlinkSync(join(SRC, ".."), join(dir, "node_modules/@workerstack/backend"), "dir")
-	symlinkSync(join(SRC, "../../../node_modules/zod"), join(dir, "node_modules/zod"), "dir")
+  mkdirSync(join(dir, "node_modules/@workerstack"), { recursive: true });
+  symlinkSync(join(SRC, ".."), join(dir, "node_modules/@workerstack/backend"), "dir");
+  symlinkSync(join(SRC, "../../../node_modules/zod"), join(dir, "node_modules/zod"), "dir");
 }
 
-const read = (rel: string) => readFileSync(join(dir, rel), "utf8")
-const pkg = () => JSON.parse(read("package.json")) as Record<string, Record<string, string> | string | boolean>
+const read = (rel: string) => readFileSync(join(dir, rel), "utf8");
+const pkg = () => JSON.parse(read("package.json")) as Record<string, Record<string, string> | string | boolean>;
 
 beforeEach(() => {
-	dir = mkdtempSync(join(process.env.TMPDIR ?? "/tmp", "backend-init-"))
-})
+  dir = mkdtempSync(join(process.env.TMPDIR ?? "/tmp", "backend-init-"));
+});
 
-afterEach(() => rmSync(dir, { force: true, recursive: true }))
+afterEach(() => rmSync(dir, { force: true, recursive: true }));
 
 describe("backend init", () => {
-	// v0: 9789105764
-	it("writes app, worker, wrangler.jsonc, vite config, and package scripts", () => {
-		expect(init()).toEqual(["backend: initialized"])
-		expect({
-			app:
-				read("src/app.ts").includes('get("/health")') &&
-				read("src/app.ts").includes('operationId: "health.check"') &&
-				read("src/app.ts").includes("serveOpenApi("),
-			pkg: pkg(),
-			server: existsSync(join(dir, "src/server.ts")),
-			vite: read("vite.config.ts").includes('from "@workerstack/backend/plugin"'),
-			wrangler: read("wrangler.jsonc").includes('"main": "src/worker.ts"'),
-		}).toEqual({
-			app: true,
-			pkg: {
-				dependencies: { "@workerstack/backend": expect.stringMatching(/^\^\d+\.\d+\.\d+/) },
-				devDependencies: { wrangler: "^4" },
-				name: expect.stringMatching(/^backend-init-/),
-				private: true,
-				scripts: { dev: "wrangler dev", generate: "backend generate" },
-				type: "module",
-			},
-			server: false,
-			vite: true,
-			wrangler: true,
-		})
-	})
+  // v0: 9789105764
+  it("writes app, worker, wrangler.jsonc, vite config, and package scripts", () => {
+    expect(init()).toEqual(["backend: initialized"]);
+    expect({
+      app:
+        read("src/app.ts").includes('get("/health")') &&
+        read("src/app.ts").includes('operationId: "health.check"') &&
+        read("src/app.ts").includes("serveOpenApi("),
+      pkg: pkg(),
+      server: existsSync(join(dir, "src/server.ts")),
+      vite: read("vite.config.ts").includes('from "@workerstack/backend/plugin"'),
+      wrangler: read("wrangler.jsonc").includes('"main": "src/worker.ts"'),
+    }).toEqual({
+      app: true,
+      pkg: {
+        dependencies: { "@workerstack/backend": expect.stringMatching(/^\^\d+\.\d+\.\d+/) },
+        devDependencies: { wrangler: "^4" },
+        name: expect.stringMatching(/^backend-init-/),
+        private: true,
+        scripts: { dev: "wrangler dev", generate: "backend generate" },
+        type: "module",
+      },
+      server: false,
+      vite: true,
+      wrangler: true,
+    });
+  });
 
-	// v0: e534d87134
-	it("refuses to overwrite an existing app without --force", () => {
-		mkdirSync(join(dir, "src"))
-		writeFileSync(join(dir, "src/app.ts"), "export const app = null\n")
-		expect(() => init()).toThrow("src/app.ts already exists: rerun with --force to overwrite it")
-		expect([read("src/app.ts"), existsSync(join(dir, "package.json"))]).toEqual(["export const app = null\n", false])
-	})
+  // v0: e534d87134
+  it("refuses to overwrite an existing app without --force", () => {
+    mkdirSync(join(dir, "src"));
+    writeFileSync(join(dir, "src/app.ts"), "export const app = null\n");
+    expect(() => init()).toThrow("src/app.ts already exists: rerun with --force to overwrite it");
+    expect([read("src/app.ts"), existsSync(join(dir, "package.json"))]).toEqual(["export const app = null\n", false]);
+  });
 
-	// v0: d9916786ef
-	it("overwrites an existing app with --force", () => {
-		mkdirSync(join(dir, "src"))
-		writeFileSync(join(dir, "src/app.ts"), "export const app = null\n")
-		init(["--force"])
-		expect([
-			read("src/app.ts").includes("null"),
-			read("src/app.ts").includes('from "@workerstack/backend/http"'),
-		]).toEqual([false, true])
-	})
+  // v0: d9916786ef
+  it("overwrites an existing app with --force", () => {
+    mkdirSync(join(dir, "src"));
+    writeFileSync(join(dir, "src/app.ts"), "export const app = null\n");
+    init(["--force"]);
+    expect([
+      read("src/app.ts").includes("null"),
+      read("src/app.ts").includes('from "@workerstack/backend/http"'),
+    ]).toEqual([false, true]);
+  });
 
-	// v0: 2bf1aba4cd
-	it("writes a worker that exports fetch, and --workers is gone", () => {
-		init()
-		const worker = read("src/worker.ts")
-		expect(["workersWebSocket", "export default", "app.fetch"].every((part) => worker.includes(part))).toBe(true)
-		expect(() => parseInitFlags(["--workers"])).toThrow("unknown option --workers")
-	})
-})
+  // v0: 2bf1aba4cd
+  it("writes a worker that exports fetch, and --workers is gone", () => {
+    init();
+    const worker = read("src/worker.ts");
+    expect(["workersWebSocket", "export default", "app.fetch"].every((part) => worker.includes(part))).toBe(true);
+    expect(() => parseInitFlags(["--workers"])).toThrow("unknown option --workers");
+  });
+});
 
-/* a spawned bun process, as cli.test's legs: 0.3-0.6 s here even with coverage under load, yet it once passed vitest's
-   5 s default in a full parallel run (bit 20 d) that no rerun reproduced; a process start gets the spawning legs' bound */
-const SPAWN = 60_000
+// a spawned bun process, as cli.test's legs: 0.3-0.6 s here even with coverage under load, yet it once passed vitest's
+// 5 s default in a full parallel run (bit 20 d) that no rerun reproduced; a process start gets the spawning legs' bound
+const SPAWN = 60_000;
 
 describe("the scaffolded app", () => {
-	// v0: b3cda555b0
-	it(
-		"scaffolded app can serve /health and /openapi.json",
-		async () => {
-			init()
-			linkInstall()
-			const { stdout } = await promisify(execFile)(
-				"bun",
-				["--no-install", "--conditions=backend-source", "-e", served(join(dir, "src/app.ts"))],
-				{ cwd: dir },
-			)
-			expect(JSON.parse(stdout)).toEqual([200, "ok", "3.2.1", "Backend", 200, true])
-		},
-		SPAWN,
-	)
-})
+  // v0: b3cda555b0
+  it(
+    "scaffolded app can serve /health and /openapi.json",
+    async () => {
+      init();
+      linkInstall();
+
+      const { stdout } = await promisify(execFile)(
+        "bun",
+        ["--no-install", "--conditions=backend-source", "-e", served(join(dir, "src/app.ts"))],
+        { cwd: dir },
+      );
+
+      expect(JSON.parse(stdout)).toEqual([200, "ok", "3.2.1", "Backend", 200, true]);
+    },
+    SPAWN,
+  );
+});
 
 describe("backend init and an existing package.json", () => {
-	// v0: 6fcf217154
-	it("keeps an existing package.json's scripts, type and privacy without --force", () => {
-		const original = {
-			dependencies: { zod: "^4.0.0" },
-			name: "existing",
-			scripts: { dev: "node server.js", generate: "make gen", test: "vitest" },
-		}
-		writeFileSync(join(dir, "package.json"), JSON.stringify(original))
-		const out = init()
-		expect(pkg()).toEqual({
-			dependencies: { "@workerstack/backend": expect.any(String), zod: "^4.0.0" },
-			devDependencies: { wrangler: "^4" },
-			name: "existing",
-			scripts: original.scripts,
-		})
-		expect(out).toEqual([
-			'backend: kept scripts.dev ("node server.js"); backend expects "wrangler dev"',
-			'backend: kept scripts.generate ("make gen"); backend expects "backend generate"',
-			'backend: package.json has no "type"; the scaffold is ESM: set "type": "module", or rerun with --force',
-			"backend: initialized",
-		])
-	})
+  // v0: 6fcf217154
+  it("keeps an existing package.json's scripts, type and privacy without --force", () => {
+    const original = {
+      dependencies: { zod: "^4.0.0" },
+      name: "existing",
+      scripts: { dev: "node server.js", generate: "make gen", test: "vitest" },
+    };
 
-	// v0: 594d6c8fc8
-	it("--force updates the backend scripts and type of an existing package.json", () => {
-		const scripts = { dev: "node server.js", test: "vitest" }
-		writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "existing", scripts, type: "commonjs" }))
-		init(["--force"])
-		/* an explicit type is the project's choice */
-		expect([pkg().scripts, pkg().type]).toEqual([
-			{ dev: "wrangler dev", generate: "backend generate", test: "vitest" },
-			"commonjs",
-		])
-	})
+    writeFileSync(join(dir, "package.json"), JSON.stringify(original));
+    const out = init();
+    expect(pkg()).toEqual({
+      dependencies: { "@workerstack/backend": expect.any(String), zod: "^4.0.0" },
+      devDependencies: { wrangler: "^4" },
+      name: "existing",
+      scripts: original.scripts,
+    });
+    expect(out).toEqual([
+      'backend: kept scripts.dev ("node server.js"); backend expects "wrangler dev"',
+      'backend: kept scripts.generate ("make gen"); backend expects "backend generate"',
+      'backend: package.json has no "type"; the scaffold is ESM: set "type": "module", or rerun with --force',
+      "backend: initialized",
+    ]);
+  });
 
-	// v0: f384f4046d
-	it("unknown flags fail", () => {
-		expect(() => parseInitFlags(["--forse"])).toThrow("unknown option --forse")
-	})
-})
+  // v0: 594d6c8fc8
+  it("--force updates the backend scripts and type of an existing package.json", () => {
+    const scripts = { dev: "node server.js", test: "vitest" };
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "existing", scripts, type: "commonjs" }));
+    init(["--force"]);
+    // an explicit type is the project's choice
+    expect([pkg().scripts, pkg().type]).toEqual([
+      { dev: "wrangler dev", generate: "backend generate", test: "vitest" },
+      "commonjs",
+    ]);
+  });
+
+  // v0: f384f4046d
+  it("unknown flags fail", () => {
+    expect(() => parseInitFlags(["--forse"])).toThrow("unknown option --forse");
+  });
+});
 
 describe("backend init over a package.json it cannot use as is (bit 19 h1)", () => {
-	it("keeps an existing backend dependency without --force, and names a symbol-only directory backend-app", () => {
-		writeFileSync(join(dir, "package.json"), JSON.stringify({ dependencies: { "@workerstack/backend": "^0.9.0" } }))
-		init()
-		const unnamed = join(dir, "-!-")
-		mkdirSync(unnamed)
-		runInit(unnamed, parseInitFlags([]), () => {})
-		const name = (JSON.parse(readFileSync(join(unnamed, "package.json"), "utf8")) as { name: string }).name
-		expect([pkg().dependencies, name]).toEqual([{ "@workerstack/backend": "^0.9.0" }, "backend-app"])
-	})
+  it("keeps an existing backend dependency without --force, and names a symbol-only directory backend-app", () => {
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ dependencies: { "@workerstack/backend": "^0.9.0" } }));
+    init();
+    const unnamed = join(dir, "-!-");
+    mkdirSync(unnamed);
+    runInit(unnamed, parseInitFlags([]), () => {});
+    const name = (JSON.parse(readFileSync(join(unnamed, "package.json"), "utf8")) as { name: string }).name;
+    expect([pkg().dependencies, name]).toEqual([{ "@workerstack/backend": "^0.9.0" }, "backend-app"]);
+  });
 
-	it("keeps an existing wrangler devDependency without --force, and sets its own with it", () => {
-		writeFileSync(join(dir, "package.json"), JSON.stringify({ devDependencies: { wrangler: "3.0.0" }, type: "module" }))
-		init()
-		const kept = pkg().devDependencies
-		init(["--force"])
-		expect([kept, pkg().devDependencies]).toEqual([{ wrangler: "3.0.0" }, { wrangler: "^4" }])
-	})
+  it("keeps an existing wrangler devDependency without --force, and sets its own with it", () => {
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify({ devDependencies: { wrangler: "3.0.0" }, type: "module" }),
+    );
+    init();
+    const kept = pkg().devDependencies;
+    init(["--force"]);
+    expect([kept, pkg().devDependencies]).toEqual([{ wrangler: "3.0.0" }, { wrangler: "^4" }]);
+  });
 
-	it("refuses a package.json that is no JSON, or no object, naming it", () => {
-		const refused = (text: string) => {
-			writeFileSync(join(dir, "package.json"), text)
-			try {
-				init(["--force"])
-				return "accepted"
-			} catch (error) {
-				return (error as Error).message
-			}
-		}
-		expect([refused("{"), refused("[]")]).toEqual(["package.json is not valid JSON", "package.json must be an object"])
-	})
-})
+  it("refuses a package.json that is no JSON, or no object, naming it", () => {
+    const refused = (text: string) => {
+      writeFileSync(join(dir, "package.json"), text);
+
+      try {
+        init(["--force"]);
+
+        return "accepted";
+      } catch (error) {
+        return (error as Error).message;
+      }
+    };
+
+    expect([refused("{"), refused("[]")]).toEqual(["package.json is not valid JSON", "package.json must be an object"]);
+  });
+});

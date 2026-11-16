@@ -9,29 +9,29 @@
  * through `backendPlugin()`, or a bundler given the `backend-no-output-check` condition, resolves output-check-off.ts
  * instead, so none of this is in that bundle.
  */
-import { EK, HttpError } from "../errors/error.ts"
-import type { MaybePromise } from "../middleware/middleware.ts"
-import { bodyKind } from "../input/body-kind.ts"
-import { isForwarded, isProducedStream, rawBodyOf } from "../response/builder.ts"
-import { parseMediaType } from "../response/media-type.ts"
-import { compileResponseHeaders, type HeadersCheck } from "../response/response-headers.ts"
-import { declaredEvents, type SseCheck } from "../response/sse.ts"
-import { codeToStatusKey, type StatusKey } from "../response/status.ts"
-import { describeIssue, type StandardSchemaLike, type StandardSchemaResult } from "./standard-schema.ts"
-import type { OutputSchemas, HttpProjection } from "../routing/output-types.ts"
-import type { SendCheck } from "../ws/messages.ts"
-import { projected } from "./projection.ts"
-import { type AcceptIssue, type OutputCheck, validateOutput } from "./validate-output.ts"
+import { EK, HttpError } from "../errors/error.ts";
+import { bodyKind } from "../input/body-kind.ts";
+import type { MaybePromise } from "../middleware/middleware.ts";
+import { isForwarded, isProducedStream, rawBodyOf } from "../response/builder.ts";
+import { parseMediaType } from "../response/media-type.ts";
+import { compileResponseHeaders, type HeadersCheck } from "../response/response-headers.ts";
+import { declaredEvents, type SseCheck } from "../response/sse.ts";
+import { codeToStatusKey, type StatusKey } from "../response/status.ts";
+import type { OutputSchemas, HttpProjection } from "../routing/output-types.ts";
+import type { SendCheck } from "../ws/messages.ts";
+import { projected } from "./projection.ts";
+import { describeIssue, type StandardSchemaLike, type StandardSchemaResult } from "./standard-schema.ts";
+import { type AcceptIssue, type OutputCheck, validateOutput } from "./validate-output.ts";
 
 /**
  * The check for a route declaring `schemas`: its declared headers, then its body, cut to what `projection` selects for
  * the request when it names a selection. Only the no-op answers `null`.
  */
 export function outputCheck(
-	schemas: OutputSchemas,
-	projection: ((ctx: object) => HttpProjection | null) | null = null,
+  schemas: OutputSchemas,
+  projection: ((ctx: object) => HttpProjection | null) | null = null,
 ): OutputCheck | null {
-	return compileOutput(schemas, compileResponseHeaders(schemas.headers), projection)
+  return compileOutput(schemas, compileResponseHeaders(schemas.headers), projection);
 }
 
 /**
@@ -39,51 +39,60 @@ export function outputCheck(
  * is refused with the text the log reads. `null` when the route declares no events (`ok: true`, or no stream).
  */
 export function sseCheck(schemas: OutputSchemas): SseCheck | null {
-	const events = declaredEvents(schemas["text/event-stream"]?.ok)
-	if (events === null) return null
-	return (event, data) => {
-		const schema = Object.hasOwn(events, event) ? events[event] : undefined
-		if (schema === undefined) return `sse ${event}: undeclared event`
-		const result = schema["~standard"].validate(data)
-		return result instanceof Promise ? result.then((r) => refusalOf(event, r)) : refusalOf(event, result)
-	}
+  const events = declaredEvents(schemas["text/event-stream"]?.ok);
+
+  if (events === null) return null;
+
+  return (event, data) => {
+    const schema = Object.hasOwn(events, event) ? events[event] : undefined;
+
+    if (schema === undefined) return `sse ${event}: undeclared event`;
+    const result = schema["~standard"].validate(data);
+
+    return result instanceof Promise ? result.then((r) => refusalOf(event, r)) : refusalOf(event, result);
+  };
 }
 
 /** The check of each message a ws route sends against its `send` schema: `null` when it takes it, else the issue. */
 export function wsSendCheck(schema: StandardSchemaLike): SendCheck | null {
-	return (data) => {
-		const result = schema["~standard"].validate(data)
-		return result instanceof Promise ? result.then(issueOf) : issueOf(result)
-	}
+  return (data) => {
+    const result = schema["~standard"].validate(data);
+
+    return result instanceof Promise ? result.then(issueOf) : issueOf(result);
+  };
 }
 
 function issueOf(result: StandardSchemaResult): string | null {
-	const issue = result.issues?.[0]
-	return issue === undefined ? null : describeIssue(issue)
+  const issue = result.issues?.[0];
+
+  return issue === undefined ? null : describeIssue(issue);
 }
 
 function refusalOf(event: string, result: StandardSchemaResult): string | null {
-	const issue = issueOf(result)
-	return issue === null ? null : `sse ${event}: invalid data: ${issue}`
+  const issue = issueOf(result);
+
+  return issue === null ? null : `sse ${event}: invalid data: ${issue}`;
 }
 
 /** The issues `projection`'s selection for `ctx` explains on `data`, if it names one. */
 function cutBy(
-	projection: ((ctx: object) => HttpProjection | null) | null,
-	ctx: object,
-	data: unknown,
+  projection: ((ctx: object) => HttpProjection | null) | null,
+  ctx: object,
+  data: unknown,
 ): AcceptIssue | undefined {
-	const selected = projection?.(ctx) ?? null
-	return selected === null ? undefined : (issue) => projected(issue, data, selected)
+  const selected = projection?.(ctx) ?? null;
+
+  return selected === null ? undefined : (issue) => projected(issue, data, selected);
 }
 
 // per-process-constant: text-codec
-const decoder = /* @__PURE__ */ new TextDecoder()
+const decoder = /* @__PURE__ */ new TextDecoder();
 
 /** The retained body as data: an empty one, as `json(undefined)` writes, is `null`. */
 function parse(raw: string | Uint8Array): unknown {
-	const text = typeof raw === "string" ? raw : decoder.decode(raw)
-	return text.length === 0 ? null : (JSON.parse(text) as unknown)
+  const text = typeof raw === "string" ? raw : decoder.decode(raw);
+
+  return text.length === 0 ? null : (JSON.parse(text) as unknown);
 }
 
 /**
@@ -92,48 +101,61 @@ function parse(raw: string | Uint8Array): unknown {
  * answer passes the body step unread: forwardCheck owns its status and media type.
  */
 export function compileOutput(
-	schemas: OutputSchemas,
-	headers: HeadersCheck | null,
-	projection: ((ctx: object) => HttpProjection | null) | null = null,
+  schemas: OutputSchemas,
+  headers: HeadersCheck | null,
+  projection: ((ctx: object) => HttpProjection | null) | null = null,
 ): OutputCheck {
-	const declared = new Set<string>()
-	for (const key of Object.keys(schemas)) {
-		const mt = key.includes("/") ? parseMediaType(key) : null
-		if (mt !== null) declared.add(mt.essence)
-	}
-	/* a response's status key may be any status, so the 2xx map is read as one keyed by every status */
-	const json = (schemas as Record<string, Partial<Record<StatusKey, StandardSchemaLike | true>> | undefined>)[
-		"application/json"
-	]
-	const body = (response: Response, ctx: object): MaybePromise<Response> => {
-		/* a forwarded answer is forwardCheck's: its status and media type checked there, its body never read */
-		if (bodyKind(response) === "empty" || isForwarded(response)) return response
-		const type = response.headers.get("content-type")
-		if (type === null) return response
-		const essence = parseMediaType(type)?.essence
-		if (essence === undefined || !declared.has(essence)) {
-			throw new HttpError({ errorKey: EK.output_content_type_mismatch, status: "internal_server_error" })
-		}
-		if (essence !== "application/json" || json === undefined || isProducedStream(response)) return response
-		const statusKey = codeToStatusKey[response.status]
-		const schema = statusKey === undefined ? undefined : json[statusKey]
-		if (schema === undefined || schema === true) return response
-		const raw = rawBodyOf(response)
-		if (raw !== null) {
-			const data = parse(raw)
-			const pending = validateOutput(schema, statusKey as string, data, cutBy(projection, ctx, data))
-			return pending === undefined ? response : pending.then(() => response)
-		}
-		/* a body backend did not build: read a copy, hand the client the original */
-		return response
-			.clone()
-			.json()
-			.then((data: unknown) => validateOutput(schema, statusKey as string, data, cutBy(projection, ctx, data)))
-			.then(() => response)
-	}
-	if (headers === null) return body
-	return (response, ctx) => {
-		const pending = headers(response)
-		return pending === undefined ? body(response, ctx) : pending.then(() => body(response, ctx))
-	}
+  const declared = new Set<string>();
+
+  for (const key of Object.keys(schemas)) {
+    const mt = key.includes("/") ? parseMediaType(key) : null;
+
+    if (mt !== null) declared.add(mt.essence);
+  }
+
+  // a response's status key may be any status, so the 2xx map is read as one keyed by every status
+  const json = (schemas as Record<string, Partial<Record<StatusKey, StandardSchemaLike | true>> | undefined>)[
+    "application/json"
+  ];
+
+  const body = (response: Response, ctx: object): MaybePromise<Response> => {
+    // a forwarded answer is forwardCheck's: its status and media type checked there, its body never read
+    if (bodyKind(response) === "empty" || isForwarded(response)) return response;
+    const type = response.headers.get("content-type");
+
+    if (type === null) return response;
+    const essence = parseMediaType(type)?.essence;
+
+    if (essence === undefined || !declared.has(essence))
+      throw new HttpError({ errorKey: EK.output_content_type_mismatch, status: "internal_server_error" });
+
+    if (essence !== "application/json" || json === undefined || isProducedStream(response)) return response;
+    const statusKey = codeToStatusKey[response.status];
+    const schema = statusKey === undefined ? undefined : json[statusKey];
+
+    if (schema === undefined || schema === true) return response;
+    const raw = rawBodyOf(response);
+
+    if (raw !== null) {
+      const data = parse(raw);
+      const pending = validateOutput(schema, statusKey as string, data, cutBy(projection, ctx, data));
+
+      return pending === undefined ? response : pending.then(() => response);
+    }
+
+    // a body backend did not build: read a copy, hand the client the original
+    return response
+      .clone()
+      .json()
+      .then((data: unknown) => validateOutput(schema, statusKey as string, data, cutBy(projection, ctx, data)))
+      .then(() => response);
+  };
+
+  if (headers === null) return body;
+
+  return (response, ctx) => {
+    const pending = headers(response);
+
+    return pending === undefined ? body(response, ctx) : pending.then(() => body(response, ctx));
+  };
 }

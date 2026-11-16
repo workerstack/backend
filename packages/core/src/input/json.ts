@@ -1,19 +1,19 @@
 /** A JSON body as `.input({ json })` declares it. */
-import { EK, HttpError } from "../errors/error.ts"
-import type { StandardSchemaLike } from "../validation/standard-schema.ts"
-import { runSchema } from "../validation/validate-input.ts"
+import { EK, HttpError } from "../errors/error.ts";
+import type { StandardSchemaLike } from "../validation/standard-schema.ts";
+import { runSchema } from "../validation/validate-input.ts";
 
 /** A body the declared parser cannot read: the client's mistake, a 400, never a 500. */
 export function malformedBody(format: "json" | "multipart", cause: unknown): HttpError {
-	return new HttpError({ cause, errorKey: EK.malformed_body, status: "bad_request", vars: { format } })
+  return new HttpError({ cause, errorKey: EK.malformed_body, status: "bad_request", vars: { format } });
 }
 
 function parse(text: string): unknown {
-	try {
-		return JSON.parse(text) as unknown
-	} catch (error) {
-		throw malformedBody("json", error)
-	}
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    throw malformedBody("json", error);
+  }
 }
 
 /**
@@ -21,5 +21,5 @@ function parse(text: string): unknown {
  * `malformed_body`; an error while reading it (a size limit, a client abort) passes through.
  */
 export async function jsonInput(schema: StandardSchemaLike, req: Request): Promise<unknown> {
-	return runSchema(schema, parse(await req.text()), "json")
+  return runSchema(schema, parse(await req.text()), "json");
 }

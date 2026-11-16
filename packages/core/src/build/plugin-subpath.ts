@@ -3,9 +3,9 @@
  * with it stays internal.
  */
 export {
-	type BackendCodegenConfig,
-	type OpenApiOutputConfig,
-	type BackendPlugin,
-	type BackendPluginConfig,
-	backendPlugin,
-} from "./plugin.ts"
+  type BackendCodegenConfig,
+  type OpenApiOutputConfig,
+  type BackendPlugin,
+  type BackendPluginConfig,
+  backendPlugin,
+} from "./plugin.ts";

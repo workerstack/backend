@@ -1,0 +1,7 @@
+{
+  // exclude replaces tsconfig.json's own: its entries, then the Playwright specs
+  // a private app publishes no declarations, so its inferred types need no annotation
+  "compilerOptions": { "isolatedDeclarations": false },
+  "exclude": ["src/load.ts", "src/worker.ts", "**/*.test.ts", "**/*.spec.ts"],
+  "extends": ["./tsconfig.json", "@workerstack/repo/tsconfig/strict"]
+}

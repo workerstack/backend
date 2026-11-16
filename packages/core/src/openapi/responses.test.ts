@@ -1,479 +1,494 @@
-import { describe, expect, it } from "vitest"
-import * as z from "zod"
-import { defineErrors } from "../errors/errors.ts"
-import { createMiddleware } from "../middleware/middleware.ts"
-import { httpApp } from "../routing/app.ts"
-import { generateOpenApi } from "./generate.ts"
+import { describe, expect, it } from "vitest";
+import * as z from "zod";
 
-const INFO = { title: "T", version: "1" }
-type Doc = ReturnType<typeof generateOpenApi>
+import { defineErrors } from "../errors/errors.ts";
+import { createMiddleware } from "../middleware/middleware.ts";
+import { httpApp } from "../routing/app.ts";
+import { generateOpenApi } from "./generate.ts";
+
+const INFO = { title: "T", version: "1" };
+
+type Doc = ReturnType<typeof generateOpenApi>;
+
 type Response = {
-	content?: Record<string, { schema?: unknown }>
-	description: string
-	headers?: Record<string, unknown>
-}
+  content?: Record<string, { schema?: unknown }>;
+  description: string;
+  headers?: Record<string, unknown>;
+};
 
 const responses = (doc: Doc, path: string, method: string | undefined = "get") =>
-	(doc.paths[path]?.[method]?.responses ?? {}) as Record<string, Response>
+  (doc.paths[path]?.[method]?.responses ?? {}) as Record<string, Response>;
 
 /** `schema` with a component reference followed. */
 function resolved(doc: Doc, schema: unknown): Record<string, unknown> {
-	const ref = (schema as { $ref?: string } | undefined)?.$ref
-	if (ref === undefined) return (schema ?? {}) as Record<string, unknown>
-	return doc.components?.schemas?.[ref.split("/").pop() as string] ?? {}
+  const ref = (schema as { $ref?: string } | undefined)?.$ref;
+
+  if (ref === undefined) return (schema ?? {}) as Record<string, unknown>;
+
+  return doc.components?.schemas?.[ref.split("/").pop() as string] ?? {};
 }
 
 /** The error body schema of `status`, under `media`. */
 const errorSchema = (doc: Doc, path: string, status: string, at: { media?: string; method?: string } = {}) =>
-	resolved(doc, responses(doc, path, at.method)[status]?.content?.[at.media ?? "application/json"]?.schema)
+  resolved(doc, responses(doc, path, at.method)[status]?.content?.[at.media ?? "application/json"]?.schema);
 
 const keysOf = (schema: Record<string, unknown>) =>
-	(schema.properties as { error_key?: { enum?: string[] } } | undefined)?.error_key?.enum
+  (schema.properties as { error_key?: { enum?: string[] } } | undefined)?.error_key?.enum;
 
 describe("success responses: by status, by media type", () => {
-	// v0: ca15579e68
-	// v0: 29dac10176
-	// v0: ad4cf8839b
-	// v0: b08bfff521
+  // v0: ca15579e68
+  // v0: 29dac10176
+  // v0: ad4cf8839b
+  // v0: b08bfff521
 
-	it("documents each status key under its code with the converted schema", () => {
-		const app = httpApp<{}>()
-		app
-			.post("/items")
-			.meta({ operationId: "items.create" })
-			.output({
-				"application/json": { created: z.object({ id: z.string() }), ok: z.object({ ids: z.array(z.string()) }) },
-			})
-			.handler((c) => c.res.json("ok", { ids: [] }))
-		const doc = generateOpenApi(app, { info: INFO })
-		const r = responses(doc, "/items", "post")
-		expect([
-			Object.keys(r),
-			r["201"]?.description,
-			resolved(doc, r["201"]?.content?.["application/json"]?.schema),
-		]).toEqual([
-			["200", "201"],
-			"created",
-			{ additionalProperties: false, properties: { id: { type: "string" } }, required: ["id"], type: "object" },
-		])
-	})
+  it("documents each status key under its code with the converted schema", () => {
+    const app = httpApp<{}>();
+    app
+      .post("/items")
+      .meta({ operationId: "items.create" })
+      .output({
+        "application/json": { created: z.object({ id: z.string() }), ok: z.object({ ids: z.array(z.string()) }) },
+      })
+      .handler((c) => c.res.json("ok", { ids: [] }));
+    const doc = generateOpenApi(app, { info: INFO });
+    const r = responses(doc, "/items", "post");
+    expect([
+      Object.keys(r),
+      r["201"]?.description,
+      resolved(doc, r["201"]?.content?.["application/json"]?.schema),
+    ]).toEqual([
+      ["200", "201"],
+      "created",
+      { additionalProperties: false, properties: { id: { type: "string" } }, required: ["id"], type: "object" },
+    ]);
+  });
 
-	// v0: 1fa5da333b
-	// v0: d7d6c63d0f
-})
+  // v0: 1fa5da333b
+  // v0: d7d6c63d0f
+});
 
 describe("success responses: by status, by media type, continued (2)", () => {
-	it("keeps each media type's schema at one status, documents a body with no schema bare, and answers 200 Success for a route that declares nothing", () => {
-		const app = httpApp<{}>()
-		app
-			.get("/doc")
-			.meta({ operationId: "doc.list" })
-			.output({
-				"application/json": { ok: z.object({ id: z.string() }) },
-				"application/pdf": { ok: true },
-				"text/csv": { ok: z.string() },
-			})
-			.handler((c) => c.res.json("ok", { id: "1" }))
-		app
-			.get("/bare")
-			.meta({ operationId: "bare.list" })
-			.handler((c) => c.res.text("ok", "ok"))
-		const doc = generateOpenApi(app, { info: INFO })
-		const content = responses(doc, "/doc")["200"]?.content ?? {}
-		expect([
-			Object.keys(content),
-			content["application/pdf"],
-			resolved(doc, content["text/csv"]?.schema),
-			responses(doc, "/bare"),
-		]).toEqual([
-			["application/json", "application/pdf", "text/csv"],
-			{},
-			{ type: "string" },
-			{ "200": { description: "Success" } },
-		])
-	})
-})
+  it("keeps each media type's schema at one status, documents a body with no schema bare, and answers 200 Success for a route that declares nothing", () => {
+    const app = httpApp<{}>();
+    app
+      .get("/doc")
+      .meta({ operationId: "doc.list" })
+      .output({
+        "application/json": { ok: z.object({ id: z.string() }) },
+        "application/pdf": { ok: true },
+        "text/csv": { ok: z.string() },
+      })
+      .handler((c) => c.res.json("ok", { id: "1" }));
+    app
+      .get("/bare")
+      .meta({ operationId: "bare.list" })
+      .handler((c) => c.res.text("ok", "ok"));
+    const doc = generateOpenApi(app, { info: INFO });
+    const content = responses(doc, "/doc")["200"]?.content ?? {};
+    expect([
+      Object.keys(content),
+      content["application/pdf"],
+      resolved(doc, content["text/csv"]?.schema),
+      responses(doc, "/bare"),
+    ]).toEqual([
+      ["application/json", "application/pdf", "text/csv"],
+      {},
+      { type: "string" },
+      { "200": { description: "Success" } },
+    ]);
+  });
+});
 
 describe("redirects and declared headers", () => {
-	// v0: f5d269dceb
-	// v0: 331c67f8cf
-	// v0: 7c63527a4f
+  // v0: f5d269dceb
+  // v0: 331c67f8cf
+  // v0: 7c63527a4f
 
-	it("documents a redirect by its code with a Location header and no body, beside a JSON answer", () => {
-		const app = httpApp<{}>()
-		app
-			.get("/oauth/callback")
-			.meta({ operationId: "oauth.callback.list" })
-			.output({ redirect: { found: true } })
-			.handler((c) => c.res.redirect("found", "https://example.com"))
-		app
-			.get("/moved")
-			.meta({ operationId: "moved.list" })
-			.output({ redirect: { moved_permanently: true } })
-			.handler((c) => c.res.redirect("moved_permanently", "/new"))
-		app
-			.get("/mixed")
-			.meta({ operationId: "mixed.list" })
-			.output({ "application/json": { ok: z.object({ id: z.string() }) }, redirect: { found: true } })
-			.handler((c) => c.res.json("ok", { id: "1" }))
-		const doc = generateOpenApi(app, { info: INFO })
-		const location = { Location: { description: "Redirect target URL", schema: { format: "uri", type: "string" } } }
-		expect([
-			responses(doc, "/oauth/callback"),
-			responses(doc, "/moved")["301"],
-			Object.keys(responses(doc, "/mixed")),
-		]).toEqual([
-			{ "302": { description: "found", headers: location } },
-			{ description: "moved permanently", headers: location },
-			["200", "302"],
-		])
-	})
+  it("documents a redirect by its code with a Location header and no body, beside a JSON answer", () => {
+    const app = httpApp<{}>();
+    app
+      .get("/oauth/callback")
+      .meta({ operationId: "oauth.callback.list" })
+      .output({ redirect: { found: true } })
+      .handler((c) => c.res.redirect("found", "https://example.com"));
+    app
+      .get("/moved")
+      .meta({ operationId: "moved.list" })
+      .output({ redirect: { moved_permanently: true } })
+      .handler((c) => c.res.redirect("moved_permanently", "/new"));
+    app
+      .get("/mixed")
+      .meta({ operationId: "mixed.list" })
+      .output({ "application/json": { ok: z.object({ id: z.string() }) }, redirect: { found: true } })
+      .handler((c) => c.res.json("ok", { id: "1" }));
+    const doc = generateOpenApi(app, { info: INFO });
+    const location = { Location: { description: "Redirect target URL", schema: { format: "uri", type: "string" } } };
+    expect([
+      responses(doc, "/oauth/callback"),
+      responses(doc, "/moved")["301"],
+      Object.keys(responses(doc, "/mixed")),
+    ]).toEqual([
+      { "302": { description: "found", headers: location } },
+      { description: "moved permanently", headers: location },
+      ["200", "302"],
+    ]);
+  });
 
-	it("documents the headers each status declares, by name, with their schemas and whether they are required", () => {
-		const app = httpApp<{}>()
-		app
-			.post("/users")
-			.meta({ operationId: "users.create" })
-			.output({
-				"application/json": { created: z.object({ id: z.string() }) },
-				headers: {
-					created: z.object({ etag: z.string().optional(), location: z.string() }),
-					found: z.object({ location: z.string() }),
-				},
-				redirect: { found: true },
-			})
-			.handler((c) => c.res.json("created", { id: "1" }, { headers: { location: "/users/1" } }))
-		const r = responses(generateOpenApi(app, { info: INFO }), "/users", "post")
-		expect([r["201"]?.headers, r["302"]?.headers]).toEqual([
-			{
-				etag: { required: false, schema: { type: "string" } },
-				location: { required: true, schema: { type: "string" } },
-			},
-			{ location: { required: true, schema: { type: "string" } } },
-		])
-	})
-})
+  it("documents the headers each status declares, by name, with their schemas and whether they are required", () => {
+    const app = httpApp<{}>();
+    app
+      .post("/users")
+      .meta({ operationId: "users.create" })
+      .output({
+        "application/json": { created: z.object({ id: z.string() }) },
+        headers: {
+          created: z.object({ etag: z.string().optional(), location: z.string() }),
+          found: z.object({ location: z.string() }),
+        },
+        redirect: { found: true },
+      })
+      .handler((c) => c.res.json("created", { id: "1" }, { headers: { location: "/users/1" } }));
+    const r = responses(generateOpenApi(app, { info: INFO }), "/users", "post");
+    expect([r["201"]?.headers, r["302"]?.headers]).toEqual([
+      {
+        etag: { required: false, schema: { type: "string" } },
+        location: { required: true, schema: { type: "string" } },
+      },
+      { location: { required: true, schema: { type: "string" } } },
+    ]);
+  });
+});
 
 describe("a bodiless answer that is no redirect", () => {
-	it("documents a declared 304 by its code with no Location and no body, beside the 200 and 206 it revalidates", () => {
-		const app = httpApp<{}>()
-		app
-			.get("/export.csv")
-			.meta({ operationId: "exportCsv.list" })
-			.output({ "text/csv": { ok: z.string(), partial_content: true }, redirect: { not_modified: true } })
-			.handler((c) => c.res.csv("ok", "id\n1\n"))
-		const doc = generateOpenApi(app, { info: INFO })
-		expect([Object.keys(responses(doc, "/export.csv")), responses(doc, "/export.csv")["304"]]).toEqual([
-			["200", "206", "304"],
-			{ description: "not modified" },
-		])
-	})
-})
+  it("documents a declared 304 by its code with no Location and no body, beside the 200 and 206 it revalidates", () => {
+    const app = httpApp<{}>();
+    app
+      .get("/export.csv")
+      .meta({ operationId: "exportCsv.list" })
+      .output({ redirect: { not_modified: true }, "text/csv": { ok: z.string(), partial_content: true } })
+      .handler((c) => c.res.csv("ok", "id\n1\n"));
+    const doc = generateOpenApi(app, { info: INFO });
+    expect([Object.keys(responses(doc, "/export.csv")), responses(doc, "/export.csv")["304"]]).toEqual([
+      ["200", "206", "304"],
+      { description: "not modified" },
+    ]);
+  });
+});
 
 describe("a declared 204 or 205: no body in the document", () => {
-	it("writes no content for it, in the shorthand or under a media type, and keeps the headers it declares", () => {
-		const row = z.object({ id: z.string() })
-		const app = httpApp<{}>()
-		app
-			.delete("/a")
-			.meta({ operationId: "a.delete" })
-			.output({ headers: { no_content: z.object({ etag: z.string() }) }, no_content: true, ok: row })
-			.handler((c) => c.res.noContent({ headers: { etag: '"v1"' } }))
-		app
-			.post("/b")
-			.meta({ operationId: "b.create" })
-			.output({ "text/csv": { no_content: true, ok: true, reset_content: true } })
-			.handler((c) => c.res.noContent())
-		const doc = generateOpenApi(app, { info: INFO })
-		const [a, b] = [responses(doc, "/a", "delete"), responses(doc, "/b", "post")]
-		expect([
-			a["204"],
-			Object.keys(a["200"]?.content ?? {}),
-			b["204"],
-			b["205"],
-			Object.keys(b["200"]?.content ?? {}),
-		]).toEqual([
-			{ description: "no content", headers: { etag: { required: true, schema: { type: "string" } } } },
-			["application/json"],
-			{ description: "no content" },
-			{ description: "reset content" },
-			["text/csv"],
-		])
-	})
-})
+  it("writes no content for it, in the shorthand or under a media type, and keeps the headers it declares", () => {
+    const row = z.object({ id: z.string() });
+    const app = httpApp<{}>();
+    app
+      .delete("/a")
+      .meta({ operationId: "a.delete" })
+      .output({ headers: { no_content: z.object({ etag: z.string() }) }, no_content: true, ok: row })
+      .handler((c) => c.res.noContent({ headers: { etag: '"v1"' } }));
+    app
+      .post("/b")
+      .meta({ operationId: "b.create" })
+      .output({ "text/csv": { no_content: true, ok: true, reset_content: true } })
+      .handler((c) => c.res.noContent());
+    const doc = generateOpenApi(app, { info: INFO });
+    const [a, b] = [responses(doc, "/a", "delete"), responses(doc, "/b", "post")];
+    expect([
+      a["204"],
+      Object.keys(a["200"]?.content ?? {}),
+      b["204"],
+      b["205"],
+      Object.keys(b["200"]?.content ?? {}),
+    ]).toEqual([
+      { description: "no content", headers: { etag: { required: true, schema: { type: "string" } } } },
+      ["application/json"],
+      { description: "no content" },
+      { description: "reset content" },
+      ["text/csv"],
+    ]);
+  });
+});
 
 describe("errors in backend's envelope (the default format)", () => {
-	// v0: 57edf5ff79
-	// v0: 2b63ae7db8
-	// v0: 9136b422cf
-	// v0: 4544bfa655
-	// v0: 68f4933c56
-	// v0: 08d9f2a22b
+  // v0: 57edf5ff79
+  // v0: 2b63ae7db8
+  // v0: 9136b422cf
+  // v0: 4544bfa655
+  // v0: 68f4933c56
+  // v0: 08d9f2a22b
 
-	it("documents every key of a status in one envelope: its key and status as enums, every field but vars required", () => {
-		const errors = defineErrors({ email_taken: "conflict", forbidden: "forbidden", slug_taken: "conflict" })
-		const app = httpApp<{}>().errorFactory(errors)
-		app
-			.post("/orgs")
-			.meta({ operationId: "orgs.create" })
-			.errors("slug_taken", "email_taken", "forbidden")
-			.handler((c) => c.res.json("ok", {}))
-		const doc = generateOpenApi(app, { info: INFO })
-		expect([
-			Object.keys(responses(doc, "/orgs", "post")),
-			responses(doc, "/orgs", "post")["409"]?.description,
-			errorSchema(doc, "/orgs", "409", { method: "post" }),
-		]).toEqual([
-			["403", "409"],
-			"email_taken, slug_taken",
-			{
-				properties: {
-					error_key: { enum: ["email_taken", "slug_taken"], type: "string" },
-					fields: {
-						additionalProperties: {
-							items: {
-								properties: { error_key: { type: "string" }, message: { type: "string" }, path: { type: "string" } },
-								required: ["error_key", "message", "path"],
-								type: "object",
-							},
-							type: "array",
-						},
-						type: "object",
-					},
-					message: { type: "string" },
-					status: { enum: [409], type: "integer" },
-					status_key: { type: "string" },
-					success: { const: false },
-					vars: { additionalProperties: { type: ["number", "string"] }, type: "object" },
-				},
-				required: ["error_key", "fields", "message", "status", "status_key", "success"],
-				type: "object",
-			},
-		])
-	})
+  it("documents every key of a status in one envelope: its key and status as enums, every field but vars required", () => {
+    const errors = defineErrors({ email_taken: "conflict", forbidden: "forbidden", slug_taken: "conflict" });
+    const app = httpApp<{}>().errorFactory(errors);
+    app
+      .post("/orgs")
+      .meta({ operationId: "orgs.create" })
+      .errors("slug_taken", "email_taken", "forbidden")
+      .handler((c) => c.res.json("ok", {}));
+    const doc = generateOpenApi(app, { info: INFO });
+    expect([
+      Object.keys(responses(doc, "/orgs", "post")),
+      responses(doc, "/orgs", "post")["409"]?.description,
+      errorSchema(doc, "/orgs", "409", { method: "post" }),
+    ]).toEqual([
+      ["403", "409"],
+      "email_taken, slug_taken",
+      {
+        properties: {
+          error_key: { enum: ["email_taken", "slug_taken"], type: "string" },
+          fields: {
+            additionalProperties: {
+              items: {
+                properties: { error_key: { type: "string" }, message: { type: "string" }, path: { type: "string" } },
+                required: ["error_key", "message", "path"],
+                type: "object",
+              },
+              type: "array",
+            },
+            type: "object",
+          },
+          message: { type: "string" },
+          status: { enum: [409], type: "integer" },
+          status_key: { type: "string" },
+          success: { const: false },
+          vars: { additionalProperties: { type: ["number", "string"] }, type: "object" },
+        },
+        required: ["error_key", "fields", "message", "status", "status_key", "success"],
+        type: "object",
+      },
+    ]);
+  });
 
-	// v0: 3f4bf5cb56
-	// v0: bbc57a1707
-})
+  // v0: 3f4bf5cb56
+  // v0: bbc57a1707
+});
 
 describe("errors in backend's envelope (the default format)", () => {
-	it("puts a named key in its own route's enum only, beside the app's default keys", () => {
-		const errors = defineErrors({ item_not_found: "not_found", not_found: "not_found" })
-		const app = httpApp<{}>().errorFactory(errors).defaultErrors("not_found")
-		app
-			.get("/items/:id")
-			.meta({ operationId: "items.retrieve" })
-			.errors("item_not_found")
-			.handler((c) => c.res.json("ok", {}))
-		app
-			.get("/other")
-			.meta({ operationId: "other.list" })
-			.handler((c) => c.res.json("ok", {}))
-		const doc = generateOpenApi(app, { info: INFO })
-		expect([keysOf(errorSchema(doc, "/items/{id}", "404")), keysOf(errorSchema(doc, "/other", "404"))]).toEqual([
-			["item_not_found", "not_found"],
-			["not_found"],
-		])
-	})
-})
+  it("puts a named key in its own route's enum only, beside the app's default keys", () => {
+    const errors = defineErrors({ item_not_found: "not_found", not_found: "not_found" });
+    const app = httpApp<{}>().errorFactory(errors).defaultErrors("not_found");
+    app
+      .get("/items/:id")
+      .meta({ operationId: "items.retrieve" })
+      .errors("item_not_found")
+      .handler((c) => c.res.json("ok", {}));
+    app
+      .get("/other")
+      .meta({ operationId: "other.list" })
+      .handler((c) => c.res.json("ok", {}));
+    const doc = generateOpenApi(app, { info: INFO });
+    expect([keysOf(errorSchema(doc, "/items/{id}", "404")), keysOf(errorSchema(doc, "/other", "404"))]).toEqual([
+      ["item_not_found", "not_found"],
+      ["not_found"],
+    ]);
+  });
+});
 
 describe("errors: a custom envelope schema", () => {
-	// v0: 1bc774a242
-	// v0: 12722ca715
-	// v0: 982ae0db13
-	// v0: e7683d5d1e
+  // v0: 1bc774a242
+  // v0: 12722ca715
+  // v0: 982ae0db13
+  // v0: e7683d5d1e
 
-	it("replaces the envelope with the formatter's schema, injecting the key and status enums only where it has those fields", () => {
-		const errors = defineErrors({ email_taken: "conflict", unauthorized: "unauthorized" })
-		const withKeys = z.object({
-			error_key: z.string(),
-			message: z.string(),
-			status: z.number().int(),
-			success: z.literal(false),
-		})
-		const without = z.object({ code: z.string(), ok: z.literal(false) })
-		const base = () => httpApp<{}>().errorFactory(errors)
-		const schemaUnder = (formatter: (app: ReturnType<typeof base>) => void) => {
-			const app = base()
-			formatter(app)
-			app
-				.post("/a")
-				.meta({ operationId: "a.create" })
-				.errors("email_taken")
-				.handler((c) => c.res.json("ok", {}))
-			return errorSchema(generateOpenApi(app, { info: INFO }), "/a", "409", { method: "post" })
-		}
-		const keyed = schemaUnder((app) =>
-			app.defaultErrorFormatter(withKeys, (e) => ({
-				error_key: e.errorKey,
-				message: e.message,
-				status: e.status,
-				success: false as const,
-			})),
-		)
-		const plain = schemaUnder((app) =>
-			app.defaultErrorFormatter(without, (e) => ({ code: e.errorKey, ok: false as const })),
-		)
-		const fnOnly = schemaUnder((app) => app.defaultErrorFormatter((_e, shape) => ({ ...shape, at: 1 })))
-		expect([
-			keysOf(keyed),
-			(keyed.properties as { status: unknown }).status,
-			Object.keys(plain.properties as object),
-			Object.keys(fnOnly.properties as object),
-		]).toEqual([
-			["email_taken"],
-			{ enum: [409], type: "integer" },
-			["code", "ok"],
-			["error_key", "fields", "message", "status", "status_key", "success", "vars"],
-		])
-	})
+  it("replaces the envelope with the formatter's schema, injecting the key and status enums only where it has those fields", () => {
+    const errors = defineErrors({ email_taken: "conflict", unauthorized: "unauthorized" });
 
-	// v0: 25e0e68c8f
-	// v0: 6744f5498a
-})
+    const withKeys = z.object({
+      error_key: z.string(),
+      message: z.string(),
+      status: z.number().int(),
+      success: z.literal(false),
+    });
+
+    const without = z.object({ code: z.string(), ok: z.literal(false) });
+    const base = () => httpApp<{}>().errorFactory(errors);
+
+    const schemaUnder = (formatter: (app: ReturnType<typeof base>) => void) => {
+      const app = base();
+      formatter(app);
+      app
+        .post("/a")
+        .meta({ operationId: "a.create" })
+        .errors("email_taken")
+        .handler((c) => c.res.json("ok", {}));
+
+      return errorSchema(generateOpenApi(app, { info: INFO }), "/a", "409", { method: "post" });
+    };
+
+    const keyed = schemaUnder((app) =>
+      app.defaultErrorFormatter(withKeys, (e) => ({
+        error_key: e.errorKey,
+        message: e.message,
+        status: e.status,
+        success: false as const,
+      })),
+    );
+
+    const plain = schemaUnder((app) =>
+      app.defaultErrorFormatter(without, (e) => ({ code: e.errorKey, ok: false as const })),
+    );
+
+    const fnOnly = schemaUnder((app) => app.defaultErrorFormatter((_e, shape) => ({ ...shape, at: 1 })));
+    expect([
+      keysOf(keyed),
+      (keyed.properties as { status: unknown }).status,
+      Object.keys(plain.properties as object),
+      Object.keys(fnOnly.properties as object),
+    ]).toEqual([
+      ["email_taken"],
+      { enum: [409], type: "integer" },
+      ["code", "ok"],
+      ["error_key", "fields", "message", "status", "status_key", "success", "vars"],
+    ]);
+  });
+
+  // v0: 25e0e68c8f
+  // v0: 6744f5498a
+});
 
 describe("errors: a custom envelope schema", () => {
-	it("is the app's setting, so it holds under basePath() and use()", () => {
-		const errors = defineErrors({ unauthorized: "unauthorized" })
-		const app = httpApp<{}>()
-			.errorFactory(errors)
-			.defaultErrorFormatter(z.object({ code: z.string(), ok: z.literal(false) }), (e) => ({
-				code: e.errorKey,
-				ok: false as const,
-			}))
-		app
-			.basePath("/v1")
-			.get("/a")
-			.meta({ operationId: "a.list" })
-			.errors("unauthorized")
-			.handler((c) => c.res.json("ok", {}))
-		app
-			.use(createMiddleware(async (_c, next) => next()))
-			.get("/b")
-			.meta({ operationId: "b.list" })
-			.errors("unauthorized")
-			.handler((c) => c.res.json("ok", {}))
-		const doc = generateOpenApi(app, { info: INFO })
-		expect([
-			Object.keys(errorSchema(doc, "/v1/a", "401").properties as object),
-			Object.keys(errorSchema(doc, "/b", "401").properties as object),
-		]).toEqual([
-			["code", "ok"],
-			["code", "ok"],
-		])
-	})
-})
+  it("is the app's setting, so it holds under basePath() and use()", () => {
+    const errors = defineErrors({ unauthorized: "unauthorized" });
+
+    const app = httpApp<{}>()
+      .errorFactory(errors)
+      .defaultErrorFormatter(z.object({ code: z.string(), ok: z.literal(false) }), (e) => ({
+        code: e.errorKey,
+        ok: false as const,
+      }));
+
+    app
+      .basePath("/v1")
+      .get("/a")
+      .meta({ operationId: "a.list" })
+      .errors("unauthorized")
+      .handler((c) => c.res.json("ok", {}));
+    app
+      .use(createMiddleware(async (_c, next) => next()))
+      .get("/b")
+      .meta({ operationId: "b.list" })
+      .errors("unauthorized")
+      .handler((c) => c.res.json("ok", {}));
+    const doc = generateOpenApi(app, { info: INFO });
+    expect([
+      Object.keys(errorSchema(doc, "/v1/a", "401").properties as object),
+      Object.keys(errorSchema(doc, "/b", "401").properties as object),
+    ]).toEqual([
+      ["code", "ok"],
+      ["code", "ok"],
+    ]);
+  });
+});
 
 const schemaErrors = () =>
-	defineErrors({
-		item_gone: { schema: z.object({ reason: z.string() }), status: "not_found" },
-		rate_limited: { schema: z.object({ retry_after: z.number() }), status: "too_many_requests" },
-		user_not_found: "not_found",
-	})
+  defineErrors({
+    item_gone: { schema: z.object({ reason: z.string() }), status: "not_found" },
+    rate_limited: { schema: z.object({ retry_after: z.number() }), status: "too_many_requests" },
+    user_not_found: "not_found",
+  });
 
 describe("errors with a schema of their own", () => {
-	// v0: 0384b54dcc
-	// v0: b3854d7e37
-	// v0: 89d1696514
-	// v0: ccf2e07f22
+  // v0: 0384b54dcc
+  // v0: b3854d7e37
+  // v0: 89d1696514
+  // v0: ccf2e07f22
 
-	it("documents a schema error by its own body, each at its status, beside 2xx answers", () => {
-		const app = httpApp<{}>().errorFactory(schemaErrors())
-		app
-			.get("/a")
-			.meta({ operationId: "a.list" })
-			.errors("item_gone", "rate_limited")
-			.output({ "application/json": { ok: z.object({ id: z.string() }) } })
-			.handler((c) => c.res.json("ok", { id: "1" }))
-		const doc = generateOpenApi(app, { info: INFO })
-		expect([
-			Object.keys(responses(doc, "/a")),
-			Object.keys(errorSchema(doc, "/a", "404").properties as object),
-			Object.keys(errorSchema(doc, "/a", "429").properties as object),
-			responses(doc, "/a")["404"]?.description,
-		]).toEqual([["200", "404", "429"], ["reason"], ["retry_after"], "item_gone"])
-	})
+  it("documents a schema error by its own body, each at its status, beside 2xx answers", () => {
+    const app = httpApp<{}>().errorFactory(schemaErrors());
+    app
+      .get("/a")
+      .meta({ operationId: "a.list" })
+      .errors("item_gone", "rate_limited")
+      .output({ "application/json": { ok: z.object({ id: z.string() }) } })
+      .handler((c) => c.res.json("ok", { id: "1" }));
+    const doc = generateOpenApi(app, { info: INFO });
+    expect([
+      Object.keys(responses(doc, "/a")),
+      Object.keys(errorSchema(doc, "/a", "404").properties as object),
+      Object.keys(errorSchema(doc, "/a", "429").properties as object),
+      responses(doc, "/a")["404"]?.description,
+    ]).toEqual([["200", "404", "429"], ["reason"], ["retry_after"], "item_gone"]);
+  });
 
-	// v0: 3303cc38a5
-	// v0: e2136c2427
+  // v0: 3303cc38a5
+  // v0: e2136c2427
 
-	it("offers a standard key and a schema error at one status as oneOf, merging the custom schema into each schema error by allOf", () => {
-		const app = httpApp<{}>()
-			.errorFactory(schemaErrors())
-			.payloadErrorFormatter(z.object({ trace: z.string() }), (_e, data) => ({ ...data, trace: "t" }))
-		app
-			.get("/a")
-			.meta({ operationId: "a.list" })
-			.errors("item_gone", "user_not_found")
-			.handler((c) => c.res.json("ok", {}))
-		const doc = generateOpenApi(app, { info: INFO })
-		const [standard, custom] = (errorSchema(doc, "/a", "404").oneOf ?? []) as Record<string, unknown>[]
-		expect([
-			keysOf(resolved(doc, standard)),
-			Object.keys(resolved(doc, custom)),
-			responses(doc, "/a")["404"]?.description,
-		]).toEqual([["user_not_found"], ["allOf"], "item_gone, user_not_found"])
-	})
-})
+  it("offers a standard key and a schema error at one status as oneOf, merging the custom schema into each schema error by allOf", () => {
+    const app = httpApp<{}>()
+      .errorFactory(schemaErrors())
+      .payloadErrorFormatter(z.object({ trace: z.string() }), (_e, data) => ({ ...data, trace: "t" }));
+
+    app
+      .get("/a")
+      .meta({ operationId: "a.list" })
+      .errors("item_gone", "user_not_found")
+      .handler((c) => c.res.json("ok", {}));
+    const doc = generateOpenApi(app, { info: INFO });
+    const [standard, custom] = (errorSchema(doc, "/a", "404").oneOf ?? []) as Record<string, unknown>[];
+    expect([
+      keysOf(resolved(doc, standard)),
+      Object.keys(resolved(doc, custom)),
+      responses(doc, "/a")["404"]?.description,
+    ]).toEqual([["user_not_found"], ["allOf"], "item_gone, user_not_found"]);
+  });
+});
 
 describe("errors as Problem Details (errorFormat problem+json)", () => {
-	it("documents standard errors as application/problem+json, their type URIs and status as enums, and schema errors under application/json", () => {
-		const app = httpApp<{}>().errorFactory(schemaErrors()).errorFormat("problem+json")
-		app
-			.get("/a")
-			.meta({ operationId: "a.list" })
-			.errors("user_not_found", "item_gone")
-			.handler((c) => c.res.json("ok", {}))
-		const doc = generateOpenApi(app, { info: INFO })
-		const problem = errorSchema(doc, "/a", "404", { media: "application/problem+json", method: "get" })
-		expect([
-			Object.keys(responses(doc, "/a")["404"]?.content ?? {}),
-			problem.required,
-			(problem.properties as Record<string, unknown>).type,
-			(problem.properties as Record<string, unknown>).status,
-			Object.keys(errorSchema(doc, "/a", "404").properties as object),
-		]).toEqual([
-			["application/problem+json", "application/json"],
-			["detail", "status", "title", "type"],
-			{ enum: ["https://backend.dev/errors/user_not_found"], type: "string" },
-			{ enum: [404], type: "integer" },
-			["reason"],
-		])
-	})
+  it("documents standard errors as application/problem+json, their type URIs and status as enums, and schema errors under application/json", () => {
+    const app = httpApp<{}>().errorFactory(schemaErrors()).errorFormat("problem+json");
+    app
+      .get("/a")
+      .meta({ operationId: "a.list" })
+      .errors("user_not_found", "item_gone")
+      .handler((c) => c.res.json("ok", {}));
+    const doc = generateOpenApi(app, { info: INFO });
+    const problem = errorSchema(doc, "/a", "404", { media: "application/problem+json", method: "get" });
+    expect([
+      Object.keys(responses(doc, "/a")["404"]?.content ?? {}),
+      problem.required,
+      (problem.properties as Record<string, unknown>).type,
+      (problem.properties as Record<string, unknown>).status,
+      Object.keys(errorSchema(doc, "/a", "404").properties as object),
+    ]).toEqual([
+      ["application/problem+json", "application/json"],
+      ["detail", "status", "title", "type"],
+      { enum: ["https://backend.dev/errors/user_not_found"], type: "string" },
+      { enum: [404], type: "integer" },
+      ["reason"],
+    ]);
+  });
 
-	it("documents a status of standard keys as problem+json only, and one of schema errors as application/json only", () => {
-		const app = httpApp<{}>().errorFactory(schemaErrors()).errorFormat("problem+json")
-		app
-			.get("/plain")
-			.meta({ operationId: "plain.list" })
-			.errors("user_not_found")
-			.handler((c) => c.res.json("ok", {}))
-		app
-			.get("/own")
-			.meta({ operationId: "own.list" })
-			.errors("item_gone")
-			.handler((c) => c.res.json("ok", {}))
-		const doc = generateOpenApi(app, { info: INFO })
-		expect([
-			Object.keys(responses(doc, "/plain")["404"]?.content ?? {}),
-			Object.keys(responses(doc, "/own")["404"]?.content ?? {}),
-		]).toEqual([["application/problem+json"], ["application/json"]])
-	})
-})
+  it("documents a status of standard keys as problem+json only, and one of schema errors as application/json only", () => {
+    const app = httpApp<{}>().errorFactory(schemaErrors()).errorFormat("problem+json");
+    app
+      .get("/plain")
+      .meta({ operationId: "plain.list" })
+      .errors("user_not_found")
+      .handler((c) => c.res.json("ok", {}));
+    app
+      .get("/own")
+      .meta({ operationId: "own.list" })
+      .errors("item_gone")
+      .handler((c) => c.res.json("ok", {}));
+    const doc = generateOpenApi(app, { info: INFO });
+    expect([
+      Object.keys(responses(doc, "/plain")["404"]?.content ?? {}),
+      Object.keys(responses(doc, "/own")["404"]?.content ?? {}),
+    ]).toEqual([["application/problem+json"], ["application/json"]]);
+  });
+});
 
 describe("declared headers beside a redirect", () => {
-	it("keeps a redirect's Location beside the headers it declares, and documents a record of headers as none named", () => {
-		const app = httpApp<{}>()
-		app
-			.post("/move")
-			.meta({ operationId: "move.create" })
-			.output({
-				"application/json": { created: z.object({}) },
-				headers: { created: z.record(z.string(), z.string()), found: z.object({ "x-trace": z.string() }) },
-				redirect: { found: true },
-			})
-			.handler((c) => c.res.json("created", {}, { headers: {} }))
-		const r = responses(generateOpenApi(app, { info: INFO }), "/move", "post")
-		expect([r["201"]?.headers, Object.keys(r["302"]?.headers ?? {})]).toEqual([{}, ["Location", "x-trace"]])
-	})
-})
+  it("keeps a redirect's Location beside the headers it declares, and documents a record of headers as none named", () => {
+    const app = httpApp<{}>();
+    app
+      .post("/move")
+      .meta({ operationId: "move.create" })
+      .output({
+        "application/json": { created: z.object({}) },
+        headers: { created: z.record(z.string(), z.string()), found: z.object({ "x-trace": z.string() }) },
+        redirect: { found: true },
+      })
+      .handler((c) => c.res.json("created", {}, { headers: {} }));
+    const r = responses(generateOpenApi(app, { info: INFO }), "/move", "post");
+    expect([r["201"]?.headers, Object.keys(r["302"]?.headers ?? {})]).toEqual([{}, ["Location", "x-trace"]]);
+  });
+});

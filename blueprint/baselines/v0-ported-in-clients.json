@@ -1,5 +1,4 @@
 {
-  "repo": "workerstack/clients",
   "commit": "582251517c695df1a2d01524320ea752fa637bd6",
   "ids": [
     "003e38e63f",
@@ -1959,5 +1958,6 @@
     "ff9fbb8384",
     "ffa808fdf8",
     "ffd0718d44"
-  ]
+  ],
+  "repo": "workerstack/clients"
 }

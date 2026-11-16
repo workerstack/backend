@@ -1,17 +1,8 @@
 {
-	"compilerOptions": {
-		"allowImportingTsExtensions": true,
-		"customConditions": ["backend-source"],
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"isolatedModules": true,
-		"module": "ESNext",
-		"moduleResolution": "bundler",
-		"noEmit": true,
-		"resolveJsonModule": true,
-		"skipLibCheck": true,
-		"strict": true,
-		"target": "ESNext",
-		"types": ["node"]
-	}
+  // The e2e apps' compiler setup: repo's web base, resolving @workerstack/backend to its source.
+  "compilerOptions": {
+    "customConditions": ["backend-source"],
+    "types": ["node"]
+  },
+  "extends": "@workerstack/repo/tsconfig/web"
 }

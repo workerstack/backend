@@ -21,11 +21,8 @@ const toolSpecs: readonly ToolSpec[] = [
 				file: {
 					anyOf: [
 						{
-							type: "object",
-							"x-mcp-file": {},
 							properties: {
 								digest: {
-									type: "object",
 									properties: {
 										algorithm: {
 											const: "sha-256",
@@ -38,6 +35,7 @@ const toolSpecs: readonly ToolSpec[] = [
 										"algorithm",
 										"value",
 									],
+									type: "object",
 								},
 							},
 							required: [
@@ -46,19 +44,21 @@ const toolSpecs: readonly ToolSpec[] = [
 								"size",
 								"digest",
 							],
+							type: "object",
+							"x-mcp-file": {},
 						},
 						{
-							type: "object",
+							additionalProperties: false,
 							properties: {
 								url: {
-									type: "string",
 									description: "An https URL the server fetches",
+									type: "string",
 								},
 							},
 							required: [
 								"url",
 							],
-							additionalProperties: false,
+							type: "object",
 						},
 					],
 				},
@@ -192,11 +192,8 @@ const toolSpecs: readonly ToolSpec[] = [
 				file: {
 					anyOf: [
 						{
-							type: "object",
-							"x-mcp-file": {},
 							properties: {
 								digest: {
-									type: "object",
 									properties: {
 										algorithm: {
 											const: "sha-256",
@@ -209,6 +206,7 @@ const toolSpecs: readonly ToolSpec[] = [
 										"algorithm",
 										"value",
 									],
+									type: "object",
 								},
 							},
 							required: [
@@ -217,19 +215,21 @@ const toolSpecs: readonly ToolSpec[] = [
 								"size",
 								"digest",
 							],
+							type: "object",
+							"x-mcp-file": {},
 						},
 						{
-							type: "object",
+							additionalProperties: false,
 							properties: {
 								url: {
-									type: "string",
 									description: "An https URL the server fetches",
+									type: "string",
 								},
 							},
 							required: [
 								"url",
 							],
-							additionalProperties: false,
+							type: "object",
 						},
 					],
 				},
@@ -385,11 +385,8 @@ const toolSpecs: readonly ToolSpec[] = [
 				file: {
 					anyOf: [
 						{
-							type: "object",
-							"x-mcp-file": {},
 							properties: {
 								digest: {
-									type: "object",
 									properties: {
 										algorithm: {
 											const: "sha-256",
@@ -402,6 +399,7 @@ const toolSpecs: readonly ToolSpec[] = [
 										"algorithm",
 										"value",
 									],
+									type: "object",
 								},
 							},
 							required: [
@@ -410,19 +408,21 @@ const toolSpecs: readonly ToolSpec[] = [
 								"size",
 								"digest",
 							],
+							type: "object",
+							"x-mcp-file": {},
 						},
 						{
-							type: "object",
+							additionalProperties: false,
 							properties: {
 								url: {
-									type: "string",
 									description: "An https URL the server fetches",
+									type: "string",
 								},
 							},
 							required: [
 								"url",
 							],
-							additionalProperties: false,
+							type: "object",
 						},
 					],
 				},
@@ -521,11 +521,8 @@ const toolSpecs: readonly ToolSpec[] = [
 				file: {
 					anyOf: [
 						{
-							type: "object",
-							"x-mcp-file": {},
 							properties: {
 								digest: {
-									type: "object",
 									properties: {
 										algorithm: {
 											const: "sha-256",
@@ -538,6 +535,7 @@ const toolSpecs: readonly ToolSpec[] = [
 										"algorithm",
 										"value",
 									],
+									type: "object",
 								},
 							},
 							required: [
@@ -546,19 +544,21 @@ const toolSpecs: readonly ToolSpec[] = [
 								"size",
 								"digest",
 							],
+							type: "object",
+							"x-mcp-file": {},
 						},
 						{
-							type: "object",
+							additionalProperties: false,
 							properties: {
 								url: {
-									type: "string",
 									description: "An https URL the server fetches",
+									type: "string",
 								},
 							},
 							required: [
 								"url",
 							],
-							additionalProperties: false,
+							type: "object",
 						},
 					],
 				},
@@ -664,11 +664,8 @@ const toolSpecs: readonly ToolSpec[] = [
 				file: {
 					anyOf: [
 						{
-							type: "object",
-							"x-mcp-file": {},
 							properties: {
 								digest: {
-									type: "object",
 									properties: {
 										algorithm: {
 											const: "sha-256",
@@ -681,6 +678,7 @@ const toolSpecs: readonly ToolSpec[] = [
 										"algorithm",
 										"value",
 									],
+									type: "object",
 								},
 							},
 							required: [
@@ -689,19 +687,21 @@ const toolSpecs: readonly ToolSpec[] = [
 								"size",
 								"digest",
 							],
+							type: "object",
+							"x-mcp-file": {},
 						},
 						{
-							type: "object",
+							additionalProperties: false,
 							properties: {
 								url: {
-									type: "string",
 									description: "An https URL the server fetches",
+									type: "string",
 								},
 							},
 							required: [
 								"url",
 							],
-							additionalProperties: false,
+							type: "object",
 						},
 					],
 				},

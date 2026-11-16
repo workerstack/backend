@@ -4,12 +4,12 @@
 	"type": "module",
 	"exports": {
 		".": {
-			"types": "./dist/kitchen.index.gen.d.ts",
-			"default": "./dist/kitchen.index.gen.js"
+			"default": "./dist/kitchen.index.gen.js",
+			"types": "./dist/kitchen.index.gen.d.ts"
 		},
 		"./webhook": {
-			"types": "./dist/kitchen.webhook.gen.d.ts",
-			"default": "./dist/kitchen.webhook.gen.js"
+			"default": "./dist/kitchen.webhook.gen.js",
+			"types": "./dist/kitchen.webhook.gen.d.ts"
 		}
 	},
 	"files": [

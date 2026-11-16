@@ -56,11 +56,11 @@ const M13 = {"operationId":"reconnectWs.connect"} as unknown as MetaShape
 const M14 = {"operationId":"realtime.echo.connect"} as unknown as MetaShape
 const M15 = {"operationId":"realtime.chat.connect"} as unknown as MetaShape
 const M16 = {"operationId":"realtime.broadcast.create"} as unknown as MetaShape
-const M17 = {"operationId":"servedFrom.list","internal":true} as unknown as MetaShape
-const M18 = {"operationId":"webhookSample.list","internal":true} as unknown as MetaShape
+const M17 = {"internal":true,"operationId":"servedFrom.list"} as unknown as MetaShape
+const M18 = {"internal":true,"operationId":"webhookSample.list"} as unknown as MetaShape
 const M19 = {"operationId":"boundary.default.list"} as unknown as MetaShape
 const M20 = {"operationId":"boundary.custom.list"} as unknown as MetaShape
-const M0 = {"operationId":"root.list","description":"Test route","summary":"Root test route","tags":["test"]} as unknown as MetaShape
+const M0 = {"description":"Test route","operationId":"root.list","summary":"Root test route","tags":["test"]} as unknown as MetaShape
 const M2 = {"invalidate":[T7],"operationId":"hello.create"} as unknown as MetaShape
 
 export const tree: TreeNode = N(S({ "api": N(S({ "hello": N(undefined, S({ GET: P1, POST: P2 })), "health": N(undefined, S({ GET: P3 })), "events": N(undefined, S({ GET: P4 })), "events-live": N(undefined, S({ GET: P5 })), "echo": N(undefined, S({ ALL: P6 })), "v1": N(S({ "organizations": N(undefined, S({ GET: P7, POST: P8 }), { n: "orgId", c: N(undefined, S({ GET: P9, DELETE: P10 })) }), "socket": N(undefined, null, null, null, P12) })), "echo-ws": N(undefined, null, null, null, P11), "reconnect-ws": N(undefined, null, null, null, P13), "realtime": N(S({ "echo": N(undefined, null, null, null, P14), "chat": N(undefined, null, { n: "roomId", c: N(undefined, null, null, null, P15) }), "broadcast": N(undefined, null, { n: "topic", c: N(undefined, S({ POST: P16 })) }) })), "served-from": N(undefined, S({ GET: P17 })), "webhook-sample": N(undefined, S({ GET: P18 })), "boundary": N(S({ "default": N(undefined, S({ GET: P19 })), "custom": N(undefined, S({ GET: P20 })) })) }), S({ GET: P0 })) }))

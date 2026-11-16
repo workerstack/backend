@@ -5,47 +5,49 @@
  * A target is one (app, deploy target) pair. The runtime that *runs* the build is
  * orthogonal — see RUNTIME_IDS: it catches a plugin that assumes one host's APIs.
  */
-import { existsSync, readdirSync } from "node:fs"
-import { createRequire } from "node:module"
-import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
+import { existsSync, readdirSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /** Runtime that executes `vite build`. */
-export const RUNTIME_IDS = ["node"] as const
-export type RuntimeId = (typeof RUNTIME_IDS)[number]
+export const RUNTIME_IDS = ["node"] as const;
+
+export type RuntimeId = (typeof RUNTIME_IDS)[number];
 
 /** Deploy target the bundle is produced for — backend/build's `target`. */
-export const TARGET_IDS = ["workers"] as const
-export type TargetId = (typeof TARGET_IDS)[number]
+export const TARGET_IDS = ["workers"] as const;
 
-const e2eRoot = dirname(fileURLToPath(import.meta.url))
-const appsRoot = join(e2eRoot, "apps")
+export type TargetId = (typeof TARGET_IDS)[number];
+
+const e2eRoot = dirname(fileURLToPath(import.meta.url));
+const appsRoot = join(e2eRoot, "apps");
 
 export interface BuildSpec {
-	/** e2e app directory name. */
-	app: string
-	/** Vite config, relative to the app. */
-	config: string
-	/** Paths, relative to the app, the build must emit. */
-	expect: string[]
-	/** `<app>×<target>`. */
-	id: string
-	/**
-	 * Ceiling for the entry bundle, in KB gzipped. A backend bundle rots by silently
-	 * absorbing an optional dependency — `effect` and `zod` are loaded dynamically and
-	 * must stay out of a bundle that never calls them. Size is the only signal that
-	 * catches that, so it is asserted rather than merely reported.
-	 */
-	maxGzipKb: number
-	/** Paths, relative to the app, wiped before the build. */
-	outDirs: string[]
-	/** Runtimes that can run this build. */
-	runtimes: RuntimeId[]
-	/** Deploy target the build produces. */
-	target: TargetId
+  /** e2e app directory name. */
+  app: string;
+  /** Vite config, relative to the app. */
+  config: string;
+  /** Paths, relative to the app, the build must emit. */
+  expect: [entry: string, ...rest: string[]];
+  /** `<app>×<target>`. */
+  id: string;
+  /**
+   * Ceiling for the entry bundle, in KB gzipped. A backend bundle rots by silently
+   * absorbing an optional dependency — `effect` and `zod` are loaded dynamically and
+   * must stay out of a bundle that never calls them. Size is the only signal that
+   * catches that, so it is asserted rather than merely reported.
+   */
+  maxGzipKb: number;
+  /** Paths, relative to the app, wiped before the build. */
+  outDirs: string[];
+  /** Runtimes that can run this build. */
+  runtimes: RuntimeId[];
+  /** Deploy target the build produces. */
+  target: TargetId;
 }
 
-const ALL_RUNTIMES: RuntimeId[] = [...RUNTIME_IDS]
+const ALL_RUNTIMES: RuntimeId[] = [...RUNTIME_IDS];
 
 /**
  * Every e2e app builds for every target. The apps are deliberately uniform — one
@@ -53,96 +55,98 @@ const ALL_RUNTIMES: RuntimeId[] = [...RUNTIME_IDS]
  * out per app. Per-app deviations belong here, as fields on the entry.
  */
 type AppBuild = {
-	app: string
-	/** Override the default ceiling for this app, per target. */
-	maxGzipKb?: Partial<Record<TargetId, number>>
-	/** Targets this app opts out of, with the reason. */
-	skipTargets?: Partial<Record<TargetId, string>>
-}
+  app: string;
+  /** Override the default ceiling for this app, per target. */
+  maxGzipKb?: Partial<Record<TargetId, number>>;
+  /** Targets this app opts out of, with the reason. */
+  skipTargets?: Partial<Record<TargetId, string>>;
+};
 
 /**
  * Cloudflare bundles every dependency, so its bundle regresses first when a
  * dynamic import stops being opaque.
  */
 const DEFAULT_MAX_GZIP_KB: Record<TargetId, number> = {
-	workers: 110,
-}
+  workers: 110,
+};
 
 const APP_BUILDS: AppBuild[] = [
-	{ app: "compose" },
-	{ app: "defaults" },
-	{ app: "gateway" },
-	{ app: "kitchen" },
-	{ app: "mcp" },
-	{ app: "surface" },
-]
+  { app: "compose" },
+  { app: "defaults" },
+  { app: "gateway" },
+  { app: "kitchen" },
+  { app: "mcp" },
+  { app: "surface" },
+];
 
 export const BUILD_SPECS: BuildSpec[] = APP_BUILDS.flatMap((entry) =>
-	TARGET_IDS.filter((target) => entry.skipTargets?.[target] === undefined).map((target) => ({
-		app: entry.app,
-		config: "vite.build.config.ts",
-		expect: [`dist/${target}/index.js`],
-		id: `${entry.app}×${target}`,
-		maxGzipKb: entry.maxGzipKb?.[target] ?? DEFAULT_MAX_GZIP_KB[target],
-		outDirs: [`dist/${target}`],
-		runtimes: ALL_RUNTIMES,
-		target,
-	})),
-)
+  TARGET_IDS.filter((target) => entry.skipTargets?.[target] === undefined).map((target) => ({
+    app: entry.app,
+    config: "vite.build.config.ts",
+    expect: [`dist/${target}/index.js`],
+    id: `${entry.app}×${target}`,
+    maxGzipKb: entry.maxGzipKb?.[target] ?? DEFAULT_MAX_GZIP_KB[target],
+    outDirs: [`dist/${target}`],
+    runtimes: ALL_RUNTIMES,
+    target,
+  })),
+);
 
 export function isRuntimeId(name: string): name is RuntimeId {
-	return (RUNTIME_IDS as readonly string[]).includes(name)
+  return (RUNTIME_IDS as readonly string[]).includes(name);
 }
 
 export function isTargetId(name: string): name is TargetId {
-	return (TARGET_IDS as readonly string[]).includes(name)
+  return (TARGET_IDS as readonly string[]).includes(name);
 }
 
 export function buildCwd(spec: BuildSpec): string {
-	return join(appsRoot, spec.app)
+  return join(appsRoot, spec.app);
 }
 
 /** The bundle a size budget applies to. */
 export function entryArtifact(spec: BuildSpec): string {
-	return spec.expect[0]
+  return spec.expect[0];
 }
 
 /** Apps that ship a build spec. */
 export function knownBuildApps(): string[] {
-	return [...new Set(BUILD_SPECS.map((spec) => spec.app))].sort()
+  return [...new Set(BUILD_SPECS.map((spec) => spec.app))].sort();
 }
 
 /** Apps on disk with no build spec — a new app must not silently skip this tier. */
 export function unregisteredBuildApps(): string[] {
-	const known = new Set(knownBuildApps())
-	return readdirSync(appsRoot, { withFileTypes: true })
-		.filter((entry) => entry.isDirectory() && existsSync(join(appsRoot, entry.name, "package.json")))
-		.map((entry) => entry.name)
-		.filter((app) => !known.has(app))
-		.sort()
+  const known = new Set(knownBuildApps());
+
+  return readdirSync(appsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && existsSync(join(appsRoot, entry.name, "package.json")))
+    .map((entry) => entry.name)
+    .filter((app) => !known.has(app))
+    .sort();
 }
 
 /** Specs pointing at an app that no longer exists. */
 export function missingBuildApps(): string[] {
-	const onDisk = new Set(
-		readdirSync(appsRoot, { withFileTypes: true })
-			.filter((entry) => entry.isDirectory() && existsSync(join(appsRoot, entry.name, "package.json")))
-			.map((entry) => entry.name),
-	)
-	return knownBuildApps().filter((app) => !onDisk.has(app))
+  const onDisk = new Set(
+    readdirSync(appsRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && existsSync(join(appsRoot, entry.name, "package.json")))
+      .map((entry) => entry.name),
+  );
+
+  return knownBuildApps().filter((app) => !onDisk.has(app));
 }
 
-/* vite's bin, started by the runtime itself: bunx drops BUN_OPTIONS, the backend-source condition a checkout build needs */
-const VITE_BIN = join(dirname(createRequire(import.meta.url).resolve("vite/package.json")), "bin/vite.js")
+// vite's bin, started by the runtime itself: bunx drops BUN_OPTIONS, the backend-source condition a checkout build needs
+const VITE_BIN = join(dirname(createRequire(import.meta.url).resolve("vite/package.json")), "bin/vite.js");
 
 /** `vite build` with `config` (relative to the cwd it runs in), started by `runtime` itself. */
 export function viteBuildCommand(config: string, runtime: RuntimeId): string[] {
-	return [runtime, VITE_BIN, "build", "--config", config]
+  return [runtime, VITE_BIN, "build", "--config", config];
 }
 
 export function buildCommand(spec: BuildSpec, runtime: RuntimeId): string[] {
-	return viteBuildCommand(spec.config, runtime)
+  return viteBuildCommand(spec.config, runtime);
 }
 
 /** The build gate's backend-free reference (reference/vite.config.ts): where it builds and the config it builds with. */
-export const REFERENCE_BUILD = { config: "vite.config.ts", cwd: join(e2eRoot, "reference") } as const
+export const REFERENCE_BUILD = { config: "vite.config.ts", cwd: join(e2eRoot, "reference") } as const;

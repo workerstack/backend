@@ -1,12 +1,13 @@
 /** `scalar(config)`: the Scalar API reference page for the document at `config.url`. */
-import type { TypedResponse } from "../response/response.ts"
-import { type DocsConfig, type DocsContext, docsPage, inlineJson, SCALAR } from "./docs-page.ts"
+import type { TypedResponse } from "../response/response.ts";
+import { type DocsConfig, type DocsContext, docsPage, inlineJson, SCALAR } from "./docs-page.ts";
 
 /** The Scalar API reference page for the document at `config.url`. Pass this function itself as `docs` to `serveOpenApi` or `serveStaticOpenApi`. The page loads a pinned script from jsDelivr, checked by an integrity hash. */
 export function scalar(config: DocsConfig): (ctx: DocsContext) => TypedResponse {
-	const inline = inlineJson(config)
-	return docsPage(
-		(nonce) => `<!DOCTYPE html>
+  const inline = inlineJson(config);
+
+  return docsPage(
+    (nonce) => `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -21,5 +22,5 @@ export function scalar(config: DocsConfig): (ctx: DocsContext) => TypedResponse 
   </script>
 </body>
 </html>`,
-	)
+  );
 }

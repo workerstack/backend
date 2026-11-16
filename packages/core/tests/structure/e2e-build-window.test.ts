@@ -4,135 +4,148 @@
  * (40965667478) and a reference that read fast once (40969532154). Each cell times its reference around its own
  * builds, so both cancel; a slower backend still reds.
  */
-import { describe, expect, it } from "vitest"
-import * as gate from "../e2e/build-gate.ts"
-import { cellMeter } from "../e2e/build-window.ts"
-import { REFERENCE_WORK } from "../e2e/reference/vite.config.ts"
+import { describe, expect, it } from "vitest";
 
-/* node 22's ceilings at 5f2942e (blueprint/baselines/build.json), the ones both jobs were judged against */
+import * as gate from "../e2e/build-gate.ts";
+import { cellMeter } from "../e2e/build-window.ts";
+import { REFERENCE_WORK } from "../e2e/reference/vite.config.ts";
+
+// node 22's ceilings at 5f2942e (blueprint/baselines/build.json), the ones both jobs were judged against
 const CEILINGS: Record<string, [baseline: number, ceiling: number]> = {
-	"compose×workers": [25.66, 28.74],
-	"defaults×workers": [25.2, 28.41],
-	"gateway×workers": [25.84, 29.02],
-	"kitchen×workers": [26.46, 29.82],
-	"mcp×workers": [14.22, 16.7],
-	"surface×workers": [26.95, 30.6],
-}
-const APPS = ["compose", "defaults", "gateway", "kitchen", "mcp", "surface"] as const
+  "compose×workers": [25.66, 28.74],
+  "defaults×workers": [25.2, 28.41],
+  "gateway×workers": [25.84, 29.02],
+  "kitchen×workers": [26.46, 29.82],
+  "mcp×workers": [14.22, 16.7],
+  "surface×workers": [26.95, 30.6],
+};
 
-/* a build's own noise, cycled call by call: ±0.8%, about the app builds' median spread on CI */
-const JITTER = [1, 1.008, 0.994, 1.004, 0.997]
+const APPS = ["compose", "defaults", "gateway", "kitchen", "mcp", "surface"] as const;
+
+// a build's own noise, cycled call by call: ±0.8%, about the app builds' median spread on CI
+const JITTER = [1, 1.008, 0.994, 1.004, 0.997];
 
 /**
  * A fake runner on a clock: every build takes its nominal ms x the runner's speed at the moment it starts x the
  * jitter, and moves the clock on by that. `referenceSpeed` scales the reference build alone.
  */
 function fakeRunner(runner: {
-	referenceMs: number
-	referenceSpeed?: (now: number) => number
-	speed?: (now: number) => number
+  referenceMs: number;
+  referenceSpeed?: (now: number) => number;
+  speed?: (now: number) => number;
 }) {
-	let now = 0
-	let calls = 0
-	const order: string[] = []
-	const take = (ms: number, factor: number) => {
-		const took = ms * factor * (runner.speed?.(now) ?? 1) * (JITTER[calls++ % JITTER.length] as number)
-		now += took
-		return took
-	}
-	return {
-		build: (ms: number) => async () => {
-			order.push("B")
-			return { code: 0, ms: take(ms, 1), output: "" }
-		},
-		order,
-		reference: async () => {
-			order.push("R")
-			return take(runner.referenceMs, runner.referenceSpeed?.(now) ?? 1)
-		},
-	}
+  let now = 0;
+  let calls = 0;
+  const order: string[] = [];
+
+  const take = (ms: number, factor: number) => {
+    const took = ms * factor * (runner.speed?.(now) ?? 1) * (JITTER[calls++ % JITTER.length] as number);
+    now += took;
+
+    return took;
+  };
+
+  return {
+    build: (ms: number) => async () => {
+      order.push("B");
+
+      return { code: 0, ms: take(ms, 1), output: "" };
+    },
+    order,
+    reference: async () => {
+      order.push("R");
+
+      return take(runner.referenceMs, runner.referenceSpeed?.(now) ?? 1);
+    },
+  };
 }
 
 /** One job's cells built in turn on `runner`, each judged on Actions against CEILINGS: the cells that fail. */
 async function redCells(runner: ReturnType<typeof fakeRunner>, target: string, ms: Record<string, number>) {
-	const meter = cellMeter(runner.reference)
-	const red: string[] = []
-	for (const app of APPS) {
-		const cell = `${app}×${target}`
-		const window = await meter(target, runner.build(ms[app] as number))
-		if ("failed" in window) throw new Error(`${cell} failed`)
-		const [baseline, ceiling] = CEILINGS[cell] as [number, number]
-		const verdict = gate.judgeBuild({
-			builds: window.builds,
-			ceiling: { baseline, catches: "", ceiling },
-			mode: "judge",
-			referenceMs: gate.median(window.references),
-			runtime: "node",
-		})
-		if (verdict.status !== "ok") red.push(`${cell} ${verdict.ratio}`)
-	}
-	return red
+  const meter = cellMeter(runner.reference);
+  const red: string[] = [];
+
+  for (const app of APPS) {
+    const cell = `${app}×${target}`;
+    const window = await meter(target, runner.build(ms[app] as number));
+
+    if ("failed" in window) throw new Error(`${cell} failed`);
+    const [baseline, ceiling] = CEILINGS[cell] as [number, number];
+
+    const verdict = gate.judgeBuild({
+      builds: window.builds,
+      ceiling: { baseline, catches: "", ceiling },
+      mode: "judge",
+      referenceMs: gate.median(window.references),
+      runtime: "node",
+    });
+
+    if (verdict.status !== "ok") red.push(`${cell} ${verdict.ratio}`);
+  }
+
+  return red;
 }
 
-/*
- * 40965667478's build (node) ×workers cells: each build's median there, surface×workers's at its other runs'
- * ~6,500 ms (6,501, 6,479, 6,587), and the reference at those runs' 230 ms
- */
-const SLOWED = { compose: 6_041, defaults: 6_015, gateway: 6_148, kitchen: 6_364, mcp: 3_454, surface: 6_500 }
-/* the runner turns 14% slower when surface×workers starts on today's order: 7,446 / 6,500 = 1.146 in that job */
-const SLOW_AT = 6 * 230 + 3 * (6_041 + 6_015 + 6_148 + 6_364 + 3_454)
+// 40965667478's build (node) ×workers cells: each build's median there, surface×workers's at its other runs'
+// ~6,500 ms (6,501, 6,479, 6,587), and the reference at those runs' 230 ms
+const SLOWED = { compose: 6_041, defaults: 6_015, gateway: 6_148, kitchen: 6_364, mcp: 3_454, surface: 6_500 };
 
-/* 40969532154's build (node) ×workers cells, and the reference at the other runs' low end, 164 ms (that job read 149) */
-const FAST_REF = { compose: 4_072, defaults: 3_869, gateway: 3_917, kitchen: 4_237, mcp: 2_461, surface: 4_564 }
+// the runner turns 14% slower when surface×workers starts on today's order: 7,446 / 6,500 = 1.146 in that job
+const SLOW_AT = 6 * 230 + 3 * (6_041 + 6_015 + 6_148 + 6_364 + 3_454);
 
-/*
- * The reference's spread within a cell window against the app builds' at each REFERENCE_WORK size, on this machine
- * under the heavy lock (bit 21 bref): the median over 36 windows (every cell, twice) of each window's
- * (max-min)/median in %, the reference's over its 4 three-sample subsets so both count three samples
- */
-type Spread = { node: number }
-const BUILDS_SPREAD: Spread = { node: 3.3 }
+// 40969532154's build (node) ×workers cells, and the reference at the other runs' low end, 164 ms (that job read 149)
+const FAST_REF = { compose: 4_072, defaults: 3_869, gateway: 3_917, kitchen: 4_237, mcp: 2_461, surface: 4_564 };
+
+// The reference's spread within a cell window against the app builds' at each REFERENCE_WORK size, on this machine
+// under the heavy lock (bit 21 bref): the median over 36 windows (every cell, twice) of each window's
+// (max-min)/median in %, the reference's over its 4 three-sample subsets so both count three samples
+type Spread = { node: number };
+
+const BUILDS_SPREAD: Spread = { node: 3.3 };
+
 const REFERENCE_SPREAD: Record<number, Spread> = {
-	0: { node: 7.4 },
-	5_000: { node: 4.9 },
-	7_500: { node: 3.4 },
-	10_000: { node: 2.9 },
-	15_000: { node: 2.1 },
-}
+  0: { node: 7.4 },
+  10_000: { node: 2.9 },
+  15_000: { node: 2.1 },
+  5_000: { node: 4.9 },
+  7_500: { node: 3.4 },
+};
 
 describe("the e2e build gate's reference window", () => {
-	it("times a cell as ref, build, ref, build, ref, build, ref, after one untimed reference warm-up a target", async () => {
-		const runner = fakeRunner({ referenceMs: 100 })
-		const meter = cellMeter(runner.reference)
-		await meter("node", runner.build(1_000))
-		await meter("node", runner.build(1_000))
-		/* the first cell: warm-up, then RBRBRBR; the second: RBRBRBR */
-		expect(runner.order.join("")).toBe("RRBRBRBRRBRBRBR")
-	})
+  it("times a cell as ref, build, ref, build, ref, build, ref, after one untimed reference warm-up a target", async () => {
+    const runner = fakeRunner({ referenceMs: 100 });
+    const meter = cellMeter(runner.reference);
+    await meter("node", runner.build(1_000));
+    await meter("node", runner.build(1_000));
+    // the first cell: warm-up, then RBRBRBR; the second: RBRBRBR
+    expect(runner.order.join("")).toBe("RRBRBRBRRBRBRBR");
+  });
 
-	it("passes a runner slowing 14% partway through the job (CI 40965667478, surface×workers red at 31.87)", async () => {
-		const runner = fakeRunner({ referenceMs: 230, speed: (now) => (now >= SLOW_AT ? 1.14 : 1) })
-		expect(await redCells(runner, "workers", SLOWED)).toEqual([])
-	})
+  it("passes a runner slowing 14% partway through the job (CI 40965667478, surface×workers red at 31.87)", async () => {
+    const runner = fakeRunner({ referenceMs: 230, speed: (now) => (now >= SLOW_AT ? 1.14 : 1) });
+    expect(await redCells(runner, "workers", SLOWED)).toEqual([]);
+  });
 
-	it("passes a reference that reads 10% fast once (CI 40969532154, mcp×workers red at 16.54)", async () => {
-		const runner = fakeRunner({ referenceMs: 164, referenceSpeed: (now) => (now < 1_200 ? 0.9 : 1) })
-		expect(await redCells(runner, "workers", FAST_REF)).toEqual([])
-	})
+  it("passes a reference that reads 10% fast once (CI 40969532154, mcp×workers red at 16.54)", async () => {
+    const runner = fakeRunner({ referenceMs: 164, referenceSpeed: (now) => (now < 1_200 ? 0.9 : 1) });
+    expect(await redCells(runner, "workers", FAST_REF)).toEqual([]);
+  });
 
-	it("sizes the reference's work at a size measured spreading no wider than the builds, the recorded ratios' size", () => {
-		/* the smallest size that fits is 10,000; 15,000 stays because build.json's ceilings were recorded at it */
-		const spread = REFERENCE_SPREAD[REFERENCE_WORK] as Spread
-		expect(spread.node <= BUILDS_SPREAD.node).toBe(true)
-	})
+  it("sizes the reference's work at a size measured spreading no wider than the builds, the recorded ratios' size", () => {
+    // the smallest size that fits is 10,000; 15,000 stays because build.json's ceilings were recorded at it
+    const spread = REFERENCE_SPREAD[REFERENCE_WORK] as Spread;
+    expect(spread.node <= BUILDS_SPREAD.node).toBe(true);
+  });
 
-	it("reds app builds 1.2x slower in every sample, the reference unchanged: every cell", async () => {
-		const at = (factor: number) =>
-			Object.fromEntries(APPS.map((app) => [app, (CEILINGS[`${app}×workers`] as [number, number])[0] * 164 * factor]))
-		const [steady, slower] = [
-			await redCells(fakeRunner({ referenceMs: 164 }), "workers", at(1)),
-			await redCells(fakeRunner({ referenceMs: 164 }), "workers", at(1.2)),
-		]
-		expect([steady, slower.map((each) => each.split(" ")[0])]).toEqual([[], APPS.map((app) => `${app}×workers`)])
-	})
-})
+  it("reds app builds 1.2x slower in every sample, the reference unchanged: every cell", async () => {
+    const at = (factor: number) =>
+      Object.fromEntries(APPS.map((app) => [app, (CEILINGS[`${app}×workers`] as [number, number])[0] * 164 * factor]));
+
+    const [steady, slower] = [
+      await redCells(fakeRunner({ referenceMs: 164 }), "workers", at(1)),
+      await redCells(fakeRunner({ referenceMs: 164 }), "workers", at(1.2)),
+    ];
+
+    expect([steady, slower.map((each) => each.split(" ")[0])]).toEqual([[], APPS.map((app) => `${app}×workers`)]);
+  });
+});

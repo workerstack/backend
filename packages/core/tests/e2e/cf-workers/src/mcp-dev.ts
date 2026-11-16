@@ -3,16 +3,19 @@
  * class the MCP_UPLOADS binding names (wrangler.mcp.jsonc). Its own entry, so worker.ts, which the shared
  * wrangler.jsonc deploys as backend-cf-e2e, carries no Durable Object.
  */
-import { createApp } from "@backend/e2e-mcp"
-import { workersWebSocket } from "@workerstack/backend/ws"
-import { workerUploadStore } from "../../apps/mcp/src/uploads-store.workers.ts"
+import { createApp } from "@backend/e2e-mcp";
+import { workersWebSocket } from "@workerstack/backend/ws";
 
-export { McpUploads } from "../../apps/mcp/src/uploads-object.ts"
+import { workerUploadStore } from "../../apps/mcp/src/uploads-store.workers.ts";
 
-const app = createApp(workersWebSocket(), { uploadStore: workerUploadStore() })
+export { McpUploads } from "../../apps/mcp/src/uploads-object.ts";
 
-export default {
-	fetch(request: Request, env: Record<string, unknown>, ctx: ExecutionContext) {
-		return app.fetch(request, env as never, ctx)
-	},
-}
+const app = createApp(workersWebSocket(), { uploadStore: workerUploadStore() });
+
+const worker: ExportedHandler<Record<string, unknown>> = {
+  fetch(request, env, ctx) {
+    return app.fetch(request, env as never, ctx);
+  },
+};
+
+export default worker;

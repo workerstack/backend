@@ -1,0 +1,7 @@
+{
+  // exclude replaces tsconfig.json's own: the e2e tests and the tool-loaded vite config
+  // a private app publishes no declarations, so its inferred types need no annotation
+  "compilerOptions": { "isolatedDeclarations": false },
+  "exclude": ["tests/**", "**/*.test.ts", "vite.config.ts"],
+  "extends": ["./tsconfig.json", "@workerstack/repo/tsconfig/strict"]
+}

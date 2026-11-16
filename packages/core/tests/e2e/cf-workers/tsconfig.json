@@ -1,18 +1,13 @@
 {
-	"compilerOptions": {
-		"allowImportingTsExtensions": true,
-		"customConditions": ["backend-source"],
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"isolatedModules": true,
-		"module": "ESNext",
-		"moduleResolution": "bundler",
-		"noEmit": true,
-		"resolveJsonModule": true,
-		"skipLibCheck": true,
-		"strict": true,
-		"target": "ESNext",
-		"types": ["@cloudflare/workers-types"]
-	},
-	"include": ["src/**/*"]
+  // worker.ts and load.ts load every e2e app, whose generated OperationCtx slots collide in one program;
+  // type-check.ts checks them once per app instead
+  "compilerOptions": {
+    "customConditions": ["backend-source"],
+    // the Workers types over the DOM lib, as before: core and the generated clients name DOM-only types
+    // (FormDataEntryValue, FileList, RequestMode) that @cloudflare/workers-types leaves out
+    "lib": ["DOM", "DOM.Iterable", "ESNext"]
+  },
+  "exclude": ["src/load.ts", "src/worker.ts"],
+  "extends": "@workerstack/repo/tsconfig/worker",
+  "include": ["src/**/*"]
 }

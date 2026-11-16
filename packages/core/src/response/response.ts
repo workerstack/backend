@@ -2,91 +2,96 @@
  * `HttpRes`: the `ctx.res` helpers. Each builds a buffered response from a status key, records
  * its raw body for later readers, and types it with a phantom content type and status key.
  */
-import { type CookieOptions, serializeCookie } from "../context/cookie.ts"
-import { generatorStream, type ProducerOptions, producerStream } from "../streaming/producer-stream.ts"
-import type { BackendLogger } from "../telemetry/logger.ts"
-import { isProducedStream, rawBodyOf, type RawBody, withForwarded, withProducedBody, withRawBody } from "./builder.ts"
-import { BINARY_HEADERS, type BinaryBody, binaryBytes, binaryHeaders, type BinaryOptions } from "./binary.ts"
-import { SSE_HEADERS, type SseCheck, type SseEvents, type SSEOptions, type SSEStream, sseBody } from "./sse.ts"
-import { type RedirectKey, type StatusKey, statusKeyToCode } from "./status.ts"
+import { type CookieOptions, serializeCookie } from "../context/cookie.ts";
+import { generatorStream, type ProducerOptions, producerStream } from "../streaming/producer-stream.ts";
+import type { BackendLogger } from "../telemetry/logger.ts";
+import { BINARY_HEADERS, type BinaryBody, binaryBytes, binaryHeaders, type BinaryOptions } from "./binary.ts";
+import { isProducedStream, rawBodyOf, type RawBody, withForwarded, withProducedBody, withRawBody } from "./builder.ts";
+import { SSE_HEADERS, type SseCheck, type SseEvents, type SSEOptions, type SSEStream, sseBody } from "./sse.ts";
+import { type RedirectKey, type StatusKey, statusKeyToCode } from "./status.ts";
 
 /** Options the `ctx.res` helpers accept; only `raw()` takes none. */
 export type ResponseOptions = {
-	/** Cookies to set, by name: each becomes one `Set-Cookie` header, and an invalid one throws. */
-	cookies?: Record<string, CookieOptions>
-	/** Headers set on the answer; each replaces the helper's own header of that name. */
-	headers?: Record<string, string>
-}
+  /** Cookies to set, by name: each becomes one `Set-Cookie` header, and an invalid one throws. */
+  cookies?: Record<string, CookieOptions>;
+  /** Headers set on the answer; each replaces the helper's own header of that name. */
+  headers?: Record<string, string>;
+};
 
 /** What `ctx.res` reads from its request, only when a stream needs it: the context itself is one. */
 export type ResLink = {
-	/** Logger that hears a failed stream producer. */
-	readonly log: BackendLogger
-	/** The request; its `Last-Event-ID` header seeds `sse()`. */
-	readonly req: Request
-	/** Ends streamed bodies when it aborts. */
-	readonly signal: AbortSignal
-}
+  /** Logger that hears a failed stream producer. */
+  readonly log: BackendLogger;
+  /** The request; its `Last-Event-ID` header seeds `sse()`. */
+  readonly req: Request;
+  /** Ends streamed bodies when it aborts. */
+  readonly signal: AbortSignal;
+};
 
 /** Options for `ctx.res.generate()`: the usual response options plus the media type. */
 export type GenerateOptions = ResponseOptions & {
-	/** The media type of the streamed values. Default `application/octet-stream`. */
-	contentType?: string
-}
+  /** The media type of the streamed values. Default `application/octet-stream`. */
+  contentType?: string;
+};
 
 /** A sync or async generator of strings or bytes, as `ctx.res.generate()` takes. */
-type Generated = AsyncGenerator<string | Uint8Array, void, unknown> | Generator<string | Uint8Array, void, unknown>
+type Generated = AsyncGenerator<string | Uint8Array, void, unknown> | Generator<string | Uint8Array, void, unknown>;
 
-/* phantom brands: they exist only at the type level, never assigned at runtime */
-declare const CONTENT_TYPE: unique symbol
-declare const STATUS_KEY: unique symbol
+// phantom brands: they exist only at the type level, never assigned at runtime
+declare const CONTENT_TYPE: unique symbol;
+declare const STATUS_KEY: unique symbol;
 
 /** A body the handler streams: sent as it comes, never buffered, at the helper's status and content type. */
-export type StreamBody = ReadableStream<Uint8Array>
+export type StreamBody = ReadableStream<Uint8Array>;
 
 /** A native Response branded with its content type and status key at the type level. */
 export type TypedResponse<CT extends string = string, SK extends string = string> = Response & {
-	readonly [CONTENT_TYPE]: CT
-	readonly [STATUS_KEY]: SK
-}
+  readonly [CONTENT_TYPE]: CT;
+  readonly [STATUS_KEY]: SK;
+};
 
 /** Cast a Response to a TypedResponse: no runtime cost. */
 function typed<CT extends string, SK extends string>(response: Response): TypedResponse<CT, SK> {
-	return response as TypedResponse<CT, SK>
+  return response as TypedResponse<CT, SK>;
 }
 
-/* frozen: the Node path hands the map to the bag as its header map */
-const JSON_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "application/json" })
-const TEXT_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "text/plain; charset=utf-8" })
-const HTML_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "text/html; charset=utf-8" })
-const CSV_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "text/csv; charset=utf-8" })
-const XML_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "application/xml" })
+// frozen: the Node path hands the map to the bag as its header map
+const JSON_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "application/json" });
+const TEXT_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "text/plain; charset=utf-8" });
+const HTML_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "text/html; charset=utf-8" });
+const CSV_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "text/csv; charset=utf-8" });
+const XML_HEADERS = /* @__PURE__ */ Object.freeze({ "content-type": "application/xml" });
 
 function hasOptions(opts: ResponseOptions | undefined): opts is ResponseOptions {
-	return opts?.headers !== undefined || opts?.cookies !== undefined
+  return opts?.headers !== undefined || opts?.cookies !== undefined;
 }
 
 function applyNative(headers: Headers, opts: ResponseOptions | undefined): Headers {
-	for (const [name, value] of Object.entries(opts?.headers ?? {})) headers.set(name, value)
-	for (const [name, cookie] of Object.entries(opts?.cookies ?? {}))
-		headers.append("set-cookie", serializeCookie(name, cookie))
-	return headers
+  for (const [name, value] of Object.entries(opts?.headers ?? {})) headers.set(name, value);
+
+  for (const [name, cookie] of Object.entries(opts?.cookies ?? {}))
+    headers.append("set-cookie", serializeCookie(name, cookie));
+
+  return headers;
 }
 
 /** The statuses of the vocabulary whose responses never carry a body (Fetch "null body status"). */
 function isNullBodyStatus(status: number): boolean {
-	return status === 204 || status === 205 || status === 304
+  return status === 204 || status === 205 || status === 304;
 }
 
 // per-process-constant: text-codec
-const encoder = /* @__PURE__ */ new TextEncoder()
+const encoder = /* @__PURE__ */ new TextEncoder();
 
 function toBytes(chunk: unknown): Uint8Array {
-	if (chunk instanceof Uint8Array) return chunk
-	if (typeof chunk === "string") return encoder.encode(chunk)
-	if (chunk instanceof ArrayBuffer) return new Uint8Array(chunk)
-	if (ArrayBuffer.isView(chunk)) return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-	throw new TypeError("ctx.res.stream() chunks must be strings, ArrayBuffers or typed arrays")
+  if (chunk instanceof Uint8Array) return chunk;
+
+  if (typeof chunk === "string") return encoder.encode(chunk);
+
+  if (chunk instanceof ArrayBuffer) return new Uint8Array(chunk);
+
+  if (ArrayBuffer.isView(chunk)) return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+  throw new TypeError("ctx.res.stream() chunks must be strings, ArrayBuffers or typed arrays");
 }
 
 /**
@@ -94,34 +99,39 @@ function toBytes(chunk: unknown): Uint8Array {
  * `flushed()` waits for every queued write even when the callback returned without closing.
  */
 function writableOver(write: (bytes: Uint8Array) => Promise<void>, end: { close(): void; error(e: unknown): void }) {
-	let queued = 0
-	let written = 0
-	let onDrained: (() => void) | undefined
-	const writable = new WritableStream<unknown>(
-		{
-			abort: (reason) => end.error(reason),
-			close: () => end.close(),
-			write: async (chunk) => {
-				try {
-					await write(toBytes(chunk))
-				} finally {
-					written++
-					if (written === queued) onDrained?.()
-				}
-			},
-		},
-		{
-			highWaterMark: 1,
-			size: () => {
-				queued++
-				return 1
-			},
-		},
-	)
-	/* a promise only when writes are still queued: most callbacks close or await their writes */
-	const pending = (): Promise<void> | undefined =>
-		written === queued ? undefined : new Promise<void>((resolve) => (onDrained = resolve))
-	return { pending, writable }
+  let queued = 0;
+  let written = 0;
+  let onDrained: (() => void) | undefined;
+
+  const writable = new WritableStream<unknown>(
+    {
+      abort: (reason) => end.error(reason),
+      close: () => end.close(),
+      write: async (chunk) => {
+        try {
+          await write(toBytes(chunk));
+        } finally {
+          written++;
+
+          if (written === queued) onDrained?.();
+        }
+      },
+    },
+    {
+      highWaterMark: 1,
+      size: () => {
+        queued++;
+
+        return 1;
+      },
+    },
+  );
+
+  // a promise only when writes are still queued: most callbacks close or await their writes
+  const pending = (): Promise<void> | undefined =>
+    written === queued ? undefined : new Promise<void>((resolve) => (onDrained = resolve));
+
+  return { pending, writable };
 }
 
 /**
@@ -130,205 +140,219 @@ function writableOver(write: (bytes: Uint8Array) => Promise<void>, end: { close(
  * native Response through. A status is always a key, never a number, so the answer is the one the document names.
  */
 export class HttpRes {
-	readonly #link: ResLink | undefined
-	readonly #events: SseCheck | null
+  readonly #link: ResLink | undefined;
+  readonly #events: SseCheck | null;
 
-	/**
-	 * `link` is the request a per-request res streams for; a bare res has none (no signal, no Last-Event-ID). `events`
-	 * checks each event `sse()` sends, its refusals told to the link's logger.
-	 */
-	constructor(link?: ResLink, events: SseCheck | null = null) {
-		this.#link = link
-		this.#events = events
-	}
+  /**
+   * `link` is the request a per-request res streams for; a bare res has none (no signal, no Last-Event-ID). `events`
+   * checks each event `sse()` sends, its refusals told to the link's logger.
+   */
+  constructor(link?: ResLink, events: SseCheck | null = null) {
+    this.#link = link;
+    this.#events = events;
+  }
 
-	/** The route's event check, refusals going to the request's logger; `null` with no check or no request. */
-	#sseEvents(): SseEvents | null {
-		const link = this.#link
-		const check = this.#events
-		if (check === null || link === undefined) return null
-		return { check, refuse: (message) => link.log.error(message) }
-	}
+  /** The route's event check, refusals going to the request's logger; `null` with no check or no request. */
+  #sseEvents(): SseEvents | null {
+    const link = this.#link;
+    const check = this.#events;
 
-	/** Producers end with the request; a failure breaks the body and goes to the request's logger. */
-	#producer(): ProducerOptions {
-		const link = this.#link
-		if (link === undefined) return {}
-		return {
-			report: (error) => link.log.error({ err: error }, "stream producer failed"),
-			signal: () => link.signal,
-		}
-	}
+    if (check === null || link === undefined) return null;
 
-	/** A streamed body under `base` headers plus the options' headers and cookies. */
-	#streamed(
-		body: ReadableStream<Uint8Array>,
-		base: Readonly<Record<string, string>>,
-		opts?: ResponseOptions,
-		status = 200,
-	) {
-		const headers = hasOptions(opts) ? applyNative(new Headers(base), opts) : base
-		return withProducedBody(new Response(body, { headers, status }))
-	}
+    return { check, refuse: (message) => link.log.error(message) };
+  }
 
-	/** A response with a body and no extra headers. */
-	#known<CT extends string, SK extends string>(
-		status: number,
-		headers: Readonly<Record<string, string>>,
-		raw: RawBody | StreamBody,
-		opts?: ResponseOptions,
-	): TypedResponse<CT, SK> {
-		/* `new Response(body, { status: 204 })` throws on the native path; fail the same way everywhere */
-		if (isNullBodyStatus(status)) {
-			throw new TypeError(`A ${status} response cannot have a body; use ctx.res.noContent() or another status`)
-		}
-		if (raw instanceof ReadableStream) return typed(this.#streamed(raw, headers, opts, status))
-		const init = hasOptions(opts) ? applyNative(new Headers(headers), opts) : headers
-		return typed(withRawBody(new Response(raw as BodyInit, { headers: init, status }), raw))
-	}
+  /** Producers end with the request; a failure breaks the body and goes to the request's logger. */
+  #producer(): ProducerOptions {
+    const link = this.#link;
 
-	/** A response with no body. */
-	#empty(status: number, headers: Record<string, string>, opts?: ResponseOptions): Response {
-		return new Response(null, { headers: applyNative(new Headers(headers), opts), status })
-	}
+    if (link === undefined) return {};
 
-	/** Bytes as `opts.contentType` (`application/octet-stream` by default), kept as the raw body; a stream goes out as it comes. */
-	binary<SK extends StatusKey, CT extends string = "application/octet-stream">(
-		statusKey: SK,
-		body: BinaryBody | StreamBody,
-		opts?: BinaryOptions<CT>,
-	): TypedResponse<CT, SK> {
-		const bytes = body instanceof ReadableStream ? body : binaryBytes(body)
-		return this.#known(statusKeyToCode[statusKey], binaryHeaders(opts?.contentType), bytes, opts)
-	}
+    return {
+      report: (error) => link.log.error({ err: error }, "stream producer failed"),
+      signal: () => link.signal,
+    };
+  }
 
-	/** A `text/csv; charset=utf-8` answer; `body` goes out as written, a stream as it comes. */
-	csv<SK extends StatusKey>(
-		statusKey: SK,
-		body: string | StreamBody,
-		opts?: ResponseOptions,
-	): TypedResponse<"text/csv", SK> {
-		return this.#known(statusKeyToCode[statusKey], CSV_HEADERS, body, opts)
-	}
+  /** A streamed body under `base` headers plus the options' headers and cookies. */
+  #streamed(
+    body: ReadableStream<Uint8Array>,
+    base: Readonly<Record<string, string>>,
+    opts?: ResponseOptions,
+    status = 200,
+  ) {
+    const headers = hasOptions(opts) ? applyNative(new Headers(base), opts) : base;
 
-	/** A `text/html; charset=utf-8` answer; `body` goes out as written (a stream as it comes), with no escaping. */
-	html<SK extends StatusKey>(
-		statusKey: SK,
-		body: string | StreamBody,
-		opts?: ResponseOptions,
-	): TypedResponse<"text/html", SK> {
-		return this.#known(statusKeyToCode[statusKey], HTML_HEADERS, body, opts)
-	}
+    return withProducedBody(new Response(body, { headers, status }));
+  }
 
-	/**
-	 * An `application/json` answer; `data` is serialized with `JSON.stringify`. Data that serializes to nothing
-	 * (`undefined`, a function, a symbol) gives an empty body; data it refuses, such as a cycle, throws. A stream is a
-	 * JSON document already encoded, sent as it comes and never validated.
-	 */
-	json<SK extends StatusKey>(
-		statusKey: SK,
-		data: unknown,
-		opts?: ResponseOptions,
-	): TypedResponse<"application/json", SK> {
-		/* JSON.stringify answers undefined for undefined, a function or a symbol: an empty body, kept as one */
-		const body = data instanceof ReadableStream ? data : ((JSON.stringify(data) as string | undefined) ?? "")
-		return this.#known(statusKeyToCode[statusKey], JSON_HEADERS, body, opts)
-	}
+  /** A response with a body and no extra headers. */
+  #known<CT extends string, SK extends string>(
+    status: number,
+    headers: Readonly<Record<string, string>>,
+    raw: RawBody | StreamBody,
+    opts?: ResponseOptions,
+  ): TypedResponse<CT, SK> {
+    // `new Response(body, { status: 204 })` throws on the native path; fail the same way everywhere
+    if (isNullBodyStatus(status))
+      throw new TypeError(`A ${status} response cannot have a body; use ctx.res.noContent() or another status`);
 
-	/**
-	 * A 204 answer with no body; headers and cookies apply. On a route with `.output()` it exists only where the route
-	 * declares `no_content` (`{ no_content: true }`, or under a media type), so every 204 is in the document.
-	 */
-	noContent(opts?: ResponseOptions): TypedResponse<"none", "no_content"> {
-		return typed(this.#empty(204, {}, opts))
-	}
+    if (raw instanceof ReadableStream) return typed(this.#streamed(raw, headers, opts, status));
+    const init = hasOptions(opts) ? applyNative(new Headers(headers), opts) : headers;
 
-	/**
-	 * Answer a Response whose status was decided elsewhere (a store's range or conditional answer, an upstream's), on a
-	 * route with `.output()`: its status must be one the route declares, and its media type one declared at that status
-	 * (a bodiless 204 or 304 needs none), or the route answers as for an undeclared answer. The body is opaque: never
-	 * read, never validated. Headers are copied, so a guarded `fetch()` answer stays writable.
-	 */
-	forward(response: Response): TypedResponse {
-		return typed(withForwarded(new Response(response.body, response)))
-	}
+    return typed(withRawBody(new Response(raw as BodyInit, { headers: init, status }), raw));
+  }
 
-	/**
-	 * Return a native Response. `fetch()`, `Fetcher.fetch`, `cache.match`, and `Response.redirect`
-	 * return guarded headers that throw on `set`, which breaks response middleware. Copy status and
-	 * headers into a new Response; the body streams through unread. WebSocket upgrades and responses
-	 * Backend built pass through as-is. A response whose body was already read is a bug, usually one
-	 * kept across requests: it throws instead of answering 200 with an unreadable body.
-	 */
-	raw(response: Response): TypedResponse {
-		if (response.bodyUsed)
-			throw new TypeError("raw(): this response's body was already read — build a new Response per request")
-		const built = rawBodyOf(response) !== null || isProducedStream(response)
-		if (response.status === 101 || built) return typed(response)
-		return typed(new Response(response.body, response))
-	}
+  /** A response with no body. */
+  #empty(status: number, headers: Record<string, string>, opts?: ResponseOptions): Response {
+    return new Response(null, { headers: applyNative(new Headers(headers), opts), status });
+  }
 
-	/**
-	 * Stream a generator's values. A disconnect or the request ending calls `generator.return()`,
-	 * so its `finally` runs; a throw mid-stream breaks the body instead of ending it cleanly.
-	 */
-	generate(generator: Generated, opts?: GenerateOptions): TypedResponse<string, "ok"> {
-		const base = binaryHeaders(opts?.contentType)
-		return typed(this.#streamed(generatorStream(generator, this.#producer()), base, opts))
-	}
+  /** Bytes as `opts.contentType` (`application/octet-stream` by default), kept as the raw body; a stream goes out as it comes. */
+  binary<SK extends StatusKey, CT extends string = "application/octet-stream">(
+    statusKey: SK,
+    body: BinaryBody | StreamBody,
+    opts?: BinaryOptions<CT>,
+  ): TypedResponse<CT, SK> {
+    const bytes = body instanceof ReadableStream ? body : binaryBytes(body);
 
-	/**
-	 * An event stream; the client resumes from its `Last-Event-ID` unless `lastEventId` is given. A ReadableStream is
-	 * an event stream already encoded, such as an upstream's, sent as it comes.
-	 */
-	sse(
-		callback: StreamBody | ((stream: SSEStream) => Promise<void>),
-		opts?: ResponseOptions & SSEOptions,
-	): TypedResponse<"text/event-stream", "ok"> {
-		if (callback instanceof ReadableStream) return typed(this.#streamed(callback, SSE_HEADERS, opts))
-		const lastEventId = opts?.lastEventId ?? this.#link?.req.headers.get("last-event-id") ?? undefined
-		const body = sseBody(callback, { ...opts, lastEventId }, this.#producer(), this.#sseEvents())
-		return typed(this.#streamed(body, SSE_HEADERS, opts))
-	}
+    return this.#known(statusKeyToCode[statusKey], binaryHeaders(opts?.contentType), bytes, opts);
+  }
 
-	/**
-	 * Write the body through a `WritableStream`. The callback starts when the body is first read
-	 * (never for HEAD); `signal` aborts when the client leaves or the request ends. Returning ends
-	 * the body once queued writes flush, closed or not; throwing breaks it, even with a writer held.
-	 */
-	stream(
-		callback: (writable: WritableStream, signal: AbortSignal) => Promise<void>,
-		opts?: ResponseOptions,
-	): TypedResponse<"application/octet-stream", "ok"> {
-		const body = producerStream(async (sink) => {
-			const { pending, writable } = writableOver((bytes) => sink.write(bytes), sink)
-			await callback(writable, sink.signal)
-			const flushing = pending()
-			if (flushing !== undefined) await Promise.race([flushing, new Promise<void>((resolve) => sink.onEnd(resolve))])
-		}, this.#producer())
-		return typed(this.#streamed(body, BINARY_HEADERS, opts))
-	}
+  /** A `text/csv; charset=utf-8` answer; `body` goes out as written, a stream as it comes. */
+  csv<SK extends StatusKey>(
+    statusKey: SK,
+    body: string | StreamBody,
+    opts?: ResponseOptions,
+  ): TypedResponse<"text/csv", SK> {
+    return this.#known(statusKeyToCode[statusKey], CSV_HEADERS, body, opts);
+  }
 
-	/** A redirect to `url` at `statusKey`'s status (`found` is 302); under `.output()`, only a declared redirect. */
-	redirect<SK extends RedirectKey>(statusKey: SK, url: string, opts?: ResponseOptions): TypedResponse<"none", SK> {
-		return typed(this.#empty(statusKeyToCode[statusKey], { location: url }, opts))
-	}
+  /** A `text/html; charset=utf-8` answer; `body` goes out as written (a stream as it comes), with no escaping. */
+  html<SK extends StatusKey>(
+    statusKey: SK,
+    body: string | StreamBody,
+    opts?: ResponseOptions,
+  ): TypedResponse<"text/html", SK> {
+    return this.#known(statusKeyToCode[statusKey], HTML_HEADERS, body, opts);
+  }
 
-	/** A `text/plain; charset=utf-8` answer. */
-	text<SK extends StatusKey>(
-		statusKey: SK,
-		body: string | StreamBody,
-		opts?: ResponseOptions,
-	): TypedResponse<"text/plain", SK> {
-		return this.#known(statusKeyToCode[statusKey], TEXT_HEADERS, body, opts)
-	}
+  /**
+   * An `application/json` answer; `data` is serialized with `JSON.stringify`. Data that serializes to nothing
+   * (`undefined`, a function, a symbol) gives an empty body; data it refuses, such as a cycle, throws. A stream is a
+   * JSON document already encoded, sent as it comes and never validated.
+   */
+  json<SK extends StatusKey>(
+    statusKey: SK,
+    data: unknown,
+    opts?: ResponseOptions,
+  ): TypedResponse<"application/json", SK> {
+    // JSON.stringify answers undefined for undefined, a function or a symbol: an empty body, kept as one
+    const body = data instanceof ReadableStream ? data : ((JSON.stringify(data) as string | undefined) ?? "");
 
-	/** An `application/xml` answer; `body` goes out as written (a stream as it comes), with no escaping. */
-	xml<SK extends StatusKey>(
-		statusKey: SK,
-		body: string | StreamBody,
-		opts?: ResponseOptions,
-	): TypedResponse<"application/xml", SK> {
-		return this.#known(statusKeyToCode[statusKey], XML_HEADERS, body, opts)
-	}
+    return this.#known(statusKeyToCode[statusKey], JSON_HEADERS, body, opts);
+  }
+
+  /**
+   * A 204 answer with no body; headers and cookies apply. On a route with `.output()` it exists only where the route
+   * declares `no_content` (`{ no_content: true }`, or under a media type), so every 204 is in the document.
+   */
+  noContent(opts?: ResponseOptions): TypedResponse<"none", "no_content"> {
+    return typed(this.#empty(204, {}, opts));
+  }
+
+  /**
+   * Answer a Response whose status was decided elsewhere (a store's range or conditional answer, an upstream's), on a
+   * route with `.output()`: its status must be one the route declares, and its media type one declared at that status
+   * (a bodiless 204 or 304 needs none), or the route answers as for an undeclared answer. The body is opaque: never
+   * read, never validated. Headers are copied, so a guarded `fetch()` answer stays writable.
+   */
+  forward(response: Response): TypedResponse {
+    return typed(withForwarded(new Response(response.body, response)));
+  }
+
+  /**
+   * Return a native Response. `fetch()`, `Fetcher.fetch`, `cache.match`, and `Response.redirect`
+   * return guarded headers that throw on `set`, which breaks response middleware. Copy status and
+   * headers into a new Response; the body streams through unread. WebSocket upgrades and responses
+   * Backend built pass through as-is. A response whose body was already read is a bug, usually one
+   * kept across requests: it throws instead of answering 200 with an unreadable body.
+   */
+  raw(response: Response): TypedResponse {
+    if (response.bodyUsed)
+      throw new TypeError("raw(): this response's body was already read — build a new Response per request");
+    const built = rawBodyOf(response) !== null || isProducedStream(response);
+
+    if (response.status === 101 || built) return typed(response);
+
+    return typed(new Response(response.body, response));
+  }
+
+  /**
+   * Stream a generator's values. A disconnect or the request ending calls `generator.return()`,
+   * so its `finally` runs; a throw mid-stream breaks the body instead of ending it cleanly.
+   */
+  generate(generator: Generated, opts?: GenerateOptions): TypedResponse<string, "ok"> {
+    const base = binaryHeaders(opts?.contentType);
+
+    return typed(this.#streamed(generatorStream(generator, this.#producer()), base, opts));
+  }
+
+  /**
+   * An event stream; the client resumes from its `Last-Event-ID` unless `lastEventId` is given. A ReadableStream is
+   * an event stream already encoded, such as an upstream's, sent as it comes.
+   */
+  sse(
+    callback: StreamBody | ((stream: SSEStream) => Promise<void>),
+    opts?: ResponseOptions & SSEOptions,
+  ): TypedResponse<"text/event-stream", "ok"> {
+    if (callback instanceof ReadableStream) return typed(this.#streamed(callback, SSE_HEADERS, opts));
+    const lastEventId = opts?.lastEventId ?? this.#link?.req.headers.get("last-event-id") ?? undefined;
+    const body = sseBody(callback, { ...opts, lastEventId }, this.#producer(), this.#sseEvents());
+
+    return typed(this.#streamed(body, SSE_HEADERS, opts));
+  }
+
+  /**
+   * Write the body through a `WritableStream`. The callback starts when the body is first read
+   * (never for HEAD); `signal` aborts when the client leaves or the request ends. Returning ends
+   * the body once queued writes flush, closed or not; throwing breaks it, even with a writer held.
+   */
+  stream(
+    callback: (writable: WritableStream, signal: AbortSignal) => Promise<void>,
+    opts?: ResponseOptions,
+  ): TypedResponse<"application/octet-stream", "ok"> {
+    const body = producerStream(async (sink) => {
+      const { pending, writable } = writableOver((bytes) => sink.write(bytes), sink);
+      await callback(writable, sink.signal);
+      const flushing = pending();
+
+      if (flushing !== undefined) await Promise.race([flushing, new Promise<void>((resolve) => sink.onEnd(resolve))]);
+    }, this.#producer());
+
+    return typed(this.#streamed(body, BINARY_HEADERS, opts));
+  }
+
+  /** A redirect to `url` at `statusKey`'s status (`found` is 302); under `.output()`, only a declared redirect. */
+  redirect<SK extends RedirectKey>(statusKey: SK, url: string, opts?: ResponseOptions): TypedResponse<"none", SK> {
+    return typed(this.#empty(statusKeyToCode[statusKey], { location: url }, opts));
+  }
+
+  /** A `text/plain; charset=utf-8` answer. */
+  text<SK extends StatusKey>(
+    statusKey: SK,
+    body: string | StreamBody,
+    opts?: ResponseOptions,
+  ): TypedResponse<"text/plain", SK> {
+    return this.#known(statusKeyToCode[statusKey], TEXT_HEADERS, body, opts);
+  }
+
+  /** An `application/xml` answer; `body` goes out as written (a stream as it comes), with no escaping. */
+  xml<SK extends StatusKey>(
+    statusKey: SK,
+    body: string | StreamBody,
+    opts?: ResponseOptions,
+  ): TypedResponse<"application/xml", SK> {
+    return this.#known(statusKeyToCode[statusKey], XML_HEADERS, body, opts);
+  }
 }

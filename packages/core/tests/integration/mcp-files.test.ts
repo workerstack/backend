@@ -6,118 +6,136 @@
  * extension, so a file without data is a tool error, never an upload request: the extension's own flow runs under the
  * minimal client (security/mcp-uploads-adversarial.test.ts).
  */
-import { createHash } from "node:crypto"
-import { join } from "node:path"
-import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import * as z from "zod"
-import { httpSession, withClients } from "../fixture/mcp-clients/clients.ts"
-import { written } from "../fixture/emitted.ts"
-import { generateMcpHandler } from "@workerstack/clients"
-import { type Listener, serve } from "../fixture/loopback.ts"
-import { type McpHandler, mcp } from "../../src/mcp/mount.ts"
-import { memoryUploadStore, uploads } from "../../src/mcp/uploads.ts"
-import { urlFiles } from "../../src/mcp/url-files.ts"
-import { generateOpenApi } from "../../src/openapi/generate.ts"
-import { httpApp } from "../../src/routing/app.ts"
-import { fileInput } from "./mcp-files/client.ts"
-import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
+import { createHash } from "node:crypto";
+import { join } from "node:path";
 
-const KEY = "ApiKey ak_files"
+import { generateMcpHandler } from "@workerstack/clients";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import * as z from "zod";
+
+import { type McpHandler, mcp } from "../../src/mcp/mount.ts";
+import { memoryUploadStore, uploads } from "../../src/mcp/uploads.ts";
+import { urlFiles } from "../../src/mcp/url-files.ts";
+import { generateOpenApi } from "../../src/openapi/generate.ts";
+import { httpApp } from "../../src/routing/app.ts";
+import { written } from "../__fixtures__/emitted.ts";
+import { type Listener, serve } from "../__fixtures__/loopback.ts";
+import { httpSession, withClients } from "../__fixtures__/mcp-clients/clients.ts";
+import { SPAWN_TIMEOUT } from "../__fixtures__/spawn-timeout.ts";
+import { fileInput } from "./mcp-files/client.ts";
+
+const KEY = "ApiKey ak_files";
+
 const SCHEMES = {
-	apiKey: { description: "Format: ApiKey {key}", in: "header", name: "Authorization", type: "apiKey" },
-}
-const CSV = new TextEncoder().encode("name,qty\nbolt,4\n")
-const FILES = ["io.modelcontextprotocol", "files"].join("/")
+  apiKey: { description: "Format: ApiKey {key}", in: "header", name: "Authorization", type: "apiKey" },
+};
+
+const CSV = new TextEncoder().encode("name,qty\nbolt,4\n");
+const FILES = ["io.modelcontextprotocol", "files"].join("/");
 
 /** The app: one file tool, `docs_save`, answering the file's name, size and SHA-256 (hex). */
 function app() {
-	return httpApp()
-		.post("/docs")
-		.meta({ mcp: true, operationId: "docs.save", security: [{ apiKey: [] }] })
-		.input({ form: z.object({ file: z.file() }) })
-		.output({ "application/json": { ok: z.object({ name: z.string(), sha256: z.string(), size: z.number() }) } })
-		.handler(async (ctx) => {
-			const { file } = ctx.input.form
-			const sha256 = createHash("sha256")
-				.update(new Uint8Array(await file.arrayBuffer()))
-				.digest("hex")
-			return ctx.res.json("ok", { name: file.name, sha256, size: file.size })
-		})
+  return httpApp()
+    .post("/docs")
+    .meta({ mcp: true, operationId: "docs.save", security: [{ apiKey: [] }] })
+    .input({ form: z.object({ file: z.file() }) })
+    .output({ "application/json": { ok: z.object({ name: z.string(), sha256: z.string(), size: z.number() }) } })
+    .handler(async (ctx) => {
+      const { file } = ctx.input.form;
+
+      const sha256 = createHash("sha256")
+        .update(new Uint8Array(await file.arrayBuffer()))
+        .digest("hex");
+
+      return ctx.res.json("ok", { name: file.name, sha256, size: file.size });
+    });
 }
 
-const servers: Listener[] = []
-let endpoint = ""
-const hosted: string[] = []
+const servers: Listener[] = [];
+let endpoint = "";
+const hosted: string[] = [];
 
 beforeAll(async () => {
-	const document = generateOpenApi(app(), { info: { title: "Docs", version: "1.0.0" }, securitySchemes: SCHEMES })
-	const { entry, files } = generateMcpHandler(document as unknown as Record<string, unknown>)
-	const dir = written({
-		"mcp.gen.ts": entry,
-		...Object.fromEntries(Object.entries(files).map(([name, text]) => [`mcp/${name}`, text])),
-	})
-	const handler = ((await import(join(dir, "mcp.gen.ts"))) as { mcpHandler: McpHandler }).mcpHandler
-	const fileHost = await serve(
-		{
-			fetch: async (request: Request) => {
-				hosted.push(`${new URL(request.url).pathname} ${request.headers.get("authorization")}`)
-				return new Response(CSV, { headers: { "content-type": "text/csv" } })
-			},
-		},
-		{ hostname: "127.0.0.1", port: 0 },
-	)
-	servers.push(fileHost)
-	/* the listed host, https as the guard asks, reached on the local file host's port */
-	const local = (request: Request) => {
-		const url = new URL(request.url)
-		return fetch(`${fileHost.url}${url.pathname}`, {
-			redirect: request.redirect,
-			signal: request.signal,
-		})
-	}
-	const mounted = mcp(app(), "/mcp", handler, {
-		authenticate: (request) => request.headers.get("authorization") === KEY,
-		uploads: uploads({ secret: "an-app-secret-of-at-least-32-characters", store: memoryUploadStore() }),
-		urlFiles: urlFiles({ fetch: local, hosts: ["files.example"] }),
-	})
-	const server = await serve(mounted, { hostname: "127.0.0.1", port: 0 })
-	servers.push(server)
-	endpoint = `${server.url}/mcp`
-})
+  const document = generateOpenApi(app(), { info: { title: "Docs", version: "1.0.0" }, securitySchemes: SCHEMES });
+  const { entry, files } = generateMcpHandler(document as unknown as Record<string, unknown>);
+
+  const dir = written({
+    "mcp.gen.ts": entry,
+    ...Object.fromEntries(Object.entries(files).map(([name, text]) => [`mcp/${name}`, text])),
+  });
+
+  const handler = ((await import(join(dir, "mcp.gen.ts"))) as { mcpHandler: McpHandler }).mcpHandler;
+
+  const fileHost = await serve(
+    {
+      fetch: async (request: Request) => {
+        hosted.push(`${new URL(request.url).pathname} ${request.headers.get("authorization")}`);
+
+        return new Response(CSV, { headers: { "content-type": "text/csv" } });
+      },
+    },
+    { hostname: "127.0.0.1", port: 0 },
+  );
+
+  servers.push(fileHost);
+
+  // the listed host, https as the guard asks, reached on the local file host's port
+  const local = (request: Request) => {
+    const url = new URL(request.url);
+
+    return fetch(`${fileHost.url}${url.pathname}`, {
+      redirect: request.redirect,
+      signal: request.signal,
+    });
+  };
+
+  const mounted = mcp(app(), "/mcp", handler, {
+    authenticate: (request) => request.headers.get("authorization") === KEY,
+    uploads: uploads({ secret: "an-app-secret-of-at-least-32-characters", store: memoryUploadStore() }),
+    urlFiles: urlFiles({ fetch: local, hosts: ["files.example"] }),
+  });
+
+  const server = await serve(mounted, { hostname: "127.0.0.1", port: 0 });
+  servers.push(server);
+  endpoint = `${server.url}/mcp`;
+});
 
 afterAll(async () => {
-	await Promise.all(servers.map((server) => server.close()))
-})
+  await Promise.all(servers.map((server) => server.close()));
+});
 
 describe.skipIf(!withClients())("remote files under the official TS clients (bit 21 g)", () => {
-	it.each(["sdk", "modern"] as const)(
-		"%s lists the {url} value, sends a file by URL, gets no upload request",
-		{ timeout: SPAWN_TIMEOUT },
-		async (client) => {
-			hosted.length = 0
-			const metadata = await fileInput("f-1", CSV, "text/csv")
-			const [listed, fetched, unasked] = await httpSession(client, { headers: { authorization: KEY }, url: endpoint }, [
-				{ list: true },
-				{ call: { arguments: { file: { url: "https://files.example/rows.csv" } }, name: "docs_save" } },
-				{ call: { arguments: { file: metadata }, name: "docs_save" } },
-			])
-			const file = (
-				(listed?.tools?.[0]?.inputSchema ?? {}) as { properties: { file: { anyOf: { properties: object }[] } } }
-			).properties.file
-			const sha256 = createHash("sha256").update(CSV).digest("hex")
-			expect([
-				file.anyOf.map((value) => Object.keys(value.properties)),
-				(fetched?.result as { structuredContent?: unknown })?.structuredContent,
-				hosted,
-				(unasked?.result as { content: { text: string }[] })?.content[0]?.text,
-			]).toEqual([
-				[["digest"], ["url"]],
-				{ name: "rows.csv", sha256, size: CSV.length },
-				["/rows.csv null"],
-				JSON.stringify({
-					message: `Invalid arguments: file has no data, and an upload needs a 2026-07-28 request declaring ${FILES}`,
-				}),
-			])
-		},
-	)
-})
+  it.each(["sdk", "modern"] as const)(
+    "%s lists the {url} value, sends a file by URL, gets no upload request",
+    { timeout: SPAWN_TIMEOUT },
+    async (client) => {
+      hosted.length = 0;
+      const metadata = await fileInput("f-1", CSV, "text/csv");
+
+      const [listed, fetched, unasked] = await httpSession(client, { headers: { authorization: KEY }, url: endpoint }, [
+        { list: true },
+        { call: { arguments: { file: { url: "https://files.example/rows.csv" } }, name: "docs_save" } },
+        { call: { arguments: { file: metadata }, name: "docs_save" } },
+      ]);
+
+      const file = (
+        (listed?.tools?.[0]?.inputSchema ?? {}) as { properties: { file: { anyOf: { properties: object }[] } } }
+      ).properties.file;
+
+      const sha256 = createHash("sha256").update(CSV).digest("hex");
+      expect([
+        file.anyOf.map((value) => Object.keys(value.properties)),
+        (fetched?.result as { structuredContent?: unknown })?.structuredContent,
+        hosted,
+        (unasked?.result as { content: { text: string }[] })?.content[0]?.text,
+      ]).toEqual([
+        [["digest"], ["url"]],
+        { name: "rows.csv", sha256, size: CSV.length },
+        ["/rows.csv null"],
+        JSON.stringify({
+          message: `Invalid arguments: file has no data, and an upload needs a 2026-07-28 request declaring ${FILES}`,
+        }),
+      ]);
+    },
+  );
+});

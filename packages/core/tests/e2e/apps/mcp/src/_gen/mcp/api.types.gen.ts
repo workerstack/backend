@@ -1,8 +1,8 @@
 import type { Result, SDKConfig, SSEEventOf } from "./api.runtime.gen.js"
 
-export type CreateProjectsExtractRequest = { columns?: string; file?: string; instruction?: string; schema?: string; strictness?: "strict" | "balanced" | "flexible"; text?: string }
+export type CreateProjectsExtractRequest = { columns?: string | undefined; file?: string | undefined; instruction?: string | undefined; schema?: string | undefined; strictness?: "strict" | "balanced" | "flexible" | undefined; text?: string | undefined }
 export type CreateProjectsExtractResponse200 = { files: { file_name: string; sha256: string; size: number }[]; status: string; texts: Record<string, string> }
-export type CreateProjectsSuggestSchemaRequest = { file?: string; text?: string }
+export type CreateProjectsSuggestSchemaRequest = { file?: string | undefined; text?: string | undefined }
 
 export type HttpOptions = {
 	baseURL?: string
@@ -66,15 +66,15 @@ export type ApiConfig = Omit<SDKConfig, "baseURL"> & {
 /** Every operation of the SDK, by its member path. */
 export interface ApiOperations {
 	extract: {
-		once: HttpCall<{ params: { project_id: string }; form: { columns?: string; file?: Blob; instruction?: string; schema?: string; strictness?: "strict" | "balanced" | "flexible"; text?: string } }, CreateProjectsExtractResponse200>
-		stream: HttpStream<{ params: { project_id: string }; form: { columns?: string; file?: Blob; instruction?: string; schema?: string; strictness?: "strict" | "balanced" | "flexible"; text?: string } }, SSEEventOf<{ batch: string; complete: string; progress: string }>>
+		once: HttpCall<{ params: { project_id: string }; form: { columns?: string | undefined; file?: Blob | undefined; instruction?: string | undefined; schema?: string | undefined; strictness?: "strict" | "balanced" | "flexible" | undefined; text?: string | undefined } }, CreateProjectsExtractResponse200>
+		stream: HttpStream<{ params: { project_id: string }; form: { columns?: string | undefined; file?: Blob | undefined; instruction?: string | undefined; schema?: string | undefined; strictness?: "strict" | "balanced" | "flexible" | undefined; text?: string | undefined } }, SSEEventOf<{ batch: string; complete: string; progress: string }>>
 		table: {
-			once: HttpCall<{ params: { project_id: string; table_id: string }; form: { file?: Blob; text?: string } }, CreateProjectsExtractResponse200>
-			stream: HttpStream<{ params: { project_id: string; table_id: string }; form: { file?: Blob; text?: string } }, SSEEventOf<{ batch: string; complete: string; progress: string }>>
+			once: HttpCall<{ params: { project_id: string; table_id: string }; form: { file?: Blob | undefined; text?: string | undefined } }, CreateProjectsExtractResponse200>
+			stream: HttpStream<{ params: { project_id: string; table_id: string }; form: { file?: Blob | undefined; text?: string | undefined } }, SSEEventOf<{ batch: string; complete: string; progress: string }>>
 		}
 	}
 	suggest: {
-		schema: HttpCall<{ params: { project_id: string }; form: { file?: Blob; text?: string } }, CreateProjectsExtractResponse200>
+		schema: HttpCall<{ params: { project_id: string }; form: { file?: Blob | undefined; text?: string | undefined } }, CreateProjectsExtractResponse200>
 	}
 }
 

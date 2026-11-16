@@ -1,7 +1,7 @@
 {
-	"name": "@backend/e2e-harness",
-	"version": "0.0.1",
-	"private": true,
-	"description": "The e2e harness's own package scope: it consumes @workerstack/backend through node_modules, never as core's self-reference.",
-	"type": "module"
+  "name": "@backend/e2e-harness",
+  "version": "0.0.1",
+  "private": true,
+  "description": "The e2e harness's own package scope: it consumes @workerstack/backend through node_modules, never as core's self-reference.",
+  "type": "module"
 }

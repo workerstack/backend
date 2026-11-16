@@ -1,443 +1,465 @@
-import { request as httpRequest, Agent as HttpAgent } from "node:http"
-import { request as httpsRequest, Agent as HttpsAgent } from "node:https"
-import { expect, test } from "@playwright/test"
-import { e2eWsBase } from "../../../../playwright-app.ts"
+import { request as httpRequest, Agent as HttpAgent } from "node:http";
+import { request as httpsRequest, Agent as HttpsAgent } from "node:https";
 
-const WS_BASE = e2eWsBase()
+import { expect, test } from "@playwright/test";
+
+import { e2eWsBase } from "../../../../playwright-app.ts";
+
+const WS_BASE = e2eWsBase();
 
 function connectWs(path: string): {
-	close(code?: number, reason?: string): void
-	messages: string[]
-	/** Settles once the socket is open, so a send right after it reaches the route. */
-	opened(): Promise<void>
-	send(data: string): void
-	waitForClose(): Promise<{ code: number; reason: string }>
-	waitForMessages(count: number, timeout?: number): Promise<string[]>
+  close(code?: number, reason?: string): void;
+  messages: string[];
+  /** Settles once the socket is open, so a send right after it reaches the route. */
+  opened(): Promise<void>;
+  send(data: string): void;
+  waitForClose(): Promise<{ code: number; reason: string }>;
+  waitForMessages(count: number, timeout?: number): Promise<string[]>;
 } {
-	const messages: string[] = []
-	const listeners: Array<() => void> = []
-	let closeResolve: ((v: { code: number; reason: string }) => void) | null = null
-	const ws = new WebSocket(`${WS_BASE}${path}`)
-	ws.addEventListener("message", (evt) => {
-		messages.push(typeof evt.data === "string" ? evt.data : String(evt.data))
-		for (const cb of listeners) cb()
-	})
-	ws.addEventListener("close", (evt) => closeResolve?.({ code: evt.code, reason: evt.reason }))
-	return {
-		close(code?: number, reason?: string) {
-			ws.close(code, reason)
-		},
-		messages,
-		opened() {
-			if (ws.readyState === WebSocket.OPEN) return Promise.resolve()
-			return new Promise((resolve) => ws.addEventListener("open", () => resolve(), { once: true }))
-		},
-		send(data: string) {
-			ws.send(data)
-		},
-		waitForClose() {
-			return new Promise((resolve) => {
-				if (ws.readyState === WebSocket.CLOSED) {
-					resolve({ code: 0, reason: "" })
-					return
-				}
-				closeResolve = resolve
-			})
-		},
-		waitForMessages(count: number, timeout = 5000) {
-			return new Promise((resolve, reject) => {
-				const timer = setTimeout(() => {
-					reject(new Error(`Timeout: expected ${count} messages, got ${messages.length}: ${JSON.stringify(messages)}`))
-				}, timeout)
-				const check = () => {
-					if (messages.length >= count) {
-						clearTimeout(timer)
-						resolve(messages.slice(0, count))
-					}
-				}
-				listeners.push(check)
-				check()
-			})
-		},
-	}
+  const messages: string[] = [];
+  const listeners: Array<() => void> = [];
+  let closeResolve: ((v: { code: number; reason: string }) => void) | null = null;
+  const ws = new WebSocket(`${WS_BASE}${path}`);
+  ws.addEventListener("message", (evt) => {
+    messages.push(typeof evt.data === "string" ? evt.data : String(evt.data));
+
+    for (const cb of listeners) cb();
+  });
+  ws.addEventListener("close", (evt) => closeResolve?.({ code: evt.code, reason: evt.reason }));
+
+  return {
+    close(code?: number, reason?: string) {
+      ws.close(code, reason);
+    },
+    messages,
+    opened() {
+      if (ws.readyState === WebSocket.OPEN) return Promise.resolve();
+
+      return new Promise((resolve) => ws.addEventListener("open", () => resolve(), { once: true }));
+    },
+    send(data: string) {
+      ws.send(data);
+    },
+    waitForClose() {
+      return new Promise((resolve) => {
+        if (ws.readyState === WebSocket.CLOSED) {
+          resolve({ code: 0, reason: "" });
+
+          return;
+        }
+
+        closeResolve = resolve;
+      });
+    },
+    waitForMessages(count: number, timeout = 5000) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error(`Timeout: expected ${count} messages, got ${messages.length}: ${JSON.stringify(messages)}`));
+        }, timeout);
+
+        const check = () => {
+          if (messages.length >= count) {
+            clearTimeout(timer);
+            resolve(messages.slice(0, count));
+          }
+        };
+
+        listeners.push(check);
+        check();
+      });
+    },
+  };
 }
 
 test.describe("input sources", () => {
-	test("POST /in/json", async ({ request }) => {
-		const res = await request.post("/in/json", { data: { email: "a@b.c", name: "Ada" } })
-		expect(res.status()).toBe(201)
-		expect(await res.json()).toEqual({ id: "1" })
-	})
+  test("POST /in/json", async ({ request }) => {
+    const res = await request.post("/in/json", { data: { email: "a@b.c", name: "Ada" } });
+    expect(res.status()).toBe(201);
+    expect(await res.json()).toEqual({ id: "1" });
+  });
 
-	test("POST /in/form", async ({ request }) => {
-		const res = await request.post("/in/form", {
-			form: { password: "x", username: "ada" },
-		})
-		expect(res.status()).toBe(200)
-		expect(await res.json()).toEqual({ token: "t-ada" })
-	})
+  test("POST /in/form", async ({ request }) => {
+    const res = await request.post("/in/form", {
+      form: { password: "x", username: "ada" },
+    });
 
-	test("GET /in/search", async ({ request }) => {
-		const res = await request.get("/in/search?limit=10&page=1")
-		expect(res.status()).toBe(200)
-		/* the body is what the service typed with OperationCtx<"input.search"> read off the handler's own ctx */
-		expect(await res.json()).toEqual({ results: ["1"] })
-	})
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ token: "t-ada" });
+  });
 
-	test("GET /in/headers", async ({ request }) => {
-		const res = await request.get("/in/headers", {
-			headers: { "x-api-key": "k", "x-request-id": "r1" },
-		})
-		expect(res.status()).toBe(200)
-		expect(await res.json()).toEqual({ accepted: true })
-	})
+  test("GET /in/search", async ({ request }) => {
+    const res = await request.get("/in/search?limit=10&page=1");
+    expect(res.status()).toBe(200);
+    // the body is what the service typed with OperationCtx<"input.search"> read off the handler's own ctx
+    expect(await res.json()).toEqual({ results: ["1"] });
+  });
 
-	test("GET /in/cookies", async ({ request }) => {
-		const res = await request.get("/in/cookies", {
-			headers: { cookie: "locale=en; sid=s1" },
-		})
-		expect(res.status()).toBe(200)
-		expect(await res.json()).toEqual({ locale: "en", valid: true })
-	})
+  test("GET /in/headers", async ({ request }) => {
+    const res = await request.get("/in/headers", {
+      headers: { "x-api-key": "k", "x-request-id": "r1" },
+    });
 
-	test("GET /in/params/:orgId/members/:memberId", async ({ request }) => {
-		const res = await request.get("/in/params/org-1/members/m-2")
-		expect(res.status()).toBe(200)
-		expect(await res.json()).toEqual({ memberId: "m-2", orgId: "org-1" })
-	})
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ accepted: true });
+  });
 
-	test("GET /in/none", async ({ request }) => {
-		const res = await request.get("/in/none")
-		expect(res.status()).toBe(200)
-		expect(await res.json()).toEqual({ ping: "pong" })
-	})
+  test("GET /in/cookies", async ({ request }) => {
+    const res = await request.get("/in/cookies", {
+      headers: { cookie: "locale=en; sid=s1" },
+    });
 
-	test("POST /in/file multipart", async ({ request }) => {
-		const res = await request.post("/in/file", {
-			multipart: {
-				title: "hello",
-				upload: {
-					buffer: Buffer.from("hi"),
-					mimeType: "text/plain",
-					name: "hi.txt",
-				},
-			},
-		})
-		expect(res.status()).toBe(200)
-		expect(await res.json()).toEqual({ name: "hi.txt", title: "hello" })
-	})
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ locale: "en", valid: true });
+  });
 
-	test("PUT /in/all/:resourceId combo", async ({ request }) => {
-		const res = await request.put("/in/all/r1?version=2", {
-			data: { data: { k: "v" } },
-			headers: { "if-match": 'W/"1"' },
-		})
-		expect(res.status()).toBe(200)
-		expect(await res.json()).toEqual({ etag: 'W/"abc"', version: 2 })
-	})
-})
+  test("GET /in/params/:orgId/members/:memberId", async ({ request }) => {
+    const res = await request.get("/in/params/org-1/members/m-2");
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ memberId: "m-2", orgId: "org-1" });
+  });
+
+  test("GET /in/none", async ({ request }) => {
+    const res = await request.get("/in/none");
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ ping: "pong" });
+  });
+
+  test("POST /in/file multipart", async ({ request }) => {
+    const res = await request.post("/in/file", {
+      multipart: {
+        title: "hello",
+        upload: {
+          buffer: Buffer.from("hi"),
+          mimeType: "text/plain",
+          name: "hi.txt",
+        },
+      },
+    });
+
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ name: "hi.txt", title: "hello" });
+  });
+
+  test("PUT /in/all/:resourceId combo", async ({ request }) => {
+    const res = await request.put("/in/all/r1?version=2", {
+      data: { data: { k: "v" } },
+      headers: { "if-match": 'W/"1"' },
+    });
+
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ etag: 'W/"abc"', version: 2 });
+  });
+});
 
 test.describe("output types", () => {
-	test("GET /out/text", async ({ request }) => {
-		const res = await request.get("/out/text")
-		expect(res.status()).toBe(200)
-		expect(await res.text()).toBe("hello world")
-	})
+  test("GET /out/text", async ({ request }) => {
+    const res = await request.get("/out/text");
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toBe("hello world");
+  });
 
-	test("GET /out/html", async ({ request }) => {
-		const res = await request.get("/out/html")
-		expect(res.status()).toBe(200)
-		expect(await res.text()).toContain("<h1>Hello</h1>")
-	})
+  test("GET /out/html", async ({ request }) => {
+    const res = await request.get("/out/html");
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toContain("<h1>Hello</h1>");
+  });
 
-	test("GET /out/csv", async ({ request }) => {
-		const res = await request.get("/out/csv")
-		expect(res.status()).toBe(200)
-		expect(await res.text()).toContain("Alice")
-	})
+  test("GET /out/csv", async ({ request }) => {
+    const res = await request.get("/out/csv");
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toContain("Alice");
+  });
 
-	test("GET /out/xml", async ({ request }) => {
-		const res = await request.get("/out/xml")
-		expect(res.status()).toBe(200)
-		expect(await res.text()).toContain("<user>")
-	})
+  test("GET /out/xml", async ({ request }) => {
+    const res = await request.get("/out/xml");
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toContain("<user>");
+  });
 
-	test("GET /out/binary", async ({ request }) => {
-		const res = await request.get("/out/binary")
-		expect(res.status()).toBe(200)
-		const body = await res.body()
-		expect(body).toEqual(Buffer.from([0x48, 0x49]))
-	})
+  test("GET /out/binary", async ({ request }) => {
+    const res = await request.get("/out/binary");
+    expect(res.status()).toBe(200);
+    const body = await res.body();
+    expect(body).toEqual(Buffer.from([0x48, 0x49]));
+  });
 
-	test("GET /out/sse", async ({ request }) => {
-		const res = await request.get("/out/sse")
-		expect(res.status()).toBe(200)
-		expect(res.headers()["content-type"]).toMatch(/text\/event-stream/)
-		const text = await res.text()
-		expect(text).toContain("event: heartbeat")
-		expect(text).toContain('event: data\ndata: {"n":42}\n')
-	})
+  test("GET /out/sse", async ({ request }) => {
+    const res = await request.get("/out/sse");
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toMatch(/text\/event-stream/);
+    const text = await res.text();
+    expect(text).toContain("event: heartbeat");
+    expect(text).toContain('event: data\ndata: {"n":42}\n');
+  });
 
-	test("POST /out/multi-status created", async ({ request }) => {
-		const res = await request.post("/out/multi-status", { data: { slug: "ada" } })
-		expect(res.status()).toBe(201)
-		expect(await res.json()).toEqual({ id: "1", slug: "ada" })
-	})
+  test("POST /out/multi-status created", async ({ request }) => {
+    const res = await request.post("/out/multi-status", { data: { slug: "ada" } });
+    expect(res.status()).toBe(201);
+    expect(await res.json()).toEqual({ id: "1", slug: "ada" });
+  });
 
-	test("DELETE /out/no-content/:id", async ({ request }) => {
-		const res = await request.delete("/out/no-content/1")
-		expect(res.status()).toBe(204)
-	})
-})
+  test("DELETE /out/no-content/:id", async ({ request }) => {
+    const res = await request.delete("/out/no-content/1");
+    expect(res.status()).toBe(204);
+  });
+});
 
 test.describe("methods and status keys", () => {
-	test("GET/POST/PUT/PATCH/DELETE /methods/resource", async ({ request }) => {
-		expect((await request.get("/methods/resource")).status()).toBe(200)
-		expect((await request.post("/methods/resource", { data: { name: "n" } })).status()).toBe(201)
-		expect((await request.put("/methods/resource/1", { data: { name: "n" } })).status()).toBe(200)
-		expect((await request.patch("/methods/resource/1", { data: {} })).status()).toBe(200)
-		expect((await request.delete("/methods/resource/1")).status()).toBe(204)
-	})
+  test("GET/POST/PUT/PATCH/DELETE /methods/resource", async ({ request }) => {
+    expect((await request.get("/methods/resource")).status()).toBe(200);
+    expect((await request.post("/methods/resource", { data: { name: "n" } })).status()).toBe(201);
+    expect((await request.put("/methods/resource/1", { data: { name: "n" } })).status()).toBe(200);
+    expect((await request.patch("/methods/resource/1", { data: {} })).status()).toBe(200);
+    expect((await request.delete("/methods/resource/1")).status()).toBe(204);
+  });
 
-	test("status keys 200/201/202/204", async ({ request }) => {
-		expect((await request.get("/status/ok")).status()).toBe(200)
-		expect((await request.post("/status/created", { data: { x: "a" } })).status()).toBe(201)
-		expect((await request.post("/status/accepted", { data: { task: "t" } })).status()).toBe(202)
-		expect((await request.delete("/status/no-content")).status()).toBe(204)
-	})
-})
+  test("status keys 200/201/202/204", async ({ request }) => {
+    expect((await request.get("/status/ok")).status()).toBe(200);
+    expect((await request.post("/status/created", { data: { x: "a" } })).status()).toBe(201);
+    expect((await request.post("/status/accepted", { data: { task: "t" } })).status()).toBe(202);
+    expect((await request.delete("/status/no-content")).status()).toBe(204);
+  });
+});
 
 test.describe("streams and uploads", () => {
-	test("GET /stream/filtered SSE uses search", async ({ request }) => {
-		const res = await request.get("/stream/filtered?channel=news")
-		expect(res.status()).toBe(200)
-		expect(await res.text()).toContain("news")
-	})
+  test("GET /stream/filtered SSE uses search", async ({ request }) => {
+    const res = await request.get("/stream/filtered?channel=news");
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toContain("news");
+  });
 
-	test("POST /rs/upload streamed json", async ({ request }) => {
-		const res = await request.post("/rs/upload", {
-			data: { chunks: 3, fileName: "a.bin" },
-		})
-		expect(res.status()).toBe(202)
-		expect(await res.json()).toEqual({ uploadId: "up-1" })
-	})
-})
+  test("POST /rs/upload streamed json", async ({ request }) => {
+    const res = await request.post("/rs/upload", {
+      data: { chunks: 3, fileName: "a.bin" },
+    });
+
+    expect(res.status()).toBe(202);
+    expect(await res.json()).toEqual({ uploadId: "up-1" });
+  });
+});
 
 /** The status of `method path` sent over `agent`, or `null` when no answer comes within 5 s. */
 function statusOver(
-	agent: HttpAgent,
-	base: string,
-	method: string,
-	path: string,
-	body?: string,
+  agent: HttpAgent,
+  base: string,
+  method: string,
+  path: string,
+  body?: string,
 ): Promise<number | null> {
-	const url = new URL(path, base)
-	const send = url.protocol === "https:" ? httpsRequest : httpRequest
-	const headers = body === undefined ? {} : { "content-type": "application/json" }
-	return new Promise((resolve, reject) => {
-		const req = send(url, { agent, headers, method, timeout: 5_000 }, (res) => {
-			res.resume()
-			res.on("end", () => resolve(res.statusCode ?? null))
-		})
-		req.on("timeout", () => {
-			req.destroy()
-			resolve(null)
-		})
-		req.on("error", reject)
-		req.end(body)
-	})
+  const url = new URL(path, base);
+  const send = url.protocol === "https:" ? httpsRequest : httpRequest;
+  const headers = body === undefined ? {} : { "content-type": "application/json" };
+
+  return new Promise((resolve, reject) => {
+    const req = send(url, { agent, headers, method, timeout: 5_000 }, (res) => {
+      res.resume();
+      res.on("end", () => resolve(res.statusCode ?? null));
+    });
+
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(null);
+    });
+    req.on("error", reject);
+    req.end(body);
+  });
 }
 
-/*
- * wrangler dev 4.110.0 to 4.129.0 held a keep-alive connection whose request body the worker left unread: the next
- * request on it hung (4.110.0) or answered 500 (4.120.0 to 4.129.0), so this cell's 426 after the streamed upload timed
- * out (CI 41834474412). A plain worker answering 202 unread repeats it; bare workerd and Miniflare do not; 4.129.1 fixed
- * it. One socket (maxSockets 1) makes the reuse deterministic.
- */
+// wrangler dev 4.110.0 to 4.129.0 held a keep-alive connection whose request body the worker left unread: the next
+// request on it hung (4.110.0) or answered 500 (4.120.0 to 4.129.0), so this cell's 426 after the streamed upload timed
+// out (CI 41834474412). A plain worker answering 202 unread repeats it; bare workerd and Miniflare do not; 4.129.1 fixed
+// it. One socket (maxSockets 1) makes the reuse deterministic.
 test.describe("keep-alive", () => {
-	test("a body its handler leaves unread leaves the connection serving the next request", async ({ baseURL }) => {
-		const base = baseURL ?? ""
-		const agent = new (base.startsWith("https:") ? HttpsAgent : HttpAgent)({ keepAlive: true, maxSockets: 1 })
-		try {
-			expect(
-				await statusOver(agent, base, "POST", "/rs/upload", JSON.stringify({ chunks: 3, fileName: "a.bin" })),
-			).toBe(202)
-			expect(await statusOver(agent, base, "GET", "/ws/echo")).toBe(426)
-		} finally {
-			agent.destroy()
-		}
-	})
-})
+  test("a body its handler leaves unread leaves the connection serving the next request", async ({ baseURL }) => {
+    const base = baseURL ?? "";
+    const agent = new (base.startsWith("https:") ? HttpsAgent : HttpAgent)({ keepAlive: true, maxSockets: 1 });
+
+    try {
+      expect(
+        await statusOver(agent, base, "POST", "/rs/upload", JSON.stringify({ chunks: 3, fileName: "a.bin" })),
+      ).toBe(202);
+      expect(await statusOver(agent, base, "GET", "/ws/echo")).toBe(426);
+    } finally {
+      agent.destroy();
+    }
+  });
+});
 
 test.describe("websocket", () => {
-	test("GET without Upgrade to /ws/echo → 426", async ({ request }) => {
-		const res = await request.get("/ws/echo")
-		expect(res.status()).toBe(426)
-	})
+  test("GET without Upgrade to /ws/echo → 426", async ({ request }) => {
+    const res = await request.get("/ws/echo");
+    expect(res.status()).toBe(426);
+  });
 
-	test("echo: greeting then echo", async () => {
-		const ws = connectWs("/ws/echo")
-		const first = await ws.waitForMessages(1)
-		expect(first[0]).toBe("connected")
-		ws.send("ping")
-		const both = await ws.waitForMessages(2)
-		expect(both[1]).toBe("ping")
-		ws.close(1000)
-		await ws.waitForClose()
-	})
+  test("echo: greeting then echo", async () => {
+    const ws = connectWs("/ws/echo");
+    const first = await ws.waitForMessages(1);
+    expect(first[0]).toBe("connected");
+    ws.send("ping");
+    const both = await ws.waitForMessages(2);
+    expect(both[1]).toBe("ping");
+    ws.close(1000);
+    await ws.waitForClose();
+  });
 
-	test("room search input", async () => {
-		const ws = connectWs("/ws/room?roomId=lobby")
-		const first = await ws.waitForMessages(1)
-		expect(first[0]).toBe("joined")
-		ws.close(1000)
-		await ws.waitForClose()
-	})
-})
+  test("room search input", async () => {
+    const ws = connectWs("/ws/room?roomId=lobby");
+    const first = await ws.waitForMessages(1);
+    expect(first[0]).toBe("joined");
+    ws.close(1000);
+    await ws.waitForClose();
+  });
+});
 
 test.describe("websocket messages: typed and checked both ways", () => {
-	test("/ws/talk answers say with said and ping with pong", async () => {
-		const ws = connectWs("/ws/talk")
-		await ws.opened()
-		ws.send(JSON.stringify({ text: "hi", type: "say" }))
-		await ws.waitForMessages(1)
-		ws.send(JSON.stringify({ type: "ping" }))
-		const answers = await ws.waitForMessages(2)
-		expect(answers.map((answer) => JSON.parse(answer))).toEqual([{ text: "hi", type: "said" }, { type: "pong" }])
-		ws.close(1000)
-		await ws.waitForClose()
-	})
+  test("/ws/talk answers say with said and ping with pong", async () => {
+    const ws = connectWs("/ws/talk");
+    await ws.opened();
+    ws.send(JSON.stringify({ text: "hi", type: "say" }));
+    await ws.waitForMessages(1);
+    ws.send(JSON.stringify({ type: "ping" }));
+    const answers = await ws.waitForMessages(2);
+    expect(answers.map((answer) => JSON.parse(answer))).toEqual([{ text: "hi", type: "said" }, { type: "pong" }]);
+    ws.close(1000);
+    await ws.waitForClose();
+  });
 
-	test("a frame /ws/talk does not receive closes the socket with 1007 and the issue", async () => {
-		const ws = connectWs("/ws/talk")
-		const closed = ws.waitForClose()
-		await ws.opened()
-		ws.send(JSON.stringify({ type: "say" }))
-		expect([await closed, ws.messages]).toEqual([
-			/* the issue's path, then zod's message: a Workers build drops zod's English detail (its package declares no
-			 * side effects, so `config(en())` is shaken out), and the message stops at "Invalid input" */
-			{ code: 1007, reason: expect.stringMatching(/^invalid message: text: Invalid input/) },
-			[],
-		])
-	})
+  test("a frame /ws/talk does not receive closes the socket with 1007 and the issue", async () => {
+    const ws = connectWs("/ws/talk");
+    const closed = ws.waitForClose();
+    await ws.opened();
+    ws.send(JSON.stringify({ type: "say" }));
+    expect([await closed, ws.messages]).toEqual([
+      // the issue's path, then zod's message: a Workers build drops zod's English detail (its package declares no
+      // side effects, so `config(en())` is shaken out), and the message stops at "Invalid input"
+      { code: 1007, reason: expect.stringMatching(/^invalid message: text: Invalid input/) },
+      [],
+    ]);
+  });
 
-	test("the document names /ws/talk's messages as refs, each a tagged union", async ({ request }) => {
-		const spec = await (await request.get("/openapi.json")).json()
-		const schemas = spec.components.schemas
-		expect([
-			spec.paths["/ws/talk"].get["x-websocket"],
-			spec.paths["/ws/echo"].get["x-websocket"],
-			schemas.WsTalkReceive.discriminator,
-			schemas.WsTalkSend.discriminator,
-		]).toEqual([
-			{ receive: { $ref: "#/components/schemas/WsTalkReceive" }, send: { $ref: "#/components/schemas/WsTalkSend" } },
-			true,
-			{ propertyName: "type" },
-			{ propertyName: "type" },
-		])
-	})
-})
+  test("the document names /ws/talk's messages as refs, each a tagged union", async ({ request }) => {
+    const spec = await (await request.get("/openapi.json")).json();
+    const schemas = spec.components.schemas;
+    expect([
+      spec.paths["/ws/talk"].get["x-websocket"],
+      spec.paths["/ws/echo"].get["x-websocket"],
+      schemas.WsTalkReceive.discriminator,
+      schemas.WsTalkSend.discriminator,
+    ]).toEqual([
+      { receive: { $ref: "#/components/schemas/WsTalkReceive" }, send: { $ref: "#/components/schemas/WsTalkSend" } },
+      true,
+      { propertyName: "type" },
+      { propertyName: "type" },
+    ]);
+  });
+});
 
 test.describe("realtime messages: typed and checked both ways", () => {
-	test("/rt/room publishes say as said to the lobby, the sender included", async () => {
-		/* one socket: a Worker cannot write to a socket another request opened, so fan-out across sockets is the
-		   bus's unit tests' */
-		const ws = connectWs("/rt/room")
-		await ws.opened()
-		ws.send(JSON.stringify({ text: "hi", type: "say" }))
-		ws.send(JSON.stringify({ type: "leave" }))
-		const heard = await ws.waitForMessages(2)
-		expect(heard.map((frame) => JSON.parse(frame))).toEqual([{ text: "hi", type: "said" }, { type: "left" }])
-		ws.close(1000)
-		await ws.waitForClose()
-	})
+  test("/rt/room publishes say as said to the lobby, the sender included", async () => {
+    // one socket: a Worker cannot write to a socket another request opened, so fan-out across sockets is the
+    // bus's unit tests'
+    const ws = connectWs("/rt/room");
+    await ws.opened();
+    ws.send(JSON.stringify({ text: "hi", type: "say" }));
+    ws.send(JSON.stringify({ type: "leave" }));
+    const heard = await ws.waitForMessages(2);
+    expect(heard.map((frame) => JSON.parse(frame))).toEqual([{ text: "hi", type: "said" }, { type: "left" }]);
+    ws.close(1000);
+    await ws.waitForClose();
+  });
 
-	test("a frame /rt/room does not receive closes the connection with 1007 and the issue", async () => {
-		const ws = connectWs("/rt/room")
-		const closed = ws.waitForClose()
-		await ws.opened()
-		ws.send(JSON.stringify({ type: "say" }))
-		/* a Workers build's zod message stops at "Invalid input", as /ws/talk's does */
-		expect(await closed).toEqual({ code: 1007, reason: expect.stringMatching(/^invalid message: text: Invalid input/) })
-	})
+  test("a frame /rt/room does not receive closes the connection with 1007 and the issue", async () => {
+    const ws = connectWs("/rt/room");
+    const closed = ws.waitForClose();
+    await ws.opened();
+    ws.send(JSON.stringify({ type: "say" }));
+    // a Workers build's zod message stops at "Invalid input", as /ws/talk's does
+    expect(await closed).toEqual({
+      code: 1007,
+      reason: expect.stringMatching(/^invalid message: text: Invalid input/),
+    });
+  });
 
-	test("the document marks /rt/room x-realtime, its messages as refs, each a tagged union", async ({ request }) => {
-		const spec = await (await request.get("/openapi.json")).json()
-		const operation = spec.paths["/rt/room"].get
-		const schemas = spec.components.schemas
-		expect([
-			operation["x-websocket"],
-			operation["x-realtime"],
-			spec.paths["/ws/talk"].get["x-realtime"],
-			schemas.RtRoomReceive.discriminator,
-			schemas.RtRoomSend.discriminator,
-		]).toEqual([
-			{ receive: { $ref: "#/components/schemas/RtRoomReceive" }, send: { $ref: "#/components/schemas/RtRoomSend" } },
-			true,
-			undefined,
-			{ propertyName: "type" },
-			{ propertyName: "type" },
-		])
-	})
-})
+  test("the document marks /rt/room x-realtime, its messages as refs, each a tagged union", async ({ request }) => {
+    const spec = await (await request.get("/openapi.json")).json();
+    const operation = spec.paths["/rt/room"].get;
+    const schemas = spec.components.schemas;
+    expect([
+      operation["x-websocket"],
+      operation["x-realtime"],
+      spec.paths["/ws/talk"].get["x-realtime"],
+      schemas.RtRoomReceive.discriminator,
+      schemas.RtRoomSend.discriminator,
+    ]).toEqual([
+      { receive: { $ref: "#/components/schemas/RtRoomReceive" }, send: { $ref: "#/components/schemas/RtRoomSend" } },
+      true,
+      undefined,
+      { propertyName: "type" },
+      { propertyName: "type" },
+    ]);
+  });
+});
 
 /** The status and body an upgrade GET to `path` is answered with: 101 with no body, or the answer before it. */
 function upgradeAnswer(base: string, path: string): Promise<{ body: string; status: number }> {
-	const url = new URL(path, base)
-	const send = url.protocol === "https:" ? httpsRequest : httpRequest
-	const headers = {
-		connection: "Upgrade",
-		"sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==",
-		"sec-websocket-version": "13",
-		upgrade: "websocket",
-	}
-	return new Promise((resolve, reject) => {
-		const req = send(url, { headers }, (res) => {
-			let body = ""
-			res.setEncoding("utf8")
-			res.on("data", (chunk: string) => (body += chunk))
-			res.on("end", () => resolve({ body, status: res.statusCode ?? 0 }))
-		})
-		req.on("upgrade", (res, socket) => {
-			socket.destroy()
-			resolve({ body: "", status: res.statusCode ?? 0 })
-		})
-		req.on("error", reject)
-		req.end()
-	})
+  const url = new URL(path, base);
+  const send = url.protocol === "https:" ? httpsRequest : httpRequest;
+
+  const headers = {
+    connection: "Upgrade",
+    "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==",
+    "sec-websocket-version": "13",
+    upgrade: "websocket",
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = send(url, { headers }, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk: string) => (body += chunk));
+      res.on("end", () => resolve({ body, status: res.statusCode ?? 0 }));
+    });
+
+    req.on("upgrade", (res, socket) => {
+      socket.destroy();
+      resolve({ body: "", status: res.statusCode ?? 0 });
+    });
+    req.on("error", reject);
+    req.end();
+  });
 }
 
 test.describe("websocket upgrade: inputs and the errors answered before the 101", () => {
-	test("the document lists /ws/room's header and cookie inputs and its 404 beside the 101", async ({ request }) => {
-		const spec = await (await request.get("/openapi.json")).json()
-		const room = spec.paths["/ws/room"].get
-		expect([
-			room.parameters.map((p: { in: string; name: string }) => [p.name, p.in]),
-			Object.keys(room.responses).filter((code) => code === "101" || code === "404"),
-		]).toEqual([
-			[
-				["session", "cookie"],
-				["x-room-token", "header"],
-				["roomId", "query"],
-			],
-			["101", "404"],
-		])
-	})
+  test("the document lists /ws/room's header and cookie inputs and its 404 beside the 101", async ({ request }) => {
+    const spec = await (await request.get("/openapi.json")).json();
+    const room = spec.paths["/ws/room"].get;
+    expect([
+      room.parameters.map((p: { in: string; name: string }) => [p.name, p.in]),
+      Object.keys(room.responses).filter((code) => code === "101" || code === "404"),
+    ]).toEqual([
+      [
+        ["session", "cookie"],
+        ["x-room-token", "header"],
+        ["roomId", "query"],
+      ],
+      ["101", "404"],
+    ]);
+  });
 
-	test("an upgrade to the room `missing` gets that 404 in surface's error format, and no 101", async ({ baseURL }) => {
-		const answer = await upgradeAnswer(baseURL ?? "", "/ws/room?roomId=missing")
-		expect([answer.status, JSON.parse(answer.body).error_key]).toEqual([404, "not_found"])
-	})
-})
+  test("an upgrade to the room `missing` gets that 404 in surface's error format, and no 101", async ({ baseURL }) => {
+    const answer = await upgradeAnswer(baseURL ?? "", "/ws/room?roomId=missing");
+    expect([answer.status, JSON.parse(answer.body)]).toMatchObject([404, { error_key: "not_found" }]);
+  });
+});
 
 test.describe("openapi", () => {
-	test("GET /openapi.json includes surface paths", async ({ request }) => {
-		const res = await request.get("/openapi.json")
-		expect(res.status()).toBe(200)
-		const spec = await res.json()
-		expect(spec.info.title).toBe("Backend Surface")
-		expect(spec.paths["/in/json"]).toBeDefined()
-		expect(spec.paths["/out/text"]).toBeDefined()
-		expect(spec.paths["/methods/resource"]).toBeDefined()
-	})
-})
+  test("GET /openapi.json includes surface paths", async ({ request }) => {
+    const res = await request.get("/openapi.json");
+    expect(res.status()).toBe(200);
+    const spec = await res.json();
+    expect(spec.info.title).toBe("Backend Surface");
+    expect(spec.paths["/in/json"]).toBeDefined();
+    expect(spec.paths["/out/text"]).toBeDefined();
+    expect(spec.paths["/methods/resource"]).toBeDefined();
+  });
+});

@@ -2,9 +2,74 @@
 {
   "tasks": [
     {
+      "label": "backend:bench:bench:finalize",
+      "type": "shell",
+      "command": "bun run bench:finalize",
+      "options": {
+        "cwd": "${workspaceFolder}/bench"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "backend:bench:bench:hotpath",
+      "type": "shell",
+      "command": "bun run bench:hotpath",
+      "options": {
+        "cwd": "${workspaceFolder}/bench"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "backend:bench:bench:middleware",
+      "type": "shell",
+      "command": "bun run bench:middleware",
+      "options": {
+        "cwd": "${workspaceFolder}/bench"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "backend:bench:bench:streaming",
+      "type": "shell",
+      "command": "bun run bench:streaming",
+      "options": {
+        "cwd": "${workspaceFolder}/bench"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
       "label": "backend:bench:test",
       "type": "shell",
       "command": "bun run test",
+      "options": {
+        "cwd": "${workspaceFolder}/bench"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "backend:bench:type:check",
+      "type": "shell",
+      "command": "bun run type:check",
       "options": {
         "cwd": "${workspaceFolder}/bench"
       },
@@ -31,6 +96,19 @@
       "label": "backend:e2e-cf-workers:dev",
       "type": "shell",
       "command": "bun run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/core/tests/e2e/cf-workers"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "backend:e2e-cf-workers:options-tail",
+      "type": "shell",
+      "command": "bun run options-tail",
       "options": {
         "cwd": "${workspaceFolder}/packages/core/tests/e2e/cf-workers"
       },
@@ -288,19 +366,6 @@
       }
     },
     {
-      "label": "backend:e2e-strict-consumer:type:check",
-      "type": "shell",
-      "command": "bun run type:check",
-      "options": {
-        "cwd": "${workspaceFolder}/packages/core/tests/e2e/strict-consumer"
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "panel": "new",
-        "reveal": "always"
-      }
-    },
-    {
       "label": "backend:e2e-surface:generate",
       "type": "shell",
       "command": "bun run generate",
@@ -460,16 +525,6 @@
       }
     },
     {
-      "label": "prepare",
-      "type": "shell",
-      "command": "bun run prepare",
-      "problemMatcher": [],
-      "presentation": {
-        "panel": "new",
-        "reveal": "always"
-      }
-    },
-    {
       "label": "test",
       "type": "shell",
       "command": "bun run test",
@@ -600,6 +655,32 @@
       }
     },
     {
+      "label": "workerstack:backend:build",
+      "type": "shell",
+      "command": "bun run build",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/core"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "workerstack:backend:derive:build-ceilings",
+      "type": "shell",
+      "command": "bun run derive:build-ceilings",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/core"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
       "label": "workerstack:backend:prepack",
       "type": "shell",
       "command": "bun run prepack",
@@ -616,6 +697,71 @@
       "label": "workerstack:backend:test",
       "type": "shell",
       "command": "bun run test",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/core"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "workerstack:backend:test:build",
+      "type": "shell",
+      "command": "bun run test:build",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/core"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "workerstack:backend:test:build:ci",
+      "type": "shell",
+      "command": "bun run test:build:ci",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/core"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "workerstack:backend:test:e2e:cf",
+      "type": "shell",
+      "command": "bun run test:e2e:cf",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/core"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "workerstack:backend:test:e2e:cf:prod",
+      "type": "shell",
+      "command": "bun run test:e2e:cf:prod",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/core"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "workerstack:backend:test:packaging",
+      "type": "shell",
+      "command": "bun run test:packaging",
       "options": {
         "cwd": "${workspaceFolder}/packages/core"
       },

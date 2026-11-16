@@ -1,87 +1,20 @@
-import type {
-	RealtimeOptions,
-	Result,
-	ResumableConnection,
-	SDKConfig,
-	SSEEventOf,
-	TypedWebSocket,
-} from "./kitchen.runtime.gen.js"
+import type { RealtimeOptions, Result, ResumableConnection, SDKConfig, SSEEventOf, TypedWebSocket } from "./kitchen.runtime.gen.js"
 
 export type CreateApiHelloRequest = { name: string }
 export type CreateApiHelloResponse200 = { by: string; created: string; greeting: string }
-export type CreateApiV1OrganizationResponse409 = {
-	error_key: "org_slug_taken"
-	fields: Record<string, { error_key: string; message: string; path: string }[]>
-	message: string
-	status: 409
-	status_key: string
-	success: false
-	vars?: Record<string, number | string>
-}
-export type Err400InvalidInput = {
-	error_key: "invalid_input"
-	fields: Record<string, { error_key: string; message: string; path: string }[]>
-	message: string
-	status: 400
-	status_key: string
-	success: false
-	vars?: Record<string, number | string>
-}
-export type Err401Unauthorized = {
-	error_key: "unauthorized"
-	fields: Record<string, { error_key: string; message: string; path: string }[]>
-	message: string
-	status: 401
-	status_key: string
-	success: false
-	vars?: Record<string, number | string>
-}
-export type Err403GreetingRefused = {
-	error_key: "greeting_refused"
-	fields: Record<string, { error_key: string; message: string; path: string }[]>
-	message: string
-	status: 403
-	status_key: string
-	success: false
-	vars?: Record<string, number | string>
-}
-export type Err403OrgLimitReached = {
-	error_key: "org_limit_reached"
-	fields: Record<string, { error_key: string; message: string; path: string }[]>
-	message: string
-	status: 403
-	status_key: string
-	success: false
-	vars?: Record<string, number | string>
-}
-export type Err500ApiError = {
-	error_key: "api_error"
-	fields: Record<string, { error_key: string; message: string; path: string }[]>
-	message: string
-	status: 500
-	status_key: string
-	success: false
-	vars?: Record<string, number | string>
-}
+export type CreateApiV1OrganizationResponse409 = { error_key: "org_slug_taken"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 409; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
+export type Err400InvalidInput = { error_key: "invalid_input"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 400; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
+export type Err401Unauthorized = { error_key: "unauthorized"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 401; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
+export type Err403GreetingRefused = { error_key: "greeting_refused"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 403; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
+export type Err403OrgLimitReached = { error_key: "org_limit_reached"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 403; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
+export type Err500ApiError = { error_key: "api_error"; fields: Record<string, { error_key: string; message: string; path: string }[]>; message: string; status: 500; status_key: string; success: false; vars?: Record<string, number | string> | undefined }
 export type ListApiHelloResponse200 = { greeting: string; q: string }
 export type ListApiResponse200 = { id: string }
 
 /** The order.paid webhook event */
-export type OrderPaidWebhookEvent = {
-	id: string
-	known: true
-	type: "order.paid"
-	timestamp: string
-	data: { amount: number; orderId: string }
-}
+export type OrderPaidWebhookEvent = { id: string; known: true; type: "order.paid"; timestamp: string; data: { amount: number; orderId: string } }
 /** The order.refunded webhook event */
-export type OrderRefundedWebhookEvent = {
-	id: string
-	known: true
-	type: "order.refunded"
-	timestamp: string
-	data: { orderId: string; reason: string }
-}
+export type OrderRefundedWebhookEvent = { id: string; known: true; type: "order.refunded"; timestamp: string; data: { orderId: string; reason: string } }
 /** An event of a type this SDK's document does not declare: a newer API's, its data as sent. */
 export type UnknownWebhookEvent = { id: string; known: false; type: string; timestamp: string; data: unknown }
 /** A verified delivery: check `known`, then switch on `type` for its typed `data`. */
@@ -150,15 +83,7 @@ export type KitchenConfig = SDKConfig
 export interface KitchenOperations {
 	boundary: {
 		custom: {
-			list: HttpCall<
-				{},
-				null,
-				{
-					401: ErrorEnvelope<401, "unauthorized">
-					403: ErrorEnvelope<403, "org_limit_reached">
-					500: ErrorEnvelope<500, "api_error">
-				}
-			>
+			list: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 403: ErrorEnvelope<403, "org_limit_reached">; 500: ErrorEnvelope<500, "api_error"> }>
 		}
 		default: {
 			list: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
@@ -173,61 +98,27 @@ export interface KitchenOperations {
 	echo_post: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	echo_put: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	events: {
-		list: HttpStream<
-			{},
-			SSEEventOf<{ message: string }>,
-			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-		>
+		list: HttpStream<{}, SSEEventOf<{ message: string }>, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	}
 	eventsLive: {
-		list: HttpStream<
-			{},
-			SSEEventOf<{ resume: string; tick: string }>,
-			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-		>
+		list: HttpStream<{}, SSEEventOf<{ resume: string; tick: string }>, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	}
 	health: {
 		check: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	}
 	hello: {
-		create: HttpCall<
-			{ json: CreateApiHelloRequest },
-			CreateApiHelloResponse200,
-			{ 403: ErrorEnvelope<403, "greeting_refused"> }
-		>
+		create: HttpCall<{ json: CreateApiHelloRequest }, CreateApiHelloResponse200, { 403: ErrorEnvelope<403, "greeting_refused"> }>
 		list: HttpCall<{ search: { q: string } }, ListApiHelloResponse200, { 403: ErrorEnvelope<403, "greeting_refused"> }>
 	}
 	organizations: {
-		create: HttpCall<
-			{},
-			null,
-			{
-				400: ErrorEnvelope<400, "invalid_input">
-				401: ErrorEnvelope<401, "unauthorized">
-				403: ErrorEnvelope<403, "org_limit_reached">
-				409: ErrorEnvelope<409, "org_slug_taken">
-				500: ErrorEnvelope<500, "api_error">
-			}
-		>
-		delete: HttpCall<
-			{ params: { orgId: string } },
-			null,
-			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-		>
+		create: HttpCall<{}, null, { 400: ErrorEnvelope<400, "invalid_input">; 401: ErrorEnvelope<401, "unauthorized">; 403: ErrorEnvelope<403, "org_limit_reached">; 409: ErrorEnvelope<409, "org_slug_taken">; 500: ErrorEnvelope<500, "api_error"> }>
+		delete: HttpCall<{ params: { orgId: string } }, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 		list: HttpCall<{}, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
-		retrieve: HttpCall<
-			{ params: { orgId: string } },
-			null,
-			{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-		>
+		retrieve: HttpCall<{ params: { orgId: string } }, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	}
 	realtime: {
 		broadcast: {
-			create: HttpCall<
-				{ params: { topic: string } },
-				null,
-				{ 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }
-			>
+			create: HttpCall<{ params: { topic: string } }, null, { 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 		}
 		chat: {
 			connect(input: { params: { roomId: string } } & RealtimeCallOptions): ResumableConnection<unknown>
@@ -245,15 +136,7 @@ export interface KitchenOperations {
 		 *
 		 * Test route
 		 */
-		list: HttpCall<
-			{ search: { id: string } },
-			ListApiResponse200,
-			{
-				400: ErrorEnvelope<400, "invalid_input">
-				401: ErrorEnvelope<401, "unauthorized">
-				500: ErrorEnvelope<500, "api_error">
-			}
-		>
+		list: HttpCall<{ search: { id: string } }, ListApiResponse200, { 400: ErrorEnvelope<400, "invalid_input">; 401: ErrorEnvelope<401, "unauthorized">; 500: ErrorEnvelope<500, "api_error"> }>
 	}
 	v1: {
 		socket: {

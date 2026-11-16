@@ -4,460 +4,497 @@
  * running); SSE framing and Last-Event-ID resume; rangeResponse from a route; HEAD never starts
  * a producer; streams stay independent of each other and of other requests.
  */
-import { afterEach, describe, expect, it, vi } from "vitest"
-import { rangeResponse } from "../../src/response/range.ts"
-import type { SSEStream } from "../../src/response/sse.ts"
-import { httpApp } from "../../src/routing/app.ts"
-import { createLogger } from "../../src/telemetry/logger.ts"
-import { z } from "zod"
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+
+import { rangeResponse } from "../../src/response/range.ts";
+import type { SSEStream } from "../../src/response/sse.ts";
+import { httpApp } from "../../src/routing/app.ts";
+import { createLogger } from "../../src/telemetry/logger.ts";
 
 afterEach(() => {
-	vi.useRealTimers()
-	vi.restoreAllMocks()
-})
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 /** app.fetch answers synchronously when it can: always a promise here. */
 const send = async (
-	app: { fetch(r: Request, env: {}): Response | Promise<Response> },
-	path: string,
-	init?: RequestInit,
-) => app.fetch(new Request(`http://app.test${path}`, init), {})
+  app: { fetch(r: Request, env: {}): Response | Promise<Response> },
+  path: string,
+  init?: RequestInit,
+) => app.fetch(new Request(`http://app.test${path}`, init), {});
 
 /** An app with one route per helper, each recording when its producer starts and ends. */
 function streamingApp() {
-	const log: string[] = []
-	const app = httpApp<{}>()
-	app.get("/stream").handler((ctx) =>
-		ctx.res.stream(async (writable) => {
-			log.push("stream:start")
-			const writer = writable.getWriter()
-			await writer.write("a")
-			await writer.write("b")
-			await writer.close()
-		}),
-	)
-	app.get("/generate").handler((ctx) =>
-		ctx.res.generate(
-			(async function* () {
-				log.push("generate:start")
-				try {
-					yield '{"n":1}\n'
-					yield '{"n":2}\n'
-				} finally {
-					log.push("generate:finally")
-				}
-			})(),
-			{ contentType: "application/x-ndjson" },
-		),
-	)
-	app.get("/events").handler((ctx) =>
-		ctx.res.sse(async (stream) => {
-			log.push(`sse:start:${stream.lastEventId ?? "-"}`)
-			const from = Number(stream.lastEventId ?? 0)
-			for (let id = from + 1; id <= from + 2; id++) await stream.send({ data: { id }, event: "tick", id: String(id) })
-		}),
-	)
-	return { app, log }
+  const log: string[] = [];
+  const app = httpApp<{}>();
+  app.get("/stream").handler((ctx) =>
+    ctx.res.stream(async (writable) => {
+      log.push("stream:start");
+      const writer = writable.getWriter();
+      await writer.write("a");
+      await writer.write("b");
+      await writer.close();
+    }),
+  );
+  app.get("/generate").handler((ctx) =>
+    ctx.res.generate(
+      (async function* () {
+        log.push("generate:start");
+
+        try {
+          yield '{"n":1}\n';
+          yield '{"n":2}\n';
+        } finally {
+          log.push("generate:finally");
+        }
+      })(),
+      { contentType: "application/x-ndjson" },
+    ),
+  );
+  app.get("/events").handler((ctx) =>
+    ctx.res.sse(async (stream) => {
+      log.push(`sse:start:${stream.lastEventId ?? "-"}`);
+      const from = Number(stream.lastEventId ?? 0);
+
+      for (let id = from + 1; id <= from + 2; id++) await stream.send({ data: { id }, event: "tick", id: String(id) });
+    }),
+  );
+
+  return { app, log };
 }
 
 describe("each helper streams to completion through app.fetch", () => {
-	// v0: 4e756099df
-	// v0: 19f4fe0178
-	// v0: 1e31f960f7
-	// v0: d1b522c721
-	// v0: 953556cdbd
-	// v0: 21ec26e9f8
-	it("stream(), generate() and sse() answer their body, type and status", async () => {
-		const { app, log } = streamingApp()
-		const answers = await Promise.all(
-			["/stream", "/generate", "/events"].map(async (path) => {
-				const res = await send(app, path)
-				return [res.status, res.headers.get("content-type"), await res.text()]
-			}),
-		)
-		expect(answers).toEqual([
-			[200, "application/octet-stream", "ab"],
-			[200, "application/x-ndjson", '{"n":1}\n{"n":2}\n'],
-			[200, "text/event-stream", 'event: tick\ndata: {"id":1}\nid: 1\n\nevent: tick\ndata: {"id":2}\nid: 2\n\n'],
-		])
-		expect(log.toSorted()).toEqual(["generate:finally", "generate:start", "sse:start:-", "stream:start"])
-	})
+  // v0: 4e756099df
+  // v0: 19f4fe0178
+  // v0: 1e31f960f7
+  // v0: d1b522c721
+  // v0: 953556cdbd
+  // v0: 21ec26e9f8
+  it("stream(), generate() and sse() answer their body, type and status", async () => {
+    const { app, log } = streamingApp();
 
-	// v0: 2bafadd730
-	it("an SSE client that reconnects with Last-Event-ID resumes after it", async () => {
-		const { app, log } = streamingApp()
-		const resumed = await (await send(app, "/events", { headers: { "last-event-id": "5" } })).text()
-		expect([resumed.match(/id: \d+/g), log]).toEqual([["id: 6", "id: 7"], ["sse:start:5"]])
-	})
-})
+    const answers = await Promise.all(
+      ["/stream", "/generate", "/events"].map(async (path) => {
+        const res = await send(app, path);
+
+        return [res.status, res.headers.get("content-type"), await res.text()];
+      }),
+    );
+
+    expect(answers).toEqual([
+      [200, "application/octet-stream", "ab"],
+      [200, "application/x-ndjson", '{"n":1}\n{"n":2}\n'],
+      [200, "text/event-stream", 'event: tick\ndata: {"id":1}\nid: 1\n\nevent: tick\ndata: {"id":2}\nid: 2\n\n'],
+    ]);
+    expect(log.toSorted()).toEqual(["generate:finally", "generate:start", "sse:start:-", "stream:start"]);
+  });
+
+  // v0: 2bafadd730
+  it("an SSE client that reconnects with Last-Event-ID resumes after it", async () => {
+    const { app, log } = streamingApp();
+    const resumed = await (await send(app, "/events", { headers: { "last-event-id": "5" } })).text();
+    expect([resumed.match(/id: \d+/g), log]).toEqual([["id: 6", "id: 7"], ["sse:start:5"]]);
+  });
+});
 
 /** An app whose /live SSE never ends on its own: it ticks until the stream does. */
 function liveApp() {
-	const ended: string[] = []
-	const app = httpApp<{}>()
-	app.get("/live").handler((ctx) =>
-		ctx.res.sse(
-			async (stream: SSEStream) => {
-				stream.signal.addEventListener("abort", () => ended.push("aborted"))
-				for (let n = 0; !stream.closed; n++) await stream.send({ data: String(n), event: "tick" })
-			},
-			{ keepalive: 1000 },
-		),
-	)
-	return { app, ended }
+  const ended: string[] = [];
+  const app = httpApp<{}>();
+  app.get("/live").handler((ctx) =>
+    ctx.res.sse(
+      async (stream: SSEStream) => {
+        stream.signal.addEventListener("abort", () => ended.push("aborted"));
+
+        for (let n = 0; !stream.closed; n++) await stream.send({ data: String(n), event: "tick" });
+      },
+      { keepalive: 1000 },
+    ),
+  );
+
+  return { app, ended };
 }
 
 describe("a stream ends when its client or its request does, and leaves nothing running", () => {
-	// v0: 1895334371
-	// v0: 4d37d5e373
-	// v0: 6d0753f62c
-	it("the client cancelling the body aborts the producer and clears its keepalive timer", async () => {
-		const cleared = vi.spyOn(globalThis, "clearInterval")
-		const { app, ended } = liveApp()
-		const reader = ((await send(app, "/live")).body as ReadableStream<Uint8Array>).getReader()
-		await reader.read()
-		await reader.read()
-		await reader.cancel()
-		expect([ended, cleared.mock.calls.length]).toEqual([["aborted"], 1])
-	})
+  // v0: 1895334371
+  // v0: 4d37d5e373
+  // v0: 6d0753f62c
+  it("the client cancelling the body aborts the producer and clears its keepalive timer", async () => {
+    const cleared = vi.spyOn(globalThis, "clearInterval");
+    const { app, ended } = liveApp();
+    const reader = ((await send(app, "/live")).body as ReadableStream<Uint8Array>).getReader();
+    await reader.read();
+    await reader.read();
+    await reader.cancel();
+    expect([ended, cleared.mock.calls.length]).toEqual([["aborted"], 1]);
+  });
 
-	// v0: ee69b43ebd
-	// v0: e3f532bdd4
-	it("the request aborting (ctx.signal) ends a running SSE cleanly", async () => {
-		const { app, ended } = liveApp()
-		const client = new AbortController()
-		const reader = (
-			(await send(app, "/live", { signal: client.signal })).body as ReadableStream<Uint8Array>
-		).getReader()
-		await reader.read()
-		client.abort()
-		let done = false
-		while (!done) done = (await reader.read()).done === true
-		expect(ended).toEqual(["aborted"])
-	})
-})
+  // v0: ee69b43ebd
+  // v0: e3f532bdd4
+  it("the request aborting (ctx.signal) ends a running SSE cleanly", async () => {
+    const { app, ended } = liveApp();
+    const client = new AbortController();
+
+    const reader = (
+      (await send(app, "/live", { signal: client.signal })).body as ReadableStream<Uint8Array>
+    ).getReader();
+
+    await reader.read();
+    client.abort();
+    let done = false;
+
+    while (!done) done = (await reader.read()).done;
+    expect(ended).toEqual(["aborted"]);
+  });
+});
 
 /** One event-loop turn: an endless producer that never yields would starve the client sharing this process. */
-const tick = () => new Promise((resolve) => setTimeout(resolve, 1))
+const tick = () => new Promise((resolve) => setTimeout(resolve, 1));
 
 /** An app with an endless producer per helper, each recording when its finally runs. */
 function endlessApp() {
-	const finished: string[] = []
-	const app = httpApp<{}>()
-	app.get("/stream").handler((ctx) =>
-		ctx.res.stream(async (writable) => {
-			const writer = writable.getWriter()
-			try {
-				for (;;) await writer.write("tick\n").then(tick)
-			} finally {
-				finished.push("stream")
-			}
-		}),
-	)
-	app.get("/generate").handler((ctx) =>
-		ctx.res.generate(
-			(async function* () {
-				try {
-					for (;;) {
-						yield "tick\n"
-						await tick()
-					}
-				} finally {
-					finished.push("generate")
-				}
-			})(),
-		),
-	)
-	app.get("/sse").handler((ctx) =>
-		ctx.res.sse(async (stream) => {
-			try {
-				while (!stream.closed) await stream.send({ data: "1", event: "tick" }).then(tick)
-			} finally {
-				finished.push("sse")
-			}
-		}),
-	)
-	return { app, finished }
+  const finished: string[] = [];
+  const app = httpApp<{}>();
+  app.get("/stream").handler((ctx) =>
+    ctx.res.stream(async (writable) => {
+      const writer = writable.getWriter();
+
+      try {
+        for (;;) await writer.write("tick\n").then(tick);
+      } finally {
+        finished.push("stream");
+      }
+    }),
+  );
+  app.get("/generate").handler((ctx) =>
+    ctx.res.generate(
+      (async function* () {
+        try {
+          for (;;) {
+            yield "tick\n";
+            await tick();
+          }
+        } finally {
+          finished.push("generate");
+        }
+      })(),
+    ),
+  );
+  app.get("/sse").handler((ctx) =>
+    ctx.res.sse(async (stream) => {
+      try {
+        while (!stream.closed) await stream.send({ data: "1", event: "tick" }).then(tick);
+      } finally {
+        finished.push("sse");
+      }
+    }),
+  );
+
+  return { app, finished };
 }
 
 describe("a stream ends when its client leaves", () => {
-	// v0: 6e66defcb5
-	it("stream(), generate() and sse() each run their finally after the client cancels mid-stream", async () => {
-		const { app, finished } = endlessApp()
-		for (const path of ["/stream", "/generate", "/sse"]) {
-			const reader = ((await send(app, path)).body as ReadableStream<Uint8Array>).getReader()
-			await reader.read()
-			await reader.cancel()
-		}
-		await expect.poll(() => finished.toSorted()).toEqual(["generate", "sse", "stream"])
-	})
-})
+  // v0: 6e66defcb5
+  it("stream(), generate() and sse() each run their finally after the client cancels mid-stream", async () => {
+    const { app, finished } = endlessApp();
+
+    for (const path of ["/stream", "/generate", "/sse"]) {
+      const reader = ((await send(app, path)).body as ReadableStream<Uint8Array>).getReader();
+      await reader.read();
+      await reader.cancel();
+    }
+
+    await expect.poll(() => finished.toSorted()).toEqual(["generate", "sse", "stream"]);
+  });
+});
 
 describe("a never-yielding SSE producer facing a client that stopped reading", () => {
-	it("is held back by backpressure: what it sent stays far under what it would send unbounded", async () => {
-		let sent = 0
-		const data = "x".repeat(1024)
-		const app = httpApp<{}>()
-		app.get("/flood").handler((ctx) =>
-			ctx.res.sse(async (stream) => {
-				/* no I/O, no yield: only demand stops it; bounded so a mutant that never waits ends instead of spinning */
-				for (let i = 0; i < 50_000 && !stream.closed; i++) {
-					await stream.send({ data, event: "flood" })
-					sent++
-				}
-			}),
-		)
-		const reader = ((await send(app, "/flood")).body as ReadableStream<Uint8Array>).getReader()
-		await reader.read()
-		await new Promise((resolve) => setTimeout(resolve, 300))
-		const held = sent
-		await reader.cancel()
-		/* the pipeline's buffers hold a few MB at most; a send that never waits sends all 50 000 (~50 MB) */
-		expect(held * 1_045).toBeLessThan(16 * 1024 * 1024)
-	})
-})
+  it("is held back by backpressure: what it sent stays far under what it would send unbounded", async () => {
+    let sent = 0;
+    const data = "x".repeat(1024);
+    const app = httpApp<{}>();
+    app.get("/flood").handler((ctx) =>
+      ctx.res.sse(async (stream) => {
+        // no I/O, no yield: only demand stops it; bounded so a mutant that never waits ends instead of spinning
+        for (let i = 0; i < 50_000 && !stream.closed; i++) {
+          await stream.send({ data, event: "flood" });
+          sent++;
+        }
+      }),
+    );
+    const reader = ((await send(app, "/flood")).body as ReadableStream<Uint8Array>).getReader();
+    await reader.read();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const held = sent;
+    await reader.cancel();
+    // the pipeline's buffers hold a few MB at most; a send that never waits sends all 50 000 (~50 MB)
+    expect(held * 1_045).toBeLessThan(16 * 1024 * 1024);
+  });
+});
 
 describe("HEAD and range from a route", () => {
-	// v0: 38b62aecf2
-	// v0: 40d6fd580a
-	// v0: 4ed7ba1182
-	// v0: eba2a8cacc
-	// v0: 583268d9f0
-	it("HEAD on a streaming route answers its head, sends no body and never runs the producer", async () => {
-		const { app, log } = streamingApp()
-		const heads = await Promise.all(
-			["/stream", "/generate", "/events"].map((path) => send(app, path, { method: "HEAD" })),
-		)
-		const bodies = await Promise.all(heads.map((res) => res.text()))
-		expect([heads.map((res) => res.status), bodies, log]).toEqual([[200, 200, 200], ["", "", ""], []])
-	})
+  // v0: 38b62aecf2
+  // v0: 40d6fd580a
+  // v0: 4ed7ba1182
+  // v0: eba2a8cacc
+  // v0: 583268d9f0
+  it("HEAD on a streaming route answers its head, sends no body and never runs the producer", async () => {
+    const { app, log } = streamingApp();
 
-	it("rangeResponse answers 206, 416 and 200 from a route", async () => {
-		const video = new Blob([new TextEncoder().encode("0123456789")], { type: "video/mp4" })
-		const app = httpApp<{}>()
-		app.get("/video").handler((ctx) => ctx.res.raw(rangeResponse(ctx.req, video)))
-		const answers = await Promise.all(
-			([{ range: "bytes=2-4" }, { range: "bytes=20-" }, {}] as Record<string, string>[]).map(async (headers) => {
-				const res = await send(app, "/video", { headers })
-				return [res.status, res.headers.get("content-range"), await res.text()]
-			}),
-		)
-		expect(answers).toEqual([
-			[206, "bytes 2-4/10", "234"],
-			[416, "bytes */10", ""],
-			[200, null, "0123456789"],
-		])
-	})
-})
+    const heads = await Promise.all(
+      ["/stream", "/generate", "/events"].map((path) => send(app, path, { method: "HEAD" })),
+    );
+
+    const bodies = await Promise.all(heads.map((res) => res.text()));
+    expect([heads.map((res) => res.status), bodies, log]).toEqual([[200, 200, 200], ["", "", ""], []]);
+  });
+
+  it("rangeResponse answers 206, 416 and 200 from a route", async () => {
+    const video = new Blob([new TextEncoder().encode("0123456789")], { type: "video/mp4" });
+    const app = httpApp<{}>();
+    app.get("/video").handler((ctx) => ctx.res.raw(rangeResponse(ctx.req, video)));
+
+    const answers = await Promise.all(
+      ([{ range: "bytes=2-4" }, { range: "bytes=20-" }, {}] as Record<string, string>[]).map(async (headers) => {
+        const res = await send(app, "/video", { headers });
+
+        return [res.status, res.headers.get("content-range"), await res.text()];
+      }),
+    );
+
+    expect(answers).toEqual([
+      [206, "bytes 2-4/10", "234"],
+      [416, "bytes */10", ""],
+      [200, null, "0123456789"],
+    ]);
+  });
+});
 
 describe("streams stay apart", () => {
-	// v0: a423a6c871
-	// v0: 8a99fa6b71
-	it("two SSE clients get their own events, and an open stream blocks no other request", async () => {
-		const { app } = streamingApp()
-		const live = liveApp()
-		const open = ((await send(live.app, "/live")).body as ReadableStream<Uint8Array>).getReader()
-		await open.read()
-		const [first, second, plain] = await Promise.all([
-			send(app, "/events", { headers: { "last-event-id": "10" } }).then((r) => r.text()),
-			send(app, "/events", { headers: { "last-event-id": "20" } }).then((r) => r.text()),
-			send(app, "/stream").then((r) => r.text()),
-		])
-		await open.cancel()
-		expect([first.match(/id: \d+/g), second.match(/id: \d+/g), plain]).toEqual([
-			["id: 11", "id: 12"],
-			["id: 21", "id: 22"],
-			"ab",
-		])
-	})
-})
+  // v0: a423a6c871
+  // v0: 8a99fa6b71
+  it("two SSE clients get their own events, and an open stream blocks no other request", async () => {
+    const { app } = streamingApp();
+    const live = liveApp();
+    const open = ((await send(live.app, "/live")).body as ReadableStream<Uint8Array>).getReader();
+    await open.read();
+
+    const [first, second, plain] = await Promise.all([
+      send(app, "/events", { headers: { "last-event-id": "10" } }).then((r) => r.text()),
+      send(app, "/events", { headers: { "last-event-id": "20" } }).then((r) => r.text()),
+      send(app, "/stream").then((r) => r.text()),
+    ]);
+
+    await open.cancel();
+    expect([first.match(/id: \d+/g), second.match(/id: \d+/g), plain]).toEqual([
+      ["id: 11", "id: 12"],
+      ["id: 21", "id: 22"],
+      "ab",
+    ]);
+  });
+});
 
 describe("streams at scale", () => {
-	// v0: 69e4601c9d
-	// v0: f0d3849b91
-	// v0: 66b9bf45c6
-	// v0: 6b9d15459d
-	// v0: c2d2de0e1e
-	// v0: b8fba75cd1
-	// v0: 87b0437813
-	// v0: 315781587c
-	it("large and many: 1000 events of 10 KB, 100k generated chunks, a 1 MB write, unicode intact", async () => {
-		const app = httpApp<{}>()
-		const big = "é".repeat(5_000) + "🍯".repeat(1_250)
-		app.get("/sse").handler((ctx) =>
-			ctx.res.sse(async (stream) => {
-				for (let i = 0; i < 1000; i++) await stream.send({ data: big, event: "big" })
-			}),
-		)
-		app.get("/gen").handler((ctx) =>
-			ctx.res.generate(
-				(function* () {
-					for (let i = 0; i < 100_000; i++) yield "x"
-				})(),
-			),
-		)
-		app.get("/mb").handler((ctx) =>
-			ctx.res.stream(async (writable) => {
-				const writer = writable.getWriter()
-				await writer.write(new Uint8Array(1024 * 1024).fill(7))
-				await writer.close()
-			}),
-		)
-		const [events, chunks, bytes] = await Promise.all([
-			send(app, "/sse").then((r) => r.text()),
-			send(app, "/gen").then((r) => r.text()),
-			send(app, "/mb").then((r) => r.arrayBuffer()),
-		])
-		expect([events.split(`data: ${big}\n`).length - 1, chunks.length, bytes.byteLength]).toEqual([
-			1000,
-			100_000,
-			1024 * 1024,
-		])
-	})
-})
+  // v0: 69e4601c9d
+  // v0: f0d3849b91
+  // v0: 66b9bf45c6
+  // v0: 6b9d15459d
+  // v0: c2d2de0e1e
+  // v0: b8fba75cd1
+  // v0: 87b0437813
+  // v0: 315781587c
+  it("large and many: 1000 events of 10 KB, 100k generated chunks, a 1 MB write, unicode intact", async () => {
+    const app = httpApp<{}>();
+    const big = "é".repeat(5_000) + "🍯".repeat(1_250);
+    app.get("/sse").handler((ctx) =>
+      ctx.res.sse(async (stream) => {
+        for (let i = 0; i < 1000; i++) await stream.send({ data: big, event: "big" });
+      }),
+    );
+    app.get("/gen").handler((ctx) =>
+      ctx.res.generate(
+        (function* () {
+          for (let i = 0; i < 100_000; i++) yield "x";
+        })(),
+      ),
+    );
+    app.get("/mb").handler((ctx) =>
+      ctx.res.stream(async (writable) => {
+        const writer = writable.getWriter();
+        await writer.write(new Uint8Array(1024 * 1024).fill(7));
+        await writer.close();
+      }),
+    );
+
+    const [events, chunks, bytes] = await Promise.all([
+      send(app, "/sse").then((r) => r.text()),
+      send(app, "/gen").then((r) => r.text()),
+      send(app, "/mb").then((r) => r.arrayBuffer()),
+    ]);
+
+    expect([events.split(`data: ${big}\n`).length - 1, chunks.length, bytes.byteLength]).toEqual([
+      1000,
+      100_000,
+      1024 * 1024,
+    ]);
+  });
+});
 
 /** An app whose /events route declares `data` and `heartbeat`, sending `events` in turn; its log lines and sends. */
 function declaredApp(events: readonly { data: unknown; event?: string }[]) {
-	const lines: Record<string, unknown>[] = []
-	const outcomes: string[] = []
-	const done = Promise.withResolvers<void>()
-	const logger = createLogger({
-		format: "json",
-		level: "trace",
-		write: (line) => void lines.push(JSON.parse(line) as Record<string, unknown>),
-	})
-	const app = httpApp<{}>().logger(logger)
-	app
-		.get("/events")
-		.output({ "text/event-stream": { ok: { data: z.object({ n: z.number() }), heartbeat: z.string() } } })
-		.handler((ctx) =>
-			ctx.res.sse(async (stream) => {
-				for (const event of events) {
-					await stream.send(event as never).then(
-						() => outcomes.push("sent"),
-						(error: Error) => outcomes.push(`rejected: ${error.message}`),
-					)
-				}
-				done.resolve()
-			}),
-		)
-	/* the body ends when the stream closes, before the callback has seen its last send settle */
-	const read = async () => {
-		const body = await (await send(app, "/events")).text()
-		await done.promise
-		return body
-	}
-	return { lines, outcomes, read }
+  const lines: Record<string, unknown>[] = [];
+  const outcomes: string[] = [];
+  const done = Promise.withResolvers<void>();
+
+  const logger = createLogger({
+    format: "json",
+    level: "trace",
+    write: (line) => void lines.push(JSON.parse(line) as Record<string, unknown>),
+  });
+
+  const app = httpApp<{}>().logger(logger);
+  app
+    .get("/events")
+    .output({ "text/event-stream": { ok: { data: z.object({ n: z.number() }), heartbeat: z.string() } } })
+    .handler((ctx) =>
+      ctx.res.sse(async (stream) => {
+        for (const event of events) {
+          await stream.send(event as never).then(
+            () => outcomes.push("sent"),
+            (error: Error) => outcomes.push(`rejected: ${error.message}`),
+          );
+        }
+
+        done.resolve();
+      }),
+    );
+
+  // the body ends when the stream closes, before the callback has seen its last send settle
+  const read = async () => {
+    const body = await (await send(app, "/events")).text();
+    await done.promise;
+
+    return body;
+  };
+
+  return { lines, outcomes, read };
 }
 
 describe("a declared event stream sends only the events it declares", () => {
-	it("sends each declared event with data its schema accepts", async () => {
-		const { lines, outcomes, read } = declaredApp([
-			{ data: "tick", event: "heartbeat" },
-			{ data: { n: 42 }, event: "data" },
-		])
-		const body = await read()
-		expect([body, outcomes, lines]).toEqual([
-			'event: heartbeat\ndata: tick\n\nevent: data\ndata: {"n":42}\n\n',
-			["sent", "sent"],
-			[],
-		])
-	})
+  it("sends each declared event with data its schema accepts", async () => {
+    const { lines, outcomes, read } = declaredApp([
+      { data: "tick", event: "heartbeat" },
+      { data: { n: 42 }, event: "data" },
+    ]);
 
-	it("an event that fails its schema is not sent: the log names it and the stream ends", async () => {
-		const { lines, outcomes, read } = declaredApp([
-			{ data: "tick", event: "heartbeat" },
-			{ data: { n: "x" }, event: "data" },
-			{ data: "late", event: "heartbeat" },
-		])
-		const body = await read()
-		expect([body, outcomes, lines.map((line) => [line.level, line.msg])]).toEqual([
-			"event: heartbeat\ndata: tick\n\n",
-			["sent", "rejected: stream closed", "rejected: stream closed"],
-			[[50, "sse data: invalid data: n: Invalid input: expected number, received string"]],
-		])
-	})
+    const body = await read();
+    expect([body, outcomes, lines]).toEqual([
+      'event: heartbeat\ndata: tick\n\nevent: data\ndata: {"n":42}\n\n',
+      ["sent", "sent"],
+      [],
+    ]);
+  });
 
-	it("an event the declaration does not name is not sent, and ends the stream", async () => {
-		const { lines, outcomes, read } = declaredApp([{ data: "x", event: "nope" }, { data: "x" }])
-		const body = await read()
-		expect([body, outcomes, lines.map((line) => line.msg)]).toEqual([
-			"",
-			["rejected: stream closed", "rejected: stream closed"],
-			["sse nope: undeclared event"],
-		])
-	})
-})
+  it("an event that fails its schema is not sent: the log names it and the stream ends", async () => {
+    const { lines, outcomes, read } = declaredApp([
+      { data: "tick", event: "heartbeat" },
+      { data: { n: "x" }, event: "data" },
+      { data: "late", event: "heartbeat" },
+    ]);
+
+    const body = await read();
+    expect([body, outcomes, lines.map((line) => [line.level, line.msg])]).toEqual([
+      "event: heartbeat\ndata: tick\n\n",
+      ["sent", "rejected: stream closed", "rejected: stream closed"],
+      [[50, "sse data: invalid data: n: Invalid input: expected number, received string"]],
+    ]);
+  });
+
+  it("an event the declaration does not name is not sent, and ends the stream", async () => {
+    const { lines, outcomes, read } = declaredApp([{ data: "x", event: "nope" }, { data: "x" }]);
+    const body = await read();
+    expect([body, outcomes, lines.map((line) => line.msg)]).toEqual([
+      "",
+      ["rejected: stream closed", "rejected: stream closed"],
+      ["sse nope: undeclared event"],
+    ]);
+  });
+});
 
 describe("a declared event stream: the message event and the order events go out in", () => {
-	it("a bare schema declares the message event: a name left out is message, any other is undeclared", async () => {
-		const lines: string[] = []
-		const logger = createLogger({
-			format: "json",
-			level: "trace",
-			write: (line) => void lines.push((JSON.parse(line) as { msg: string }).msg),
-		})
-		const app = httpApp<{}>().logger(logger)
-		app
-			.get("/events")
-			.output({ "text/event-stream": { ok: z.string() } })
-			.handler((ctx) =>
-				ctx.res.sse(async (stream) => {
-					await stream.send({ data: "hi" })
-					await stream.send({ data: "again", event: "message" })
-					await stream.send({ data: "x", event: "tick" } as never).catch(() => {})
-				}),
-			)
-		const body = await (await send(app, "/events")).text()
-		expect([body, lines]).toEqual([
-			"event: message\ndata: hi\n\nevent: message\ndata: again\n\n",
-			["sse tick: undeclared event"],
-		])
-	})
-})
+  it("a bare schema declares the message event: a name left out is message, any other is undeclared", async () => {
+    const lines: string[] = [];
+
+    const logger = createLogger({
+      format: "json",
+      level: "trace",
+      write: (line) => void lines.push((JSON.parse(line) as { msg: string }).msg),
+    });
+
+    const app = httpApp<{}>().logger(logger);
+    app
+      .get("/events")
+      .output({ "text/event-stream": { ok: z.string() } })
+      .handler((ctx) =>
+        ctx.res.sse(async (stream) => {
+          await stream.send({ data: "hi" });
+          await stream.send({ data: "again", event: "message" });
+          await stream.send({ data: "x", event: "tick" } as never).catch(() => {});
+        }),
+      );
+    const body = await (await send(app, "/events")).text();
+    expect([body, lines]).toEqual([
+      "event: message\ndata: hi\n\nevent: message\ndata: again\n\n",
+      ["sse tick: undeclared event"],
+    ]);
+  });
+});
 
 describe("a declared event stream whose schema checks asynchronously", () => {
-	it("sends that are not awaited go out in order, even when one event's schema checks asynchronously", async () => {
-		const app = httpApp<{}>()
-		app
-			.get("/events")
-			.output({ "text/event-stream": { ok: { slow: z.string().refine(async () => true), fast: z.string() } } })
-			.handler((ctx) =>
-				ctx.res.sse(async (stream) => {
-					await Promise.all([
-						stream.send({ data: "1", event: "slow" }),
-						stream.send({ data: "2", event: "fast" }),
-						stream.send({ data: "3", event: "slow" }),
-					])
-				}),
-			)
-		const body = await (await send(app, "/events")).text()
-		expect(body).toBe("event: slow\ndata: 1\n\nevent: fast\ndata: 2\n\nevent: slow\ndata: 3\n\n")
-	})
+  it("sends that are not awaited go out in order, even when one event's schema checks asynchronously", async () => {
+    const app = httpApp<{}>();
+    app
+      .get("/events")
+      .output({ "text/event-stream": { ok: { fast: z.string(), slow: z.string().refine(async () => true) } } })
+      .handler((ctx) =>
+        ctx.res.sse(async (stream) => {
+          await Promise.all([
+            stream.send({ data: "1", event: "slow" }),
+            stream.send({ data: "2", event: "fast" }),
+            stream.send({ data: "3", event: "slow" }),
+          ]);
+        }),
+      );
+    const body = await (await send(app, "/events")).text();
+    expect(body).toBe("event: slow\ndata: 1\n\nevent: fast\ndata: 2\n\nevent: slow\ndata: 3\n\n");
+  });
 
-	it("refuses each event its pending check fails, and logs only the first refusal, which ended the stream", async () => {
-		const lines: string[] = []
-		const logger = createLogger({
-			format: "json",
-			level: "trace",
-			write: (line) => void lines.push((JSON.parse(line) as { msg: string }).msg),
-		})
-		const app = httpApp<{}>().logger(logger)
-		const outcomes = Promise.withResolvers<string[]>()
-		app
-			.get("/events")
-			.output({ "text/event-stream": { ok: { slow: z.string().refine(async () => false, "never") } } })
-			.handler((ctx) =>
-				ctx.res.sse(async (stream) => {
-					const sent = [stream.send({ data: "1", event: "slow" }), stream.send({ data: "2", event: "slow" })]
-					outcomes.resolve((await Promise.allSettled(sent)).map((outcome) => outcome.status))
-				}),
-			)
-		const body = await (await send(app, "/events")).text()
-		expect([body, await outcomes.promise, lines]).toEqual([
-			"",
-			["rejected", "rejected"],
-			["sse slow: invalid data: never"],
-		])
-	})
-})
+  it("refuses each event its pending check fails, and logs only the first refusal, which ended the stream", async () => {
+    const lines: string[] = [];
+
+    const logger = createLogger({
+      format: "json",
+      level: "trace",
+      write: (line) => void lines.push((JSON.parse(line) as { msg: string }).msg),
+    });
+
+    const app = httpApp<{}>().logger(logger);
+    const outcomes = Promise.withResolvers<string[]>();
+    app
+      .get("/events")
+      .output({ "text/event-stream": { ok: { slow: z.string().refine(async () => false, "never") } } })
+      .handler((ctx) =>
+        ctx.res.sse(async (stream) => {
+          const sent = [stream.send({ data: "1", event: "slow" }), stream.send({ data: "2", event: "slow" })];
+          outcomes.resolve((await Promise.allSettled(sent)).map((outcome) => outcome.status));
+        }),
+      );
+    const body = await (await send(app, "/events")).text();
+    expect([body, await outcomes.promise, lines]).toEqual([
+      "",
+      ["rejected", "rejected"],
+      ["sse slow: invalid data: never"],
+    ]);
+  });
+});

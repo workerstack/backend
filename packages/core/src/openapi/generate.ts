@@ -1,3 +1,31 @@
+import { applyMetaSpec } from "../meta/meta-spec-apply.ts";
+import { metaSpecOf } from "../meta/meta-spec-merge.ts";
+import { MetaSpecDiagnostics, schemaMetaLookup, type SchemaMetaLookup } from "../meta/meta-spec-validate.ts";
+import { compileMetaSpec, resolveProfile } from "../meta/meta-spec.ts";
+import { type StatusKey, statusKeyToCode } from "../response/status.ts";
+import { GRAPH } from "../routing/app.ts";
+import {
+  findUnknownTargets,
+  type InvalidateCheckConfig,
+  type InvalidateCheckOperation,
+  invalidateLevel,
+  invalidateTargets,
+  missingInvalidateReport,
+  resolveInvalidate,
+} from "../routing/invalidate-check.ts";
+import type { StatusSchemas } from "../routing/output-types.ts";
+import type { HttpGraph } from "../routing/register.ts";
+import { deduplicateSchemas, type SchemaSpec } from "../schema/slots.ts";
+import {
+  type ConversionIssue,
+  type JsonSchema,
+  type JsonSchemaOptions,
+  jsonSchemaOf,
+} from "../schema/to-json-schema.ts";
+import type { WebhookContract, WebhookEvents } from "../security/webhook-contract.ts";
+import { type CollectedRoute, type CollectedRoutes, type CollectedWsRoute, collectRoutes } from "./collect.ts";
+import { createComponents } from "./components.ts";
+import { assembleDocument, type OpenApiDocument, type OpenApiInfo } from "./document.ts";
 /**
  * `generateOpenApi(app, options)`: the app's OpenAPI 3.2 document, built synchronously from the
  * routes it serves. Every diagnostic goes through one collector: errors throw one aggregate,
@@ -5,296 +33,306 @@
  * caller's converters; a schema that cannot be converted at all fails the document under
  * `onSchemaError: "throw"` (the default) and is documented unconstrained, with a warning, under `"warn"`.
  */
-import { inputSourceSchema } from "./extract-schemas.ts"
-import { applyMetaSpec } from "../meta/meta-spec-apply.ts"
-import { compileMetaSpec, resolveProfile } from "../meta/meta-spec.ts"
-import { metaSpecOf } from "../meta/meta-spec-merge.ts"
-import { MetaSpecDiagnostics, schemaMetaLookup, type SchemaMetaLookup } from "../meta/meta-spec-validate.ts"
-import { type StatusKey, statusKeyToCode } from "../response/status.ts"
-import { GRAPH } from "../routing/app.ts"
-import {
-	findUnknownTargets,
-	type InvalidateCheckConfig,
-	type InvalidateCheckOperation,
-	invalidateLevel,
-	invalidateTargets,
-	missingInvalidateReport,
-	resolveInvalidate,
-} from "../routing/invalidate-check.ts"
-import type { StatusSchemas } from "../routing/output-types.ts"
-import type { HttpGraph } from "../routing/register.ts"
-import { deduplicateSchemas, type SchemaSpec } from "../schema/slots.ts"
-import {
-	type ConversionIssue,
-	type JsonSchema,
-	type JsonSchemaOptions,
-	jsonSchemaOf,
-} from "../schema/to-json-schema.ts"
-import { type CollectedRoute, type CollectedRoutes, type CollectedWsRoute, collectRoutes } from "./collect.ts"
-import { createComponents } from "./components.ts"
-import { assembleDocument, type OpenApiDocument, type OpenApiInfo } from "./document.ts"
-import { assignOperationIds, buildPaths, type EmittedOperation, type Operation, type PathsContext } from "./paths.ts"
-import { addErrorResponses, type Convert, type ErrorSettings, ordered, successResponses } from "./responses.ts"
-import { checkSecurity } from "./security.ts"
-import { type OpenApiServer, serversOf } from "./servers.ts"
-import { type OpenApiExternalDocs, type OpenApiTag, tagsOf } from "./tags.ts"
-import type { WebhookContract, WebhookEvents } from "../security/webhook-contract.ts"
-import { webhooksOf } from "./webhooks.ts"
+import { inputSourceSchema } from "./extract-schemas.ts";
+import { assignOperationIds, buildPaths, type EmittedOperation, type Operation, type PathsContext } from "./paths.ts";
+import { addErrorResponses, type Convert, type ErrorSettings, ordered, successResponses } from "./responses.ts";
+import { checkSecurity } from "./security.ts";
+import { type OpenApiServer, serversOf } from "./servers.ts";
+import { type OpenApiExternalDocs, type OpenApiTag, tagsOf } from "./tags.ts";
+import { webhooksOf } from "./webhooks.ts";
 
-export type { OpenApiDocument, OpenApiInfo } from "./document.ts"
-export type { OpenApiServer, OpenApiServerVariable } from "./servers.ts"
-export type { OpenApiExternalDocs, OpenApiTag } from "./tags.ts"
+export type { OpenApiDocument } from "./document.ts";
+
+export type { OpenApiServer, OpenApiServerVariable } from "./servers.ts";
+
+export type { OpenApiExternalDocs, OpenApiTag } from "./tags.ts";
 
 /** What `filterRoutes` is shown of a route: its resolved meta, its method and its backend pattern. */
 export type OpenApiRouteInfo = {
-	/** the route's whole meta, before the metaSpec filters any key */
-	readonly meta: Readonly<Record<string, unknown>>
-	/** the method in uppercase, such as `GET`; `ALL` for an `all()` route, `WS` for a WebSocket route */
-	readonly method: string
-	/** the route's pattern with parameters as `:name`, such as `/users/:id`; not the OpenAPI `{id}` form */
-	readonly path: string
-}
+  /** the route's whole meta, before the metaSpec filters any key */
+  readonly meta: Readonly<Record<string, unknown>>;
+  /** the method in uppercase, such as `GET`; `ALL` for an `all()` route, `WS` for a WebSocket route */
+  readonly method: string;
+  /** the route's pattern with parameters as `:name`, such as `/users/:id`; not the OpenAPI `{id}` form */
+  readonly path: string;
+};
 
 /** What `generateOpenApi` takes besides the app: the document's info, and how it converts, filters and reports. */
 export type GenerateOpenApiOptions = {
-	/** the converters backend cannot import itself: `effect`, without which an Effect schema comes out as `{}` */
-	readonly converters?: JsonSchemaOptions["converters"]
-	/** the document's own external docs */
-	readonly externalDocs?: OpenApiExternalDocs
-	/** leave out every route this answers false for */
-	readonly filterRoutes?: (route: OpenApiRouteInfo) => boolean
-	/** the document's Info Object; keys other than `title`, `version` and `description` are dropped */
-	readonly info: OpenApiInfo
-	/** mutations that declare no `invalidate`: reported at `"warn"` (the default), failing at `"error"` */
-	readonly invalidate?: InvalidateCheckConfig
-	/** where warnings go, one line each; the app's logger by default */
-	readonly logger?: {
-		/** Hears one warning line. */
-		readonly warn: (message: string) => void
-	}
-	/** a schema no converter can describe: fail the document (`"throw"`, the default) or document it `{}` */
-	readonly onSchemaError?: "throw" | "warn"
-	/** the metaSpec profile this document carries */
-	readonly profile?: string
-	/** the document's `components.securitySchemes`; an operation naming a scheme missing here fails the document, and with this option unset it only warns */
-	readonly securitySchemes?: Readonly<Record<string, unknown>>
-	/** the servers it lists, each URL as written, in place of the stripped prefix; that prefix is not appended */
-	readonly servers?: readonly OpenApiServer[]
-	/** metadata for the tags operations name; tags are never derived */
-	readonly tags?: readonly OpenApiTag[]
-	/** the events the API sends subscribers, from `webhookContract`; each documented as a Standard Webhooks delivery */
-	readonly webhooks?: WebhookContract<WebhookEvents>
-}
+  /** the converters backend cannot import itself: `effect`, without which an Effect schema comes out as `{}` */
+  readonly converters?: JsonSchemaOptions["converters"] | undefined;
+  /** the document's own external docs */
+  readonly externalDocs?: OpenApiExternalDocs | undefined;
+  /** leave out every route this answers false for */
+  readonly filterRoutes?: ((route: OpenApiRouteInfo) => boolean) | undefined;
+  /** the document's Info Object; keys other than `title`, `version` and `description` are dropped */
+  readonly info: OpenApiInfo;
+  /** mutations that declare no `invalidate`: reported at `"warn"` (the default), failing at `"error"` */
+  readonly invalidate?: InvalidateCheckConfig | undefined;
+  /** where warnings go, one line each; the app's logger by default */
+  readonly logger?:
+    | {
+        /** Hears one warning line. */
+        readonly warn: (message: string) => void;
+      }
+    | undefined;
+  /** a schema no converter can describe: fail the document (`"throw"`, the default) or document it `{}` */
+  readonly onSchemaError?: "throw" | "warn" | undefined;
+  /** the metaSpec profile this document carries */
+  readonly profile?: string | undefined;
+  /** the document's `components.securitySchemes`; an operation naming a scheme missing here fails the document, and with this option unset it only warns */
+  readonly securitySchemes?: Readonly<Record<string, unknown>> | undefined;
+  /** the servers it lists, each URL as written, in place of the stripped prefix; that prefix is not appended */
+  readonly servers?: readonly OpenApiServer[] | undefined;
+  /** metadata for the tags operations name; tags are never derived */
+  readonly tags?: readonly OpenApiTag[] | undefined;
+  /** the events the API sends subscribers, from `webhookContract`; each documented as a Standard Webhooks delivery */
+  readonly webhooks?: WebhookContract<WebhookEvents> | undefined;
+};
 
 /** Any app or handle that holds a route graph. */
-type App = { readonly [GRAPH]: HttpGraph }
+type App = { readonly [GRAPH]: HttpGraph };
 
 /** What a conversion issue reports, and how loudly. */
 function issueOf(
-	issue: ConversionIssue,
-	onError: "throw" | "warn",
+  issue: ConversionIssue,
+  onError: "throw" | "warn",
 ): [code: "SCHEMA_DEGRADED" | "SCHEMA_FAILED", level: "error" | "warn", text: string] {
-	if (issue.kind === "failed") {
-		const reason = issue.error instanceof Error ? issue.error.message : String(issue.error)
-		return [
-			"SCHEMA_FAILED",
-			onError === "throw" ? "error" : "warn",
-			`a ${issue.vendor} schema (${issue.io}) could not be converted: ${reason}`,
-		]
-	}
-	if (issue.kind === "degraded")
-		return [
-			"SCHEMA_DEGRADED",
-			"warn",
-			`a ${issue.vendor} schema (${issue.io}) documents ${issue.nodes.join(", ")} unconstrained`,
-		]
-	return [
-		"SCHEMA_DEGRADED",
-		"warn",
-		`no JSON Schema converter for vendor "${issue.vendor}" (${issue.io}); documented unconstrained`,
-	]
+  if (issue.kind === "failed") {
+    const reason = issue.error instanceof Error ? issue.error.message : String(issue.error);
+
+    return [
+      "SCHEMA_FAILED",
+      onError === "throw" ? "error" : "warn",
+      `a ${issue.vendor} schema (${issue.io}) could not be converted: ${reason}`,
+    ];
+  }
+
+  if (issue.kind === "degraded") {
+    return [
+      "SCHEMA_DEGRADED",
+      "warn",
+      `a ${issue.vendor} schema (${issue.io}) documents ${issue.nodes.join(", ")} unconstrained`,
+    ];
+  }
+
+  return [
+    "SCHEMA_DEGRADED",
+    "warn",
+    `no JSON Schema converter for vendor "${issue.vendor}" (${issue.io}); documented unconstrained`,
+  ];
 }
 
 /** The schemas a route's metaSpec schema entries read: its lowest 2xx JSON answer and each input source. */
 function rootsOf(route: CollectedRoute | CollectedWsRoute, options: JsonSchemaOptions): SchemaMetaLookup {
-	const roots: Record<string, JsonSchema> = {}
-	const json = "output" in route ? route.output?.["application/json"] : undefined
-	const codes = Object.keys(json ?? {})
-		.map((key) => [statusKeyToCode[key as StatusKey], key] as const)
-		.filter(([code]) => code >= 200 && code < 300)
-		.sort(([a], [b]) => a - b)
-	const primary = codes[0] === undefined ? undefined : json?.[codes[0][1] as keyof StatusSchemas]
-	if (primary !== undefined && primary !== true) roots.output = jsonSchemaOf(primary, "output", options)
-	for (const [source, entry] of Object.entries(route.input ?? {})) {
-		if (source === "binary") continue
-		roots[`input.${source}`] = inputSourceSchema(source, entry, (schema) => jsonSchemaOf(schema, "input", options))
-	}
-	return schemaMetaLookup(roots)
+  const roots: Record<string, JsonSchema> = {};
+  const json = "output" in route ? route.output?.["application/json"] : undefined;
+
+  const codes = Object.keys(json ?? {})
+    .map((key) => [statusKeyToCode[key as StatusKey], key] as const)
+    .filter(([code]) => code >= 200 && code < 300)
+    .sort(([a], [b]) => a - b);
+
+  const primary = codes[0] === undefined ? undefined : json?.[codes[0][1] as keyof StatusSchemas];
+
+  if (primary !== undefined && primary !== true) roots.output = jsonSchemaOf(primary, "output", options);
+
+  for (const [source, entry] of Object.entries(route.input ?? {})) {
+    if (source === "binary") continue;
+    roots[`input.${source}`] = inputSourceSchema(source, entry, (schema) => jsonSchemaOf(schema, "input", options));
+  }
+
+  return schemaMetaLookup(roots);
 }
 
 /** One document's state: what every step reads and reports into. */
 type Run = {
-	readonly components: ReturnType<typeof createComponents>
-	readonly diagnostics: MetaSpecDiagnostics
-	readonly options: GenerateOpenApiOptions
-	readonly profile: { readonly filter: (key: string) => boolean; readonly name: string }
-	readonly spec: ReturnType<typeof compileMetaSpec>
-	/** each declared HTTP operationId's selectors, read from every collected route, internal and filtered ones included */
-	readonly targets: ReadonlyMap<string, readonly string[]>
-}
+  readonly components: ReturnType<typeof createComponents>;
+  readonly diagnostics: MetaSpecDiagnostics;
+  readonly options: GenerateOpenApiOptions;
+  readonly profile: { readonly filter: (key: string) => boolean; readonly name: string };
+  readonly spec: ReturnType<typeof compileMetaSpec>;
+  /** each declared HTTP operationId's selectors, read from every collected route, internal and filtered ones included */
+  readonly targets: ReadonlyMap<string, readonly string[]>;
+};
 
 /** The converter for one route: `jsonSchemaOf`, its local references lifted, its issues reported against `where`. */
 function converterOf(run: Run): (where: string) => Convert {
-	const onSchemaError = run.options.onSchemaError ?? "throw"
-	return (where) => (schema, io, hint) => {
-		const report = (issue: ConversionIssue) => {
-			const [code, level, text] = issueOf(issue, onSchemaError)
-			run.diagnostics.add(code, level, `${where}: ${text}`)
-		}
-		return run.components.hoist(jsonSchemaOf(schema, io, { converters: run.options.converters, report }), hint)
-	}
+  const onSchemaError = run.options.onSchemaError ?? "throw";
+
+  return (where) => (schema, io, hint) => {
+    const report = (issue: ConversionIssue) => {
+      const [code, level, text] = issueOf(issue, onSchemaError);
+      run.diagnostics.add(code, level, `${where}: ${text}`);
+    };
+
+    return run.components.hoist(jsonSchemaOf(schema, io, { converters: run.options.converters, report }), hint);
+  };
 }
 
 /** The routes the document describes: none internal, none `filterRoutes` rejects. */
 function routesOf(collected: CollectedRoutes, options: GenerateOpenApiOptions): CollectedRoutes {
-	const keep = (route: CollectedRoute | CollectedWsRoute, method: string) =>
-		route.meta.internal !== true && (options.filterRoutes?.({ meta: route.meta, method, path: route.pattern }) ?? true)
-	return {
-		http: collected.http.filter((route) => keep(route, route.method)),
-		ws: collected.ws.filter((route) => keep(route, "WS")),
-	}
+  const keep = (route: CollectedRoute | CollectedWsRoute, method: string) =>
+    route.meta.internal !== true && (options.filterRoutes?.({ meta: route.meta, method, path: route.pattern }) ?? true);
+
+  return {
+    http: collected.http.filter((route) => keep(route, route.method)),
+    ws: collected.ws.filter((route) => keep(route, "WS")),
+  };
 }
 
 /** The policy's fields for one operation of `route`. */
 function policyOf(run: Run): PathsContext["policy"] {
-	const { diagnostics, profile, spec } = run
-	return (route, method, kind) => {
-		const operation: Operation = {}
-		const schemaMeta = spec.needsSchemas ? rootsOf(route, { converters: run.options.converters }) : undefined
-		/* the invalidate builtin passes its value through, so it emits the selectors the declared ids name */
-		const meta = resolveInvalidate(route.meta, run.targets)
-		const { filter, name } = profile
-		applyMetaSpec({
-			diagnostics,
-			filter,
-			kind,
-			meta,
-			method,
-			operation,
-			path: route.pattern,
-			profile: name,
-			schemaMeta,
-			spec,
-		})
-		return operation
-	}
+  const { diagnostics, profile, spec } = run;
+
+  return (route, method, kind) => {
+    const operation: Operation = {};
+    const schemaMeta = spec.needsSchemas ? rootsOf(route, { converters: run.options.converters }) : undefined;
+    // the invalidate builtin passes its value through, so it emits the selectors the declared ids name
+    const meta = resolveInvalidate(route.meta, run.targets);
+    const { filter, name } = profile;
+    applyMetaSpec({
+      diagnostics,
+      filter,
+      kind,
+      meta,
+      method,
+      operation,
+      path: route.pattern,
+      profile: name,
+      schemaMeta,
+      spec,
+    });
+
+    return operation;
+  };
 }
 
 /** Adds a route's declared errors to its responses, in the app's error format, and returns every declared key. */
 function errorsOf(errors: ErrorSettings): PathsContext["errors"] {
-	return (route, responses, convert) =>
-		addErrorResponses(responses, route.errorMeta, errors, (schema, h) => convert(schema, "output", h))
+  return (route, responses, convert) =>
+    addErrorResponses(responses, route.errorMeta, errors, (schema, h) => convert(schema, "output", h));
 }
 
 /** A route's responses (what it declares, its errors, else a bare 200) and its declared errors. */
 function responsesOf(declare: PathsContext["errors"]): PathsContext["responses"] {
-	return (route, convert, hint) => {
-		const out = successResponses(route.output, convert, hint)
-		const declared = declare(route, out, convert)
-		const responses = Object.keys(out).length === 0 ? { "200": { description: "Success" } } : ordered(out)
-		return { errors: declared, responses }
-	}
+  return (route, convert, hint) => {
+    const out = successResponses(route.output, convert, hint);
+    const declared = declare(route, out, convert);
+    const responses = Object.keys(out).length === 0 ? { "200": { description: "Success" } } : ordered(out);
+
+    return { errors: declared, responses };
+  };
 }
 
 /** Each documented route that declares no operationId, once per method and pattern (D18). */
 function checkDeclaredIds(operations: readonly EmittedOperation[], error: (message: string) => void): void {
-	const named = new Set<string>()
-	for (const { method, route } of operations) {
-		if (typeof route.meta.operationId === "string") continue
-		const where = `${"registration" in route ? method.toUpperCase() : "WS"} ${route.pattern}`
-		if (named.has(where)) continue
-		named.add(where)
-		error(`route ${where} declares no operationId; every route needs one for OperationCtx and invalidate`)
-	}
+  const named = new Set<string>();
+
+  for (const { method, route } of operations) {
+    if (typeof route.meta.operationId === "string") continue;
+    const where = `${"registration" in route ? method.toUpperCase() : "WS"} ${route.pattern}`;
+
+    if (named.has(where)) continue;
+    named.add(where);
+    error(`route ${where} declares no operationId; every route needs one for OperationCtx and invalidate`);
+  }
 }
 
 /** The checks over the whole document: ids, security, invalidate targets, then every diagnostic out. */
 function check(
-	run: Run,
-	operations: readonly EmittedOperation[],
-	collected: CollectedRoutes,
-	logger: { readonly warn: (message: string) => void },
+  run: Run,
+  operations: readonly EmittedOperation[],
+  collected: CollectedRoutes,
+  logger: { readonly warn: (message: string) => void },
 ): void {
-	const { diagnostics, options } = run
-	checkDeclaredIds(operations, (message) => diagnostics.add("MISSING_OPERATION_ID", "error", message))
-	assignOperationIds(operations, (message) => diagnostics.add("DUPLICATE_OPERATION_ID", "error", message))
-	checkSecurity(operations, options.securitySchemes, (level, message) =>
-		diagnostics.add("UNKNOWN_SECURITY_SCHEME", level, message),
-	)
-	const emitted: InvalidateCheckOperation[] = operations
-		.filter(({ route }) => "registration" in route)
-		.map(({ method, operation, path, route }) => ({ meta: route.meta, method, operation, path }))
-	/* every collected route, so a bad target fails the build whichever routes the document keeps, at every level */
-	for (const { route, target } of findUnknownTargets(collected.http, run.targets))
-		diagnostics.add(
-			"UNKNOWN_INVALIDATE_TARGET",
-			"error",
-			`${route}: invalidate target ${JSON.stringify(target)} names no HTTP operation — name a declared operationId, e.g. "users.retrieve"`,
-		)
-	const level = invalidateLevel(options.invalidate)
-	for (const { code, message } of diagnostics.throwIfErrors()) logger.warn(`[backend:openapi] ${code}: ${message}`)
-	const missing = missingInvalidateReport(emitted, options.invalidate)
-	if (missing !== null && level === "error") throw new Error(missing)
-	if (missing !== null) logger.warn(missing)
+  const { diagnostics, options } = run;
+  checkDeclaredIds(operations, (message) => diagnostics.add("MISSING_OPERATION_ID", "error", message));
+  assignOperationIds(operations, (message) => diagnostics.add("DUPLICATE_OPERATION_ID", "error", message));
+  checkSecurity(operations, options.securitySchemes, (level, message) =>
+    diagnostics.add("UNKNOWN_SECURITY_SCHEME", level, message),
+  );
+
+  const emitted: InvalidateCheckOperation[] = operations
+    .filter(({ route }) => "registration" in route)
+    .map(({ method, operation, path, route }) => ({ meta: route.meta, method, operation, path }));
+
+  // every collected route, so a bad target fails the build whichever routes the document keeps, at every level
+  for (const { route, target } of findUnknownTargets(collected.http, run.targets)) {
+    diagnostics.add(
+      "UNKNOWN_INVALIDATE_TARGET",
+      "error",
+      `${route}: invalidate target ${JSON.stringify(target)} names no HTTP operation — name a declared operationId, e.g. "users.retrieve"`,
+    );
+  }
+
+  const level = invalidateLevel(options.invalidate);
+
+  for (const { code, message } of diagnostics.throwIfErrors()) logger.warn(`[backend:openapi] ${code}: ${message}`);
+  const missing = missingInvalidateReport(emitted, options.invalidate);
+
+  if (missing !== null && level === "error") throw new Error(missing);
+
+  if (missing !== null) logger.warn(missing);
 }
 
 /** The app's OpenAPI 3.2 document. */
 export function generateOpenApi(app: App, options: GenerateOpenApiOptions): OpenApiDocument {
-	const settings = app[GRAPH].settings
-	const diagnostics = new MetaSpecDiagnostics()
-	const spec = compileMetaSpec(metaSpecOf(app), diagnostics)
-	const collected = collectRoutes(app)
-	const run: Run = {
-		components: createComponents(),
-		diagnostics,
-		options,
-		profile: resolveProfile(spec, options.profile, diagnostics),
-		spec,
-		targets: invalidateTargets(collected.http),
-	}
-	const convertFor = converterOf(run)
-	const settingsSchema = (schema: unknown, hint: string) =>
-		schema === null ? null : convertFor("the app's error schema")(schema, "output", hint)
-	const errors: ErrorSettings = {
-		payloadErrorSchema: settingsSchema(settings.payloadErrorSchema, "PayloadError"),
-		errorFormat: settings.errorFormat,
-		errorSchema: settingsSchema(settings.errorSchema, "Error"),
-	}
-	const routes = routesOf(collected, options)
-	const declare = errorsOf(errors)
-	const { operations, paths } = buildPaths(routes, {
-		convert: convertFor,
-		policy: policyOf(run),
-		errors: declare,
-		responses: responsesOf(declare),
-		trailingSlash: settings.trailingSlash,
-		warn: (code, message) => diagnostics.add(code, "warn", message),
-	})
-	const report = (code: "INVALID_SERVER" | "INVALID_WEBHOOK") => (message: string) =>
-		diagnostics.add(code, "error", message)
-	const servers = serversOf(options.servers, settings.stripPrefix, report("INVALID_SERVER"))
-	const webhooks = webhooksOf(options.webhooks, convertFor("webhooks"), report("INVALID_WEBHOOK"))
-	const tags = tagsOf(operations, options.tags, (code, level, message) => diagnostics.add(code, level, message))
-	check(run, operations, collected, options.logger ?? settings.logger)
-	const document = assembleDocument({
-		externalDocs: options.externalDocs,
-		info: options.info,
-		paths,
-		schemas: run.components.schemas(),
-		securitySchemes: options.securitySchemes,
-		servers,
-		tags,
-		webhooks,
-	})
-	return deduplicateSchemas(document as unknown as SchemaSpec) as unknown as OpenApiDocument
+  const settings = app[GRAPH].settings;
+  const diagnostics = new MetaSpecDiagnostics();
+  const spec = compileMetaSpec(metaSpecOf(app), diagnostics);
+  const collected = collectRoutes(app);
+
+  const run: Run = {
+    components: createComponents(),
+    diagnostics,
+    options,
+    profile: resolveProfile(spec, options.profile, diagnostics),
+    spec,
+    targets: invalidateTargets(collected.http),
+  };
+
+  const convertFor = converterOf(run);
+
+  const settingsSchema = (schema: unknown, hint: string) =>
+    schema === null ? null : convertFor("the app's error schema")(schema, "output", hint);
+
+  const errors: ErrorSettings = {
+    errorFormat: settings.errorFormat,
+    errorSchema: settingsSchema(settings.errorSchema, "Error"),
+    payloadErrorSchema: settingsSchema(settings.payloadErrorSchema, "PayloadError"),
+  };
+
+  const routes = routesOf(collected, options);
+  const declare = errorsOf(errors);
+
+  const { operations, paths } = buildPaths(routes, {
+    convert: convertFor,
+    errors: declare,
+    policy: policyOf(run),
+    responses: responsesOf(declare),
+    trailingSlash: settings.trailingSlash,
+    warn: (code, message) => diagnostics.add(code, "warn", message),
+  });
+
+  const report = (code: "INVALID_SERVER" | "INVALID_WEBHOOK") => (message: string) =>
+    diagnostics.add(code, "error", message);
+
+  const servers = serversOf(options.servers, settings.stripPrefix, report("INVALID_SERVER"));
+  const webhooks = webhooksOf(options.webhooks, convertFor("webhooks"), report("INVALID_WEBHOOK"));
+  const tags = tagsOf(operations, options.tags, (code, level, message) => diagnostics.add(code, level, message));
+  check(run, operations, collected, options.logger ?? settings.logger);
+
+  const document = assembleDocument({
+    externalDocs: options.externalDocs,
+    info: options.info,
+    paths,
+    schemas: run.components.schemas(),
+    securitySchemes: options.securitySchemes,
+    servers,
+    tags,
+    webhooks,
+  });
+
+  return deduplicateSchemas(document as unknown as SchemaSpec) as unknown as OpenApiDocument;
 }

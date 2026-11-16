@@ -7,213 +7,237 @@
  * server answers is logged in order, so a leg reads the whole discovery, token and step-up sequence off it. Both
  * serve through the `serve` the caller hands in: the loopback listener (fixture/loopback.ts).
  */
-import { createHash, randomBytes } from "node:crypto"
-import { join } from "node:path"
-import { written } from "../../fixture/emitted.ts"
-import { generateMcpHandler } from "@workerstack/clients"
-import { HttpError } from "../../../src/errors/error.ts"
-import { type McpHandler, mcp } from "../../../src/mcp/mount.ts"
-import { oauth } from "../../../src/mcp/oauth.ts"
-import { generateOpenApi } from "../../../src/openapi/generate.ts"
-import { httpApp } from "../../../src/routing/app.ts"
-import { type Listener, type serve } from "../../fixture/loopback.ts"
-import { createLogger } from "../../../src/telemetry/logger.ts"
-import * as z from "zod"
+import { createHash, randomBytes } from "node:crypto";
+import { join } from "node:path";
+
+import { generateMcpHandler } from "@workerstack/clients";
+import * as z from "zod";
+
+import { HttpError } from "../../../src/errors/error.ts";
+import { type McpHandler, mcp } from "../../../src/mcp/mount.ts";
+import { oauth } from "../../../src/mcp/oauth.ts";
+import { generateOpenApi } from "../../../src/openapi/generate.ts";
+import { httpApp } from "../../../src/routing/app.ts";
+import { createLogger } from "../../../src/telemetry/logger.ts";
+import { written } from "../../__fixtures__/emitted.ts";
+import { type Listener, type serve } from "../../__fixtures__/loopback.ts";
 
 /** The client the stub authorization server knows, pre-registered, and where it sends the user back. */
-export const CLIENT_ID = "backend-client"
-export const REDIRECT_URI = "http://127.0.0.1/callback"
+export const CLIENT_ID = "backend-client";
+export const REDIRECT_URI = "http://127.0.0.1/callback";
 
 /** The world running: the MCP endpoint, the issuer, the log of every request answered, and its stop. */
 export type OAuthWorld = {
-	readonly endpoint: string
-	readonly issuer: string
-	readonly log: readonly string[]
-	stop(): Promise<void>
-}
+  readonly endpoint: string;
+  readonly issuer: string;
+  readonly log: readonly string[];
+  stop(): Promise<void>;
+};
 
-type Token = { readonly audience: string; readonly scope: readonly string[] }
+type Token = { readonly audience: string; readonly scope: readonly string[] };
+
 type Grant = {
-	readonly challenge: string
-	readonly redirect: string
-	readonly resource: string
-	readonly scope: string
-}
+  readonly challenge: string;
+  readonly redirect: string;
+  readonly resource: string;
+  readonly scope: string;
+};
 
 const SCHEMES = {
-	oauth: {
-		flows: {
-			authorizationCode: {
-				authorizationUrl: "https://issuer.invalid/authorize",
-				scopes: { "orders:read": "list orders", "orders:write": "create orders" },
-				tokenUrl: "https://issuer.invalid/token",
-			},
-		},
-		type: "oauth2",
-	},
-}
+  oauth: {
+    flows: {
+      authorizationCode: {
+        authorizationUrl: "https://issuer.invalid/authorize",
+        scopes: { "orders:read": "list orders", "orders:write": "create orders" },
+        tokenUrl: "https://issuer.invalid/token",
+      },
+    },
+    type: "oauth2",
+  },
+};
 
 /** `serve` from fixture/loopback.ts. */
-export type Serve = typeof serve
+export type Serve = typeof serve;
 
 /** A server answering `fetch` on a loopback port the OS picks: its origin. */
 async function listening(
-	serve: Serve,
-	servers: Listener[],
-	fetch: (request: Request) => Promise<Response>,
+  serve: Serve,
+  servers: Listener[],
+  fetch: (request: Request) => Promise<Response>,
 ): Promise<string> {
-	const server = await serve({ fetch }, { hostname: "127.0.0.1", port: 0 })
-	servers.push(server)
-	return server.url
+  const server = await serve({ fetch }, { hostname: "127.0.0.1", port: 0 });
+  servers.push(server);
+
+  return server.url;
 }
 
 /** `fetch` logging each answer as `<who> <method> <path> <status>`. */
 const logged =
-	(log: string[], who: string, fetch: (request: Request) => Promise<Response>) => async (request: Request) => {
-		const answer = await fetch(request)
-		log.push(`${who} ${request.method} ${new URL(request.url).pathname} ${answer.status}`)
-		return answer
-	}
+  (log: string[], who: string, fetch: (request: Request) => Promise<Response>) => async (request: Request) => {
+    const answer = await fetch(request);
+    log.push(`${who} ${request.method} ${new URL(request.url).pathname} ${answer.status}`);
+
+    return answer;
+  };
 
 /** PKCE's S256 of `verifier` (RFC 7636 §4.2). */
-const s256 = (verifier: string) => createHash("sha256").update(verifier).digest("base64url")
+const s256 = (verifier: string) => createHash("sha256").update(verifier).digest("base64url");
 
 /** The stub authorization server's RFC 8414 metadata. */
 const metadataOf = (issuer: string) =>
-	Response.json({
-		authorization_endpoint: `${issuer}/authorize`,
-		authorization_response_iss_parameter_supported: true,
-		code_challenge_methods_supported: ["S256"],
-		grant_types_supported: ["authorization_code"],
-		issuer,
-		response_types_supported: ["code"],
-		token_endpoint: `${issuer}/token`,
-		token_endpoint_auth_methods_supported: ["none"],
-	})
+  Response.json({
+    authorization_endpoint: `${issuer}/authorize`,
+    authorization_response_iss_parameter_supported: true,
+    code_challenge_methods_supported: ["S256"],
+    grant_types_supported: ["authorization_code"],
+    issuer,
+    response_types_supported: ["code"],
+    token_endpoint: `${issuer}/token`,
+    token_endpoint_auth_methods_supported: ["none"],
+  });
 
 /** The authorization endpoint: approves the registered client's S256 request at once, redirecting with a code. */
 function authorize(query: URLSearchParams, issuer: string, grants: Map<string, Grant>, log: string[]): Response {
-	const resource = query.get("resource") ?? ""
-	const scope = query.get("scope") ?? ""
-	log.push(`as authorize scope=${scope} resource=${resource} method=${query.get("code_challenge_method")}`)
-	if (query.get("client_id") !== CLIENT_ID || query.get("code_challenge_method") !== "S256")
-		return new Response(null, { status: 400 })
-	const code = randomBytes(12).toString("hex")
-	const redirect = query.get("redirect_uri") ?? ""
-	grants.set(code, { challenge: query.get("code_challenge") ?? "", redirect, resource, scope })
-	const back = new URL(redirect)
-	back.search = new URLSearchParams({ code, iss: issuer, state: query.get("state") ?? "" }).toString()
-	return new Response(null, { headers: { location: back.href }, status: 302 })
+  const resource = query.get("resource") ?? "";
+  const scope = query.get("scope") ?? "";
+  log.push(`as authorize scope=${scope} resource=${resource} method=${query.get("code_challenge_method")}`);
+
+  if (query.get("client_id") !== CLIENT_ID || query.get("code_challenge_method") !== "S256")
+    return new Response(null, { status: 400 });
+  const code = randomBytes(12).toString("hex");
+  const redirect = query.get("redirect_uri") ?? "";
+  grants.set(code, { challenge: query.get("code_challenge") ?? "", redirect, resource, scope });
+  const back = new URL(redirect);
+  back.search = new URLSearchParams({ code, iss: issuer, state: query.get("state") ?? "" }).toString();
+
+  return new Response(null, { headers: { location: back.href }, status: 302 });
 }
 
 /** The token endpoint: a code once, its PKCE verifier, the same resource and redirect as its authorization. */
 function issue(form: URLSearchParams, grants: Map<string, Grant>, tokens: Map<string, Token>, log: string[]): Response {
-	const code = form.get("code") ?? ""
-	const grant = grants.get(code)
-	grants.delete(code)
-	const resource = form.get("resource") ?? ""
-	const pkce = grant !== undefined && s256(form.get("code_verifier") ?? "") === grant.challenge
-	log.push(`as token resource=${resource} pkce=${pkce}`)
-	if (!pkce || grant.resource !== resource || grant.redirect !== form.get("redirect_uri"))
-		return Response.json({ error: "invalid_grant" }, { status: 400 })
-	const issued = randomBytes(16).toString("hex")
-	tokens.set(issued, { audience: resource, scope: grant.scope.split(" ") })
-	return Response.json({ access_token: issued, expires_in: 3600, scope: grant.scope, token_type: "Bearer" })
+  const code = form.get("code") ?? "";
+  const grant = grants.get(code);
+  grants.delete(code);
+  const resource = form.get("resource") ?? "";
+  const pkce = grant !== undefined && s256(form.get("code_verifier") ?? "") === grant.challenge;
+  log.push(`as token resource=${resource} pkce=${pkce}`);
+
+  if (!pkce || grant.resource !== resource || grant.redirect !== form.get("redirect_uri"))
+    return Response.json({ error: "invalid_grant" }, { status: 400 });
+  const issued = randomBytes(16).toString("hex");
+  tokens.set(issued, { audience: resource, scope: grant.scope.split(" ") });
+
+  return Response.json({ access_token: issued, expires_in: 3600, scope: grant.scope, token_type: "Bearer" });
 }
 
 /** The stub authorization server at `issuer()`: metadata, authorize, token; every token it issues kept in `tokens`. */
 function authorizationServer(issuer: () => string, tokens: Map<string, Token>, log: string[]) {
-	const grants = new Map<string, Grant>()
-	return async (request: Request): Promise<Response> => {
-		const url = new URL(request.url)
-		if (url.pathname === "/.well-known/oauth-authorization-server") return metadataOf(issuer())
-		if (url.pathname === "/authorize") return authorize(url.searchParams, issuer(), grants, log)
-		if (url.pathname === "/token" && request.method === "POST")
-			return issue(new URLSearchParams(await request.text()), grants, tokens, log)
-		return new Response(null, { status: 404 })
-	}
+  const grants = new Map<string, Grant>();
+
+  return async (request: Request): Promise<Response> => {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/.well-known/oauth-authorization-server") return metadataOf(issuer());
+
+    if (url.pathname === "/authorize") return authorize(url.searchParams, issuer(), grants, log);
+
+    if (url.pathname === "/token" && request.method === "POST")
+      return issue(new URLSearchParams(await request.text()), grants, tokens, log);
+
+    return new Response(null, { status: 404 });
+  };
 }
 
 /** The orders app, its routes checking the token (audience `endpoint()`) and the scope each needs. */
 function ordersApp(endpoint: () => string, tokens: Map<string, Token>) {
-	/* an error the app answers 500 for reaches stderr, whatever NODE_ENV silences; stdout stays the leg's protocol */
-	const app = httpApp().logger(
-		createLogger({ level: "error", write: (line) => void process.stderr.write(`${line}\n`) }),
-	)
-	/** Throws the refusal of `request` for `needed`, its challenge in `www-authenticate`, unless its token carries it. */
-	const authorize = (request: Request, needed: string) => {
-		const token = tokens.get(/^Bearer (\S+)$/.exec(request.headers.get("authorization") ?? "")?.[1] ?? "")
-		if (token === undefined || token.audience !== endpoint()) {
-			const headers = { "www-authenticate": 'Bearer error="invalid_token"' }
-			throw new HttpError({ errorKey: "invalid_token", headers, status: "unauthorized" })
-		}
-		if (token.scope.includes(needed)) return
-		const headers = { "www-authenticate": `Bearer error="insufficient_scope", scope="orders:read ${needed}"` }
-		throw new HttpError({ errorKey: "insufficient_scope", headers, status: "forbidden" })
-	}
-	app
-		.get("/orders")
-		.meta({ mcp: true, operationId: "orders.list", security: [{ oauth: ["orders:read"] }] })
-		.output({ "application/json": { ok: z.object({ orders: z.array(z.string()) }) } })
-		.handler((ctx) => {
-			authorize(ctx.req, "orders:read")
-			return ctx.res.json("ok", { orders: ["o-1"] })
-		})
-	app
-		.post("/orders")
-		.meta({ mcp: true, operationId: "orders.create", security: [{ oauth: ["orders:write"] }] })
-		.output({ "application/json": { created: z.object({ created: z.string() }) } })
-		.handler((ctx) => {
-			authorize(ctx.req, "orders:write")
-			return ctx.res.json("created", { created: "o-2" })
-		})
-	return app
+  // an error the app answers 500 for reaches stderr, whatever NODE_ENV silences; stdout stays the leg's protocol
+  const app = httpApp().logger(
+    createLogger({ level: "error", write: (line) => void process.stderr.write(`${line}\n`) }),
+  );
+
+  /** Throws the refusal of `request` for `needed`, its challenge in `www-authenticate`, unless its token carries it. */
+  const authorize = (request: Request, needed: string) => {
+    const token = tokens.get(/^Bearer (\S+)$/.exec(request.headers.get("authorization") ?? "")?.[1] ?? "");
+
+    if (token === undefined || token.audience !== endpoint()) {
+      const headers = { "www-authenticate": 'Bearer error="invalid_token"' };
+      throw new HttpError({ errorKey: "invalid_token", headers, status: "unauthorized" });
+    }
+
+    if (token.scope.includes(needed)) return;
+    const headers = { "www-authenticate": `Bearer error="insufficient_scope", scope="orders:read ${needed}"` };
+    throw new HttpError({ errorKey: "insufficient_scope", headers, status: "forbidden" });
+  };
+
+  app
+    .get("/orders")
+    .meta({ mcp: true, operationId: "orders.list", security: [{ oauth: ["orders:read"] }] })
+    .output({ "application/json": { ok: z.object({ orders: z.array(z.string()) }) } })
+    .handler((ctx) => {
+      authorize(ctx.req, "orders:read");
+
+      return ctx.res.json("ok", { orders: ["o-1"] });
+    });
+  app
+    .post("/orders")
+    .meta({ mcp: true, operationId: "orders.create", security: [{ oauth: ["orders:write"] }] })
+    .output({ "application/json": { created: z.object({ created: z.string() }) } })
+    .handler((ctx) => {
+      authorize(ctx.req, "orders:write");
+
+      return ctx.res.json("created", { created: "o-2" });
+    });
+
+  return app;
 }
 
 /** The orders app's mcpHandler, as the plugin writes it from the app's own document, imported. */
 async function handlerOf(app: ReturnType<typeof httpApp>): Promise<McpHandler> {
-	const document = generateOpenApi(app, { info: { title: "Orders", version: "1.0.0" }, securitySchemes: SCHEMES })
-	const { entry, files } = generateMcpHandler(document as unknown as Record<string, unknown>)
-	const dir = written({
-		"mcp.gen.ts": entry,
-		...Object.fromEntries(Object.entries(files).map(([name, text]) => [`mcp/${name}`, text])),
-	})
-	return ((await import(join(dir, "mcp.gen.ts"))) as { mcpHandler: McpHandler }).mcpHandler
+  const document = generateOpenApi(app, { info: { title: "Orders", version: "1.0.0" }, securitySchemes: SCHEMES });
+  const { entry, files } = generateMcpHandler(document as unknown as Record<string, unknown>);
+
+  const dir = written({
+    "mcp.gen.ts": entry,
+    ...Object.fromEntries(Object.entries(files).map(([name, text]) => [`mcp/${name}`, text])),
+  });
+
+  return ((await import(join(dir, "mcp.gen.ts"))) as { mcpHandler: McpHandler }).mcpHandler;
 }
 
 /** The stub authorization server and the orders app, listening. */
 export async function startOAuthWorld(serve: Serve): Promise<OAuthWorld> {
-	const servers: Listener[] = []
-	const log: string[] = []
-	const tokens = new Map<string, Token>()
-	let issuer = ""
-	let origin = ""
-	const endpoint = () => `${origin}/mcp`
-	issuer = await listening(
-		serve,
-		servers,
-		logged(
-			log,
-			"as",
-			authorizationServer(() => issuer, tokens, log),
-		),
-	)
-	const app = ordersApp(endpoint, tokens)
-	mcp(app, "/mcp", await handlerOf(app), {
-		/* the endpoint takes any token issued for it; each route checks the scope it needs */
-		authenticate: (request) =>
-			tokens.get(/^Bearer (\S+)$/.exec(request.headers.get("authorization") ?? "")?.[1] ?? "")?.audience === endpoint(),
-		oauth: oauth({ authorizationServers: [issuer], resourceName: "Orders", scopesSupported: ["orders:read"] }),
-	})
-	origin = await listening(
-		serve,
-		servers,
-		logged(log, "app", (request) => Promise.resolve(app.fetch(request, {}))),
-	)
-	return {
-		endpoint: endpoint(),
-		issuer,
-		log,
-		stop: async () => void (await Promise.all(servers.map((server) => server.close(0)))),
-	}
+  const servers: Listener[] = [];
+  const log: string[] = [];
+  const tokens = new Map<string, Token>();
+  let issuer = "";
+  let origin = "";
+  const endpoint = () => `${origin}/mcp`;
+  issuer = await listening(
+    serve,
+    servers,
+    logged(
+      log,
+      "as",
+      authorizationServer(() => issuer, tokens, log),
+    ),
+  );
+  const app = ordersApp(endpoint, tokens);
+  mcp(app, "/mcp", await handlerOf(app), {
+    // the endpoint takes any token issued for it; each route checks the scope it needs
+    authenticate: (request) =>
+      tokens.get(/^Bearer (\S+)$/.exec(request.headers.get("authorization") ?? "")?.[1] ?? "")?.audience === endpoint(),
+    oauth: oauth({ authorizationServers: [issuer], resourceName: "Orders", scopesSupported: ["orders:read"] }),
+  });
+  origin = await listening(
+    serve,
+    servers,
+    logged(log, "app", (request) => Promise.resolve(app.fetch(request, {}))),
+  );
+
+  return {
+    endpoint: endpoint(),
+    issuer,
+    log,
+    stop: async () => void (await Promise.all(servers.map((server) => server.close(0)))),
+  };
 }

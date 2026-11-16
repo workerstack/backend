@@ -4,451 +4,489 @@
  * chain and route middleware add, the request fields, and all of them at once beside .input(),
  * .output(), .errors(), .meta() and taps. Checked by typecheck.
  */
-import { describe, expectTypeOf, it } from "vitest"
-import * as z from "zod"
-import { defineErrors } from "../../src/errors/errors.ts"
-import { createMiddleware, type MiddlewareFn } from "../../src/middleware/middleware.ts"
-import { httpApp } from "../../src/routing/app.ts"
-import type { InferCtx } from "../../src/routing/app-types.ts"
-import { defineTap, type TapMeta } from "../../src/routing/define-tap.ts"
+import { describe, expectTypeOf, it } from "vitest";
+import * as z from "zod";
+
+import { defineErrors } from "../../src/errors/errors.ts";
+import { createMiddleware, type MiddlewareFn } from "../../src/middleware/middleware.ts";
+import type { InferCtx } from "../../src/routing/app-types.ts";
+import { httpApp } from "../../src/routing/app.ts";
+import { defineTap, type TapMeta } from "../../src/routing/define-tap.ts";
 
 describe("ctx.params", () => {
-	// v0: 8d3b08b315
-	// v0: ff90c7202d
-	// v0: 89fdb4aad5
-	// v0: 7736027c21
-	// v0: 6b6144b460
-	// v0: 2feb2fc30d
-	// v0: 85d5006667
-	// v0: 7c0132f759
-	// v0: d6cc3e11ca
-	it("types each param and wildcard the pattern names as string, under a basePath too", () => {
-		const app = httpApp<{}>()
-		app.get("/users/:id").handler((ctx) => {
-			expectTypeOf(ctx.params.id).toEqualTypeOf<string>()
-			return ctx.res.text("ok", "ok")
-		})
-		app.get("/orgs/:orgId/teams/:teamId/members/:memberId").handler((ctx) => {
-			expectTypeOf(ctx.params.orgId).toEqualTypeOf<string>()
-			expectTypeOf(ctx.params.teamId).toEqualTypeOf<string>()
-			expectTypeOf(ctx.params.memberId).toEqualTypeOf<string>()
-			return ctx.res.text("ok", "ok")
-		})
-		app.get("/files/*path").handler((ctx) => {
-			expectTypeOf(ctx.params.path).toEqualTypeOf<string>()
-			return ctx.res.text("ok", "ok")
-		})
-		app
-			.basePath("/api")
-			.get("/users/:userId/posts/:postId")
-			.handler((ctx) => {
-				expectTypeOf(ctx.params.userId).toEqualTypeOf<string>()
-				expectTypeOf(ctx.params.postId).toEqualTypeOf<string>()
-				return ctx.res.text("ok", "ok")
-			})
-	})
+  // v0: 8d3b08b315
+  // v0: ff90c7202d
+  // v0: 89fdb4aad5
+  // v0: 7736027c21
+  // v0: 6b6144b460
+  // v0: 2feb2fc30d
+  // v0: 85d5006667
+  // v0: 7c0132f759
+  // v0: d6cc3e11ca
+  it("types each param and wildcard the pattern names as string, under a basePath too", () => {
+    const app = httpApp<{}>();
+    app.get("/users/:id").handler((ctx) => {
+      expectTypeOf(ctx.params.id).toEqualTypeOf<string>();
 
-	// v0: 3f6106e491
-	// v0: 53e40a6f53
-	// v0: d3321a93dd
-	it("is Record<string, string> on a route without params", () => {
-		httpApp<{}>()
-			.get("/static")
-			.handler((ctx) => {
-				expectTypeOf(ctx.params).toEqualTypeOf<Record<string, string>>()
-				return ctx.res.text("ok", "ok")
-			})
-	})
-})
+      return ctx.res.text("ok", "ok");
+    });
+    app.get("/orgs/:orgId/teams/:teamId/members/:memberId").handler((ctx) => {
+      expectTypeOf(ctx.params.orgId).toEqualTypeOf<string>();
+      expectTypeOf(ctx.params.teamId).toEqualTypeOf<string>();
+      expectTypeOf(ctx.params.memberId).toEqualTypeOf<string>();
+
+      return ctx.res.text("ok", "ok");
+    });
+    app.get("/files/*path").handler((ctx) => {
+      expectTypeOf(ctx.params.path).toEqualTypeOf<string>();
+
+      return ctx.res.text("ok", "ok");
+    });
+    app
+      .basePath("/api")
+      .get("/users/:userId/posts/:postId")
+      .handler((ctx) => {
+        expectTypeOf(ctx.params.userId).toEqualTypeOf<string>();
+        expectTypeOf(ctx.params.postId).toEqualTypeOf<string>();
+
+        return ctx.res.text("ok", "ok");
+      });
+  });
+
+  // v0: 3f6106e491
+  // v0: 53e40a6f53
+  // v0: d3321a93dd
+  it("is Record<string, string> on a route without params", () => {
+    httpApp<{}>()
+      .get("/static")
+      .handler((ctx) => {
+        expectTypeOf(ctx.params).toEqualTypeOf<Record<string, string>>();
+
+        return ctx.res.text("ok", "ok");
+      });
+  });
+});
 
 describe("ctx.routePattern", () => {
-	// v0: 45a652f26b
-	// v0: 47d24793b5
-	// v0: 8511e270c9
-	// v0: 1a48196937
-	// v0: c6543756c1
-	// v0: c04a9f5797
-	it("is the full pattern as a literal: plain, param, root, and under a basePath", () => {
-		const app = httpApp<{}>()
-		app.get("/users").handler((ctx) => {
-			expectTypeOf(ctx.routePattern).toEqualTypeOf<"/users">()
-			return ctx.res.text("ok", "ok")
-		})
-		app.get("/users/:id").handler((ctx) => {
-			expectTypeOf(ctx.routePattern).toEqualTypeOf<"/users/:id">()
-			return ctx.res.text("ok", "ok")
-		})
-		app.get("/").handler((ctx) => {
-			expectTypeOf(ctx.routePattern).toEqualTypeOf<"/">()
-			return ctx.res.text("ok", "ok")
-		})
-		app
-			.basePath("/api")
-			.get("/users/:id")
-			.handler((ctx) => {
-				expectTypeOf(ctx.routePattern).toEqualTypeOf<"/api/users/:id">()
-				return ctx.res.text("ok", "ok")
-			})
-		app
-			.use(createMiddleware((_ctx, next) => next({ userId: "u1" })))
-			.basePath("/api")
-			.get("/items/:id")
-			.handler((ctx) => {
-				expectTypeOf(ctx.routePattern).toEqualTypeOf<"/api/items/:id">()
-				return ctx.res.text("ok", "ok")
-			})
-	})
-})
+  // v0: 45a652f26b
+  // v0: 47d24793b5
+  // v0: 8511e270c9
+  // v0: 1a48196937
+  // v0: c6543756c1
+  // v0: c04a9f5797
+  it("is the full pattern as a literal: plain, param, root, and under a basePath", () => {
+    const app = httpApp<{}>();
+    app.get("/users").handler((ctx) => {
+      expectTypeOf(ctx.routePattern).toEqualTypeOf<"/users">();
 
-const errors = defineErrors({ email_taken: "conflict", invalid_input: "bad_request", org_limit: "forbidden" })
+      return ctx.res.text("ok", "ok");
+    });
+    app.get("/users/:id").handler((ctx) => {
+      expectTypeOf(ctx.routePattern).toEqualTypeOf<"/users/:id">();
+
+      return ctx.res.text("ok", "ok");
+    });
+    app.get("/").handler((ctx) => {
+      expectTypeOf(ctx.routePattern).toEqualTypeOf<"/">();
+
+      return ctx.res.text("ok", "ok");
+    });
+    app
+      .basePath("/api")
+      .get("/users/:id")
+      .handler((ctx) => {
+        expectTypeOf(ctx.routePattern).toEqualTypeOf<"/api/users/:id">();
+
+        return ctx.res.text("ok", "ok");
+      });
+    app
+      .use(createMiddleware((_ctx, next) => next({ userId: "u1" })))
+      .basePath("/api")
+      .get("/items/:id")
+      .handler((ctx) => {
+        expectTypeOf(ctx.routePattern).toEqualTypeOf<"/api/items/:id">();
+
+        return ctx.res.text("ok", "ok");
+      });
+  });
+});
+
+const errors = defineErrors({ email_taken: "conflict", invalid_input: "bad_request", org_limit: "forbidden" });
 
 describe("ctx.errors", () => {
-	// v0: a53900b1cd
-	// v0: 055a967c28
-	// v0: 04f36d619c
-	// v0: bc151ee4be
-	// v0: 1922b0e9c8
-	// v0: 8fc75cdd10
-	it("holds exactly the keys the route declares, named alone or with their factory", () => {
-		const app = httpApp<{}>().errorFactory(errors)
-		app
-			.get("/a")
-			.errors("email_taken")
-			.handler((ctx) => {
-				expectTypeOf(ctx.errors.email_taken).toEqualTypeOf(errors.email_taken)
-				expectTypeOf(ctx.errors).not.toHaveProperty("org_limit")
-				expectTypeOf(ctx.errors).not.toHaveProperty("invalid_input")
-				return ctx.res.text("ok", "ok")
-			})
-		httpApp<{}>()
-			.get("/b")
-			.errors(errors, "email_taken", "org_limit")
-			.handler((ctx) => {
-				expectTypeOf(ctx.errors.email_taken).toEqualTypeOf(errors.email_taken)
-				expectTypeOf(ctx.errors.org_limit).toEqualTypeOf(errors.org_limit)
-				expectTypeOf(ctx.errors).not.toHaveProperty("invalid_input")
-				expectTypeOf(ctx.errors).not.toHaveProperty("other")
-				return ctx.res.text("ok", "ok")
-			})
-	})
-})
+  // v0: a53900b1cd
+  // v0: 055a967c28
+  // v0: 04f36d619c
+  // v0: bc151ee4be
+  // v0: 1922b0e9c8
+  // v0: 8fc75cdd10
+  it("holds exactly the keys the route declares, named alone or with their factory", () => {
+    const app = httpApp<{}>().errorFactory(errors);
+    app
+      .get("/a")
+      .errors("email_taken")
+      .handler((ctx) => {
+        expectTypeOf(ctx.errors.email_taken).toEqualTypeOf(errors.email_taken);
+        expectTypeOf(ctx.errors).not.toHaveProperty("org_limit");
+        expectTypeOf(ctx.errors).not.toHaveProperty("invalid_input");
+
+        return ctx.res.text("ok", "ok");
+      });
+    httpApp<{}>()
+      .get("/b")
+      .errors(errors, "email_taken", "org_limit")
+      .handler((ctx) => {
+        expectTypeOf(ctx.errors.email_taken).toEqualTypeOf(errors.email_taken);
+        expectTypeOf(ctx.errors.org_limit).toEqualTypeOf(errors.org_limit);
+        expectTypeOf(ctx.errors).not.toHaveProperty("invalid_input");
+        expectTypeOf(ctx.errors).not.toHaveProperty("other");
+
+        return ctx.res.text("ok", "ok");
+      });
+  });
+});
 
 describe("ctx.errors: which keys .errors() takes", () => {
-	// v0: 4016db1f41
-	it("takes only keys of the factory it names, or of the app's factory, beside each other", () => {
-		const other = defineErrors({ special_error: "bad_request" })
-		const app = httpApp<{}>().errorFactory(errors)
-		// @ts-expect-error not a key of the app's factory
-		app.get("/a").errors("nope")
-		// @ts-expect-error not a key of the named factory
-		app.get("/b").errors(other, "email_taken")
-		app
-			.get("/c")
-			.errors(other, "special_error")
-			.handler((ctx) => {
-				expectTypeOf(ctx.errors.special_error).toEqualTypeOf(other.special_error)
-				return ctx.res.text("ok", "ok")
-			})
-	})
+  // v0: 4016db1f41
+  it("takes only keys of the factory it names, or of the app's factory, beside each other", () => {
+    const other = defineErrors({ special_error: "bad_request" });
+    const app = httpApp<{}>().errorFactory(errors);
+    // @ts-expect-error not a key of the app's factory
+    app.get("/a").errors("nope");
+    // @ts-expect-error not a key of the named factory
+    app.get("/b").errors(other, "email_taken");
+    app
+      .get("/c")
+      .errors(other, "special_error")
+      .handler((ctx) => {
+        expectTypeOf(ctx.errors.special_error).toEqualTypeOf(other.special_error);
 
-	// v0: 7754770a73
-	// v0: c2d52dc9ad
-	it("always holds the app's default keys, which a route may not declare again", () => {
-		const route = httpApp<{}>().errorFactory(errors).defaultErrors("invalid_input").get("/t")
-		// @ts-expect-error invalid_input is already a default error
-		route.errors("invalid_input")
-		route.errors("email_taken").handler((ctx) => {
-			expectTypeOf(ctx.errors.email_taken).toBeFunction()
-			expectTypeOf(ctx.errors.invalid_input).toBeFunction()
-			expectTypeOf(ctx.errors).not.toHaveProperty("org_limit")
-			return ctx.res.text("ok", "ok")
-		})
-	})
-})
+        return ctx.res.text("ok", "ok");
+      });
+  });
 
-type AppMeta = { auth?: "public" | "required"; worker?: string }
+  // v0: 7754770a73
+  // v0: c2d52dc9ad
+  it("always holds the app's default keys, which a route may not declare again", () => {
+    const route = httpApp<{}>().errorFactory(errors).defaultErrors("invalid_input").get("/t");
+    // @ts-expect-error invalid_input is already a default error
+    route.errors("invalid_input");
+    route.errors("email_taken").handler((ctx) => {
+      expectTypeOf(ctx.errors.email_taken).toBeFunction();
+      expectTypeOf(ctx.errors.invalid_input).toBeFunction();
+      expectTypeOf(ctx.errors).not.toHaveProperty("org_limit");
+
+      return ctx.res.text("ok", "ok");
+    });
+  });
+});
+
+type AppMeta = { auth?: "public" | "required"; worker?: string };
 
 describe("ctx.meta", () => {
-	// v0: 6a2f0d03de
-	// v0: cc3ecf16f8
-	// v0: 22d95f2a17
-	// v0: 7c336dbf9e
-	it("is narrowed to each route's own values, and readonly", () => {
-		const base = httpApp<{}>().metaType<AppMeta>()
-		base
-			.get("/public")
-			.meta({ auth: "public" })
-			.handler((ctx) => {
-				expectTypeOf(ctx.meta.auth).toEqualTypeOf<"public">()
-				expectTypeOf(ctx.meta).toMatchTypeOf<Readonly<{ auth: "public" }>>()
-				return ctx.res.text("ok", "ok")
-			})
-		base
-			.get("/private")
-			.meta({ auth: "required" })
-			.handler((ctx) => {
-				expectTypeOf(ctx.meta.auth).toEqualTypeOf<"required">()
-				return ctx.res.text("ok", "ok")
-			})
-	})
+  // v0: 6a2f0d03de
+  // v0: cc3ecf16f8
+  // v0: 22d95f2a17
+  // v0: 7c336dbf9e
+  it("is narrowed to each route's own values, and readonly", () => {
+    const base = httpApp<{}>().metaType<AppMeta>();
+    base
+      .get("/public")
+      .meta({ auth: "public" })
+      .handler((ctx) => {
+        expectTypeOf(ctx.meta.auth).toEqualTypeOf<"public">();
+        expectTypeOf(ctx.meta).toMatchTypeOf<Readonly<{ auth: "public" }>>();
 
-	// v0: 29490a6c91
-	it("is narrowed beside an error factory and the route's declared errors", () => {
-		httpApp<{}>()
-			.metaType<AppMeta>()
-			.errorFactory(defineErrors({ email_taken: "conflict" }))
-			.get("/orgs")
-			.meta({ auth: "required" })
-			.errors("email_taken")
-			.handler((ctx) => {
-				expectTypeOf(ctx.meta.auth).toEqualTypeOf<"required">()
-				expectTypeOf(ctx.errors).toHaveProperty("email_taken")
-				return ctx.res.text("ok", "ok")
-			})
-	})
+        return ctx.res.text("ok", "ok");
+      });
+    base
+      .get("/private")
+      .meta({ auth: "required" })
+      .handler((ctx) => {
+        expectTypeOf(ctx.meta.auth).toEqualTypeOf<"required">();
 
-	// v0: 1460dc840b
-	it("is the app's meta type on a route that sets none, a catch-all included", () => {
-		httpApp<{}>()
-			.metaType<AppMeta>()
-			.all("*")
-			.handler((ctx) => {
-				expectTypeOf(ctx.meta.auth).toEqualTypeOf<AppMeta["auth"]>()
-				expectTypeOf(ctx.meta.worker).toEqualTypeOf<AppMeta["worker"]>()
-				return ctx.res.text("ok", "ok")
-			})
-	})
-})
+        return ctx.res.text("ok", "ok");
+      });
+  });
 
-type DbCtx = { db: string }
-const withDb: MiddlewareFn<{}, DbCtx> = (_ctx, next) => next({ db: "test-db" })
-const withAuth: MiddlewareFn<DbCtx, { user: { id: string } }> = (_ctx, next) => next({ user: { id: "u1" } })
+  // v0: 29490a6c91
+  it("is narrowed beside an error factory and the route's declared errors", () => {
+    httpApp<{}>()
+      .metaType<AppMeta>()
+      .errorFactory(defineErrors({ email_taken: "conflict" }))
+      .get("/orgs")
+      .meta({ auth: "required" })
+      .errors("email_taken")
+      .handler((ctx) => {
+        expectTypeOf(ctx.meta.auth).toEqualTypeOf<"required">();
+        expectTypeOf(ctx.errors).toHaveProperty("email_taken");
+
+        return ctx.res.text("ok", "ok");
+      });
+  });
+
+  // v0: 1460dc840b
+  it("is the app's meta type on a route that sets none, a catch-all included", () => {
+    httpApp<{}>()
+      .metaType<AppMeta>()
+      .all("*")
+      .handler((ctx) => {
+        expectTypeOf(ctx.meta.auth).toEqualTypeOf<AppMeta["auth"]>();
+        expectTypeOf(ctx.meta.worker).toEqualTypeOf<AppMeta["worker"]>();
+
+        return ctx.res.text("ok", "ok");
+      });
+  });
+});
+
+type DbCtx = { db: string };
+
+const withDb: MiddlewareFn<{}, DbCtx> = (_ctx, next) => next({ db: "test-db" });
+const withAuth: MiddlewareFn<DbCtx, { user: { id: string } }> = (_ctx, next) => next({ user: { id: "u1" } });
 
 describe("what context() and chain middleware add", () => {
-	// v0: 3bc43be1a6
-	// v0: 10be49f6aa
-	// v0: 70672703cc
-	it("context() values and chain additions are typed on ctx, complex values kept whole", () => {
-		type Cache = { get: (key: string) => string | null; set: (key: string, value: string) => void }
-		const cache: Cache = { get: () => null, set: () => undefined }
-		const app = httpApp<{}>()
-			.context({ appName: "test", cache, config: { timeout: 5000 } })
-			.use(createMiddleware((_ctx, next) => next({ traceId: "t-1" })))
-		app.get("/t").handler((ctx) => {
-			expectTypeOf(ctx.appName).toEqualTypeOf<string>()
-			expectTypeOf(ctx.cache).toEqualTypeOf<Cache>()
-			expectTypeOf(ctx.config).toEqualTypeOf<{ timeout: number }>()
-			expectTypeOf(ctx.traceId).toEqualTypeOf<string>()
-			expectTypeOf(ctx.env).toEqualTypeOf<{}>()
-			return ctx.res.text("ok", "ok")
-		})
-		expectTypeOf<InferCtx<typeof app>>().toMatchTypeOf<{ readonly cache: Cache }>()
-	})
+  // v0: 3bc43be1a6
+  // v0: 10be49f6aa
+  // v0: 70672703cc
+  it("context() values and chain additions are typed on ctx, complex values kept whole", () => {
+    type Cache = { get: (key: string) => string | null; set: (key: string, value: string) => void };
 
-	// v0: 8521d1da18
-	// v0: 7c994b6cd7
-	it("middleware may require what context() provides, at chain and route level", () => {
-		const needsDb = createMiddleware((_ctx: { db: string }, next) => next({ queried: true }))
-		const needsConfig = createMiddleware((_ctx: { config: { timeout: number } }, next) =>
-			next({ validated: true as const }),
-		)
-		const app = httpApp<{}>()
-			.context({ config: { timeout: 5000 }, db: "sqlite" })
-			.use(needsDb)
-		expectTypeOf<InferCtx<typeof app>>().toMatchTypeOf<{ readonly db: string; queried: boolean }>()
-		app
-			.get("/t")
-			.use(needsConfig)
-			.handler((ctx) => {
-				expectTypeOf(ctx.validated).toEqualTypeOf<true>()
-				return ctx.res.text("ok", "ok")
-			})
-		// @ts-expect-error a chain without context({ db }) cannot use needsDb
-		httpApp<{}>().use(needsDb)
-	})
-})
+    const cache: Cache = { get: () => null, set: () => undefined };
+
+    const app = httpApp<{}>()
+      .context({ appName: "test", cache, config: { timeout: 5000 } })
+      .use(createMiddleware((_ctx, next) => next({ traceId: "t-1" })));
+
+    app.get("/t").handler((ctx) => {
+      expectTypeOf(ctx.appName).toEqualTypeOf<string>();
+      expectTypeOf(ctx.cache).toEqualTypeOf<Cache>();
+      expectTypeOf(ctx.config).toEqualTypeOf<{ timeout: number }>();
+      expectTypeOf(ctx.traceId).toEqualTypeOf<string>();
+      expectTypeOf(ctx.env).toEqualTypeOf<{}>();
+
+      return ctx.res.text("ok", "ok");
+    });
+    expectTypeOf<InferCtx<typeof app>>().toMatchTypeOf<{ readonly cache: Cache }>();
+  });
+
+  // v0: 8521d1da18
+  // v0: 7c994b6cd7
+  it("middleware may require what context() provides, at chain and route level", () => {
+    const needsDb = createMiddleware((_ctx: { db: string }, next) => next({ queried: true }));
+
+    const needsConfig = createMiddleware((_ctx: { config: { timeout: number } }, next) =>
+      next({ validated: true as const }),
+    );
+
+    const app = httpApp<{}>()
+      .context({ config: { timeout: 5000 }, db: "sqlite" })
+      .use(needsDb);
+
+    expectTypeOf<InferCtx<typeof app>>().toMatchTypeOf<{ readonly db: string; queried: boolean }>();
+    app
+      .get("/t")
+      .use(needsConfig)
+      .handler((ctx) => {
+        expectTypeOf(ctx.validated).toEqualTypeOf<true>();
+
+        return ctx.res.text("ok", "ok");
+      });
+    // @ts-expect-error a chain without context({ db }) cannot use needsDb
+    httpApp<{}>().use(needsDb);
+  });
+});
 
 describe("what route middleware adds", () => {
-	// v0: 28c9af69a7
-	// v0: f95826d9d6
-	// v0: 8464a3cf8a
-	it("route-level use() calls accumulate, each seeing what the earlier ones added", () => {
-		httpApp<{}>()
-			.get("/t")
-			.use(withDb)
-			.use(withAuth)
-			.use(createMiddleware((_ctx, next) => next({ b: "two" })))
-			.handler((ctx) => {
-				expectTypeOf(ctx.db).toEqualTypeOf<string>()
-				expectTypeOf(ctx.user.id).toEqualTypeOf<string>()
-				expectTypeOf(ctx.b).toEqualTypeOf<string>()
-				return ctx.res.text("ok", "ok")
-			})
-		// @ts-expect-error withAuth needs db, which nothing added yet
-		httpApp<{}>().get("/t").use(withAuth)
-	})
-})
+  // v0: 28c9af69a7
+  // v0: f95826d9d6
+  // v0: 8464a3cf8a
+  it("route-level use() calls accumulate, each seeing what the earlier ones added", () => {
+    httpApp<{}>()
+      .get("/t")
+      .use(withDb)
+      .use(withAuth)
+      .use(createMiddleware((_ctx, next) => next({ b: "two" })))
+      .handler((ctx) => {
+        expectTypeOf(ctx.db).toEqualTypeOf<string>();
+        expectTypeOf(ctx.user.id).toEqualTypeOf<string>();
+        expectTypeOf(ctx.b).toEqualTypeOf<string>();
+
+        return ctx.res.text("ok", "ok");
+      });
+    // @ts-expect-error withAuth needs db, which nothing added yet
+    httpApp<{}>().get("/t").use(withAuth);
+  });
+});
 
 describe("the request fields", () => {
-	// v0: 3296607f56
-	// v0: b5ebb2d677
-	// v0: 0cdc648c4b
-	it("ctx.req is a Request, ctx.env the app's env type, and there is no input without .input()", () => {
-		httpApp<{ API_KEY: string; DB_URL: string }>()
-			.get("/t")
-			.handler((ctx) => {
-				expectTypeOf(ctx.req).toEqualTypeOf<Request>()
-				expectTypeOf(ctx.env).toEqualTypeOf<{ API_KEY: string; DB_URL: string }>()
-				expectTypeOf(ctx).not.toHaveProperty("input")
-				return ctx.res.text("ok", "ok")
-			})
-	})
-})
+  // v0: 3296607f56
+  // v0: b5ebb2d677
+  // v0: 0cdc648c4b
+  it("ctx.req is a Request, ctx.env the app's env type, and there is no input without .input()", () => {
+    httpApp<{ API_KEY: string; DB_URL: string }>()
+      .get("/t")
+      .handler((ctx) => {
+        expectTypeOf(ctx.req).toEqualTypeOf<Request>();
+        expectTypeOf(ctx.env).toEqualTypeOf<{ API_KEY: string; DB_URL: string }>();
+        expectTypeOf(ctx).not.toHaveProperty("input");
 
-const withUser = createMiddleware((_ctx, next) => next({ userId: "u-1" }))
-const withTenant = createMiddleware((_ctx, next) => next({ tenant: "t-1" }))
+        return ctx.res.text("ok", "ok");
+      });
+  });
+});
+
+const withUser = createMiddleware((_ctx, next) => next({ userId: "u-1" }));
+const withTenant = createMiddleware((_ctx, next) => next({ tenant: "t-1" }));
 
 describe("the whole ctx at once", () => {
-	// v0: b5d3cfdba4
-	// v0: 87415c6ed3
-	// v0: 32781d0574
-	it("env, context(), middleware, params, input, routePattern and an output-narrowed res, together", () => {
-		httpApp<{ SECRET: string }>()
-			.context({ region: "eu" })
-			.use(withUser)
-			.post("/orgs/:orgId/members/:memberId")
-			.input({ json: z.object({ name: z.string() }), search: z.object({ q: z.string() }) })
-			.output({ "application/json": { created: z.object({ id: z.string() }) } })
-			.handler((ctx) => {
-				expectTypeOf(ctx.env.SECRET).toEqualTypeOf<string>()
-				expectTypeOf(ctx.region).toEqualTypeOf<string>()
-				expectTypeOf(ctx.userId).toEqualTypeOf<string>()
-				expectTypeOf(ctx.params.orgId).toEqualTypeOf<string>()
-				expectTypeOf(ctx.params.memberId).toEqualTypeOf<string>()
-				expectTypeOf(ctx.input.json.name).toEqualTypeOf<string>()
-				expectTypeOf(ctx.input.search.q).toEqualTypeOf<string>()
-				expectTypeOf(ctx.routePattern).toEqualTypeOf<"/orgs/:orgId/members/:memberId">()
-				expectTypeOf(ctx.res).not.toHaveProperty("noContent")
-				expectTypeOf(ctx.res).not.toHaveProperty("text")
-				return ctx.res.json("created", { id: "1" })
-			})
-	})
+  // v0: b5d3cfdba4
+  // v0: 87415c6ed3
+  // v0: 32781d0574
+  it("env, context(), middleware, params, input, routePattern and an output-narrowed res, together", () => {
+    httpApp<{ SECRET: string }>()
+      .context({ region: "eu" })
+      .use(withUser)
+      .post("/orgs/:orgId/members/:memberId")
+      .input({ json: z.object({ name: z.string() }), search: z.object({ q: z.string() }) })
+      .output({ "application/json": { created: z.object({ id: z.string() }) } })
+      .handler((ctx) => {
+        expectTypeOf(ctx.env.SECRET).toEqualTypeOf<string>();
+        expectTypeOf(ctx.region).toEqualTypeOf<string>();
+        expectTypeOf(ctx.userId).toEqualTypeOf<string>();
+        expectTypeOf(ctx.params.orgId).toEqualTypeOf<string>();
+        expectTypeOf(ctx.params.memberId).toEqualTypeOf<string>();
+        expectTypeOf(ctx.input.json.name).toEqualTypeOf<string>();
+        expectTypeOf(ctx.input.search.q).toEqualTypeOf<string>();
+        expectTypeOf(ctx.routePattern).toEqualTypeOf<"/orgs/:orgId/members/:memberId">();
+        expectTypeOf(ctx.res).not.toHaveProperty("noContent");
+        expectTypeOf(ctx.res).not.toHaveProperty("text");
 
-	// v0: 0b1c12acb4
-	it("under a basePath, with an optional search field and errors named with their factory", () => {
-		const errs = defineErrors({ not_found: "not_found" })
-		httpApp<{ SECRET: string }>()
-			.basePath("/api/v1")
-			.use(withTenant)
-			.get("/users/:id")
-			.input({ search: z.object({ fields: z.string().optional() }) })
-			.output({ "application/json": { ok: z.object({ id: z.string(), name: z.string() }) } })
-			.errors(errs, "not_found")
-			.handler((ctx) => {
-				expectTypeOf(ctx.tenant).toEqualTypeOf<string>()
-				expectTypeOf(ctx.input.search.fields).toEqualTypeOf<string | undefined>()
-				expectTypeOf(ctx.routePattern).toEqualTypeOf<"/api/v1/users/:id">()
-				expectTypeOf(ctx.errors.not_found).toBeFunction()
-				expectTypeOf(ctx.res).not.toHaveProperty("text")
-				return ctx.res.json("ok", { id: "1", name: "test" })
-			})
-	})
-})
+        return ctx.res.json("created", { id: "1" });
+      });
+  });
+
+  // v0: 0b1c12acb4
+  it("under a basePath, with an optional search field and errors named with their factory", () => {
+    const errs = defineErrors({ not_found: "not_found" });
+    httpApp<{ SECRET: string }>()
+      .basePath("/api/v1")
+      .use(withTenant)
+      .get("/users/:id")
+      .input({ search: z.object({ fields: z.string().optional() }) })
+      .output({ "application/json": { ok: z.object({ id: z.string(), name: z.string() }) } })
+      .errors(errs, "not_found")
+      .handler((ctx) => {
+        expectTypeOf(ctx.tenant).toEqualTypeOf<string>();
+        expectTypeOf(ctx.input.search.fields).toEqualTypeOf<string | undefined>();
+        expectTypeOf(ctx.routePattern).toEqualTypeOf<"/api/v1/users/:id">();
+        expectTypeOf(ctx.errors.not_found).toBeFunction();
+        expectTypeOf(ctx.res).not.toHaveProperty("text");
+
+        return ctx.res.json("ok", { id: "1", name: "test" });
+      });
+  });
+});
 
 describe("the whole ctx with taps, meta and empty declarations", () => {
-	// v0: 0e91063a38
-	it("with taps and meta too: a defined tap takes its payload, nothing else", () => {
-		const errs = defineErrors({ not_found: "not_found" })
-		const audit = defineTap("audit", z.object({ action: z.string(), actor_id: z.string() }), () => {})
-		const webhook = defineTap("webhook", z.object({ event: z.string() }), () => {})
-		httpApp<{}>()
-			.metaType<TapMeta<typeof audit>>()
-			.tap(audit)
-			.tap(webhook)
-			.use(withUser)
-			.post("/orgs/:orgId/members")
-			.input({ json: z.object({ email: z.string() }) })
-			.output({ "application/json": { created: z.object({ id: z.string() }) } })
-			.errors(errs, "not_found")
-			.meta({ audit: { action: "member.invite", actor_id: "sys" } })
-			.handler((ctx) => {
-				expectTypeOf(ctx.input.json.email).toEqualTypeOf<string>()
-				expectTypeOf(ctx.errors.not_found).toBeFunction()
-				expectTypeOf(ctx.routePattern).toEqualTypeOf<"/orgs/:orgId/members">()
-				ctx.tap(audit, { action: "member.invite", actor_id: ctx.userId })
-				ctx.tap(webhook, { event: "member.invited" })
-				// @ts-expect-error a string key is no tap
-				ctx.tap("invalid", {})
-				// @ts-expect-error another tap's payload
-				ctx.tap(audit, { event: "wrong" })
-				expectTypeOf(ctx.res).not.toHaveProperty("text")
-				return ctx.res.json("created", { id: "mem_1" })
-			})
-	})
+  // v0: 0e91063a38
+  it("with taps and meta too: a defined tap takes its payload, nothing else", () => {
+    const errs = defineErrors({ not_found: "not_found" });
+    const audit = defineTap("audit", z.object({ action: z.string(), actor_id: z.string() }), () => {});
+    const webhook = defineTap("webhook", z.object({ event: z.string() }), () => {});
+    httpApp<{}>()
+      .metaType<TapMeta<typeof audit>>()
+      .tap(audit)
+      .tap(webhook)
+      .use(withUser)
+      .post("/orgs/:orgId/members")
+      .input({ json: z.object({ email: z.string() }) })
+      .output({ "application/json": { created: z.object({ id: z.string() }) } })
+      .errors(errs, "not_found")
+      .meta({ audit: { action: "member.invite", actor_id: "sys" } })
+      .handler((ctx) => {
+        expectTypeOf(ctx.input.json.email).toEqualTypeOf<string>();
+        expectTypeOf(ctx.errors.not_found).toBeFunction();
+        expectTypeOf(ctx.routePattern).toEqualTypeOf<"/orgs/:orgId/members">();
+        ctx.tap(audit, { action: "member.invite", actor_id: ctx.userId });
+        ctx.tap(webhook, { event: "member.invited" });
+        // @ts-expect-error a string key is no tap
+        ctx.tap("invalid", {});
+        // @ts-expect-error another tap's payload
+        ctx.tap(audit, { event: "wrong" });
+        expectTypeOf(ctx.res).not.toHaveProperty("text");
 
-	// v0: b677cfaf2a
-	it("routePattern stays the literal through an empty .input() and a 204-only .output(), which leaves noContent", () => {
-		httpApp<{}>()
-			.use(withUser)
-			.get("/")
-			.input({})
-			.output({ no_content: true })
-			.handler((ctx) => {
-				expectTypeOf(ctx.routePattern).toEqualTypeOf<"/">()
-				expectTypeOf(ctx.res.noContent).toBeFunction()
-				return ctx.res.noContent()
-			})
-	})
-})
+        return ctx.res.json("created", { id: "mem_1" });
+      });
+  });
+
+  // v0: b677cfaf2a
+  it("routePattern stays the literal through an empty .input() and a 204-only .output(), which leaves noContent", () => {
+    httpApp<{}>()
+      .use(withUser)
+      .get("/")
+      .input({})
+      .output({ no_content: true })
+      .handler((ctx) => {
+        expectTypeOf(ctx.routePattern).toEqualTypeOf<"/">();
+        expectTypeOf(ctx.res.noContent).toBeFunction();
+
+        return ctx.res.noContent();
+      });
+  });
+});
 
 describe("ctx.with", () => {
-	type ShardDb = { query: (sql: string) => unknown[] }
-	const withShard = createMiddleware((_ctx, next) => next({ shardDb: null as ShardDb | null }))
+  type ShardDb = { query: (sql: string) => unknown[] };
 
-	it("returns the receiver's context, overriding a member with its declared type", () => {
-		httpApp<{}>()
-			.use(withShard)
-			.get("/rows")
-			.handler((ctx) => {
-				const derived = ctx.with({ shardDb: { query: () => [] } })
-				expectTypeOf(derived).toEqualTypeOf<typeof ctx>()
-				// @ts-expect-error a number is not a ShardDb
-				ctx.with({ shardDb: 42 })
-				return derived.res.text("ok", "ok")
-			})
-	})
+  const withShard = createMiddleware((_ctx, next) => next({ shardDb: null as ShardDb | null }));
 
-	it("refuses the request-specific members", () => {
-		httpApp<{}>()
-			.use(withShard)
-			.post("/rows")
-			.input({ json: z.object({ a: z.string() }) })
-			.handler((ctx) => {
-				// @ts-expect-error req is not overridable
-				ctx.with({ req: ctx.req })
-				// @ts-expect-error res is not overridable
-				ctx.with({ res: ctx.res })
-				// @ts-expect-error input is not overridable
-				ctx.with({ input: ctx.input })
-				// @ts-expect-error params is not overridable
-				ctx.with({ params: ctx.params })
-				// @ts-expect-error meta is not overridable
-				ctx.with({ meta: ctx.meta })
-				expectTypeOf(ctx.with({})).toEqualTypeOf<typeof ctx>()
-				return ctx.res.text("ok", "ok")
-			})
-	})
+  it("returns the receiver's context, overriding a member with its declared type", () => {
+    httpApp<{}>()
+      .use(withShard)
+      .get("/rows")
+      .handler((ctx) => {
+        const derived = ctx.with({ shardDb: { query: () => [] } });
+        expectTypeOf(derived).toEqualTypeOf<typeof ctx>();
+        // @ts-expect-error a number is not a ShardDb
+        ctx.with({ shardDb: 42 });
 
-	it("returns a picked context from a picked context, still refusing req", () => {
-		httpApp<{}>()
-			.use(withShard)
-			.get("/picked")
-			.handler((ctx) => {
-				const picked: Pick<typeof ctx, "shardDb" | "with" | "log"> = ctx
-				expectTypeOf(picked.with({ shardDb: null })).toEqualTypeOf<Pick<typeof ctx, "shardDb" | "with" | "log">>()
-				// @ts-expect-error req is not on the picked context, nor overridable
-				picked.with({ req: ctx.req })
-				return ctx.res.text("ok", "ok")
-			})
-	})
-})
+        return derived.res.text("ok", "ok");
+      });
+  });
+
+  it("refuses the request-specific members", () => {
+    httpApp<{}>()
+      .use(withShard)
+      .post("/rows")
+      .input({ json: z.object({ a: z.string() }) })
+      .handler((ctx) => {
+        // @ts-expect-error req is not overridable
+        ctx.with({ req: ctx.req });
+        // @ts-expect-error res is not overridable
+        ctx.with({ res: ctx.res });
+        // @ts-expect-error input is not overridable
+        ctx.with({ input: ctx.input });
+        // @ts-expect-error params is not overridable
+        ctx.with({ params: ctx.params });
+        // @ts-expect-error meta is not overridable
+        ctx.with({ meta: ctx.meta });
+        expectTypeOf(ctx.with({})).toEqualTypeOf<typeof ctx>();
+
+        return ctx.res.text("ok", "ok");
+      });
+  });
+
+  it("returns a picked context from a picked context, still refusing req", () => {
+    httpApp<{}>()
+      .use(withShard)
+      .get("/picked")
+      .handler((ctx) => {
+        const picked: Pick<typeof ctx, "shardDb" | "with" | "log"> = ctx;
+        expectTypeOf(picked.with({ shardDb: null })).toEqualTypeOf<Pick<typeof ctx, "shardDb" | "with" | "log">>();
+        // @ts-expect-error req is not on the picked context, nor overridable
+        picked.with({ req: ctx.req });
+
+        return ctx.res.text("ok", "ok");
+      });
+  });
+});

@@ -11,36 +11,41 @@
  * The reference keeps one untimed warm-up per target, its first build in the job (a cold one is ~1.36x a warm one).
  * The hang guard bounds the app builds only, not the references: a reference is backend-free, so it has no backend to hang.
  */
-import { BUILD_SAMPLES } from "./build-gate.ts"
+import { BUILD_SAMPLES } from "./build-gate.ts";
 
 /** One timed build: its exit code, its wall time in ms and its output. */
-export type Timed = { code: number; ms: number; output: string }
+type Timed = { code: number; ms: number; output: string };
 
 /** A cell's samples: its app builds' ms and the backend-free reference builds' ms timed around them. */
-export type CellWindow = { builds: number[]; references: number[] }
+type CellWindow = { builds: number[]; references: number[] };
 
 /** Times one cell: its window, or the first app build that failed. */
-export type CellMeter = (target: string, build: () => Promise<Timed>) => Promise<CellWindow | { failed: Timed }>
+export type CellMeter = (target: string, build: () => Promise<Timed>) => Promise<CellWindow | { failed: Timed }>;
 
 /**
  * A meter over `reference`, which times one backend-free reference build for a target (and throws if it fails): each
  * cell's BUILD_SAMPLES app builds, each between two references, BUILD_SAMPLES + 1 in all.
  */
 export function cellMeter(reference: (target: string) => Promise<number>): CellMeter {
-	const warmed = new Set<string>()
-	return async (target, build) => {
-		if (!warmed.has(target)) {
-			await reference(target)
-			warmed.add(target)
-		}
-		const references = [await reference(target)]
-		const builds: number[] = []
-		for (let sample = 0; sample < BUILD_SAMPLES; sample++) {
-			const built = await build()
-			if (built.code !== 0) return { failed: built }
-			builds.push(built.ms)
-			references.push(await reference(target))
-		}
-		return { builds, references }
-	}
+  const warmed = new Set<string>();
+
+  return async (target, build) => {
+    if (!warmed.has(target)) {
+      await reference(target);
+      warmed.add(target);
+    }
+
+    const references = [await reference(target)];
+    const builds: number[] = [];
+
+    for (let sample = 0; sample < BUILD_SAMPLES; sample++) {
+      const built = await build();
+
+      if (built.code !== 0) return { failed: built };
+      builds.push(built.ms);
+      references.push(await reference(target));
+    }
+
+    return { builds, references };
+  };
 }

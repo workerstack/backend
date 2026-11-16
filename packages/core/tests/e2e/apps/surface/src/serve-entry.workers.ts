@@ -1,5 +1,6 @@
 /** The cloudflare bundle's entry: the app with the Workers WebSocketPair WebSocket adapter; gen-app.ts's stub is for generation only. */
-import { workersWebSocket } from "@workerstack/backend/ws"
-import { createApp } from "./app.ts"
+import { workersWebSocket } from "@workerstack/backend/ws";
 
-export const app = createApp(workersWebSocket())
+import { createApp } from "./app.ts";
+
+export const app = createApp(workersWebSocket());

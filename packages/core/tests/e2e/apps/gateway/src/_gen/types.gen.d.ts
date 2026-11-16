@@ -24,16 +24,16 @@ type ListArticlesResponse200 = { articles: { id: string; title: string }[]; coun
 export type Routes = {
 	"/articles": {
 		get: {
-			ctx: WithOutput<BaseCtx & { shard: string } & { readonly input: { search: { cursor?: string } }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/articles" }, { "application/json": { ok: ListArticlesResponse200 } }>
+			ctx: WithOutput<BaseCtx & { shard: string } & { readonly input: { search: { cursor?: string | undefined } }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>> & { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>; readonly routePattern: "/articles" }, { "application/json": { ok: ListArticlesResponse200 } }>
 			errors: never
-			input: { search: { cursor?: string } }
+			input: { search: { cursor?: string | undefined } }
 			meta: { tenant: "project_id"; operationId: "articles.list"; permissions: ["articles.read"]; summary: "List articles"; worker: "origin" }
 			output: { "application/json": { ok: ListArticlesResponse200 } }
 		}
 	}
 	"/articles/meta": {
 		get: {
-			ctx: WithOutput<BaseCtx & { shard: string } & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/articles/meta" }, never>
+			ctx: WithOutput<BaseCtx & { shard: string } & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>> & { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>; readonly routePattern: "/articles/meta" }, never>
 			errors: never
 			input: {}
 			meta: { tenant: "project_id"; operationId: "articles.meta.list" }
@@ -42,7 +42,7 @@ export type Routes = {
 	}
 	"/nl/c/:delivery/:url": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly params: { delivery: string; url: string }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/nl/c/:delivery/:url" }, never>
+			ctx: WithOutput<BaseCtx & { readonly params: { delivery: string; url: string }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>> & { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>; readonly routePattern: "/nl/c/:delivery/:url" }, never>
 			errors: never
 			input: {}
 			meta: { operationId: "nl.c.retrieve" }
@@ -51,7 +51,7 @@ export type Routes = {
 	}
 	"/ping": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/ping" }, never>
+			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>> & { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>; readonly routePattern: "/ping" }, never>
 			errors: never
 			input: {}
 			meta: { operationId: "ping.list" }
@@ -60,14 +60,14 @@ export type Routes = {
 	}
 	"/users": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/users" }, never>
+			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>> & { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>; readonly routePattern: "/users" }, never>
 			errors: never
 			input: {}
 			meta: { operationId: "users.list"; worker: "origin" }
 			output: {}
 		}
 		post: {
-			ctx: WithOutput<BaseCtx & { readonly input: { json: { name: string } }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/users" }, never>
+			ctx: WithOutput<BaseCtx & { readonly input: { json: { name: string } }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>> & { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>; readonly routePattern: "/users" }, never>
 			errors: never
 			input: { json: { name: string } }
 			meta: { operationId: "users.create"; worker: "origin" }
@@ -76,7 +76,7 @@ export type Routes = {
 	}
 	"/users/:id": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly params: { id: string }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/users/:id" }, never>
+			ctx: WithOutput<BaseCtx & { readonly params: { id: string }; readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>> & { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>; readonly routePattern: "/users/:id" }, never>
 			errors: never
 			input: {}
 			meta: { operationId: "users.retrieve"; worker: "origin" }
@@ -85,7 +85,7 @@ export type Routes = {
 	}
 	"/v1/openapi/spec": {
 		get: {
-			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>> & { permissions?: string[]; tenant?: string; worker?: "edge" | "origin" }>; readonly routePattern: "/v1/openapi/spec" }, never>
+			ctx: WithOutput<BaseCtx & { readonly meta: Readonly<Partial<Omit<HttpMeta, keyof { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>> & { permissions?: string[] | undefined; tenant?: string | undefined; worker?: "edge" | "origin" | undefined }>; readonly routePattern: "/v1/openapi/spec" }, never>
 			errors: never
 			input: {}
 			meta: { operationId: "v1.openapi.spec.list" }

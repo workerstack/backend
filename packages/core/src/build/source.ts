@@ -8,98 +8,115 @@
  * module comes through the generation's loader: from a published dist, a native import() here reaches Node itself,
  * which strips no types before 22.18.
  */
-import { existsSync } from "node:fs"
-import { resolve } from "node:path"
-import { assertTreeOutputKeys } from "../openapi/output-keys.ts"
-import { type HttpApp, httpApp } from "../routing/app.ts"
-import { gatewayTree, overlaySchemas } from "../routing/gateway-tree.ts"
-import type { RouteTree } from "../routing/tree.ts"
-import type { ResolvedBackendConfig } from "./config.ts"
-import type { ModuleLoader } from "./loaders.ts"
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
-export type App = HttpApp<unknown>
+import { assertTreeOutputKeys } from "../openapi/output-keys.ts";
+import { type HttpApp, httpApp } from "../routing/app.ts";
+import { gatewayTree, overlaySchemas } from "../routing/gateway-tree.ts";
+import type { RouteTree } from "../routing/tree.ts";
+import type { ResolvedBackendConfig } from "./config.ts";
+import type { ModuleLoader } from "./loaders.ts";
+
+type App = HttpApp<unknown>;
 
 /** The app a generation documents, and the module and export its types are read from (none, no types). */
-export type Documented = { app: App; entry: string; exportName: string | undefined }
+export type Documented = { app: App; entry: string; exportName: string | undefined };
 
 /** The tree a generation writes; whether the documented app loads it (so it is written first); that app, on demand. */
-export type Source = { documented: () => Promise<Documented>; loadsTree: boolean; tree: RouteTree }
+export type Source = { documented: () => Promise<Documented>; loadsTree: boolean; tree: RouteTree };
 
-const isApp = (value: unknown): value is App => typeof (value as { fetch?: unknown } | null)?.fetch === "function"
+const isApp = (value: unknown): value is App => typeof (value as { fetch?: unknown } | null)?.fetch === "function";
+
 const isTree = (value: unknown): value is RouteTree =>
-	typeof (value as RouteTree | null)?.root === "object" && typeof (value as RouteTree | null)?.routes === "object"
+  typeof (value as RouteTree | null)?.root === "object" && typeof (value as RouteTree | null)?.routes === "object";
 
 /** `run()`, an app's stale-tree failure named for what it is: the app loads the tree this generation writes. */
 async function unlessStale<T>(run: () => T | Promise<T>, config: ResolvedBackendConfig): Promise<T> {
-	try {
-		return await run()
-	} catch (error) {
-		if (!/Run `backend generate`/.test(String(error))) throw error
-		const { mergeTree, tree } = config.codegen
-		const fix =
-			mergeTree === undefined
-				? "generate from the module that builds the app, and serve `app.routeTree(routeTree)` from another, or set codegen.mergeTree for a gateway"
-				: `re-export the gateway's app as built, before its routeTree() call, from ${mergeTree} as app`
-		throw new Error(
-			`${config.app} loads the route tree generation writes (${tree || "its routes.gen.ts"}), and that tree is stale: ${fix}`,
-			{ cause: error },
-		)
-	}
+  try {
+    return await run();
+  } catch (error) {
+    if (!/Run `backend generate`/.test(String(error))) throw error;
+    const { mergeTree, tree } = config.codegen;
+
+    const fix =
+      mergeTree === undefined
+        ? "generate from the module that builds the app, and serve `app.routeTree(routeTree)` from another, or set codegen.mergeTree for a gateway"
+        : `re-export the gateway's app as built, before its routeTree() call, from ${mergeTree} as app`;
+
+    throw new Error(
+      `${config.app} loads the route tree generation writes (${tree || "its routes.gen.ts"}), and that tree is stale: ${fix}`,
+      { cause: error },
+    );
+  }
 }
 
 /** The app `config.app` names. */
 async function appOf(config: ResolvedBackendConfig, root: string, load: ModuleLoader): Promise<Documented> {
-	const entry = resolve(root, config.app as string)
-	const mod = await unlessStale(() => load(entry), config)
-	const exportName = ["app", "default"].find((name) => isApp(mod[name]))
-	if (exportName === undefined) throw new Error(`Expected a backend app as the app or default export of ${entry}`)
-	return { app: mod[exportName] as App, entry, exportName }
+  const entry = resolve(root, config.app as string);
+  const mod = await unlessStale(() => load(entry), config);
+  const exportName = ["app", "default"].find((name) => isApp(mod[name]));
+
+  if (exportName === undefined) throw new Error(`Expected a backend app as the app or default export of ${entry}`);
+
+  return { app: mod[exportName] as App, entry, exportName };
 }
 
 /** A gateway's source, as the header says. */
 async function gatewayOf(
-	config: ResolvedBackendConfig,
-	root: string,
-	load: ModuleLoader,
-	first: boolean,
+  config: ResolvedBackendConfig,
+  root: string,
+  load: ModuleLoader,
+  first: boolean,
 ): Promise<Source> {
-	const entry = resolve(root, config.codegen.mergeTree as string)
-	const mod = await load(entry)
-	const merged = [mod.tree, mod.routeTree, mod.default].find(isTree)
-	if (merged === undefined) throw new Error(`Expected a route tree as the tree or default export of ${entry}`)
-	const own = isApp(mod.app) ? { app: mod.app, entry, exportName: "app" } : undefined
-	if (config.app === undefined) {
-		const tree = own === undefined ? merged : await unlessStale(() => gatewayTree(own.app, merged), config)
-		const app = httpApp().routeTree(tree) as unknown as App
-		overlaySchemas(app, merged)
-		return { documented: async () => ({ app, entry, exportName: own?.exportName }), loadsTree: false, tree }
-	}
-	let served: Documented | undefined
-	if (own === undefined) {
-		const path = config.codegen.tree === false ? undefined : resolve(root, config.codegen.tree)
-		const bootstrap = first && path !== undefined && !existsSync(path)
-		served = await appOf(config, root, load).catch((error: unknown) => {
-			if (bootstrap) return undefined
-			throw error
-		})
-		if (served === undefined) return { documented: () => appOf(config, root, load), loadsTree: true, tree: merged }
-	}
-	const builder = (own ?? served) as Documented
-	const tree = await unlessStale(() => gatewayTree(builder.app, merged), config)
-	const documented = async () => {
-		const app = served ?? (await appOf(config, root, load))
-		overlaySchemas(app.app, merged)
-		return app
-	}
-	return { documented, loadsTree: true, tree }
+  const entry = resolve(root, config.codegen.mergeTree as string);
+  const mod = await load(entry);
+  const merged = [mod.tree, mod.routeTree, mod.default].find(isTree);
+
+  if (merged === undefined) throw new Error(`Expected a route tree as the tree or default export of ${entry}`);
+  const own = isApp(mod.app) ? { app: mod.app, entry, exportName: "app" } : undefined;
+
+  if (config.app === undefined) {
+    const tree = own === undefined ? merged : await unlessStale(() => gatewayTree(own.app, merged), config);
+    const app = httpApp().routeTree(tree) as unknown as App;
+    overlaySchemas(app, merged);
+
+    return { documented: async () => ({ app, entry, exportName: own?.exportName }), loadsTree: false, tree };
+  }
+
+  let served: Documented | undefined;
+
+  if (own === undefined) {
+    const path = config.codegen.tree === false ? undefined : resolve(root, config.codegen.tree);
+    const bootstrap = first && path !== undefined && !existsSync(path);
+    served = await appOf(config, root, load).catch((error: unknown) => {
+      if (bootstrap) return undefined;
+      throw error;
+    });
+
+    if (served === undefined) return { documented: () => appOf(config, root, load), loadsTree: true, tree: merged };
+  }
+
+  const builder = (own ?? served) as Documented;
+  const tree = await unlessStale(() => gatewayTree(builder.app, merged), config);
+
+  const documented = async () => {
+    const app = served ?? (await appOf(config, root, load));
+    overlaySchemas(app.app, merged);
+
+    return app;
+  };
+
+  return { documented, loadsTree: true, tree };
 }
 
 /** The app `config` names: its snapshot is the tree written. */
 async function appSource(config: ResolvedBackendConfig, root: string, load: ModuleLoader): Promise<Source> {
-	if (config.app === undefined) throw new Error("No app configured: set app, or codegen.mergeTree for a gateway")
-	const documented = await appOf(config, root, load)
-	const tree = await unlessStale(() => documented.app.toRouteTree(), config)
-	return { documented: async () => documented, loadsTree: false, tree }
+  if (config.app === undefined) throw new Error("No app configured: set app, or codegen.mergeTree for a gateway");
+  const documented = await appOf(config, root, load);
+  const tree = await unlessStale(() => documented.app.toRouteTree(), config);
+
+  return { documented: async () => documented, loadsTree: false, tree };
 }
 
 /**
@@ -108,15 +125,17 @@ async function appSource(config: ResolvedBackendConfig, root: string, load: Modu
  * Its tree holds no output key `.output()`'s types refuse: a generated tree is checked here, never where it is served.
  */
 export async function sourceOf(
-	config: ResolvedBackendConfig,
-	root: string,
-	load: ModuleLoader,
-	first = false,
+  config: ResolvedBackendConfig,
+  root: string,
+  load: ModuleLoader,
+  first = false,
 ): Promise<Source> {
-	const source =
-		config.codegen.mergeTree === undefined
-			? await appSource(config, root, load)
-			: await gatewayOf(config, root, load, first)
-	assertTreeOutputKeys(source.tree)
-	return source
+  const source =
+    config.codegen.mergeTree === undefined
+      ? await appSource(config, root, load)
+      : await gatewayOf(config, root, load, first);
+
+  assertTreeOutputKeys(source.tree);
+
+  return source;
 }

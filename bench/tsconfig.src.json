@@ -1,0 +1,5 @@
+{
+  // exclude replaces tsconfig.json's own: the tests
+  "exclude": ["**/*.test.ts"],
+  "extends": ["./tsconfig.json", "@workerstack/repo/tsconfig/strict"]
+}

@@ -1,26 +1,26 @@
-import { backendPlugin } from "@workerstack/backend/plugin"
+import { backendPlugin } from "@workerstack/backend/plugin";
 
 export default {
-	plugins: [
-		backendPlugin({
-			app: "src/gen-app.ts",
-			codegen: {
-				manifest: true,
-				/* downstream routes; the gateway's own routes are added from the app */
-				mergeTree: "src/route-tree.ts",
-				/* two documents from one metaSpec policy — see src/app.ts */
-				openApi: [
-					{ title: "Backend Gateway", version: "0.0.1" },
-					{
-						path: "src/_gen/openapi.public.gen.json",
-						profile: "public",
-						title: "Backend Gateway (public)",
-						version: "0.0.1",
-					},
-				],
-				tree: true,
-				types: true,
-			},
-		}),
-	],
-}
+  plugins: [
+    backendPlugin({
+      app: "src/gen-app.ts",
+      codegen: {
+        manifest: true,
+        // downstream routes; the gateway's own routes are added from the app
+        mergeTree: "src/route-tree.ts",
+        // two documents from one metaSpec policy — see src/app.ts
+        openApi: [
+          { title: "Backend Gateway", version: "0.0.1" },
+          {
+            path: "src/_gen/openapi.public.gen.json",
+            profile: "public",
+            title: "Backend Gateway (public)",
+            version: "0.0.1",
+          },
+        ],
+        tree: true,
+        types: true,
+      },
+    }),
+  ],
+};

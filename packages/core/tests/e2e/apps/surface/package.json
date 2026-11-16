@@ -1,22 +1,22 @@
 {
-	"name": "@backend/e2e-surface",
-	"version": "0.0.1",
-	"private": true,
-	"type": "module",
-	"exports": {
-		".": "./src/app.ts"
-	},
-	"scripts": {
-		"generate": "BUN_OPTIONS=--conditions=backend-source backend generate",
-		"test": "bun test --conditions=backend-source tests/smoke.test.ts",
-		"type:check": "tsc --noEmit"
-	},
-	"dependencies": {
-		"@workerstack/backend": "workspace:*",
-		"zod": "catalog:"
-	},
-	"devDependencies": {
-		"@playwright/test": "catalog:",
-		"typescript": "catalog:"
-	}
+  "name": "@backend/e2e-surface",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/app.ts"
+  },
+  "scripts": {
+    "generate": "BUN_OPTIONS=--conditions=backend-source backend generate",
+    "test": "bun test --conditions=backend-source tests/smoke.test.ts",
+    "type:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workerstack/backend": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "typescript": "catalog:"
+  }
 }

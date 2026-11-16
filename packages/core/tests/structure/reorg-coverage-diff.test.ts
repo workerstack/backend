@@ -5,85 +5,93 @@
  * the generator's tests ported left with it for workerstack/clients, whose tests still carry their tags: the ids are
  * frozen in v0-ported-in-clients.json at the clients commit they were read from.
  */
-import { execFileSync } from "node:child_process"
-import { readFileSync } from "node:fs"
-import { join, resolve } from "node:path"
-import { describe, expect, it } from "vitest"
-import { COMPLETE } from "./check-tree.ts"
-import { type Reassignment, unaccounted, type V0Case } from "./v0-inventory.ts"
-import { SPAWN_TIMEOUT } from "../fixture/spawn-timeout.ts"
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
-const REPO = resolve(import.meta.dirname, "../../../..")
-const V1_ROOTS = ["packages/core/src", "packages/core/tests", "packages/core/lint"]
-const TAG = /\/\/ v0: ([0-9a-f]{10})\b/g
+import { describe, expect, it } from "vitest";
+
+import { SPAWN_TIMEOUT } from "../__fixtures__/spawn-timeout.ts";
+import { COMPLETE } from "./check-tree.ts";
+import { type Reassignment, unaccounted, type V0Case } from "./v0-inventory.ts";
+
+const REPO = resolve(import.meta.dirname, "../../../..");
+const V1_ROOTS = ["packages/core/src", "packages/core/tests", "packages/core/lint"];
+const TAG = /\/\/ v0: ([0-9a-f]{10})\b/g;
+
 /** A `// v0:` line carrying a second id: TAG reads only the first, so the rest would silently drop — one id per line. */
-const MULTI_TAG = /\/\/ v0: [0-9a-f]{10}\b[ ,]+[0-9a-f]{10}\b/
+const MULTI_TAG = /\/\/ v0: [0-9a-f]{10}\b[ ,]+[0-9a-f]{10}\b/;
 
-type Inventory = { cases: V0Case[]; reassigned: Record<string, Reassignment>; retired: Record<string, string> }
+type Inventory = { cases: V0Case[]; reassigned: Record<string, Reassignment>; retired: Record<string, string> };
 
-const inventory = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v0-cases.json"), "utf8")) as Inventory
+const inventory = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v0-cases.json"), "utf8")) as Inventory;
+
 const inClients = (
-	JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v0-ported-in-clients.json"), "utf8")) as { ids: string[] }
-).ids
-const known = new Set(inventory.cases.map((c) => c.id))
+  JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v0-ported-in-clients.json"), "utf8")) as { ids: string[] }
+).ids;
+
+const known = new Set(inventory.cases.map((c) => c.id));
 
 function taggableFiles(): string[] {
-	return execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "--", ...V1_ROOTS], {
-		cwd: REPO,
-		encoding: "utf8",
-	})
-		.split("\n")
-		.filter((f) => f.endsWith(".ts"))
+  return execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "--", ...V1_ROOTS], {
+    cwd: REPO,
+    encoding: "utf8",
+  })
+    .split("\n")
+    .filter((f) => f.endsWith(".ts"));
 }
 
 function portedIds(): Set<string> {
-	return new Set(
-		taggableFiles().flatMap((f) => [...readFileSync(join(REPO, f), "utf8").matchAll(TAG)].map((m) => m[1] as string)),
-	)
+  return new Set(
+    taggableFiles().flatMap((f) => [...readFileSync(join(REPO, f), "utf8").matchAll(TAG)].map((m) => m[1] as string)),
+  );
 }
 
 function multiIdTagLines(): string[] {
-	const bad: string[] = []
-	for (const f of taggableFiles()) {
-		readFileSync(join(REPO, f), "utf8")
-			.split("\n")
-			.forEach((line, i) => {
-				if (MULTI_TAG.test(line)) bad.push(`${f}:${i + 1}`)
-			})
-	}
-	return bad
+  const bad: string[] = [];
+
+  for (const f of taggableFiles()) {
+    readFileSync(join(REPO, f), "utf8")
+      .split("\n")
+      .forEach((line, i) => {
+        if (MULTI_TAG.test(line)) bad.push(`${f}:${i + 1}`);
+      });
+  }
+
+  return bad;
 }
 
 describe(`v0 cases accounted for through bit ${String(COMPLETE).padStart(2, "0")}`, () => {
-	it("knows which bit construction has completed", () => {
-		/* a missing constant would make every comparison below false and the gate vacuous */
-		expect(Number.isInteger(COMPLETE)).toBe(true)
-	})
+  it("knows which bit construction has completed", () => {
+    // a missing constant would make every comparison below false and the gate vacuous
+    expect(Number.isInteger(COMPLETE)).toBe(true);
+  });
 
-	it("every port tag names a real v0 case, here and in workerstack/clients", { timeout: SPAWN_TIMEOUT }, () => {
-		expect([...portedIds(), ...inClients].filter((id) => !known.has(id))).toEqual([])
-	})
+  it("every port tag names a real v0 case, here and in workerstack/clients", { timeout: SPAWN_TIMEOUT }, () => {
+    expect([...portedIds(), ...inClients].filter((id) => !known.has(id))).toEqual([]);
+  });
 
-	it(
-		"tags at most one v0 id per line (the gate reads only the first; a second would silently drop)",
-		{ timeout: SPAWN_TIMEOUT },
-		() => {
-			expect(multiIdTagLines()).toEqual([])
-		},
-	)
+  it(
+    "tags at most one v0 id per line (the gate reads only the first; a second would silently drop)",
+    { timeout: SPAWN_TIMEOUT },
+    () => {
+      expect(multiIdTagLines()).toEqual([]);
+    },
+  );
 
-	it("every retirement and reassignment names a real v0 case", () => {
-		const listed = [...Object.keys(inventory.retired), ...Object.keys(inventory.reassigned)]
-		expect(listed.filter((id) => !known.has(id))).toEqual([])
-	})
+  it("every retirement and reassignment names a real v0 case", () => {
+    const listed = [...Object.keys(inventory.retired), ...Object.keys(inventory.reassigned)];
+    expect(listed.filter((id) => !known.has(id))).toEqual([]);
+  });
 
-	it("every case of a completed feature is ported or retired", { timeout: SPAWN_TIMEOUT }, () => {
-		const accounting = {
-			complete: COMPLETE,
-			ported: new Set([...portedIds(), ...inClients]),
-			reassigned: inventory.reassigned,
-			retired: inventory.retired,
-		}
-		expect(unaccounted(inventory.cases, accounting)).toEqual([])
-	})
-})
+  it("every case of a completed feature is ported or retired", { timeout: SPAWN_TIMEOUT }, () => {
+    const accounting = {
+      complete: COMPLETE,
+      ported: new Set([...portedIds(), ...inClients]),
+      reassigned: inventory.reassigned,
+      retired: inventory.retired,
+    };
+
+    expect(unaccounted(inventory.cases, accounting)).toEqual([]);
+  });
+});

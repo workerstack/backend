@@ -38,7 +38,7 @@ node_modules
 # cargo target for rust SDK / harness (do not use /tmp — it is a small tmpfs)
 .cache/
 
-# repo:ignore a2521b1c
+# repo:ignore 7d468bac
 .tmp/
 .worktrees/
 coverage/
@@ -54,9 +54,14 @@ repo.config.local.ts
 **/.repo/tmp/
 **/.repo/backlog.md
 node_modules/
-.agents/
-.claude/
-.codex/
-.cursor/
-.grok/
+/knip.jsonc
+knip.unignored-*.jsonc
+/.oxfmtrc.jsonc
+/.oxlintrc.jsonc
+.oxlintrc.unskipped-*.jsonc
+/.agents/
+/.claude/
+/.codex/
+/.cursor/
+/.grok/
 # /repo:ignore

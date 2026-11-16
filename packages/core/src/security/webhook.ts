@@ -4,10 +4,11 @@
  * `signWebhook` signs any body for receivers outside that contract.
  */
 export {
-	type SignedWebhook,
-	type WebhookContract,
-	webhookContract,
-	type WebhookEvents,
-	type WebhookSignOptions,
-} from "./webhook-contract.ts"
-export { type SignWebhookOptions, signWebhook, type WebhookHeaders } from "./webhook-sign.ts"
+  type SignedWebhook,
+  type WebhookContract,
+  webhookContract,
+  type WebhookEvents,
+  type WebhookSignOptions,
+} from "./webhook-contract.ts";
+
+export { type SignWebhookOptions, signWebhook, type WebhookHeaders } from "./webhook-sign.ts";

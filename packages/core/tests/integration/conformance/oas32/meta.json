@@ -1,103 +1,103 @@
 {
-	"$id": "https://spec.openapis.org/oas/3.2/meta/2025-09-17",
-	"$schema": "https://json-schema.org/draft/2020-12/schema",
-	"title": "OAS Base Vocabulary",
-	"description": "A JSON Schema Vocabulary used in the OpenAPI JSON Schema Dialect",
-	"$dynamicAnchor": "meta",
-	"$vocabulary": {
-		"https://spec.openapis.org/oas/3.2/vocab/base": true
-	},
-	"type": ["object", "boolean"],
-	"properties": {
-		"discriminator": {
-			"$ref": "#/$defs/discriminator"
-		},
-		"example": {
-			"deprecated": true
-		},
-		"externalDocs": {
-			"$ref": "#/$defs/external-docs"
-		},
-		"xml": {
-			"$ref": "#/$defs/xml"
-		}
-	},
-	"$defs": {
-		"discriminator": {
-			"$ref": "#/$defs/extensible",
-			"properties": {
-				"mapping": {
-					"additionalProperties": {
-						"type": "string"
-					},
-					"type": "object"
-				},
-				"defaultMapping": {
-					"type": "string"
-				},
-				"propertyName": {
-					"type": "string"
-				}
-			},
-			"type": "object",
-			"unevaluatedProperties": false
-		},
-		"extensible": {
-			"patternProperties": {
-				"^x-": true
-			}
-		},
-		"external-docs": {
-			"$ref": "#/$defs/extensible",
-			"properties": {
-				"description": {
-					"type": "string"
-				},
-				"url": {
-					"format": "uri-reference",
-					"type": "string"
-				}
-			},
-			"required": ["url"],
-			"type": "object",
-			"unevaluatedProperties": false
-		},
-		"xml": {
-			"$ref": "#/$defs/extensible",
-			"properties": {
-				"nodeType": {
-					"type": "string",
-					"enum": ["element", "attribute", "text", "cdata", "none"]
-				},
-				"name": {
-					"type": "string"
-				},
-				"namespace": {
-					"format": "iri",
-					"type": "string"
-				},
-				"prefix": {
-					"type": "string"
-				},
-				"attribute": {
-					"type": "boolean",
-					"deprecated": true
-				},
-				"wrapped": {
-					"type": "boolean",
-					"deprecated": true
-				}
-			},
-			"type": "object",
-			"dependentSchemas": {
-				"nodeType": {
-					"properties": {
-						"attribute": false,
-						"wrapped": false
-					}
-				}
-			},
-			"unevaluatedProperties": false
-		}
-	}
+  "$defs": {
+    "discriminator": {
+      "$ref": "#/$defs/extensible",
+      "properties": {
+        "defaultMapping": {
+          "type": "string"
+        },
+        "mapping": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "propertyName": {
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "unevaluatedProperties": false
+    },
+    "extensible": {
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "external-docs": {
+      "$ref": "#/$defs/extensible",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "url": {
+          "format": "uri-reference",
+          "type": "string"
+        }
+      },
+      "required": ["url"],
+      "type": "object",
+      "unevaluatedProperties": false
+    },
+    "xml": {
+      "$ref": "#/$defs/extensible",
+      "dependentSchemas": {
+        "nodeType": {
+          "properties": {
+            "attribute": false,
+            "wrapped": false
+          }
+        }
+      },
+      "properties": {
+        "attribute": {
+          "deprecated": true,
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "format": "iri",
+          "type": "string"
+        },
+        "nodeType": {
+          "enum": ["element", "attribute", "text", "cdata", "none"],
+          "type": "string"
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "wrapped": {
+          "deprecated": true,
+          "type": "boolean"
+        }
+      },
+      "type": "object",
+      "unevaluatedProperties": false
+    }
+  },
+  "$dynamicAnchor": "meta",
+  "$id": "https://spec.openapis.org/oas/3.2/meta/2025-09-17",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$vocabulary": {
+    "https://spec.openapis.org/oas/3.2/vocab/base": true
+  },
+  "description": "A JSON Schema Vocabulary used in the OpenAPI JSON Schema Dialect",
+  "properties": {
+    "discriminator": {
+      "$ref": "#/$defs/discriminator"
+    },
+    "example": {
+      "deprecated": true
+    },
+    "externalDocs": {
+      "$ref": "#/$defs/external-docs"
+    },
+    "xml": {
+      "$ref": "#/$defs/xml"
+    }
+  },
+  "title": "OAS Base Vocabulary",
+  "type": ["object", "boolean"]
 }

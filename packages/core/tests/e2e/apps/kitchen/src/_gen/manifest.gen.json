@@ -52,8 +52,8 @@
         }
       },
       "meta": {
-        "operationId": "root.list",
         "description": "Test route",
+        "operationId": "root.list",
         "summary": "Root test route",
         "tags": [
           "test"
@@ -389,8 +389,8 @@
         "unauthorized"
       ],
       "meta": {
-        "operationId": "servedFrom.list",
-        "internal": true
+        "internal": true,
+        "operationId": "servedFrom.list"
       },
       "method": "GET",
       "middleware": [
@@ -418,8 +418,8 @@
         }
       },
       "meta": {
-        "operationId": "webhookSample.list",
-        "internal": true
+        "internal": true,
+        "operationId": "webhookSample.list"
       },
       "method": "GET",
       "middleware": [

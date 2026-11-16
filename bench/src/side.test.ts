@@ -3,104 +3,124 @@
  * relative import inside a side resolves inside that side. The identity legs run over two synthetic roots, so they
  * are deterministic and need no second checkout; the real tree is loaded too, so the namespace shape is head's own.
  */
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { afterAll, describe, expect, it } from "vitest"
-import { baseRootOf, HEAD_ROOT, sideOf } from "./side.ts"
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-const dirs: string[] = []
+import { afterAll, describe, expect, it } from "vitest";
+
+import { baseRootOf, HEAD_ROOT, sideOf } from "./side.ts";
+
+const dirs: string[] = [];
+
 afterAll(() => {
-	for (const dir of dirs) rmSync(dir, { force: true, recursive: true })
-})
+  for (const dir of dirs) rmSync(dir, { force: true, recursive: true });
+});
 
 /**
  * A root holding the smallest backend tree `sideOf` reads, every module tagged `tag`, with `app.ts` importing its
  * sibling `dispatch.ts` by a relative path: the import that must not leave the root.
  */
 function root(tag: string): string {
-	const dir = mkdtempSync(join(tmpdir(), "backend-side-"))
-	dirs.push(dir)
-	const src = join(dir, "packages/core/src")
-	mkdirSync(join(src, "routing"), { recursive: true })
-	mkdirSync(join(src, "middleware"), { recursive: true })
-	writeFileSync(
-		join(src, "routing/app.ts"),
-		`import { finalTable } from "./dispatch.ts"\n` +
-			`export const GRAPH = "${tag}"\n` +
-			`export class Marker {}\n` +
-			`export const httpApp = () => ({ tag: "${tag}", table: finalTable, marker: Marker })\n`,
-	)
-	writeFileSync(join(src, "routing/dispatch.ts"), `export const finalTable = () => "${tag}"\n`)
-	writeFileSync(join(src, "middleware/middleware.ts"), `export const createMiddleware = () => "${tag}"\n`)
-	writeFileSync(join(src, "middleware/cors.ts"), `export const cors = () => "${tag}"\n`)
-	writeFileSync(join(src, "middleware/request-id.ts"), `export const requestId = () => "${tag}"\n`)
-	writeFileSync(join(src, "middleware/secure-headers.ts"), `export const secureHeaders = () => "${tag}"\n`)
-	return dir
+  const dir = mkdtempSync(join(tmpdir(), "backend-side-"));
+  dirs.push(dir);
+  const src = join(dir, "packages/core/src");
+  mkdirSync(join(src, "routing"), { recursive: true });
+  mkdirSync(join(src, "middleware"), { recursive: true });
+  writeFileSync(
+    join(src, "routing/app.ts"),
+    `import { finalTable } from "./dispatch.ts"\n` +
+      `export const GRAPH = "${tag}"\n` +
+      `export class Marker {}\n` +
+      `export const httpApp = () => ({ tag: "${tag}", table: finalTable, marker: Marker })\n`,
+  );
+  writeFileSync(join(src, "routing/dispatch.ts"), `export const finalTable = () => "${tag}"\n`);
+  writeFileSync(join(src, "middleware/middleware.ts"), `export const createMiddleware = () => "${tag}"\n`);
+  writeFileSync(join(src, "middleware/cors.ts"), `export const cors = () => "${tag}"\n`);
+  writeFileSync(join(src, "middleware/request-id.ts"), `export const requestId = () => "${tag}"\n`);
+  writeFileSync(join(src, "middleware/secure-headers.ts"), `export const secureHeaders = () => "${tag}"\n`);
+
+  return dir;
+}
+
+/** What a synthetic root's modules export: its own toy shapes, which `sideOf` (typed as head's tree) cannot know. */
+type SyntheticSide = {
+  readonly createMiddleware: () => string;
+  readonly finalTable: () => string;
+  readonly GRAPH: string;
+  readonly httpApp: () => { readonly marker: new () => object; readonly table: () => string; readonly tag: string };
+};
+
+/** `sideOf` over a root built by `root`, read as that root's toy shapes. */
+async function syntheticSideOf(dir: string): Promise<SyntheticSide> {
+  const side: unknown = await sideOf(dir);
+
+  // as: root() writes exactly these exports, and sideOf's head-typed shape does not describe them
+  return side as SyntheticSide;
 }
 
 describe("a side is loaded from its own root", () => {
-	it("refuses a root with no backend tree, naming it", async () => {
-		const empty = mkdtempSync(join(tmpdir(), "backend-side-"))
-		dirs.push(empty)
-		await expect(sideOf(empty)).rejects.toThrow(`${empty} holds no packages/core/src/routing/app.ts`)
-	})
+  it("refuses a root with no backend tree, naming it", async () => {
+    const empty = mkdtempSync(join(tmpdir(), "backend-side-"));
+    dirs.push(empty);
+    await expect(sideOf(empty)).rejects.toThrow(`${empty} holds no packages/core/src/routing/app.ts`);
+  });
 
-	it("loads head's own tree, every member a function and the root reported", async () => {
-		const head = await sideOf(HEAD_ROOT)
-		expect({
-			kinds: [head.cors, head.createMiddleware, head.finalTable, head.httpApp, head.requestId, head.secureHeaders].map(
-				(member) => typeof member,
-			),
-			root: head.root,
-		}).toEqual({ kinds: ["function", "function", "function", "function", "function", "function"], root: HEAD_ROOT })
-	})
+  it("loads head's own tree, every member a function and the root reported", async () => {
+    const head = await sideOf(HEAD_ROOT);
+    expect({
+      kinds: [head.cors, head.createMiddleware, head.finalTable, head.httpApp, head.requestId, head.secureHeaders].map(
+        (member) => typeof member,
+      ),
+      root: head.root,
+    }).toEqual({ kinds: ["function", "function", "function", "function", "function", "function"], root: HEAD_ROOT });
+  });
 
-	it("serves a request from head's side, so the namespace is backend's and not a shape", async () => {
-		const { httpApp } = await sideOf(HEAD_ROOT)
-		const app = httpApp()
-		app.get("/x").handler((ctx) => ctx.res.text("ok", "k"))
-		const res = await app.fetch(new Request("http://bench.local/x"), {})
-		expect([res.status, await res.text()]).toEqual([200, "k"])
-	})
-})
+  it("serves a request from head's side, so the namespace is backend's and not a shape", async () => {
+    const { httpApp } = await sideOf(HEAD_ROOT);
+    const app = httpApp();
+    app.get("/x").handler((ctx) => ctx.res.text("ok", "k"));
+    const res = await app.fetch(new Request("http://bench.local/x"), {});
+    expect([res.status, await res.text()]).toEqual([200, "k"]);
+  });
+});
 
 describe("two roots are two module graphs", () => {
-	it("gives each side its own members, never the other's", async () => {
-		const [a, b] = await Promise.all([sideOf(root("a")), sideOf(root("b"))])
-		expect(a.httpApp).not.toBe(b.httpApp)
-		expect(a.createMiddleware).not.toBe(b.createMiddleware)
-		expect(a.finalTable).not.toBe(b.finalTable)
-		expect([a.GRAPH, b.GRAPH]).toEqual(["a", "b"])
-		expect([a.createMiddleware(), b.createMiddleware()]).toEqual(["a", "b"])
-	})
+  it("gives each side its own members, never the other's", async () => {
+    const [a, b] = await Promise.all([syntheticSideOf(root("a")), syntheticSideOf(root("b"))]);
+    expect(a.httpApp).not.toBe(b.httpApp);
+    expect(a.createMiddleware).not.toBe(b.createMiddleware);
+    expect(a.finalTable).not.toBe(b.finalTable);
+    expect([a.GRAPH, b.GRAPH]).toEqual(["a", "b"]);
+    expect([a.createMiddleware(), b.createMiddleware()]).toEqual(["a", "b"]);
+  });
 
-	it("keeps a side's relative import inside its own root, at a depth the loader never names", async () => {
-		const [a, b] = await Promise.all([sideOf(root("a")), sideOf(root("b"))])
-		/* app.ts imports ./dispatch.ts itself: the value each side's httpApp() closes over is its own tree's */
-		expect([a.httpApp().table(), b.httpApp().table()]).toEqual(["a", "b"])
-	})
+  it("keeps a side's relative import inside its own root, at a depth the loader never names", async () => {
+    const [a, b] = await Promise.all([syntheticSideOf(root("a")), syntheticSideOf(root("b"))]);
+    // app.ts imports ./dispatch.ts itself: the value each side's httpApp() closes over is its own tree's
+    expect([a.httpApp().table(), b.httpApp().table()]).toEqual(["a", "b"]);
+  });
 
-	it("gives each side its own classes, so an instance of one is not the other's", async () => {
-		const [a, b] = await Promise.all([sideOf(root("a")), sideOf(root("b"))])
-		const marker = a.httpApp().marker as new () => object
-		const other = b.httpApp().marker as new () => object
-		expect(marker).not.toBe(other)
-		expect(new marker() instanceof other).toBe(false)
-	})
+  it("gives each side its own classes, so an instance of one is not the other's", async () => {
+    const [a, b] = await Promise.all([syntheticSideOf(root("a")), syntheticSideOf(root("b"))]);
+    const marker = a.httpApp().marker;
+    const other = b.httpApp().marker;
+    expect(marker).not.toBe(other);
+    expect(new marker() instanceof other).toBe(false);
+  });
 
-	it("loads one root twice as one graph, so a side costs its load once", async () => {
-		const one = root("a")
-		const [first, second] = await Promise.all([sideOf(one), sideOf(one)])
-		expect(first.httpApp).toBe(second.httpApp)
-	})
-})
+  it("loads one root twice as one graph, so a side costs its load once", async () => {
+    const one = root("a");
+    const [first, second] = await Promise.all([syntheticSideOf(one), syntheticSideOf(one)]);
+    expect(first.httpApp).toBe(second.httpApp);
+  });
+});
 
 describe("the base side's root", () => {
-	it("is PERF_BASE_DIR when set, absolute, and undefined when the run measures head alone", () => {
-		expect(baseRootOf({})).toBeUndefined()
-		expect(baseRootOf({ PERF_BASE_DIR: "" })).toBeUndefined()
-		expect(baseRootOf({ PERF_BASE_DIR: "/tmp/base" })).toBe("/tmp/base")
-		expect(baseRootOf({ PERF_BASE_DIR: "." })).toBe(process.cwd())
-	})
-})
+  it("is PERF_BASE_DIR when set, absolute, and undefined when the run measures head alone", () => {
+    expect(baseRootOf({})).toBeUndefined();
+    expect(baseRootOf({ PERF_BASE_DIR: "" })).toBeUndefined();
+    expect(baseRootOf({ PERF_BASE_DIR: "/tmp/base" })).toBe("/tmp/base");
+    expect(baseRootOf({ PERF_BASE_DIR: "." })).toBe(process.cwd());
+  });
+});

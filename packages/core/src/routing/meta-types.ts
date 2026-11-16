@@ -4,23 +4,23 @@
  */
 
 /** `TMeta` defaults to `never`, and `never & X` is `never`: accumulated meta starts at `{}`. */
-export type InitAccMeta<TMeta> = [TMeta] extends [never] ? {} : TMeta
+export type InitAccMeta<TMeta> = [TMeta] extends [never] ? {} : TMeta;
 
 /** Chain `.meta(values)` at the type level: a phantom optional key, so routes see the values without having to repeat them. */
-declare const CHAIN_META: unique symbol
+declare const CHAIN_META: unique symbol;
 
 /** The handle's meta after a chain `.meta(values)`. */
-export type WithChainMeta<TMeta, TValues> = InitAccMeta<TMeta> & { readonly [CHAIN_META]?: TValues }
+export type WithChainMeta<TMeta, TValues> = InitAccMeta<TMeta> & { readonly [CHAIN_META]?: TValues };
 
 /**
  * The handle's meta after `.use(mw)`: the meta the middleware gives its routes counts as chain meta; a middleware
  * that gives none (or none known, a plain `Record<string, unknown>`) leaves it as it was.
  */
 export type WithMiddlewareMeta<TMeta, TMwMeta> = string extends keyof TMwMeta
-	? TMeta
-	: [keyof TMwMeta] extends [never]
-		? TMeta
-		: WithChainMeta<TMeta, TMwMeta>
+  ? TMeta
+  : [keyof TMwMeta] extends [never]
+    ? TMeta
+    : WithChainMeta<TMeta, TMwMeta>;
 
 /**
  * What a route under this handle must still pass to `.meta()`: the handle's meta with the keys chain
@@ -28,30 +28,30 @@ export type WithMiddlewareMeta<TMeta, TMwMeta> = string extends keyof TMwMeta
  * is still required: the chain's values are defaults, not a way to drop the declaration.
  */
 export type ChainSupplied<TAccMeta> = [TAccMeta] extends [never]
-	? {}
-	: TAccMeta extends { readonly [CHAIN_META]?: infer TValues }
-		? Omit<TAccMeta, keyof NonNullable<TValues>> &
-				Partial<{ [K in keyof NonNullable<TValues>]: unknown } & RouteMeta<TAccMeta>>
-		: RouteMeta<TAccMeta>
+  ? {}
+  : TAccMeta extends { readonly [CHAIN_META]?: infer TValues }
+    ? Omit<TAccMeta, keyof NonNullable<TValues>> &
+        Partial<{ [K in keyof NonNullable<TValues>]: unknown } & RouteMeta<TAccMeta>>
+    : RouteMeta<TAccMeta>;
 
 /** The meta type a handle declares (`metaType<T>()`), chain values left out; `never` when none was declared. */
 export type DeclaredMeta<TMeta> = [TMeta] extends [never]
-	? never
-	: [keyof RouteMeta<TMeta>] extends [never]
-		? never
-		: RouteMeta<TMeta>
+  ? never
+  : [keyof RouteMeta<TMeta>] extends [never]
+    ? never
+    : RouteMeta<TMeta>;
 
 /** Route meta as it is recorded: without the chain-meta key. */
-export type RouteMeta<TAccMeta> = Omit<TAccMeta, typeof CHAIN_META>
+export type RouteMeta<TAccMeta> = Omit<TAccMeta, typeof CHAIN_META>;
 
 /** Whether the meta marks the route internal (`internal: true`). */
-type IsInternal<T> = [T] extends [{ internal: true }] ? true : false
+type IsInternal<T> = [T] extends [{ internal: true }] ? true : false;
 
 /** A route whose meta, its own or its chain's, is `{ internal: true }` is left out of `$routes`. */
 export type SkipRouteRecord<TAccMeta> = [TAccMeta] extends [never]
-	? false
-	: IsInternal<TAccMeta> extends true
-		? true
-		: TAccMeta extends { readonly [CHAIN_META]?: infer C }
-			? IsInternal<NonNullable<C>>
-			: false
+  ? false
+  : IsInternal<TAccMeta> extends true
+    ? true
+    : TAccMeta extends { readonly [CHAIN_META]?: infer C }
+      ? IsInternal<NonNullable<C>>
+      : false;

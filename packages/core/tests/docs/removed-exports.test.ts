@@ -6,192 +6,211 @@
  * (plan 39 6.1), blueprint/baselines/exports.json, so a name that leaks out of a subpath or leaves it is a decision
  * written there, never a side effect of exporting a helper for a test.
  */
-import { readFileSync } from "node:fs"
-import { join, resolve } from "node:path"
-import { describe, expect, it } from "vitest"
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
 import {
-	exportedNames,
-	MOVED_SUBPATHS,
-	REMOVED_NAMES,
-	REMOVED_SUBPATHS,
-	removed,
-	surfaceOf,
-} from "./removed-exports.ts"
+  exportedNames,
+  MOVED_SUBPATHS,
+  REMOVED_NAMES,
+  REMOVED_SUBPATHS,
+  removed,
+  surfaceOf,
+} from "./removed-exports.ts";
 
-const REPO = resolve(import.meta.dirname, "../../../..")
-const CORE = join(REPO, "packages/core")
-const GUIDE = "docs/migration.md"
+const REPO = resolve(import.meta.dirname, "../../../..");
+const CORE = join(REPO, "packages/core");
+const GUIDE = "docs/migration.md";
 
-type Exports = Record<string, { "backend-source"?: string } | string>
+type Exports = Record<string, { "backend-source"?: string } | string>;
 
 /** Each subpath 1.0 exports from source, read through its `backend-source` condition. */
 function liveSources(): Record<string, string> {
-	const manifest = JSON.parse(readFileSync(join(CORE, "package.json"), "utf8")) as { exports: Exports }
-	const out: Record<string, string> = {}
-	for (const [subpath, target] of Object.entries(manifest.exports)) {
-		const source = typeof target === "object" ? target["backend-source"] : undefined
-		if (source !== undefined) out[subpath] = readFileSync(join(CORE, source), "utf8")
-	}
-	return out
+  const manifest = JSON.parse(readFileSync(join(CORE, "package.json"), "utf8")) as { exports: Exports };
+  const out: Record<string, string> = {};
+
+  for (const [subpath, target] of Object.entries(manifest.exports)) {
+    const source = typeof target === "object" ? target["backend-source"] : undefined;
+
+    if (source !== undefined) out[subpath] = readFileSync(join(CORE, source), "utf8");
+  }
+
+  return out;
 }
 
 const renames = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v073-renames.json"), "utf8")) as Record<
-	string,
-	string
->
-const renamed = (name: string): string => renames[name] ?? name
+  string,
+  string
+>;
+
+const renamed = (name: string): string => renames[name] ?? name;
+
 const baseline = Object.fromEntries(
-	Object.entries(
-		JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v073-exports.json"), "utf8")) as Record<string, string[]>,
-	).map(([subpath, names]) => [subpath, names.map(renamed)]),
-)
-const sources = liveSources()
-const live = surfaceOf(sources)
+  Object.entries(
+    JSON.parse(readFileSync(join(REPO, "blueprint/baselines/v073-exports.json"), "utf8")) as Record<string, string[]>,
+  ).map(([subpath, names]) => [subpath, names.map(renamed)]),
+);
+
+const sources = liveSources();
+const live = surfaceOf(sources);
+
 const snapshot = JSON.parse(readFileSync(join(REPO, "blueprint/baselines/exports.json"), "utf8")) as Record<
-	string,
-	string[]
->
-const gone = removed(baseline, live, MOVED_SUBPATHS)
-/* the guide is history and keeps 0.7.3's spelling; read it as the renames spell the names today */
-const guide = readFileSync(join(REPO, GUIDE), "utf8").replace(
-	new RegExp(
-		`(?<![\\w$])(?:${Object.keys(renames)
-			.sort((a, b) => b.length - a.length)
-			.join("|")})(?![\\w$])`,
-		"g",
-	),
-	renamed,
-)
+  string,
+  string[]
+>;
+
+const gone = removed(baseline, live, MOVED_SUBPATHS);
+
+// the guide is history and keeps 0.7.3's spelling; read it as the renames spell the names today
+const guide = readFileSync(join(REPO, GUIDE), "utf8").replaceAll(
+  new RegExp(
+    `(?<![\\w$])(?:${Object.keys(renames)
+      .sort((a, b) => b.length - a.length)
+      .join("|")})(?![\\w$])`,
+    "g",
+  ),
+  renamed,
+);
+
 /** whether `text` names the identifier `name`, whole-token (a phrase is looked for as written) */
 const names = (text: string) => (name: string) =>
-	/^[A-Za-z_$][\w$]*$/.test(name) ? new RegExp(`\\b${name.replace(/\$/g, "\\$")}\\b`).test(text) : text.includes(name)
+  /^[A-Za-z_$][\w$]*$/.test(name) ? new RegExp(`\\b${name.replaceAll("$", "\\$")}\\b`).test(text) : text.includes(name);
 
 describe("exportedNames", () => {
-	it("reads a list, a re-export, an alias and a declaration alike, and nothing else", () => {
-		const source = [
-			'export { createLogger, logger } from "./logger.ts"',
-			'export type { LogData, LoggerInstance as Logger } from "./logger.ts"',
-			"export const SILENT = 1",
-			"export function nodeEnv() {}",
-			"export class HttpApp {}",
-			"export type LogLevel = string",
-			"export interface HttpCodegen {}",
-			"const hidden = 2",
-			"export default hidden",
-		].join("\n")
-		expect([...exportedNames(source)].sort()).toEqual([
-			"HttpApp",
-			"HttpCodegen",
-			"LogData",
-			"LogLevel",
-			"Logger",
-			"SILENT",
-			"createLogger",
-			"logger",
-			"nodeEnv",
-		])
-	})
-})
+  it("reads a list, a re-export, an alias and a declaration alike, and nothing else", () => {
+    const source = [
+      'export { createLogger, logger } from "./logger.ts"',
+      'export type { LogData, LoggerInstance as Logger } from "./logger.ts"',
+      "export const SILENT = 1",
+      "export function nodeEnv() {}",
+      "export class HttpApp {}",
+      "export type LogLevel = string",
+      "export interface HttpCodegen {}",
+      "const hidden = 2",
+      "export default hidden",
+    ].join("\n");
+
+    expect([...exportedNames(source)].sort()).toEqual([
+      "HttpApp",
+      "HttpCodegen",
+      "LogData",
+      "LogLevel",
+      "Logger",
+      "SILENT",
+      "createLogger",
+      "logger",
+      "nodeEnv",
+    ]);
+  });
+});
 
 describe("removed", () => {
-	it("separates a subpath that went whole from a name a kept subpath lost", () => {
-		const old = { ".": ["backend", "trustProxy"], "./trust": ["trustProxy"] }
-		const now = { ".": new Set(["backend"]) }
-		expect(removed(old, now, new Map())).toEqual({ names: ["trustProxy"], subpaths: ["./trust"] })
-	})
+  it("separates a subpath that went whole from a name a kept subpath lost", () => {
+    const old = { ".": ["backend", "trustProxy"], "./trust": ["trustProxy"] };
+    const now = { ".": new Set(["backend"]) };
+    expect(removed(old, now, new Map())).toEqual({ names: ["trustProxy"], subpaths: ["./trust"] });
+  });
 
-	it("looks a moved subpath's names up at its new subpath, and does not call the move a removal", () => {
-		const old = { ".": ["backend", "trustProxy"], "./cors": ["cors"] }
-		const moved = new Map([
-			[".", "./http"],
-			["./cors", "./http/cors"],
-		])
-		const now = { "./http": new Set(["backend"]), "./http/cors": new Set(["cors"]) }
-		expect(removed(old, now, moved)).toEqual({ names: ["trustProxy"], subpaths: [] })
-	})
+  it("looks a moved subpath's names up at its new subpath, and does not call the move a removal", () => {
+    const old = { ".": ["backend", "trustProxy"], "./cors": ["cors"] };
 
-	it("loses a moved name that now sits at some other subpath, because the move's target is where it is checked", () => {
-		const old = { "./cors": ["cors"] }
-		const now = { "./http/cors": new Set<string>(), "./logger": new Set(["cors"]) }
-		expect(removed(old, now, new Map([["./cors", "./http/cors"]]))).toEqual({ names: ["cors"], subpaths: [] })
-	})
+    const moved = new Map([
+      [".", "./http"],
+      ["./cors", "./http/cors"],
+    ]);
 
-	it("still calls a moved subpath whose target is missing a removed subpath", () => {
-		const old = { "./cors": ["cors"] }
-		expect(removed(old, {}, new Map([["./cors", "./http/cors"]]))).toEqual({ names: [], subpaths: ["./cors"] })
-	})
-})
+    const now = { "./http": new Set(["backend"]), "./http/cors": new Set(["cors"]) };
+    expect(removed(old, now, moved)).toEqual({ names: ["trustProxy"], subpaths: [] });
+  });
+
+  it("loses a moved name that now sits at some other subpath, because the move's target is where it is checked", () => {
+    const old = { "./cors": ["cors"] };
+    const now = { "./http/cors": new Set<string>(), "./logger": new Set(["cors"]) };
+    expect(removed(old, now, new Map([["./cors", "./http/cors"]]))).toEqual({ names: ["cors"], subpaths: [] });
+  });
+
+  it("still calls a moved subpath whose target is missing a removed subpath", () => {
+    const old = { "./cors": ["cors"] };
+    expect(removed(old, {}, new Map([["./cors", "./http/cors"]]))).toEqual({ names: [], subpaths: ["./cors"] });
+  });
+});
 
 describe("the guide carries every break a 0.7.3 app can meet (bit 22 a)", () => {
-	it("reads the pinned 0.7.3 surface and today's, both non-empty", () => {
-		expect({
-			baseline: Object.keys(baseline).length,
-			live: Object.keys(live).length,
-			http: live["./http"]?.size ?? 0,
-		}).toEqual({ baseline: 48, live: 48, http: 79 })
-	})
+  it("reads the pinned 0.7.3 surface and today's, both non-empty", () => {
+    expect({
+      baseline: Object.keys(baseline).length,
+      http: live["./http"]?.size ?? 0,
+      live: Object.keys(live).length,
+    }).toEqual({ baseline: 48, http: 79, live: 48 });
+  });
 
-	it("moves every 0.7.3 subpath it names to one 1.0 exports, and leaves no moved subpath exported", () => {
-		const unreached = [...MOVED_SUBPATHS.values()].filter((target) => !Object.hasOwn(live, target))
-		const stillExported = [...MOVED_SUBPATHS.keys()].filter((old) => Object.hasOwn(live, old))
-		expect({ stillExported, unreached }).toEqual({ stillExported: [], unreached: [] })
-		expect(MOVED_SUBPATHS.get(".")).toBe("./http")
-		for (const fold of ["cron", "queue", "ws"]) expect(MOVED_SUBPATHS.get(`./${fold}/workers`)).toBe(`./${fold}`)
-	})
+  it("moves every 0.7.3 subpath it names to one 1.0 exports, and leaves no moved subpath exported", () => {
+    const unreached = [...MOVED_SUBPATHS.values()].filter((target) => !Object.hasOwn(live, target));
+    const stillExported = [...MOVED_SUBPATHS.keys()].filter((old) => Object.hasOwn(live, old));
+    expect({ stillExported, unreached }).toEqual({ stillExported: [], unreached: [] });
+    expect(MOVED_SUBPATHS.get(".")).toBe("./http");
 
-	it("judges every removed name, and no name it no longer loses", () => {
-		expect({ judged: Object.keys(REMOVED_NAMES).sort(), lost: gone.names }).toEqual({
-			judged: gone.names,
-			lost: gone.names,
-		})
-	})
+    for (const fold of ["cron", "queue", "ws"]) expect(MOVED_SUBPATHS.get(`./${fold}/workers`)).toBe(`./${fold}`);
+  });
 
-	it("judges every removed subpath, and no subpath it still exports", () => {
-		expect(REMOVED_SUBPATHS.map((entry) => entry.subpath).sort()).toEqual(gone.subpaths)
-	})
+  it("judges every removed name, and no name it no longer loses", () => {
+    expect({ judged: Object.keys(REMOVED_NAMES).sort(), lost: gone.names }).toEqual({
+      judged: gone.names,
+      lost: gone.names,
+    });
+  });
 
-	it("names in the guide every removed name judged `guide`", () => {
-		const unnamed = Object.entries(REMOVED_NAMES)
-			.filter(([, verdict]) => verdict.kind === "guide")
-			.map(([name]) => name)
-			.filter((name) => !names(guide)(name))
-			.sort()
-		expect(unnamed).toEqual([])
-	})
+  it("judges every removed subpath, and no subpath it still exports", () => {
+    expect(REMOVED_SUBPATHS.map((entry) => entry.subpath).sort()).toEqual(gone.subpaths);
+  });
 
-	it("says in the guide what covers each removed subpath", () => {
-		const uncovered = REMOVED_SUBPATHS.filter((entry) => entry.covers !== null && !names(guide)(entry.covers)).map(
-			(entry) => entry.subpath,
-		)
-		expect(uncovered).toEqual([])
-	})
+  it("names in the guide every removed name judged `guide`", () => {
+    const unnamed = Object.entries(REMOVED_NAMES)
+      .filter(([, verdict]) => verdict.kind === "guide")
+      .map(([name]) => name)
+      .filter((name) => !names(guide)(name))
+      .sort();
 
-	/* the one subpath the guide may not name: it is judged, it carries its reason, and the guide stays clean of it */
-	it("keeps a subpath the guide must not name out of it, with its reason", () => {
-		const unnamed = REMOVED_SUBPATHS.filter((entry) => entry.covers === null)
-		expect({
-			named: unnamed.filter((entry) => guide.includes(entry.subpath)).map((entry) => entry.subpath),
-			reasoned: unnamed.every((entry) => (entry.why ?? "").length > 20),
-			some: unnamed.length > 0,
-		}).toEqual({ named: [], reasoned: true, some: true })
-	})
+    expect(unnamed).toEqual([]);
+  });
 
-	it("gives every internal a reason, so nothing is dismissed silently", () => {
-		const bare = Object.entries(REMOVED_NAMES)
-			.filter(([, verdict]) => verdict.kind === "internal" && verdict.why.trim().length < 20)
-			.map(([name]) => name)
-		expect(bare).toEqual([])
-	})
-})
+  it("says in the guide what covers each removed subpath", () => {
+    const uncovered = REMOVED_SUBPATHS.filter((entry) => entry.covers !== null && !names(guide)(entry.covers)).map(
+      (entry) => entry.subpath,
+    );
+
+    expect(uncovered).toEqual([]);
+  });
+
+  // the one subpath the guide may not name: it is judged, it carries its reason, and the guide stays clean of it
+  it("keeps a subpath the guide must not name out of it, with its reason", () => {
+    const unnamed = REMOVED_SUBPATHS.filter((entry) => entry.covers === null);
+    expect({
+      named: unnamed.filter((entry) => guide.includes(entry.subpath)).map((entry) => entry.subpath),
+      reasoned: unnamed.every((entry) => (entry.why ?? "").length > 20),
+      some: unnamed.length > 0,
+    }).toEqual({ named: [], reasoned: true, some: true });
+  });
+
+  it("gives every internal a reason, so nothing is dismissed silently", () => {
+    const bare = Object.entries(REMOVED_NAMES)
+      .filter(([, verdict]) => verdict.kind === "internal" && verdict.why.trim().length < 20)
+      .map(([name]) => name);
+
+    expect(bare).toEqual([]);
+  });
+});
 
 describe("today's surface is the snapshot (plan 39 6.1)", () => {
-	it("exports from each subpath exactly the names blueprint/baselines/exports.json lists", () => {
-		const now = Object.fromEntries(Object.entries(live).map(([subpath, exported]) => [subpath, [...exported].sort()]))
-		expect(now).toEqual(snapshot)
-	})
+  it("exports from each subpath exactly the names blueprint/baselines/exports.json lists", () => {
+    const now = Object.fromEntries(Object.entries(live).map(([subpath, exported]) => [subpath, [...exported].sort()]));
+    expect(now).toEqual(snapshot);
+  });
 
-	it("re-exports no module whole, so every name a subpath exports is one its source lists", () => {
-		const starred = Object.entries(sources).filter(([, text]) => /^export \*/m.test(text))
-		expect(starred.map(([subpath]) => subpath)).toEqual([])
-	})
-})
+  it("re-exports no module whole, so every name a subpath exports is one its source lists", () => {
+    const starred = Object.entries(sources).filter(([, text]) => /^export \*/m.test(text));
+    expect(starred.map(([subpath]) => subpath)).toEqual([]);
+  });
+});
