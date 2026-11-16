@@ -2,8 +2,8 @@
  * A project whose `@workerstack/backend` is this checkout's source (bit 19 h2): the package carries every subpath of the
  * exports map (bit 19 i) and every subpath import (`#output-check`), each at its `backend-source` file, and `zod` links to the repo's, so an app, a Vite config and
  * a merge entry import backend as a user's do. Its `src` is a copy of packages/core/src made for this project and
- * removed with it: a generation evaluates the app's core through jiti in this process, and jiti evaluating the very
- * files coverage measures would merge phantom statements into their report. A native leg, which imports the app
+ * removed with it: a generation evaluates the app's core through Vite's module runner in this process, and a runner
+ * evaluating the very files coverage measures would merge phantom statements into their report. A native leg, which imports the app
  * through the test runner and shares the test's own core, asks for a link instead.
  */
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"

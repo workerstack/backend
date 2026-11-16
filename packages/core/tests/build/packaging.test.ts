@@ -5,7 +5,7 @@
  * tarball's own `build/artifacts` (generate.ts `artifactsFor`). A bin picks dist/ in an install and the source in a
  * checkout.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { CLIENTS, CORE, consumer, pack, REPO, run, scratch, write } from "./fixture/packed.ts"
@@ -166,9 +166,9 @@ describe.sequential("the tarball, installed (bit 19 i)", () => {
 		expect(readFileSync(tree, "utf8")).toContain('"health"')
 	}, 60_000)
 
-	/* Vite's own Node chunk makes follow-redirects' errors with a non-Error captureStackTrace at load: on Bun, once jiti's
-	 * Babel has hooked Error.prepareStackTrace, that throws "First argument must be an Error object" (bit 20 k-fix) */
-	it("backend generate on Bun in the install, a cold jiti cache, reads a config importing vite, a throwing one once", () => {
+	/* Vite's own Node chunk makes follow-redirects' errors with a non-Error captureStackTrace at load: on Bun, once a
+	 * loader has hooked Error.prepareStackTrace, that throws "First argument must be an Error object" (bit 20 k-fix) */
+	it("backend generate on Bun in the install, every cache cold, reads a config importing vite, a throwing one once", () => {
 		const cold = join(files.out, "cold-tmp")
 		mkdirSync(cold)
 		const generate = () =>
@@ -226,8 +226,6 @@ function binLayout(checkout: boolean): string {
 		"src/build/cli.ts": main("source").replace("main()", "main(): number"),
 		...(checkout ? { "tsconfig.json": "{}\n" } : {}),
 	})
-	mkdirSync(join(dir, "node_modules"), { recursive: true })
-	symlinkSync(join(REPO, "node_modules/jiti"), join(dir, "node_modules/jiti"), "dir")
 	return dir
 }
 

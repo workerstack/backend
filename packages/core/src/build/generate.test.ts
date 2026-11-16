@@ -306,7 +306,7 @@ describe("clients, an optional peer (bit 19 h2, Q2)", () => {
 		await expect(loadClients(() => Promise.reject(broken))).rejects.toBe(broken)
 	})
 
-	/** A copy of core's source in a project with only jiti and zod installed: clients cannot resolve. */
+	/** A copy of core's source in a project with only vite and zod installed: clients cannot resolve. */
 	function withoutCodegen(): string {
 		const dir = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "backend-no-codegen-"))
 		projects.push({ dir, done: () => rmSync(dir, { force: true, recursive: true }), write: () => {} })
@@ -321,7 +321,7 @@ describe("clients, an optional peer (bit 19 h2, Q2)", () => {
 		}
 		const flat = Object.fromEntries(Object.entries(imports).map(([name, target]) => [name, target["backend-source"]]))
 		writeFileSync(join(dir, "core/package.json"), JSON.stringify({ imports: flat, type: "module" }))
-		for (const name of ["jiti", "zod"]) symlinkSync(join(modules, name), join(dir, "node_modules", name), "dir")
+		for (const name of ["vite", "zod"]) symlinkSync(join(modules, name), join(dir, "node_modules", name), "dir")
 		symlinkSync(join(dir, "core/src"), join(backendDir, "src"), "dir")
 		const pkg = { exports: { "./http": "./src/routing/app.ts" }, name: "@workerstack/backend", type: "module" }
 		writeFileSync(join(backendDir, "package.json"), JSON.stringify(pkg))

@@ -2,7 +2,7 @@
  * No process of a Bun build replaces `Error.prepareStackTrace` (bit 20 k-fix's class, fixture/stack-hook-trap.ts says
  * why it reds a build). One real cold `vite build` of the defaults e2e app for Cloudflare, the command run-build.ts's
  * defaults×workers cell runs, with the trap preloaded into Vite and the backend generate child the plugin starts. Its
- * TMPDIR (Node's compile cache, any jiti cache) and Bun's transpiler cache are new and empty; Vite writes the bundled
+ * TMPDIR (Node's compile cache) and Bun's transpiler cache are new and empty; Vite writes the bundled
  * config anew per build under a unique name. Defaults is the smallest app whose build reaches both processes.
  *
  * It runs on the pinned Bun (package.json's packageManager, CI's) and on PATH's when that is another version, so a

@@ -293,9 +293,6 @@
 		"test": "vitest run --coverage",
 		"type:check": "tsc --noEmit -p tsconfig.json"
 	},
-	"dependencies": {
-		"jiti": "2.7.0"
-	},
 	"devDependencies": {
 		"@opentelemetry/api": "1.9.1",
 		"@opentelemetry/core": "2.11.0",
@@ -321,10 +318,14 @@
 		"zod": "catalog:"
 	},
 	"peerDependencies": {
-		"@workerstack/clients": ">=1.0.0-rc.29"
+		"@workerstack/clients": ">=1.0.0-rc.29",
+		"vite": ">=8.1.4"
 	},
 	"peerDependenciesMeta": {
 		"@workerstack/clients": {
+			"optional": true
+		},
+		"vite": {
 			"optional": true
 		}
 	},

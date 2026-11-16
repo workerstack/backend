@@ -1,6 +1,6 @@
 /**
  * Core's plugin where clients cannot resolve (bit 19 h2, Q2): run as a script in a copy of core's source whose
- * project has only jiti and zod installed. It imports the plugin, which must load, then prints what each step did
+ * project has only vite and zod installed. It imports the plugin, which must load, then prints what each step did
  * as one JSON line: a plugin asked for nothing, a virtual OpenAPI module, and a generation, which needs clients;
  * or, should the plugin not load, why.
  */

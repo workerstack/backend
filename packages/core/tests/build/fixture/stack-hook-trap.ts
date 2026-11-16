@@ -3,7 +3,7 @@
  * 20 k-fix's whole class: Bun installs its own `Error.prepareStackTrace` and runs it only for real Errors, but once
  * anything replaces the hook, Bun rejects the `Error.captureStackTrace` that Vite's bundled follow-redirects calls on a
  * non-Error at load (`new RedirectionError()` as a prototype), and the build dies with "First argument must be an Error
- * object". k-fix's replacer was jiti's Babel, loaded on a cold cache. Any replacer reds a build only on some path, so
+ * object". k-fix's replacer was a TypeScript loader's Babel, loaded on a cold cache. Any replacer reds a build only on some path, so
  * the trap reports every one, pass or fail: one JSON line per process started and per replacement, with the
  * replacer's stack, appended to BACKEND_STACK_HOOK_LOG. A replacement still takes effect, so the build runs as it would.
  */

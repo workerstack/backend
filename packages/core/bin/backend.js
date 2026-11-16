@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // The backend bin (bit 19 h2), clients' twin. A repository checkout (marked by tsconfig.json, which is not
-// published) runs the TypeScript source, through jiti on Node, so a stale dist/ never runs; an installed package runs
-// the compiled JavaScript on any runtime (the tarball ships dist/, not src/).
+// published) runs the TypeScript source natively, under the backend-source condition, so a stale dist/ never runs; an
+// installed package runs the compiled JavaScript on any runtime (the tarball ships dist/, not src/).
 import { spawn } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
-import { basename, join } from "node:path"
+import { existsSync } from "node:fs"
+import { basename } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const isBun = typeof globalThis.Bun !== "undefined"
@@ -46,33 +46,27 @@ function handOff(bun, env = {}) {
 	})
 }
 
-// A checkout's own subpath imports (`#output-check`) mapped to their `backend-source` file: jiti resolves a `#` import
-// with Node's conditions, which send it to the dist/ a checkout does not build.
-function importAliases() {
-	const root = fileURLToPath(new URL("..", import.meta.url))
-	const { imports = {} } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
-	return Object.fromEntries(
-		Object.entries(imports).map(([name, target]) => [name, join(root, target["backend-source"])]),
-	)
-}
-
-// A checkout on Bun runs its source natively, under the backend-source condition: an app's backend resolves to source
-// then, not to the unbuilt dist/. Set through BUN_OPTIONS when the caller did not, so every
-// generation child inherits it.
+// A checkout runs its source under the backend-source condition: core's own `#` imports and an app's backend resolve
+// to source then, not to the unbuilt dist/. Set through BUN_OPTIONS or NODE_OPTIONS when the caller did not, so every
+// generation child inherits it. Node never copies NODE_OPTIONS into execArgv, so both are read.
 const SOURCE_CONDITION = "--conditions=backend-source"
-const unconditioned = isBun && checkout && !process.execArgv.includes(SOURCE_CONDITION)
+const conditioned =
+	process.execArgv.includes(SOURCE_CONDITION) ||
+	(!isBun && (process.env.NODE_OPTIONS ?? "").split(/\s+/).includes(SOURCE_CONDITION))
+const unconditioned = checkout && !conditioned
+// Node strips types by default from 22.18; an older one (the 22.12 floor) needs the flag, and warns of it unless told not to.
+const STRIP_TYPES = process.features.typescript
+	? []
+	: ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"]
+const sourceOptions = isBun
+	? { BUN_OPTIONS: `${process.env.BUN_OPTIONS ?? ""} ${SOURCE_CONDITION}`.trim() }
+	: { NODE_OPTIONS: [process.env.NODE_OPTIONS ?? "", SOURCE_CONDITION, ...STRIP_TYPES].join(" ").trim() }
 // The hand-off's backstop: its child carries BACKEND_BUN_HANDOFF, the depth of hand-offs before it. A child that would
-// hand off again (the condition set but not in its execArgv) refuses instead of re-running itself without end.
+// hand off again (the condition set but not visible to it) refuses instead of re-running itself without end.
 const handOffDepth = Number(process.env.BACKEND_BUN_HANDOFF ?? 0)
 
 async function entry() {
-	if (checkout) {
-		/* never jiti on Bun: its Babel, loaded on any fs-cache miss, hooks Error.prepareStackTrace, and Bun's own then
-		 * throws "First argument must be an Error object" at a captureStackTrace on a non-Error (bit 20 k-fix) */
-		if (isBun) return import("../src/build/cli.ts")
-		const { createJiti } = await import("jiti")
-		return createJiti(import.meta.url, { alias: importAliases(), tryNative: false }).import("../src/build/cli.ts")
-	}
+	if (checkout) return import("../src/build/cli.ts")
 	try {
 		return await import("../dist/build/cli.js")
 	} catch (error) {
@@ -87,13 +81,9 @@ async function entry() {
 const bun = invokingBun()
 if (bun) handOff(bun)
 else if (unconditioned && handOffDepth >= 1) {
-	console.error("backend: Bun hand-off loop: --conditions=backend-source not visible after re-exec")
+	console.error("backend: hand-off loop: --conditions=backend-source not visible after re-exec")
 	process.exit(1)
-} else if (unconditioned)
-	handOff(process.execPath, {
-		BUN_OPTIONS: `${process.env.BUN_OPTIONS ?? ""} ${SOURCE_CONDITION}`.trim(),
-		BACKEND_BUN_HANDOFF: String(handOffDepth + 1),
-	})
+} else if (unconditioned) handOff(process.execPath, { ...sourceOptions, BACKEND_BUN_HANDOFF: String(handOffDepth + 1) })
 else {
 	const { main } = await entry()
 	const io = { err: (text) => process.stderr.write(text), out: (text) => process.stdout.write(text) }

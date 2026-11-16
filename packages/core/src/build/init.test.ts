@@ -5,7 +5,7 @@
  * reported; the scaffolded app serving /health, its document and its docs on v1's own source.
  */
 import { execFile } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { promisify } from "node:util"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -24,19 +24,25 @@ function init(argv: string[] = []): string[] {
 }
 
 /**
- * A Bun child loading the scaffolded `app` through jiti onto core's source, printing what /health, /openapi.json and
- * /docs answer: in a child, so the coverage run never instruments a second copy of core. `--no-install`: the scaffold's
- * package.json names `@workerstack/backend` and no node_modules holds it, so Bun would auto-install the published one.
+ * A Bun child importing the scaffolded `app` onto core's source, printing what /health, /openapi.json and /docs
+ * answer: in a child, so the coverage run never instruments a second copy of core. The project links backend to this
+ * package and zod to the repo's; `--no-install --conditions=backend-source`, since Bun would otherwise auto-install the
+ * published backend the scaffold's package.json names, or resolve this package's unbuilt dist/.
  */
 const served = (app: string) => `
-const { createJiti } = await import("jiti")
-const alias = { "@workerstack/backend/http/openapi/scalar": ${JSON.stringify(join(SRC, "openapi/scalar.ts"))}, "@workerstack/backend/http/openapi": ${JSON.stringify(join(SRC, "openapi/register.ts"))}, "@workerstack/backend/http": ${JSON.stringify(join(SRC, "routing/app.ts"))} }
-const { app } = await createJiti(${JSON.stringify(import.meta.url)}, { alias, moduleCache: false }).import(${JSON.stringify(app)})
+const { app } = await import(${JSON.stringify(app)})
 const get = (path) => app.fetch(new Request("http://x" + path), {})
 const [health, spec, docs] = await Promise.all([get("/health"), get("/openapi.json"), get("/docs")])
 const document = await spec.json()
 console.log(JSON.stringify([health.status, await health.text(), document.openapi, document.info.title, docs.status, (await docs.text()).includes("scalar")]))
 `
+
+/** `dir`'s node_modules holding backend as this package and zod as the repo's, as a user's install would. */
+function linkInstall() {
+	mkdirSync(join(dir, "node_modules/@workerstack"), { recursive: true })
+	symlinkSync(join(SRC, ".."), join(dir, "node_modules/@workerstack/backend"), "dir")
+	symlinkSync(join(SRC, "../../../node_modules/zod"), join(dir, "node_modules/zod"), "dir")
+}
 
 const read = (rel: string) => readFileSync(join(dir, rel), "utf8")
 const pkg = () => JSON.parse(read("package.json")) as Record<string, Record<string, string> | string | boolean>
@@ -114,12 +120,11 @@ describe("the scaffolded app", () => {
 		"scaffolded app can serve /health and /openapi.json",
 		async () => {
 			init()
+			linkInstall()
 			const { stdout } = await promisify(execFile)(
 				"bun",
 				["--no-install", "--conditions=backend-source", "-e", served(join(dir, "src/app.ts"))],
-				{
-					cwd: SRC,
-				},
+				{ cwd: dir },
 			)
 			expect(JSON.parse(stdout)).toEqual([200, "ok", "3.2.1", "Backend", 200, true])
 		},

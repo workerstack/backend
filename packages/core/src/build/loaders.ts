@@ -1,12 +1,13 @@
 /**
- * The build tooling's loaders: user modules (the Vite config, the app) through jiti on Node, so `backend generate`
- * reads a TypeScript config on plain Node (H70b), and through Bun's own import on Bun; and Effect's JSON Schema converter, when effect is
- * installed, for the documents core generates (core never imports a validator, F2).
+ * The build tooling's loaders: user modules (the Vite config, the app) through Vite's module runner on Node, so
+ * `backend generate` reads a TypeScript config on plain Node (H70b), and through Bun's own import on Bun; and Effect's
+ * JSON Schema converter, when effect is installed, for the documents core generates (core never imports a validator, F2).
  */
-import { existsSync } from "node:fs"
+import { existsSync, realpathSync } from "node:fs"
 import { createRequire } from "node:module"
-import { join, resolve } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
+import type * as Vite from "vite"
 import type { EffectConverter } from "../schema/to-json-schema.ts"
 
 export type ModuleLoader = (path: string) => Promise<Record<string, unknown>>
@@ -20,29 +21,24 @@ export type ModuleLoaderOptions = {
 	reload?: boolean
 }
 
-/** The runtime's module registry (Bun's, its ES modules included; Node's require cache, jiti's), keyed by path. */
+/** Bun's module registry, its ES modules included, keyed by path. */
 export type ModuleRegistry = Record<string, unknown>
 
 /**
  * A loader for one generation: each path evaluated at most once, so the app never runs twice, and every path's
- * imports shared through the runtime's registry, so an app and the core reading it are one instance. Fresh, it first
- * evicts every module outside node_modules, what a user may have edited or a generation written (a gateway's tree).
- * Through jiti on Node; on Bun, Bun's own import: jiti there re-evaluates a module that threw through its Babel, whose
- * stack hook then breaks Bun (bit 20 k-fix).
+ * imports shared in one graph, so an app and the core reading it are one instance. On Node, a Vite module runner of
+ * its own: a fresh loader's graph starts empty. On Bun, Bun's own import: a fresh loader first evicts from Bun's
+ * registry every module outside node_modules, what a user may have edited or a generation written (a gateway's
+ * tree). Not the runner on Bun: its source-map hook is the class of Error.prepareStackTrace replacer that breaks Bun
+ * (bit 20 k-fix).
  */
 export async function createModuleLoader(
 	options: ModuleLoaderOptions,
 	registry: ModuleRegistry = createRequire(import.meta.url).cache,
 	bun = typeof (globalThis as { Bun?: unknown }).Bun !== "undefined",
+	vite: () => Promise<typeof Vite> = () => import("vite"),
 ): Promise<ModuleLoader> {
-	const evicted = options.fresh ? Object.keys(registry).filter((key) => !/[\\/]node_modules[\\/]/.test(key)) : []
-	for (const key of evicted) delete registry[key]
-	/* a registry keyed otherwise than this reads (a runtime upgrade) leaves a reload the stale graph: said, not served */
-	if (options.reload === true && evicted.length === 0)
-		throw new Error("the module registry held none of the project's modules to evict: a reload would read them stale")
-	const evaluate = bun
-		? (path: string) => import(pathToFileURL(path).href) as Promise<Record<string, unknown>>
-		: await jitiEvaluator(options)
+	const evaluate = bun ? bunEvaluator(options, registry) : await viteEvaluator(options, vite)
 	const loaded = new Map<string, Promise<Record<string, unknown>>>()
 	return (path) => {
 		const abs = resolve(path)
@@ -55,12 +51,63 @@ export async function createModuleLoader(
 	}
 }
 
-async function jitiEvaluator(
-	options: ModuleLoaderOptions,
-): Promise<(path: string) => Promise<Record<string, unknown>>> {
-	const { createJiti } = await import("jiti")
-	const jiti = createJiti(options.from, { fsCache: false, interopDefault: true, moduleCache: true })
-	return (path) => jiti.import(path) as Promise<Record<string, unknown>>
+const INSTALLED = /[\\/]node_modules[\\/]/
+const INSTALLED_JS = /[\\/]node_modules[\\/].*\.[cm]?js$/
+
+function bunEvaluator(options: ModuleLoaderOptions, registry: ModuleRegistry) {
+	const evicted = options.fresh ? Object.keys(registry).filter((key) => !INSTALLED.test(key)) : []
+	for (const key of evicted) delete registry[key]
+	/* a registry keyed otherwise than this reads (a runtime upgrade) leaves a reload the stale graph: said, not served */
+	if (options.reload === true && evicted.length === 0)
+		throw new Error("the module registry held none of the project's modules to evict: a reload would read them stale")
+	return (path: string) => import(pathToFileURL(path).href) as Promise<Record<string, unknown>>
+}
+
+/**
+ * Vite's SSR runner rooted at the importing file's directory, resolving by the conditions this runtime was started
+ * with, so a linked package resolves to the file Node would pick. The user's Vite config is never applied to it. The
+ * server holds no handle (no socket, no watcher, no dependency scan), so it is left for the process to end.
+ */
+async function viteEvaluator(options: ModuleLoaderOptions, vite: () => Promise<typeof Vite>) {
+	const { createServer, createServerModuleRunner, defaultServerConditions } = await vite().catch((error: Error) => {
+		if (error.message.startsWith("Cannot find package 'vite' "))
+			throw new Error("backend generate on Node loads TypeScript through Vite: install vite, or run it with Bun")
+		throw error
+	})
+	const conditions = [...defaultServerConditions, ...runtimeConditions()]
+	const server = await createServer({
+		appType: "custom",
+		configFile: false,
+		logLevel: "silent",
+		/* nothing here serves a browser: no dependency scan of the root */
+		optimizeDeps: { entries: [], noDiscovery: true },
+		resolve: { conditions },
+		root: dirname(options.from),
+		server: { middlewareMode: true, watch: null, ws: false },
+		ssr: { resolve: { conditions, externalConditions: runtimeConditions() } },
+	})
+	/* its own source-map hook, not Node's: a stack frame names the user's line even where another hook owns stacks */
+	const runner = createServerModuleRunner(server.environments.ssr, {
+		hmr: false,
+		sourcemapInterceptor: "prepareStackTrace",
+	})
+	/* an installed JavaScript file is imported natively, as Vite externalizes the app's installed JavaScript, so both
+	 * share one instance; an installed TypeScript file Vite runs itself, so the runner does here too */
+	return (path: string) =>
+		(INSTALLED_JS.test(realpathSync(path)) ? import(pathToFileURL(path).href) : runner.import(path)) as Promise<
+			Record<string, unknown>
+		>
+}
+
+/** Every `--conditions`/`-C` this Node process was started with, from its arguments and from NODE_OPTIONS. */
+function runtimeConditions(): string[] {
+	const args = [...process.execArgv, ...(process.env.NODE_OPTIONS ?? "").split(/\s+/)]
+	return args.flatMap((arg, index) => {
+		const inline = /^(?:--conditions|-C)=(.+)$/.exec(arg)
+		if (inline) return [inline[1] as string]
+		const next = args[index + 1]
+		return (arg === "--conditions" || arg === "-C") && next !== undefined ? [next] : []
+	})
 }
 
 export const VITE_CONFIG_FILES: readonly string[] = [

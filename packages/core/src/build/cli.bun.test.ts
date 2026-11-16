@@ -1,6 +1,6 @@
 /**
- * The `backend` bin on Bun (bit 20 k-fix): never through jiti, whose Babel, once loaded on a cold fs cache, hooks
- * Error.prepareStackTrace so that Bun throws "First argument must be an Error object" at a captureStackTrace on a
+ * The `backend` bin on Bun (bit 20 k-fix): through Bun's own import, never a loader that hooks
+ * Error.prepareStackTrace, after which Bun throws "First argument must be an Error object" at a captureStackTrace on a
  * non-Error. A first run generates though a config's import makes such an error; a config that throws at load is
  * evaluated once; `--watch` sees an edit to a module the app imports.
  */
@@ -29,7 +29,7 @@ const CONFIG = (options: string) =>
 	`import { backendPlugin } from "@workerstack/backend/plugin"\nexport default { plugins: [backendPlugin(${options})] }\n`
 const read = (dir: string, path: string) => (existsSync(join(dir, path)) ? readFileSync(join(dir, path), "utf8") : "")
 
-/** `backend generate <args>` on Bun with `env` over the test's own, its TMPDIR an empty one: a cold jiti cache. */
+/** `backend generate <args>` on Bun with `env` over the test's own, its TMPDIR an empty one: every cache cold. */
 function onBun(made: Project, args: readonly string[], env: NodeJS.ProcessEnv = {}) {
 	const cold = join(made.dir, ".tmp")
 	mkdirSync(cold)
@@ -73,7 +73,7 @@ describe("backend generate on Bun, from a cold cache (bit 20 k-fix)", () => {
 	it(
 		"evaluates a config that throws at load once, reporting its own error",
 		() => {
-			/* jiti on Bun imports natively, and on a throw evaluates the module again through its Babel */
+			/* a loader that retries a module that threw would evaluate it twice */
 			const made = fresh()
 			const log = join(made.dir, "evaluations.log")
 			made.write(
@@ -178,7 +178,7 @@ describe("the bin on Bun without the backend-source condition (bit 20 k-fix)", (
 				1,
 				"",
 				2,
-				"backend: Bun hand-off loop: --conditions=backend-source not visible after re-exec",
+				"backend: hand-off loop: --conditions=backend-source not visible after re-exec",
 			])
 		},
 		SLOW,

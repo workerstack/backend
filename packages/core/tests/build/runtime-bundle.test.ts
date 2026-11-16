@@ -1,7 +1,7 @@
 /**
  * What an app's bundle carries from the installed package (bit 19 i, ported from v0's runtime-bundle.test.ts): the
- * real core tarball, installed beside clients at the version core pins and every build-time package (oxfmt, ts-morph; jiti is core's own
- * dependency), so a leak would be bundled rather than fail to resolve. A bundle of `httpApp()` leaves out the tooling
+ * real core tarball, installed beside clients at the version core pins and every build-time package (oxfmt, ts-morph),
+ * so a leak would be bundled rather than fail to resolve. A bundle of `httpApp()` leaves out the tooling
  * and every optional feature until its subpath is imported; a Worker built by the build plugin carries none of the
  * build-time packages; and a core-only install loads the plugin, failing by name only when it is asked to generate.
  */
@@ -34,7 +34,6 @@ const OPTIONAL_FEATURES: Readonly<Record<string, string>> = {
  */
 const BUILD_TIME: Readonly<Record<string, RegExp>> = {
 	"@workerstack/clients": /@workerstack\/clients/,
-	jiti: /\bjiti\b|createJiti/,
 	oxfmt: /oxfmt/,
 	"ts-morph": /ts-morph/,
 }
@@ -363,7 +362,7 @@ describe("the runtime bundle of an installed core (bit 19 i)", () => {
 		60_000,
 	)
 
-	it("a Worker built by the build plugin carries none of ts-morph, oxfmt, jiti or clients", async () => {
+	it("a Worker built by the build plugin carries none of ts-morph, oxfmt or clients", async () => {
 		write(full, {
 			"src/worker-app.ts": [
 				'import { httpApp } from "@workerstack/backend/http"',

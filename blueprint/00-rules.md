@@ -98,7 +98,7 @@ A portable-core file never imports an adapter. `ts-morph` is imported only by th
 
 | package | role | manifest | devDependency (exact) | peerDependency | imported from |
 | --- | --- | --- | --- | --- | --- |
-| `jiti` | runtime dep | core | 2.7.0 | — | config/plugin loading |
+| `vite` | optional peer | core | 8.1.4 | — | config/app loading on Node (Vite's module runner) |
 | `ts-morph` | optional peer | **gen** (not core) | the exact tested version | `>=` that version | `honey-clients` type-extraction entry only — `honey/boundaries` keeps it out of core |
 | `oxfmt` | optional peer | **gen** | the exact tested version | `>=` that version | `honey-clients`'s CLI only, imported lazily for the TS post-pass (Q12); absent, TS goes out as emitted |
 | `@lovrozagar/honey-clients` | optional peer | **core** | `workspace:*` | `>=` the release | `src/build/` only, through `import()` or a type-only import (Q2) |
