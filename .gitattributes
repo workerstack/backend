@@ -1,5 +1,6 @@
-# repo:generated 7daa4918
+# repo:generated eafc378e
 * text=auto eol=lf
+**/_gen/** linguist-generated
 .repo/.gitkeep linguist-generated
 .repo/lessons/INDEX.md linguist-generated
 .vscode/tasks.json linguist-generated
